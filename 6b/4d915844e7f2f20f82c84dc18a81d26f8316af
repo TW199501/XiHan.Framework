@@ -1,0 +1,25 @@
+framework/tool/XiHan.Framework.Docs.Mcp/Options/DocsMcpOptions.cs
+  s_fe2baaa9a3a9f0::t_717e6e0f837bce 1-54
+framework/test/XiHan.Framework.Docs.Mcp.Tests/SectionScorerTests.cs
+  s_fe2baaa9a3a9f0::t_0f96c547e81be4 1-142
+framework/tool/XiHan.Framework.Docs.Mcp/Search/SearchHit.cs
+  s_fe2baaa9a3a9f0::t_4599ad49ba74f6 1-13
+framework/tool/XiHan.Framework.Docs.Mcp/Search/SectionScorer.cs
+  s_fe2baaa9a3a9f0::t_b944fad47eb30c 1-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "6b4d915844e7f2f20f82c84dc18a81d26f8316af",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
