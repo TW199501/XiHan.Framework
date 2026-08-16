@@ -1,0 +1,151 @@
+# Instincts generated from https://github.com/TW199501/XiHan.Framework
+# Generated: 2026-08-16T22:02:01.035Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: XiHan.Framework-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/TW199501/XiHan.Framework
+---
+
+# XiHan.Framework Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: feat, docs, fix, test
+
+## Evidence
+
+- 34 commits analyzed
+- Detected conventional commit pattern
+- Examples: docs: 新增文档 MCP Server 设计文档, feat(docs-mcp): 新增文档 MCP Server 项目骨架
+
+---
+id: XiHan.Framework-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/TW199501/XiHan.Framework
+---
+
+# XiHan.Framework Commit Length
+
+## Action
+
+Keep commit messages concise (~35 characters)
+
+## Evidence
+
+- Average commit message length: 35 chars
+- Based on 34 commits
+
+---
+id: XiHan.Framework-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/TW199501/XiHan.Framework
+---
+
+# XiHan.Framework Naming Files
+
+## Action
+
+Use PascalCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: PascalCase
+
+---
+id: XiHan.Framework-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/TW199501/XiHan.Framework
+---
+
+# XiHan.Framework Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: XiHan.Framework-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/TW199501/XiHan.Framework
+---
+
+# XiHan.Framework Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: XiHan.Framework-test-naming
+trigger: "when creating a test file"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/TW199501/XiHan.Framework
+---
+
+# XiHan.Framework Test Naming
+
+## Action
+
+Name test files using the pattern: *Tests.cs
+
+## Evidence
+
+- File pattern: *Tests.cs
+- Consistent across test files
+
+---
+id: XiHan.Framework-workflow-feature-development
+trigger: "when implementing a new feature"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/TW199501/XiHan.Framework
+---
+
+# XiHan.Framework Workflow Feature Development
+
+## Action
+
+Follow the feature-development workflow:
+1. Add feature implementation
+2. Add tests for feature
+3. Update documentation
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~16x per month
+- Files: **/*.test.*, **/api/**
+
