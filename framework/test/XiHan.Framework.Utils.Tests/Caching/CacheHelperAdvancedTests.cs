@@ -13,6 +13,17 @@ public class CacheHelperAdvancedTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
 
+    /// <summary>
+    /// 已挂到 <see cref="CacheHelper.CacheEvent"/> 上的处理器
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CacheHelper.CacheEvent"/> 是静态事件，订阅的生命周期是进程而非单个测试。
+    /// 处理器捕获了本次测试的 <see cref="ITestOutputHelper"/>，测试一结束它就失效；
+    /// 若不摘除，后续测试再触发缓存事件仍会回调进来，抛出「There is no currently active test」，
+    /// 失败还会记在那个无辜的后续测试头上。故用字段留住引用，在 Dispose 里退订。
+    /// </remarks>
+    private EventHandler<CacheEventArgs>? _cacheEventHandler;
+
     public CacheHelperAdvancedTests(ITestOutputHelper output)
     {
         _output = output;
@@ -100,11 +111,13 @@ public class CacheHelperAdvancedTests : IDisposable
         });
 
         var events = new List<CacheEventArgs>();
-        CacheHelper.CacheEvent += (sender, args) =>
+        // 经由字段订阅，Dispose 才有引用可退订；断言中途失败也不会把处理器遗留给后续测试
+        _cacheEventHandler = (sender, args) =>
         {
             events.Add(args);
             _output.WriteLine($"事件: {args.EventType} - 键: {args.Key}");
         };
+        CacheHelper.CacheEvent += _cacheEventHandler;
 
         // Act
         CacheHelper.Set("test_key", "test_value", 60); // Added
@@ -304,6 +317,13 @@ public class CacheHelperAdvancedTests : IDisposable
 
     public void Dispose()
     {
+        // 先退订再清缓存：Clear 本身会触发 Removed 事件，此时处理器已无存在必要
+        if (_cacheEventHandler is not null)
+        {
+            CacheHelper.CacheEvent -= _cacheEventHandler;
+            _cacheEventHandler = null;
+        }
+
         CacheHelper.Clear();
         CacheHelper.ResetStatistics();
         // 重置配置
