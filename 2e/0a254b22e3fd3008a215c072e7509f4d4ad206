@@ -1,0 +1,21 @@
+framework/test/XiHan.Framework.Docs.Mcp.Tests/MarkdownSectionSplitterTests.cs
+  s_fe2baaa9a3a9f0::t_6fe30c307a7a20 1-233
+framework/tool/XiHan.Framework.Docs.Mcp/Indexing/MarkdownSectionSplitter.cs
+  s_fe2baaa9a3a9f0::t_0e3a3830a031f4 1-232
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "2e0a254b22e3fd3008a215c072e7509f4d4ad206",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
