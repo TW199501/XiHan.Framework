@@ -44,17 +44,11 @@ jobs:
 
       - name: 测试
         # 全部工程均为强门禁，失败即中断。
+        # 走 Microsoft.Testing.Platform（由 global.json 的 test.runner 指定）。
+        # --logger / --results-directory 是 VSTest 专属参数，MTP 下会以退出码 5
+        # 「零项测试被执行」失败，故移除；TRX 报告需另引
+        # Microsoft.Testing.Extensions.TrxReport，本仓暂未引入。
         run: >
           dotnet test framework/XiHan.Framework.slnx
           --configuration Release
           --no-build
-          --logger "trx;LogFileName=tests.trx"
-          --results-directory ${{ runner.temp }}/test-results
-
-      - name: 上传测试结果
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: ${{ runner.temp }}/test-results
-          if-no-files-found: ignore
