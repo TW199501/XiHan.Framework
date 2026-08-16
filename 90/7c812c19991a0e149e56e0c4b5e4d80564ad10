@@ -1,0 +1,20 @@
+framework/tool/XiHan.Framework.Docs.Mcp/README.md
+  s_fe2baaa9a3a9f0::t_8031b02f65e6b5 41-53,59-73,75-105,118,120,134
+  s_fe2baaa9a3a9f0::t_c2072b892b6306 40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "907c812c19991a0e149e56e0c4b5e4d80564ad10",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
