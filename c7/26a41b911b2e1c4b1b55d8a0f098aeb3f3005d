@@ -1,0 +1,32 @@
+framework/test/XiHan.Framework.Docs.Mcp.Tests/StdioHostIntegrationTests.cs
+  s_fe2baaa9a3a9f0::t_6b4c2fbc8b15e3 456-482
+  s_fe2baaa9a3a9f0::t_54352a35e7c1a0 169-178
+  s_fe2baaa9a3a9f0::t_418fe2dbbd509a 286
+  s_fe2baaa9a3a9f0::t_ff898ff2a5bb98 108-109
+  s_fe2baaa9a3a9f0::t_f74fbbccdb6c66 1-5,7-104,106-107,110-168,179-285,287-390,392,394-395,402-455,483-549
+  s_fe2baaa9a3a9f0::t_0c668be607411f 391,393,396-401
+  s_fe2baaa9a3a9f0::t_45ae90f70f65cd 6
+  s_fe2baaa9a3a9f0::t_afc1909f9f1cec 105
+framework/test/XiHan.Framework.Docs.Mcp.Tests/DataTypeContractTests.cs
+  s_fe2baaa9a3a9f0::t_13f2423abbedbf 1-93
+framework/test/XiHan.Framework.Docs.Mcp.Tests/DocSourceLocatorTests.cs
+  s_fe2baaa9a3a9f0::t_9dc43e947f5e81 31-34
+  s_fe2baaa9a3a9f0::t_8df684750b6916 136-147,153-155,159-185
+  s_fe2baaa9a3a9f0::t_d971a4a113d6dc 186-187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "c726a41b911b2e1c4b1b55d8a0f098aeb3f3005d",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
