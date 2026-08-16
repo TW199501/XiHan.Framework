@@ -1,0 +1,21 @@
+framework/tool/XiHan.Framework.Docs.Mcp/Indexing/Tokenizer.cs
+  s_fe2baaa9a3a9f0::t_7dcb4ea1e5371c 1-134
+framework/test/XiHan.Framework.Docs.Mcp.Tests/TokenizerTests.cs
+  s_fe2baaa9a3a9f0::t_80b6cb5e4e162f 1-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "5fc8d4fef74a37ed3a72f9d36b2c14b01f23d138",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
