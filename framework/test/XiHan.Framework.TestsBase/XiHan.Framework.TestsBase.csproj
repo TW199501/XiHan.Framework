@@ -1,8 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<Import Project="..\..\props\netcore.props" />
 	<Import Project="..\..\props\common.props" />
-	<Import Project="..\..\props\test.props" />
 
 	<PropertyGroup>
 		<Title>XiHan.Framework.TestsBase</Title>
@@ -10,19 +9,11 @@
 		<PackageId>XiHan.Framework.TestsBase</PackageId>
 		<Description>曦寒框架测试基础库</Description>
 		<OutputType>Library</OutputType>
+		<!-- 这是供其它测试工程继承的共享基础库，本身不含任何测试，故不 Import test.props：
+		     引了它会带进测试宿主，把这个库变成可执行的测试目标，而
+		     Microsoft.Testing.Platform 把「零项测试」判为错误（退出码 5），会卡住整条 CI。 -->
+		<IsPackable>false</IsPackable>
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
 	</PropertyGroup>
-
-	<ItemGroup>
-	  <PackageReference Update="coverlet.collector" Version="10.0.1">
-	    <PrivateAssets>all</PrivateAssets>
-	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-	  </PackageReference>
-	  <PackageReference Update="Microsoft.NET.Test.Sdk" Version="18.9.0" />
-	  <PackageReference Update="xunit.runner.visualstudio" Version="4.0.0">
-	    <PrivateAssets>all</PrivateAssets>
-	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-	  </PackageReference>
-	  <PackageReference Update="xunit.v3" Version="4.0.0" />
-	</ItemGroup>
 
 </Project>
