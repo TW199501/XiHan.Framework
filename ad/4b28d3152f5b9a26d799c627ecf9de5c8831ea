@@ -1,0 +1,23 @@
+framework/tool/XiHan.Framework.Docs.Mcp/Sources/DocFile.cs
+  s_fe2baaa9a3a9f0::t_5d91ff5b61d1ce 1-17
+framework/tool/XiHan.Framework.Docs.Mcp/Indexing/DocSection.cs
+  s_fe2baaa9a3a9f0::t_6b0587f1da2d10 1-27
+framework/tool/XiHan.Framework.Docs.Mcp/Sources/DocSourceKind.cs
+  s_fe2baaa9a3a9f0::t_910ccc84a1c30a 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ad4b28d3152f5b9a26d799c627ecf9de5c8831ea",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
