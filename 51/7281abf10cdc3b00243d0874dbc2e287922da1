@@ -1,0 +1,37 @@
+framework/test/XiHan.Framework.Web.Mcp.Tests/EchoAiSkill.cs
+  s_fe2baaa9a3a9f0::t_c44a28c7886423 1-46
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpExposureGateTests.cs
+  s_fe2baaa9a3a9f0::t_d5d81137db5f1b 53-57
+  s_fe2baaa9a3a9f0::t_72b37d6577c054 1-52,58-172
+framework/XiHan.Framework.slnx
+  s_fe2baaa9a3a9f0::t_076a80297094c7 106
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpApiKeyFilterTests.cs
+  s_fe2baaa9a3a9f0::t_6bb75823a82cc6 1-38,40-60,62-132
+  s_fe2baaa9a3a9f0::t_fcd410d3613f06 39,61
+framework/test/XiHan.Framework.Web.Mcp.Tests/XiHan.Framework.Web.Mcp.Tests.csproj
+  s_fe2baaa9a3a9f0::t_fff909df9ade3d 1-33
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpSkillProjectionTests.cs
+  s_fe2baaa9a3a9f0::t_ee1a6c76d621ca 1-32,34-44,52-61,64-68,70-71
+  s_fe2baaa9a3a9f0::t_fcd410d3613f06 33
+  s_fe2baaa9a3a9f0::t_661c510aa55419 62-63
+  s_fe2baaa9a3a9f0::t_b2ba8349211a89 45-51,69
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpTestHost.cs
+  s_fe2baaa9a3a9f0::t_0aadfdb670f2a5 1-199,201-204,206-280
+  s_fe2baaa9a3a9f0::t_ea3423020e0020 200,205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "517281abf10cdc3b00243d0874dbc2e287922da1",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
