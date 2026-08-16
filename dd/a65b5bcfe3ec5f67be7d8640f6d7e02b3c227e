@@ -1,0 +1,29 @@
+framework/tool/XiHan.Framework.Docs.Mcp.Web/XiHan.Framework.Docs.Mcp.Web.csproj
+  s_fe2baaa9a3a9f0::t_1e37ac27815a6a 29-36,39-40
+  s_fe2baaa9a3a9f0::t_c2f2c8f16e72a9 28
+  s_fe2baaa9a3a9f0::t_8332d5f92c3e94 37-38
+framework/test/XiHan.Framework.Docs.Mcp.Web.Tests/ApiKeyAuthTests.cs
+  s_fe2baaa9a3a9f0::t_b70c2392b668ac 12-15
+framework/tool/XiHan.Framework.Docs.Mcp.Web/Extensions/ApplicationBuilderExtensions.cs
+  s_fe2baaa9a3a9f0::t_fb44f8adfef0c0 5-7
+framework/tool/XiHan.Framework.Docs.Mcp.Web/README.md
+  s_fe2baaa9a3a9f0::t_cd90b62bfba98b 29
+  s_fe2baaa9a3a9f0::t_afd508c37832f4 162
+  s_fe2baaa9a3a9f0::t_199f0e30ab06aa 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "dda65b5bcfe3ec5f67be7d8640f6d7e02b3c227e",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
