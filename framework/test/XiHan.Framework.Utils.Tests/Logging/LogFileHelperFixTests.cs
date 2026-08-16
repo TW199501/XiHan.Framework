@@ -1,6 +1,8 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.Globalization;
+using System.Text.RegularExpressions;
 using XiHan.Framework.Utils.Logging;
 
 namespace XiHan.Framework.Utils.Tests.Logging;
@@ -257,16 +259,33 @@ public class LogFileHelperFixTests : IDisposable
             Console.WriteLine($"  {file}");
         }
 
-        // 验证文件命名规律
-        Assert.Contains(logFiles, f => f.Contains("error.log")); // 基础文件
+        // 验证文件命名规律。
+        // LogFileHelper 生成的名字是 {yyyyMMdd}_error.log，滚动出的文件在其后追加 _{序号}，
+        // 序号自 1 起连续递增；原断言写成 Assert.Contains("error_1.log", logFiles)，
+        // 走的是集合「元素相等」重载，拿不带日期前缀的短名去比全名，永远不可能命中。
+        //
+        // 这里直接核对命名规则本身，而不是靠文件个数间接推断：滚动出几个文件取决于
+        // 后台写盘线程能否跟上入队速度（机器越忙文件越少），命名规则却与负载无关。
+        var namePattern = new Regex(@"^(?<date>\d{8})_error(?:_(?<index>\d+))?\.log$");
 
-        if (logFiles.Length > 1)
+        var parsedNames = logFiles.Select(fileName =>
         {
-            // 验证编号文件命名正确
-            for (var i = 1; i < logFiles.Length; i++)
-            {
-                Assert.Contains($"error_{i}.log", logFiles);
-            }
+            var match = namePattern.Match(fileName);
+            Assert.True(match.Success, $"文件名不符合 {{日期}}_error[_{{序号}}].log 命名规则：{fileName}");
+            return (
+                Date: match.Groups["date"].Value,
+                Index: match.Groups["index"].Success
+                    ? int.Parse(match.Groups["index"].Value, CultureInfo.InvariantCulture)
+                    : 0);
+        }).ToArray();
+
+        // 跨 UTC 零点时会出现两个日期前缀，各自独立编号，故按日期分组核对
+        foreach (var sameDayFiles in parsedNames.GroupBy(item => item.Date))
+        {
+            var indexes = sameDayFiles.Select(item => item.Index).OrderBy(index => index).ToArray();
+
+            // 0 代表未编号的基础文件：首条日志必然落在它上面，其后的编号必须是连续的 1、2、3……
+            Assert.Equal(Enumerable.Range(0, indexes.Length), indexes);
         }
     }
 
