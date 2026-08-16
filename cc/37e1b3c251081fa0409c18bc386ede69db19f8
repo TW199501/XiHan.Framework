@@ -1,0 +1,23 @@
+.superpowers/specs/2026-08-16-docs-mcp-server-design.md
+  s_fe2baaa9a3a9f0::t_f024c7506c165c 1-32,34,38-71,73-153,157-179,181,184-241
+  s_fe2baaa9a3a9f0::t_69066bb7b54ef2 72
+  s_fe2baaa9a3a9f0::t_002b14ad1eac87 154-156
+  s_fe2baaa9a3a9f0::t_6fdaaae9240e3c 180,182-183
+  s_fe2baaa9a3a9f0::t_0349e2ce14adeb 33,35-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "cc37e1b3c251081fa0409c18bc386ede69db19f8",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
