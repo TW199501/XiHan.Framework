@@ -1,0 +1,65 @@
+framework/tool/XiHan.Framework.Docs.Mcp/Search/RelevanceGate.cs
+  s_fe2baaa9a3a9f0::t_a3ca33281b5755 30-49,53,57-58
+  s_fe2baaa9a3a9f0::t_f5bd279c69e5d5 29
+framework/tool/XiHan.Framework.Docs.Mcp/README.md
+  s_fe2baaa9a3a9f0::t_985b81b6def555 96-114
+  s_fe2baaa9a3a9f0::t_fba033a5712b4d 24
+  s_fe2baaa9a3a9f0::t_eb384b486bf040 89,92
+  s_fe2baaa9a3a9f0::t_162311d5a39581 115
+framework/tool/XiHan.Framework.Docs.Mcp/Tools/DocsMcpTools.cs
+  s_fe2baaa9a3a9f0::t_f749c303c7fad0 236-237,242
+  s_fe2baaa9a3a9f0::t_3f88b100cadd18 25,30-40,49-50
+  s_fe2baaa9a3a9f0::t_ddb883dd05cbf8 5,7
+  s_fe2baaa9a3a9f0::t_3903c062a29d7c 212,218-224
+  s_fe2baaa9a3a9f0::t_0b3791be49921f 180-181,188-195
+  s_fe2baaa9a3a9f0::t_d687b769820d27 154-163
+  s_fe2baaa9a3a9f0::t_1a14b26336d7d5 265-273,284-293
+  s_fe2baaa9a3a9f0::t_dcfb45896f1fae 96-117
+  s_fe2baaa9a3a9f0::t_d4213e89fd6ba4 356-364,369-377,382-389,393-402
+  s_fe2baaa9a3a9f0::t_9b5b154649a888 390-392
+  s_fe2baaa9a3a9f0::t_8b3660bc90f102 310-311
+  s_fe2baaa9a3a9f0::t_7cce521405b12f 66-67,72-76,89-94,118,122
+  s_fe2baaa9a3a9f0::t_3df55d794c01bb 123-129
+  s_fe2baaa9a3a9f0::t_6e88220cc62dc0 261
+  s_fe2baaa9a3a9f0::t_2d99f2af97c399 130,243,403-404
+framework/test/XiHan.Framework.Docs.Mcp.Tests/GoldenQueryTests.cs
+  s_fe2baaa9a3a9f0::t_f01142e11bc5e1 243
+framework/test/XiHan.Framework.Docs.Mcp.Tests/DocsMcpToolsLoggingTests.cs
+  s_fe2baaa9a3a9f0::t_c0773421229bc6 67
+  s_fe2baaa9a3a9f0::t_63b549b9240efe 199,205-207,211,213,223,227-250
+  s_fe2baaa9a3a9f0::t_f07d6444f6897f 1-66,68-198,200-204,208-210,212,214-222,224-226,251-275
+framework/tool/XiHan.Framework.Docs.Mcp/Indexing/DocIndex.cs
+  s_fe2baaa9a3a9f0::t_836ecd7a5f1104 4
+  s_fe2baaa9a3a9f0::t_004a940f0446c3 121,123-124
+  s_fe2baaa9a3a9f0::t_b72a2812f67565 94-97
+  s_fe2baaa9a3a9f0::t_18a2a8c0df86b5 120,122
+framework/test/XiHan.Framework.Docs.Mcp.Tests/CapturingLogger.cs
+  s_fe2baaa9a3a9f0::t_17933e82e5c4e4 1-96
+framework/test/XiHan.Framework.Docs.Mcp.Tests/DocsMcpToolsTests.cs
+  s_fe2baaa9a3a9f0::t_77dabf63633235 279-280
+framework/test/XiHan.Framework.Docs.Mcp.Tests/DocIndexTests.cs
+  s_fe2baaa9a3a9f0::t_ef6ba84c87fdad 112-120,127-138,141
+  s_fe2baaa9a3a9f0::t_51c3d99e498e76 121-126,139-140
+  s_fe2baaa9a3a9f0::t_27e37c642a96a2 4
+  s_fe2baaa9a3a9f0::t_fdc0b63bf70e32 111
+  s_fe2baaa9a3a9f0::t_88f895873cdeaa 142-143
+framework/tool/XiHan.Framework.Docs.Mcp.Web/README.md
+  s_fe2baaa9a3a9f0::t_c65fcc24847b3d 111
+  s_fe2baaa9a3a9f0::t_93a680b78ad123 125-137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "21ed5e726e61f24d3f3493431287dd84c6a78daf",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
