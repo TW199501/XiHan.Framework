@@ -1,24 +1,20 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<Import Project="..\..\props\netcore.props" />
 	<Import Project="..\..\props\common.props" />
-	<Import Project="..\..\props\test.props" />
+
+	<PropertyGroup>
+		<!-- 本项目目前一个测试都没有（连 .cs 文件都没有），是预留的占位工程。
+		     因此不 Import test.props：引了它才会带进 xunit 与测试宿主，把一个空工程
+		     变成可执行的测试目标。Microsoft.Testing.Platform 会把「零项测试」判为错误
+		     （退出码 5，VSTest 则容忍），整条 CI 会被它卡住。
+		     ⚠ 写第一个 [Fact] 时，把 test.props 的 Import 与版本覆写加回来，并删掉这段。 -->
+		<IsPackable>false</IsPackable>
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
+	</PropertyGroup>
 
 	<ItemGroup>
 	  <ProjectReference Include="..\..\src\XiHan.Framework.Serialization\XiHan.Framework.Serialization.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <PackageReference Update="coverlet.collector" Version="10.0.1">
-	    <PrivateAssets>all</PrivateAssets>
-	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-	  </PackageReference>
-	  <PackageReference Update="Microsoft.NET.Test.Sdk" Version="18.9.0" />
-	  <PackageReference Update="xunit.runner.visualstudio" Version="4.0.0">
-	    <PrivateAssets>all</PrivateAssets>
-	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-	  </PackageReference>
-	  <PackageReference Update="xunit.v3" Version="4.0.0" />
 	</ItemGroup>
 
 </Project>
