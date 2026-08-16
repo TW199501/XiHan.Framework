@@ -296,8 +296,9 @@ public class LogFileHelperFixTests : IDisposable
     public void PerformanceRegression_ShouldMaintainGoodPerformance()
     {
         // Arrange
-        LogFileHelper.SetMaxFileSize(10 * 1024); // 10KB
+        const int MaxFileSize = 10 * 1024; // 10KB
         const int MessageCount = 5000;
+        LogFileHelper.SetMaxFileSize(MaxFileSize);
         var message = "Performance test message with moderate length content";
 
         // Act
@@ -321,11 +322,27 @@ public class LogFileHelperFixTests : IDisposable
         Console.WriteLine($"  Throughput: {throughput:F0} messages/second");
         Console.WriteLine($"  Files created: {logFiles.Length}");
 
-        // 性能应该保持良好
+        // 性能应该保持良好。
+        // 500 msg/s 这个下限不是拿本机跑分凑的：入队只做一次格式化加一次 Channel 写入，
+        // 真正的耗时上限来自 Flush，它内部最多等 5 秒就返回。也就是说无论机器多忙，
+        // 总耗时都被压在「入队时间 + 5 秒」里，5000 条要跌破 500 msg/s 得整整 10 秒。
+        // 它拦的是量级事故（例如退回逐条同步 IO），不是几个百分点的波动，
+        // 因此在双核且被其它测试项目抢占的 CI 上同样成立。
         Assert.True(throughput > 500, $"Throughput too low: {throughput:F0} msg/s");
 
-        // 文件数量应该合理
-        Assert.True(logFiles.Length < 10, $"Too many files created: {logFiles.Length}");
+        // 文件数量应该合理。
+        // 原断言写死 “< 10”，与本用例自己设的 10KB 上限自相矛盾：5000 条约 460KB，
+        // 只要滚动正常就必然产出 40 多个文件，这个上限过去只在滚动塌缩成单文件时才成立。
+        // 改为由「实际落盘字节数 ÷ 单文件上限」推出理论文件数，再放一倍余量：
+        // 界限跟着配置走，量的是「有没有异常碎片化」而不是机器有多快。
+        // 只设上限不设下限，是因为滚动选名依据的是磁盘大小，后台写盘跟不上时
+        // 基础文件会超限膨胀，实际文件数可以低于理论值（见 FileSizeControl_ShouldWorkCorrectly 的跳过说明）。
+        var totalBytes = logFiles.Sum(file => new FileInfo(file).Length);
+        var expectedFiles = (int)Math.Ceiling(totalBytes / (double)MaxFileSize);
+        var maxAcceptableFiles = (expectedFiles * 2) + 2;
+
+        Assert.True(logFiles.Length <= maxAcceptableFiles,
+            $"文件过于碎片化：{totalBytes} 字节按 {MaxFileSize} 字节上限约需 {expectedFiles} 个文件，实际 {logFiles.Length} 个");
     }
 
     public void Dispose()
