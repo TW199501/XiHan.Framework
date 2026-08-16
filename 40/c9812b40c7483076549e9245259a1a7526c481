@@ -1,0 +1,32 @@
+framework/test/XiHan.Framework.Docs.Mcp.Tests/SynonymExpanderTests.cs
+  s_fe2baaa9a3a9f0::t_fb0e6d0857dcd4 62-66,73-75,77-80
+framework/tool/XiHan.Framework.Docs.Mcp/Tools/DocsMcpTools.cs
+  s_fe2baaa9a3a9f0::t_c9e6231813378e 123-128,130-131,141-142
+  s_fe2baaa9a3a9f0::t_3f417be5f3471e 129
+framework/test/XiHan.Framework.Docs.Mcp.Tests/DocsMcpToolsTests.cs
+  s_fe2baaa9a3a9f0::t_77784fb8b95fa7 164
+  s_fe2baaa9a3a9f0::t_8d3822a8e3160b 175,177-235
+  s_fe2baaa9a3a9f0::t_51a01c43dfc303 154-158,163,166-174
+  s_fe2baaa9a3a9f0::t_a6e8b34c9c7471 165
+  s_fe2baaa9a3a9f0::t_abe77e89d89051 176
+framework/tool/XiHan.Framework.Docs.Mcp/Sources/DocSourceLocator.cs
+  s_fe2baaa9a3a9f0::t_eebe74eeec3da9 127-128
+  s_fe2baaa9a3a9f0::t_f87bf7e10120eb 31-45
+  s_fe2baaa9a3a9f0::t_6e381c6f881856 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "40c9812b40c7483076549e9245259a1a7526c481",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
