@@ -1,0 +1,62 @@
+global.json
+  s_fe2baaa9a3a9f0::t_be5f14edc6c3d4 5-7
+.github/workflows/ci.yml
+  s_fe2baaa9a3a9f0::t_c76f86baa6662f 47-50
+  s_fe2baaa9a3a9f0::t_c40475c7b29cf9 30
+  s_fe2baaa9a3a9f0::t_1d598d461646c4 27
+framework/test/XiHan.Framework.Serialization.Tests/XiHan.Framework.Serialization.Tests.csproj
+  s_fe2baaa9a3a9f0::t_05f7930ba94cc2 1,8-13
+  s_fe2baaa9a3a9f0::t_a858c7c7da9b59 6-7,14
+  s_fe2baaa9a3a9f0::t_0d91bfec942a01 17
+framework/test/XiHan.Framework.DevTools.Tests/XiHan.Framework.DevTools.Tests.csproj
+  s_fe2baaa9a3a9f0::t_270f251e9abb02 1,7-13
+  s_fe2baaa9a3a9f0::t_9a26fde8988513 6,14
+  s_fe2baaa9a3a9f0::t_0b381c0169f509 17
+framework/test/XiHan.Framework.TestsBase/XiHan.Framework.TestsBase.csproj
+  s_fe2baaa9a3a9f0::t_3de83e494b7e7a 1,12-16
+framework/test/XiHan.Framework.Http.Tests/XiHan.Framework.Http.Tests.csproj
+  s_fe2baaa9a3a9f0::t_a266793a022f69 1,7-14
+  s_fe2baaa9a3a9f0::t_921e01da081510 6,15
+  s_fe2baaa9a3a9f0::t_d5cf041df52359 18
+framework/test/XiHan.Framework.Utils.Tests/Caching/CacheHelperAdvancedTests.cs
+  s_fe2baaa9a3a9f0::t_afc42e119acabc 114-115,120
+  s_fe2baaa9a3a9f0::t_deaf9251d2d681 320-322,324-326
+  s_fe2baaa9a3a9f0::t_634b888013fcd5 16-26
+  s_fe2baaa9a3a9f0::t_19c15235d96eef 323
+framework/test/XiHan.Framework.Utils.Tests/Logging/LogFileHelperFixTests.cs
+  s_fe2baaa9a3a9f0::t_6bdff8bc38c9e9 274-281,283,285-300
+  s_fe2baaa9a3a9f0::t_750dec146250fe 4-5
+  s_9aa84273e589bc::t_62035725e467d5 311,313,337-342,345-357
+  s_fe2baaa9a3a9f0::t_4f42087d334a06 16-20
+  s_fe2baaa9a3a9f0::t_83b211171097e0 360-374
+  s_fe2baaa9a3a9f0::t_b741b53f8af4c9 89-94
+  s_fe2baaa9a3a9f0::t_f0ed1b74af829e 119-125,129-130
+  s_fe2baaa9a3a9f0::t_31565436214e00 375-376
+framework/src/XiHan.Framework.Utils/Logging/LogFileHelper.cs
+  s_fe2baaa9a3a9f0::t_6c1c1fe5568c02 1144-1150,1154,1172
+  s_fe2baaa9a3a9f0::t_54ac1b8bc44e94 1129-1131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "60f4e42e3cfdc5f23f3c1054bd449188c5f95fa1",
+  "prompts": {},
+  "sessions": {
+    "s_9aa84273e589bc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-afix-utils-62542168e242b97c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
