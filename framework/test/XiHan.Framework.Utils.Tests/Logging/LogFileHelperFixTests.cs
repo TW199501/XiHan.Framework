@@ -13,6 +13,11 @@ namespace XiHan.Framework.Utils.Tests.Logging;
 [Collection(LoggingTestCollection.Name)]
 public class LogFileHelperFixTests : IDisposable
 {
+    /// <summary>
+    /// 匹配日志文件名结尾的滚动序号，基础文件没有这一段
+    /// </summary>
+    private static readonly Regex RotationIndexPattern = new(@"_(\d+)$");
+
     private readonly string _testLogDirectory;
 
     public LogFileHelperFixTests()
@@ -81,11 +86,12 @@ public class LogFileHelperFixTests : IDisposable
     /// <summary>
     /// 验证文件大小控制机制工作正常
     /// </summary>
-    // 已知失败：达到大小上限后 GetNextAvailableFileName 仍按磁盘大小挑选文件名，
-    // 而批量异步写入下磁盘尚未落盘，于是又选回同一个文件，始终只产出一个日志文件。
-    // 曾尝试让该方法改用「已分配字节数」，结果引入更多失败（见提交 e910eb2e 说明），
-    // 滚动选名需要单独设计，未在此处修复。此标注是为了不让单条已知缺陷长期阻塞整条流水线。
-    [Fact(Skip = "滚动选名按磁盘大小判断，批量异步下无法产生第二个文件，待重新设计")]
+    /// <remarks>
+    /// 这是滚动选名按「已分配字节数」判断的回归防线：一旦 GetNextAvailableFileName
+    /// 退回按磁盘大小挑选，批量异步写入下磁盘尚未落盘，选名会一直选回同一个文件，
+    /// 本用例的「产出多个文件」与「除收尾外每个文件都接近上限」两条断言会同时变红。
+    /// </remarks>
+    [Fact]
     public void FileSizeControl_ShouldWorkCorrectly()
     {
         // Arrange
@@ -110,12 +116,18 @@ public class LogFileHelperFixTests : IDisposable
         // 应该创建多个文件
         Assert.True(logFiles.Length > 1, "Should create multiple files due to size limit");
 
-        // 检查每个文件大小（除最后一个外都应该接近1KB）
-        foreach (var file in logFiles.Take(logFiles.Length - 1))
+        // 检查每个文件大小（除最后一个外都应该接近1KB）。
+        // 「最后一个」必须按文件名里的滚动序号取，不能直接用 Directory.GetFiles 的返回顺序：
+        // 那是字母序，_8.log、_9.log 会排在 _71.log 之后，于是真正收尾、只写了一部分的那个
+        // 文件反而留在中间被校验，断言必然失败。
+        var filesInCreationOrder = logFiles.OrderBy(GetRotationIndex).ToArray();
+
+        foreach (var file in filesInCreationOrder.Take(filesInCreationOrder.Length - 1))
         {
             var fileInfo = new FileInfo(file);
             Console.WriteLine($"  {Path.GetFileName(file)}: {fileInfo.Length} bytes");
-            Assert.True(fileInfo.Length >= 1024 * 0.8, "File should be close to size limit");
+            Assert.True(fileInfo.Length >= 1024 * 0.8,
+                $"File should be close to size limit: {Path.GetFileName(file)} 只有 {fileInfo.Length} 字节");
         }
 
         // 验证消息完整性
@@ -343,6 +355,23 @@ public class LogFileHelperFixTests : IDisposable
 
         Assert.True(logFiles.Length <= maxAcceptableFiles,
             $"文件过于碎片化：{totalBytes} 字节按 {MaxFileSize} 字节上限约需 {expectedFiles} 个文件，实际 {logFiles.Length} 个");
+    }
+
+    /// <summary>
+    /// 取日志文件名里的滚动序号，基础文件（无序号）记作 0
+    /// </summary>
+    /// <remarks>
+    /// 序号即创建顺序，而 <see cref="Directory.GetFiles(string, string)"/> 给的是字母序，
+    /// _10 排在 _2 之前、_8 排在 _71 之后，拿它当创建顺序会取错「最后一个文件」。
+    /// </remarks>
+    /// <param name="filePath">日志文件路径</param>
+    /// <returns>滚动序号</returns>
+    private static int GetRotationIndex(string filePath)
+    {
+        var match = RotationIndexPattern.Match(Path.GetFileNameWithoutExtension(filePath));
+        return match.Success
+            ? int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture)
+            : 0;
     }
 
     public void Dispose()
