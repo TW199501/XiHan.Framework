@@ -1,0 +1,31 @@
+framework/test/XiHan.Framework.Serialization.Tests/XiHan.Framework.Serialization.Tests.csproj
+  s_fe2baaa9a3a9f0::t_05f7930ba94cc2 1,8-13
+  s_fe2baaa9a3a9f0::t_a858c7c7da9b59 6-7,14
+  s_fe2baaa9a3a9f0::t_0d91bfec942a01 17
+framework/test/XiHan.Framework.DevTools.Tests/XiHan.Framework.DevTools.Tests.csproj
+  s_fe2baaa9a3a9f0::t_270f251e9abb02 1,7-13
+  s_fe2baaa9a3a9f0::t_9a26fde8988513 6,14
+  s_fe2baaa9a3a9f0::t_0b381c0169f509 17
+framework/test/XiHan.Framework.TestsBase/XiHan.Framework.TestsBase.csproj
+  s_fe2baaa9a3a9f0::t_3de83e494b7e7a 1,12-16
+framework/test/XiHan.Framework.Http.Tests/XiHan.Framework.Http.Tests.csproj
+  s_fe2baaa9a3a9f0::t_a266793a022f69 1,7-14
+  s_fe2baaa9a3a9f0::t_921e01da081510 6,15
+  s_fe2baaa9a3a9f0::t_d5cf041df52359 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "0161a7c2bc36a653d19761c457787cb39afb9b5d",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+framework/test/XiHan.Framework.Utils.Tests/Logging/LogFileHelperFixTests.cs
+  s_9aa84273e589bc::t_62035725e467d5 299,301,325-330,333-345
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "7381157b49e80333c10a60778005f6f7d99d553c",
+  "prompts": {},
+  "sessions": {
+    "s_9aa84273e589bc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-afix-utils-62542168e242b97c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
