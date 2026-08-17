@@ -41,12 +41,12 @@ public class ParallelJoinTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "fork-join" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "fork-join" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Completed, instance.Status);
         Assert.Equal(3m, new WorkflowVariables(instance.Variables).Get<decimal>("sum"));
 
-        var nodeInstances = await _host.InstanceStore.GetNodeInstancesAsync(instance.Id);
+        var nodeInstances = await _host.InstanceStore.GetNodeInstancesAsync(instance.Id, TestContext.Current.CancellationToken);
         Assert.Equal(1, nodeInstances.Count(item => item.NodeId == "join"));
         Assert.Equal(1, nodeInstances.Count(item => item.NodeId == "after"));
     }
@@ -75,10 +75,10 @@ public class ParallelJoinTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "fork-any" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "fork-any" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Completed, instance.Status);
-        var nodeInstances = await _host.InstanceStore.GetNodeInstancesAsync(instance.Id);
+        var nodeInstances = await _host.InstanceStore.GetNodeInstancesAsync(instance.Id, TestContext.Current.CancellationToken);
         Assert.Equal(1, nodeInstances.Count(item => item.NodeId == "join"));
     }
 

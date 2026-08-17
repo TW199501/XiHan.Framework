@@ -52,15 +52,15 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "events" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "events" }, TestContext.Current.CancellationToken);
 
         Assert.Single(_host.Events.OfType<WorkflowInstanceStartedEventData>());
         var created = Assert.Single(_host.Events.OfType<WorkflowUserTaskCreatedEventData>());
         Assert.Equal("u1", created.Task.AssigneeId);
         Assert.Equal(["cc1", "cc2"], created.CcUserIds);
 
-        var task = (await _host.UserTaskService.GetPendingAsync("u1")).Single();
-        await _host.UserTaskService.CompleteAsync(task.TaskId, "u1", WorkflowUserTaskOutcomes.Approved, "同意");
+        var task = (await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken)).Single();
+        await _host.UserTaskService.CompleteAsync(task.TaskId, "u1", WorkflowUserTaskOutcomes.Approved, "同意", cancellationToken: TestContext.Current.CancellationToken);
 
         var completedTask = Assert.Single(_host.Events.OfType<WorkflowUserTaskCompletedEventData>());
         Assert.Equal("u1", completedTask.ActorId);
@@ -89,7 +89,7 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await host.PublishAsync(definition);
 
-        var instance = await host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "loop" });
+        var instance = await host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "loop" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Faulted, instance.Status);
         Assert.Contains("失控环路", instance.FaultMessage);
@@ -113,13 +113,13 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await host.PublishAsync(definition);
 
-        var instance = await host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "locked" });
+        var instance = await host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "locked" }, TestContext.Current.CancellationToken);
 
         await using var handle = await host.Lock.TryAcquireAsync(
-            WorkflowConsts.InstanceLockKeyPrefix + instance.Id, TimeSpan.FromMinutes(1));
+            WorkflowConsts.InstanceLockKeyPrefix + instance.Id, TimeSpan.FromMinutes(1), TestContext.Current.CancellationToken);
         Assert.NotNull(handle);
 
-        await Assert.ThrowsAsync<WorkflowLockTimeoutException>(() => host.Engine.SuspendAsync(instance.Id));
+        await Assert.ThrowsAsync<WorkflowLockTimeoutException>(() => host.Engine.SuspendAsync(instance.Id, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -140,25 +140,25 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(v1);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "versioned" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "versioned" }, TestContext.Current.CancellationToken);
         Assert.Equal(1, instance.DefinitionVersion);
 
         // 发布结构不同的 v2
-        var v2 = await _host.DefinitionManager.CreateNewVersionAsync("versioned");
+        var v2 = await _host.DefinitionManager.CreateNewVersionAsync("versioned", TestContext.Current.CancellationToken);
         v2.Nodes.Single(node => node.Id == "mark").Properties["Values"] =
             new Dictionary<string, object?> { ["path"] = "v2" };
-        await _host.DefinitionManager.UpdateDraftAsync(v2);
-        await _host.DefinitionManager.PublishAsync(v2.Id);
+        await _host.DefinitionManager.UpdateDraftAsync(v2, TestContext.Current.CancellationToken);
+        await _host.DefinitionManager.PublishAsync(v2.Id, TestContext.Current.CancellationToken);
 
-        var task = (await _host.UserTaskService.GetPendingAsync("u1")).Single();
-        var result = await _host.UserTaskService.CompleteAsync(task.TaskId, "u1", WorkflowUserTaskOutcomes.Approved);
+        var task = (await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken)).Single();
+        var result = await _host.UserTaskService.CompleteAsync(task.TaskId, "u1", WorkflowUserTaskOutcomes.Approved, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Completed, result.Status);
         Assert.Equal(1, result.DefinitionVersion);
         Assert.Equal("v1", new WorkflowVariables(result.Variables).Get<string>("path"));
 
         // 新实例走 v2
-        var fresh = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "versioned" });
+        var fresh = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "versioned" }, TestContext.Current.CancellationToken);
         Assert.Equal(2, fresh.DefinitionVersion);
     }
 
@@ -177,9 +177,9 @@ public class ReviewHardeningTests : IDisposable
             .AddTransition("start", "approve")
             .AddTransition("approve", "end")
             .Build();
-        var createdPolicy = await _host.DefinitionManager.CreateAsync(badPolicy);
+        var createdPolicy = await _host.DefinitionManager.CreateAsync(badPolicy, TestContext.Current.CancellationToken);
         var policyErrors = await Assert.ThrowsAsync<WorkflowDefinitionValidationException>(() =>
-            _host.DefinitionManager.PublishAsync(createdPolicy.Id));
+            _host.DefinitionManager.PublishAsync(createdPolicy.Id, TestContext.Current.CancellationToken));
         Assert.Contains(policyErrors.Errors, error => error.Contains("未知完成策略"));
 
         var badMode = WorkflowDefinitionBuilder.Create("bad-mode", "非法模式")
@@ -191,9 +191,9 @@ public class ReviewHardeningTests : IDisposable
             .AddTransition("fork", "join")
             .AddTransition("join", "end")
             .Build();
-        var createdMode = await _host.DefinitionManager.CreateAsync(badMode);
+        var createdMode = await _host.DefinitionManager.CreateAsync(badMode, TestContext.Current.CancellationToken);
         var modeErrors = await Assert.ThrowsAsync<WorkflowDefinitionValidationException>(() =>
-            _host.DefinitionManager.PublishAsync(createdMode.Id));
+            _host.DefinitionManager.PublishAsync(createdMode.Id, TestContext.Current.CancellationToken));
         Assert.Contains(modeErrors.Errors, error => error.Contains("未知模式"));
     }
 
@@ -212,13 +212,13 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "bare-resume" });
-        var bookmark = (await _host.BookmarkStore.GetByInstanceAsync(instance.Id)).Single();
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "bare-resume" }, TestContext.Current.CancellationToken);
+        var bookmark = (await _host.BookmarkStore.GetByInstanceAsync(instance.Id, TestContext.Current.CancellationToken)).Single();
 
-        var resumed = await _host.Engine.ResumeBookmarkAsync(bookmark.Id);
+        var resumed = await _host.Engine.ResumeBookmarkAsync(bookmark.Id, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Running, resumed.Status);
-        var rebuilt = (await _host.UserTaskService.GetPendingAsync("u1")).Single();
+        var rebuilt = (await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken)).Single();
         Assert.NotEqual(bookmark.Id, rebuilt.TaskId);
     }
 
@@ -238,7 +238,7 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var faulted = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "no-corr" });
+        var faulted = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "no-corr" }, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Faulted, faulted.Status);
         Assert.Contains("CorrelationId", faulted.FaultMessage);
 
@@ -254,9 +254,9 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(anyDefinition);
 
-        var waiting = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "any-corr" });
+        var waiting = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "any-corr" }, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Running, waiting.Status);
-        Assert.Equal(1, await _host.Engine.PublishSignalAsync("ping"));
+        Assert.Equal(1, await _host.Engine.PublishSignalAsync("ping", cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(WorkflowInstanceStatus.Completed, (await _host.ReloadAsync(waiting.Id)).Status);
     }
 
@@ -275,7 +275,7 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "cancel-mid" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "cancel-mid" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Faulted, instance.Status);
         Assert.Equal("boom", instance.FaultNodeId);
@@ -298,7 +298,7 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "bad-child" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "bad-child" }, TestContext.Current.CancellationToken);
 
         var reloaded = await _host.ReloadAsync(instance.Id);
         Assert.Equal(WorkflowInstanceStatus.Faulted, reloaded.Status);
@@ -320,18 +320,18 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "backoff" });
-        await _host.Engine.SuspendAsync(instance.Id);
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "backoff" }, TestContext.Current.CancellationToken);
+        await _host.Engine.SuspendAsync(instance.Id, cancellationToken: TestContext.Current.CancellationToken);
 
         _host.Clock.Advance(TimeSpan.FromSeconds(11));
-        var bookmark = (await _host.BookmarkStore.GetDueAsync(_host.Clock.Now, 10)).Single();
+        var bookmark = (await _host.BookmarkStore.GetDueAsync(_host.Clock.Now, 10, TestContext.Current.CancellationToken)).Single();
 
         // 模拟定时器 Worker 的恢复尝试：实例挂起时书签保留且到期回退
-        await _host.Engine.ResumeBookmarkAsync(bookmark.Id, inputs: null, throwIfNotResumable: false);
+        await _host.Engine.ResumeBookmarkAsync(bookmark.Id, inputs: null, throwIfNotResumable: false, cancellationToken: TestContext.Current.CancellationToken);
 
-        var retained = (await _host.BookmarkStore.GetByInstanceAsync(instance.Id)).Single();
+        var retained = (await _host.BookmarkStore.GetByInstanceAsync(instance.Id, TestContext.Current.CancellationToken)).Single();
         Assert.True(retained.DueTime > _host.Clock.Now);
-        Assert.Empty(await _host.BookmarkStore.GetDueAsync(_host.Clock.Now, 10));
+        Assert.Empty(await _host.BookmarkStore.GetDueAsync(_host.Clock.Now, 10, TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -351,11 +351,11 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "dup-transfer" });
-        var task = (await _host.UserTaskService.GetPendingAsync("u1")).Single();
+        await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "dup-transfer" }, TestContext.Current.CancellationToken);
+        var task = (await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken)).Single();
 
         await Assert.ThrowsAsync<WorkflowException>(() =>
-            _host.UserTaskService.TransferAsync(task.TaskId, "u1", "u2"));
+            _host.UserTaskService.TransferAsync(task.TaskId, "u1", "u2", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -379,7 +379,7 @@ public class ReviewHardeningTests : IDisposable
         {
             DefinitionCode = "http-flow",
             Variables = new() { ["orderId"] = "ok" }
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Completed, ok.Status);
         var response = new WorkflowVariables(ok.Variables).Get<Dictionary<string, object?>>("response");
         Assert.NotNull(response);
@@ -390,7 +390,7 @@ public class ReviewHardeningTests : IDisposable
         {
             DefinitionCode = "http-flow",
             Variables = new() { ["orderId"] = "fail" }
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Faulted, failed.Status);
         Assert.Contains("500", failed.FaultMessage);
 
@@ -406,7 +406,7 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(lenient);
 
-        var tolerant = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "http-lenient" });
+        var tolerant = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "http-lenient" }, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Completed, tolerant.Status);
         Assert.Equal(500m, new WorkflowVariables(tolerant.Variables).Get<decimal>("httpStatusCode"));
     }
@@ -432,7 +432,7 @@ public class ReviewHardeningTests : IDisposable
         {
             DefinitionCode = "script-flow",
             Variables = new() { ["price"] = 7 }
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Completed, instance.Status);
         var variables = new WorkflowVariables(instance.Variables);
@@ -450,7 +450,7 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(bad);
 
-        var faulted = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "script-bad" });
+        var faulted = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "script-bad" }, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Faulted, faulted.Status);
         Assert.Contains("执行失败", faulted.FaultMessage);
     }
@@ -480,15 +480,15 @@ public class ReviewHardeningTests : IDisposable
             .Build();
         await _host.PublishAsync(parent);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "cascade-parent" });
-        var children = await _host.InstanceStore.GetChildrenAsync(instance.Id);
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "cascade-parent" }, TestContext.Current.CancellationToken);
+        var children = await _host.InstanceStore.GetChildrenAsync(instance.Id, TestContext.Current.CancellationToken);
         var childInstance = Assert.Single(children);
         Assert.Equal(WorkflowInstanceStatus.Running, childInstance.Status);
 
-        await _host.Engine.CancelAsync(instance.Id, "整单撤销");
+        await _host.Engine.CancelAsync(instance.Id, "整单撤销", TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Canceled, (await _host.ReloadAsync(childInstance.Id)).Status);
-        Assert.Empty(await _host.UserTaskService.GetPendingAsync("u1"));
+        Assert.Empty(await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken));
     }
 
     /// <summary>

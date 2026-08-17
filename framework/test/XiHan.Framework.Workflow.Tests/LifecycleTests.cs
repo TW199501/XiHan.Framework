@@ -48,17 +48,17 @@ public class LifecycleTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "retry-policy" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "retry-policy" }, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Running, instance.Status);
 
-        var retryBookmark = Assert.Single(await _host.BookmarkStore.GetByInstanceAsync(instance.Id));
+        var retryBookmark = Assert.Single(await _host.BookmarkStore.GetByInstanceAsync(instance.Id, TestContext.Current.CancellationToken));
         Assert.Equal(WorkflowBookmarkKinds.Retry, retryBookmark.Kind);
         Assert.Equal(_host.Clock.Now.AddSeconds(5), retryBookmark.DueTime);
 
-        var resumed = await _host.Engine.ResumeBookmarkAsync(retryBookmark.Id);
+        var resumed = await _host.Engine.ResumeBookmarkAsync(retryBookmark.Id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Completed, resumed.Status);
 
-        var nodeInstance = (await _host.InstanceStore.GetNodeInstancesAsync(instance.Id))
+        var nodeInstance = (await _host.InstanceStore.GetNodeInstancesAsync(instance.Id, TestContext.Current.CancellationToken))
             .Single(item => item.NodeId == "flaky");
         Assert.Equal(2, nodeInstance.TryCount);
     }
@@ -79,11 +79,11 @@ public class LifecycleTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "manual-retry" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "manual-retry" }, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Faulted, instance.Status);
         Assert.Equal("flaky", instance.FaultNodeId);
 
-        var retried = await _host.Engine.RetryAsync(instance.Id);
+        var retried = await _host.Engine.RetryAsync(instance.Id, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Completed, retried.Status);
         Assert.Null(retried.FaultMessage);
     }
@@ -109,22 +109,22 @@ public class LifecycleTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "compensate" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "compensate" }, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Running, instance.Status);
 
-        var canceled = await _host.Engine.CancelAsync(instance.Id, "用户撤回");
+        var canceled = await _host.Engine.CancelAsync(instance.Id, "用户撤回", TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Canceled, canceled.Status);
         Assert.Equal("用户撤回", canceled.CancellationReason);
         Assert.Equal(["step2", "step1"], _recorder.CompensatedNodeIds);
-        Assert.Empty(await _host.BookmarkStore.GetByInstanceAsync(instance.Id));
+        Assert.Empty(await _host.BookmarkStore.GetByInstanceAsync(instance.Id, TestContext.Current.CancellationToken));
 
-        var nodeInstances = await _host.InstanceStore.GetNodeInstancesAsync(instance.Id);
+        var nodeInstances = await _host.InstanceStore.GetNodeInstancesAsync(instance.Id, TestContext.Current.CancellationToken);
         Assert.Equal(2, nodeInstances.Count(item => item.Status == WorkflowNodeInstanceStatus.Compensated));
         Assert.Equal(1, nodeInstances.Count(item => item.Status == WorkflowNodeInstanceStatus.Canceled));
 
         // 终态幂等
-        var again = await _host.Engine.CancelAsync(instance.Id);
+        var again = await _host.Engine.CancelAsync(instance.Id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Canceled, again.Status);
     }
 
@@ -147,11 +147,11 @@ public class LifecycleTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "terminate" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "terminate" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Terminated, instance.Status);
         Assert.Equal("业务终止", instance.CancellationReason);
-        Assert.Empty(await _host.BookmarkStore.GetByInstanceAsync(instance.Id));
+        Assert.Empty(await _host.BookmarkStore.GetByInstanceAsync(instance.Id, TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -170,15 +170,15 @@ public class LifecycleTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "suspend" });
-        var task = (await _host.UserTaskService.GetPendingAsync("u1")).Single();
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "suspend" }, TestContext.Current.CancellationToken);
+        var task = (await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken)).Single();
 
-        await _host.Engine.SuspendAsync(instance.Id, "例行冻结");
+        await _host.Engine.SuspendAsync(instance.Id, "例行冻结", TestContext.Current.CancellationToken);
         await Assert.ThrowsAsync<WorkflowException>(() =>
-            _host.UserTaskService.CompleteAsync(task.TaskId, "u1", WorkflowUserTaskOutcomes.Approved));
+            _host.UserTaskService.CompleteAsync(task.TaskId, "u1", WorkflowUserTaskOutcomes.Approved, cancellationToken: TestContext.Current.CancellationToken));
 
-        await _host.Engine.ResumeAsync(instance.Id);
-        var result = await _host.UserTaskService.CompleteAsync(task.TaskId, "u1", WorkflowUserTaskOutcomes.Approved);
+        await _host.Engine.ResumeAsync(instance.Id, TestContext.Current.CancellationToken);
+        var result = await _host.UserTaskService.CompleteAsync(task.TaskId, "u1", WorkflowUserTaskOutcomes.Approved, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Completed, result.Status);
     }
 
@@ -202,7 +202,7 @@ public class LifecycleTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "continue-on-error" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "continue-on-error" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Completed, instance.Status);
         var variables = new WorkflowVariables(instance.Variables);

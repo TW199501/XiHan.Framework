@@ -58,7 +58,7 @@ public class InboxIdempotencyTests
         await bus.AddToInboxForTestAsync("message-1");
         await bus.AddToInboxForTestAsync("message-1");
 
-        var waiting = await bus.Inbox.GetWaitingEventsAsync(10);
+        var waiting = await bus.Inbox.GetWaitingEventsAsync(10, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Single(waiting);
     }
 
@@ -72,7 +72,7 @@ public class InboxIdempotencyTests
         await bus.AddToInboxForTestAsync("message-1");
         await bus.AddToInboxForTestAsync("message-2");
 
-        var waiting = await bus.Inbox.GetWaitingEventsAsync(10);
+        var waiting = await bus.Inbox.GetWaitingEventsAsync(10, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(2, waiting.Count);
     }
 
