@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  代码覆盖率采集设置。由 ci.yml 的测试步骤经 coverage-settings 开关传入。
+
+  注意两点容易踩的坑：
+
+  1. 文件名刻意不叫 coverage.settings.xml。.gitignore 有一条 coverage*.xml
+     用来忽略覆盖率产出，会把这份配置一起吞掉。改名前先确认那条规则。
+  2. 传入的路径必须相对仓库根可解析，且本文件内不得出现连续两个连字号
+     （XML 注释语法不允许），所以下文提到命令行开关时一律省略前缀。
+
+  排除 XiHan.Framework.Docs.Mcp 的原因不是「不想测它」。该程序集有 126 项测试
+  且全部照跑，这里排除的只是覆盖率「插桩」，测试断言一条不少。
+
+  症状：Linux CI 上约半数运行以 AccessViolationException 崩溃整个测试进程
+  （Exit code 7、failed 为 0、没有任何断言失败），崩溃点在 Tokenizer 与
+  BigramIndex 之间浮动。
+
+  判定为覆盖率插桩缺陷而非自家代码问题，依据有四：
+  a. 崩溃位置每次运行都不同，逻辑缺陷不会这样；
+  b. 只在开启覆盖率采集时发生，不采集从未复现；
+  c. 只在 Linux 发生，Windows 上开启采集跑 126/126 全过；
+  d. Tokenizer 的 span 访问已逐行核对边界，无 stackalloc、无 unsafe、无指针运算。
+
+  成因是覆盖率的原生插桩（CLR profiling API）扛不住全量重建索引时那个
+  span 密集、每字符一次调用的热循环：单次重建会产生上千万次被拦截的方法调用。
+  Microsoft.Testing.Extensions.CodeCoverage 18.10.0 已是当前最新稳定版，无升级路可走。
+
+  这是对第三方工具缺陷的规避，不是对自家代码的让步。上游修好后应当删掉这条排除，
+  验证方式：去掉后连续跑若干次 Linux CI，不再出现 Exit code 7 即可。
+-->
+<Configuration>
+  <CodeCoverage>
+    <ModulePaths>
+      <Exclude>
+        <ModulePath>.*XiHan\.Framework\.Docs\.Mcp\.dll$</ModulePath>
+      </Exclude>
+    </ModulePaths>
+  </CodeCoverage>
+</Configuration>
