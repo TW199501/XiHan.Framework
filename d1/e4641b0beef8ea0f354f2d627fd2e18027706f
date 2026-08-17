@@ -1,0 +1,26 @@
+.github/workflows/ci.yml
+  s_fe2baaa9a3a9f0::t_6b7dee6027db2c 54
+  s_fe2baaa9a3a9f0::t_76b52c33b2c214 59
+.github/codecoverage.settings.xml
+  s_fe2baaa9a3a9f0::t_3a6518d4e51ad2 6
+  s_fe2baaa9a3a9f0::t_05127e71121fe0 3-5,7-30
+  s_fe2baaa9a3a9f0::t_1a3b0cc6181823 1-2
+  s_fe2baaa9a3a9f0::t_b7176f03bc5d37 31-33
+  s_fe2baaa9a3a9f0::t_147c60de973415 34-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "d1e4641b0beef8ea0f354f2d627fd2e18027706f",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
