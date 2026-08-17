@@ -100,23 +100,37 @@ public class CacheHelperAdvancedTests : IDisposable
         });
 
         var events = new List<CacheEventArgs>();
-        CacheHelper.CacheEvent += (sender, args) =>
+
+        // CacheEvent 是静态事件，处理器不解除就会活过本用例。等后面任何一个用例
+        // 触碰缓存，它会被再次唤起，去写这个已经结束的测试的 _output，
+        // 抛出「There is no currently active test」，把别人的用例判红。
+        void OnCacheEvent(object? sender, CacheEventArgs args)
         {
             events.Add(args);
             _output.WriteLine($"事件: {args.EventType} - 键: {args.Key}");
-        };
+        }
 
-        // Act
-        CacheHelper.Set("test_key", "test_value", 60); // Added
-        CacheHelper.Set("test_key", "test_value2", 60); // Updated
-        CacheHelper.Remove("test_key"); // Removed
+        CacheHelper.CacheEvent += OnCacheEvent;
 
-        // Assert
-        Assert.True(events.Count >= 2, $"应该至少有2个事件，实际: {events.Count}");
-        Assert.Contains(events, e => e.EventType == CacheEventType.Added);
-        Assert.Contains(events, e => e.EventType == CacheEventType.Removed);
+        try
+        {
+            // Act
+            CacheHelper.Set("test_key", "test_value", 60); // Added
+            CacheHelper.Set("test_key", "test_value2", 60); // Updated
+            CacheHelper.Remove("test_key"); // Removed
 
-        _output.WriteLine($"✓ 缓存事件通知测试通过，共 {events.Count} 个事件");
+            // Assert
+            Assert.True(events.Count >= 2, $"应该至少有2个事件，实际: {events.Count}");
+            Assert.Contains(events, e => e.EventType == CacheEventType.Added);
+            Assert.Contains(events, e => e.EventType == CacheEventType.Removed);
+
+            _output.WriteLine($"✓ 缓存事件通知测试通过，共 {events.Count} 个事件");
+        }
+        finally
+        {
+            // 断言失败时也必须解除，否则一个失败会连锁污染后续所有用例
+            CacheHelper.CacheEvent -= OnCacheEvent;
+        }
     }
 
     /// <summary>
