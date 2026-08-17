@@ -56,17 +56,17 @@ public class UserTaskTests : IDisposable
         await PublishApprovalAsync("any-approve", "Any", "u1", "u2");
         var instance = await StartAsync("any-approve");
 
-        var tasksOfU1 = await _host.UserTaskService.GetPendingAsync("u1");
-        var tasksOfU2 = await _host.UserTaskService.GetPendingAsync("u2");
+        var tasksOfU1 = await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken);
+        var tasksOfU2 = await _host.UserTaskService.GetPendingAsync("u2", TestContext.Current.CancellationToken);
         Assert.Single(tasksOfU1);
         Assert.Single(tasksOfU2);
         Assert.Equal("单据 B001 审批", tasksOfU1[0].Title);
 
-        var result = await _host.UserTaskService.CompleteAsync(tasksOfU1[0].TaskId, "u1", WorkflowUserTaskOutcomes.Approved, "同意");
+        var result = await _host.UserTaskService.CompleteAsync(tasksOfU1[0].TaskId, "u1", WorkflowUserTaskOutcomes.Approved, "同意", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Completed, result.Status);
         Assert.Equal("accepted", new WorkflowVariables(result.Variables).Get<string>("result"));
-        Assert.Empty(await _host.UserTaskService.GetPendingAsync("u2"));
+        Assert.Empty(await _host.UserTaskService.GetPendingAsync("u2", TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -78,12 +78,12 @@ public class UserTaskTests : IDisposable
         await PublishApprovalAsync("all-approve", "All", "u1", "u2");
         var instance = await StartAsync("all-approve");
 
-        var firstTask = (await _host.UserTaskService.GetPendingAsync("u1")).Single();
-        var afterFirst = await _host.UserTaskService.CompleteAsync(firstTask.TaskId, "u1", WorkflowUserTaskOutcomes.Approved);
+        var firstTask = (await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken)).Single();
+        var afterFirst = await _host.UserTaskService.CompleteAsync(firstTask.TaskId, "u1", WorkflowUserTaskOutcomes.Approved, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Running, afterFirst.Status);
 
-        var secondTask = (await _host.UserTaskService.GetPendingAsync("u2")).Single();
-        var afterSecond = await _host.UserTaskService.CompleteAsync(secondTask.TaskId, "u2", WorkflowUserTaskOutcomes.Approved);
+        var secondTask = (await _host.UserTaskService.GetPendingAsync("u2", TestContext.Current.CancellationToken)).Single();
+        var afterSecond = await _host.UserTaskService.CompleteAsync(secondTask.TaskId, "u2", WorkflowUserTaskOutcomes.Approved, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Completed, afterSecond.Status);
         Assert.Equal("accepted", new WorkflowVariables(afterSecond.Variables).Get<string>("result"));
@@ -98,12 +98,12 @@ public class UserTaskTests : IDisposable
         await PublishApprovalAsync("all-reject", "All", "u1", "u2");
         await StartAsync("all-reject");
 
-        var task = (await _host.UserTaskService.GetPendingAsync("u2")).Single();
-        var result = await _host.UserTaskService.CompleteAsync(task.TaskId, "u2", WorkflowUserTaskOutcomes.Rejected, "不同意");
+        var task = (await _host.UserTaskService.GetPendingAsync("u2", TestContext.Current.CancellationToken)).Single();
+        var result = await _host.UserTaskService.CompleteAsync(task.TaskId, "u2", WorkflowUserTaskOutcomes.Rejected, "不同意", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Completed, result.Status);
         Assert.Equal("denied", new WorkflowVariables(result.Variables).Get<string>("result"));
-        Assert.Empty(await _host.UserTaskService.GetPendingAsync("u1"));
+        Assert.Empty(await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -116,15 +116,15 @@ public class UserTaskTests : IDisposable
         await StartAsync("seq-approve");
 
         // 仅第一位有待办
-        Assert.Single(await _host.UserTaskService.GetPendingAsync("u1"));
-        Assert.Empty(await _host.UserTaskService.GetPendingAsync("u2"));
+        Assert.Single(await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken));
+        Assert.Empty(await _host.UserTaskService.GetPendingAsync("u2", TestContext.Current.CancellationToken));
 
-        var first = (await _host.UserTaskService.GetPendingAsync("u1")).Single();
-        var afterFirst = await _host.UserTaskService.CompleteAsync(first.TaskId, "u1", WorkflowUserTaskOutcomes.Approved);
+        var first = (await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken)).Single();
+        var afterFirst = await _host.UserTaskService.CompleteAsync(first.TaskId, "u1", WorkflowUserTaskOutcomes.Approved, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Running, afterFirst.Status);
 
-        var second = (await _host.UserTaskService.GetPendingAsync("u2")).Single();
-        var afterSecond = await _host.UserTaskService.CompleteAsync(second.TaskId, "u2", WorkflowUserTaskOutcomes.Approved);
+        var second = (await _host.UserTaskService.GetPendingAsync("u2", TestContext.Current.CancellationToken)).Single();
+        var afterSecond = await _host.UserTaskService.CompleteAsync(second.TaskId, "u2", WorkflowUserTaskOutcomes.Approved, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Completed, afterSecond.Status);
         Assert.Equal("accepted", new WorkflowVariables(afterSecond.Variables).Get<string>("result"));
     }
@@ -138,16 +138,16 @@ public class UserTaskTests : IDisposable
         await PublishApprovalAsync("transfer", "Any", "u1");
         await StartAsync("transfer");
 
-        var task = (await _host.UserTaskService.GetPendingAsync("u1")).Single();
-        await _host.UserTaskService.TransferAsync(task.TaskId, "u1", "u9", "请代审");
+        var task = (await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken)).Single();
+        await _host.UserTaskService.TransferAsync(task.TaskId, "u1", "u9", "请代审", TestContext.Current.CancellationToken);
 
-        Assert.Empty(await _host.UserTaskService.GetPendingAsync("u1"));
-        var transferred = (await _host.UserTaskService.GetPendingAsync("u9")).Single();
+        Assert.Empty(await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken));
+        var transferred = (await _host.UserTaskService.GetPendingAsync("u9", TestContext.Current.CancellationToken)).Single();
 
         await Assert.ThrowsAsync<WorkflowException>(() =>
-            _host.UserTaskService.CompleteAsync(transferred.TaskId, "u1", WorkflowUserTaskOutcomes.Approved));
+            _host.UserTaskService.CompleteAsync(transferred.TaskId, "u1", WorkflowUserTaskOutcomes.Approved, cancellationToken: TestContext.Current.CancellationToken));
 
-        var result = await _host.UserTaskService.CompleteAsync(transferred.TaskId, "u9", WorkflowUserTaskOutcomes.Approved);
+        var result = await _host.UserTaskService.CompleteAsync(transferred.TaskId, "u9", WorkflowUserTaskOutcomes.Approved, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Completed, result.Status);
     }
 
@@ -160,14 +160,14 @@ public class UserTaskTests : IDisposable
         await PublishApprovalAsync("add-sign", "All", "u1");
         await StartAsync("add-sign");
 
-        var task = (await _host.UserTaskService.GetPendingAsync("u1")).Single();
-        await _host.UserTaskService.AddAssigneesAsync(task.TaskId, "u1", ["u2"], "请一起审");
+        var task = (await _host.UserTaskService.GetPendingAsync("u1", TestContext.Current.CancellationToken)).Single();
+        await _host.UserTaskService.AddAssigneesAsync(task.TaskId, "u1", ["u2"], "请一起审", TestContext.Current.CancellationToken);
 
-        var afterFirst = await _host.UserTaskService.CompleteAsync(task.TaskId, "u1", WorkflowUserTaskOutcomes.Approved);
+        var afterFirst = await _host.UserTaskService.CompleteAsync(task.TaskId, "u1", WorkflowUserTaskOutcomes.Approved, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Running, afterFirst.Status);
 
-        var addedTask = (await _host.UserTaskService.GetPendingAsync("u2")).Single();
-        var result = await _host.UserTaskService.CompleteAsync(addedTask.TaskId, "u2", WorkflowUserTaskOutcomes.Approved);
+        var addedTask = (await _host.UserTaskService.GetPendingAsync("u2", TestContext.Current.CancellationToken)).Single();
+        var result = await _host.UserTaskService.CompleteAsync(addedTask.TaskId, "u2", WorkflowUserTaskOutcomes.Approved, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Completed, result.Status);
         Assert.Equal("accepted", new WorkflowVariables(result.Variables).Get<string>("result"));
     }
@@ -193,18 +193,18 @@ public class UserTaskTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "timeout-approve" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "timeout-approve" }, TestContext.Current.CancellationToken);
 
-        var bookmarks = await _host.BookmarkStore.GetByInstanceAsync(instance.Id);
+        var bookmarks = await _host.BookmarkStore.GetByInstanceAsync(instance.Id, TestContext.Current.CancellationToken);
         Assert.Equal(2, bookmarks.Count);
         var timeoutBookmark = bookmarks.Single(item => item.Kind == WorkflowBookmarkKinds.NodeTimeout);
         Assert.Equal(_host.Clock.Now.AddSeconds(3600), timeoutBookmark.DueTime);
 
-        var result = await _host.Engine.ResumeBookmarkAsync(timeoutBookmark.Id);
+        var result = await _host.Engine.ResumeBookmarkAsync(timeoutBookmark.Id, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Completed, result.Status);
         Assert.Equal("timeout", new WorkflowVariables(result.Variables).Get<string>("result"));
-        Assert.Empty(await _host.BookmarkStore.GetByInstanceAsync(instance.Id));
+        Assert.Empty(await _host.BookmarkStore.GetByInstanceAsync(instance.Id, TestContext.Current.CancellationToken));
     }
 
     /// <summary>

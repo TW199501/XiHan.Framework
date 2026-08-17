@@ -84,7 +84,7 @@ public sealed class VectorStoreOperationTests
     public async Task ExecuteStreamAsync_ShouldTranslateDuringEnumeration()
     {
         // 构造包装器本身不得抛出——异常只应在真正推进序列时出现。
-        var stream = VectorStoreOperation.ExecuteStreamAsync(FailingStream());
+        var stream = VectorStoreOperation.ExecuteStreamAsync(FailingStream(), TestContext.Current.CancellationToken);
 
         var exception = await Assert.ThrowsAsync<ServiceUnavailableException>(async () =>
         {
@@ -105,7 +105,7 @@ public sealed class VectorStoreOperationTests
     {
         var items = new List<int>();
 
-        await foreach (var item in VectorStoreOperation.ExecuteStreamAsync(SuccessfulStream()))
+        await foreach (var item in VectorStoreOperation.ExecuteStreamAsync(SuccessfulStream(), TestContext.Current.CancellationToken))
         {
             items.Add(item);
         }

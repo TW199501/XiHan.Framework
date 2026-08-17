@@ -35,13 +35,13 @@ public class SequentialAndDecisionFlowTests : IDisposable
         {
             DefinitionCode = "linear",
             Variables = new() { ["price"] = 25, ["count"] = 4 }
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Completed, instance.Status);
         Assert.Equal(100m, new WorkflowVariables(instance.Variables).Get<decimal>("total"));
         Assert.NotNull(instance.EndTime);
 
-        var nodeInstances = await _host.InstanceStore.GetNodeInstancesAsync(instance.Id);
+        var nodeInstances = await _host.InstanceStore.GetNodeInstancesAsync(instance.Id, TestContext.Current.CancellationToken);
         Assert.Equal(3, nodeInstances.Count);
         Assert.All(nodeInstances, item => Assert.Equal(WorkflowNodeInstanceStatus.Completed, item.Status));
     }
@@ -74,7 +74,7 @@ public class SequentialAndDecisionFlowTests : IDisposable
         {
             DefinitionCode = "decision",
             Variables = new() { ["amount"] = amount }
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Completed, instance.Status);
         Assert.Equal(expectedPath, new WorkflowVariables(instance.Variables).Get<string>("path"));
@@ -99,7 +99,7 @@ public class SequentialAndDecisionFlowTests : IDisposable
         {
             DefinitionCode = "decision-fail",
             Variables = new() { ["amount"] = 1 }
-        });
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(WorkflowInstanceStatus.Faulted, instance.Status);
         Assert.Contains("无匹配分支", instance.FaultMessage);
@@ -120,7 +120,7 @@ public class SequentialAndDecisionFlowTests : IDisposable
         await _host.PublishAsync(definition);
 
         await Assert.ThrowsAsync<WorkflowException>(() =>
-            _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "required-var" }));
+            _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "required-var" }, TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -131,10 +131,10 @@ public class SequentialAndDecisionFlowTests : IDisposable
     {
         var definition = WorkflowDefinitionBuilder.Create("draft-only", "草稿")
             .AddStart().AddEnd().AddTransition("start", "end").Build();
-        var created = await _host.DefinitionManager.CreateAsync(definition);
+        var created = await _host.DefinitionManager.CreateAsync(definition, TestContext.Current.CancellationToken);
 
         await Assert.ThrowsAsync<WorkflowException>(() =>
-            _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionId = created.Id }));
+            _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionId = created.Id }, TestContext.Current.CancellationToken));
     }
 
     /// <summary>

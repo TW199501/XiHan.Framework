@@ -29,20 +29,20 @@ public class DelaySignalTests : IDisposable
             .Build();
         await _host.PublishAsync(definition);
 
-        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "delay" });
+        var instance = await _host.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = "delay" }, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Running, instance.Status);
 
-        var bookmarks = await _host.BookmarkStore.GetByInstanceAsync(instance.Id);
+        var bookmarks = await _host.BookmarkStore.GetByInstanceAsync(instance.Id, TestContext.Current.CancellationToken);
         var timer = Assert.Single(bookmarks);
         Assert.Equal(WorkflowBookmarkKinds.Timer, timer.Kind);
         Assert.Equal(_host.Clock.Now.AddSeconds(300), timer.DueTime);
 
         // 时钟拨到期后按到期查询可见
         _host.Clock.Advance(TimeSpan.FromSeconds(301));
-        var due = await _host.BookmarkStore.GetDueAsync(_host.Clock.Now, 10);
+        var due = await _host.BookmarkStore.GetDueAsync(_host.Clock.Now, 10, TestContext.Current.CancellationToken);
         Assert.Single(due);
 
-        var resumed = await _host.Engine.ResumeBookmarkAsync(timer.Id);
+        var resumed = await _host.Engine.ResumeBookmarkAsync(timer.Id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowInstanceStatus.Completed, resumed.Status);
     }
 
@@ -66,16 +66,16 @@ public class DelaySignalTests : IDisposable
         {
             DefinitionCode = "signal",
             CorrelationId = "ORDER-1"
-        });
+        }, TestContext.Current.CancellationToken);
         var second = await _host.Engine.StartAsync(new WorkflowStartRequest
         {
             DefinitionCode = "signal",
             CorrelationId = "ORDER-2"
-        });
+        }, TestContext.Current.CancellationToken);
 
         // 定向 ORDER-1：只恢复第一个实例
         var resumedCount = await _host.Engine.PublishSignalAsync(
-            "order-paid", new Dictionary<string, object?> { ["paidAmount"] = 88 }, "ORDER-1");
+            "order-paid", new Dictionary<string, object?> { ["paidAmount"] = 88 }, "ORDER-1", TestContext.Current.CancellationToken);
 
         Assert.Equal(1, resumedCount);
         var firstReloaded = await _host.ReloadAsync(first.Id);
@@ -85,7 +85,7 @@ public class DelaySignalTests : IDisposable
         Assert.Equal(88m, new WorkflowVariables(firstReloaded.Variables).Get<decimal>("paidAmount"));
 
         // 广播：恢复剩余实例
-        Assert.Equal(1, await _host.Engine.PublishSignalAsync("order-paid"));
+        Assert.Equal(1, await _host.Engine.PublishSignalAsync("order-paid", cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(WorkflowInstanceStatus.Completed, (await _host.ReloadAsync(second.Id)).Status);
     }
 

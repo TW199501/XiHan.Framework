@@ -37,7 +37,7 @@ public class ExpressionEvaluatorTests
     [InlineData("-amount < 0", true)]
     public async Task 算术与比较运算正确(string expression, bool expected)
     {
-        Assert.Equal(expected, await _evaluator.EvaluateConditionAsync(expression, Variables));
+        Assert.Equal(expected, await _evaluator.EvaluateConditionAsync(expression, Variables, TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -54,7 +54,7 @@ public class ExpressionEvaluatorTests
     [InlineData("isNullOrEmpty(empty)", true)]
     public async Task 逻辑与字符串函数正确(string expression, bool expected)
     {
-        Assert.Equal(expected, await _evaluator.EvaluateConditionAsync(expression, Variables));
+        Assert.Equal(expected, await _evaluator.EvaluateConditionAsync(expression, Variables, TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -63,9 +63,9 @@ public class ExpressionEvaluatorTests
     [Fact]
     public async Task 点号导航与索引访问正确()
     {
-        Assert.True(await _evaluator.EvaluateConditionAsync("order.total < 100", Variables));
-        Assert.Equal("b", await _evaluator.EvaluateAsync<string>("tags[1]", Variables));
-        Assert.Equal("李四", await _evaluator.EvaluateAsync<string>("order['customer']", Variables));
+        Assert.True(await _evaluator.EvaluateConditionAsync("order.total < 100", Variables, TestContext.Current.CancellationToken));
+        Assert.Equal("b", await _evaluator.EvaluateAsync<string>("tags[1]", Variables, TestContext.Current.CancellationToken));
+        Assert.Equal("李四", await _evaluator.EvaluateAsync<string>("order['customer']", Variables, TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -77,8 +77,8 @@ public class ExpressionEvaluatorTests
         var element = JsonSerializer.SerializeToElement(new { total = 500, items = new[] { 1, 2 } });
         var variables = new Dictionary<string, object?> { ["order"] = element };
 
-        Assert.True(await _evaluator.EvaluateConditionAsync("order.total == 500", variables));
-        Assert.True(await _evaluator.EvaluateConditionAsync("len(order.items) == 2", variables));
+        Assert.True(await _evaluator.EvaluateConditionAsync("order.total == 500", variables, TestContext.Current.CancellationToken));
+        Assert.True(await _evaluator.EvaluateConditionAsync("len(order.items) == 2", variables, TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -87,7 +87,7 @@ public class ExpressionEvaluatorTests
     [Fact]
     public async Task 模板渲染替换占位()
     {
-        var result = await _evaluator.RenderTemplateAsync("{{name}}的请假申请，金额 {{amount + 1}} 元", Variables);
+        var result = await _evaluator.RenderTemplateAsync("{{name}}的请假申请，金额 {{amount + 1}} 元", Variables, TestContext.Current.CancellationToken);
         Assert.Equal("张三的请假申请，金额 20001 元", result);
     }
 
@@ -97,9 +97,9 @@ public class ExpressionEvaluatorTests
     [Fact]
     public async Task 非法表达式按失败关闭语义抛出()
     {
-        await Assert.ThrowsAsync<WorkflowException>(() => _evaluator.EvaluateConditionAsync("amount + 1", Variables));
-        await Assert.ThrowsAsync<WorkflowException>(() => _evaluator.EvaluateConditionAsync("unknownVar > 1", Variables));
-        await Assert.ThrowsAsync<WorkflowException>(() => _evaluator.EvaluateConditionAsync("amount >", Variables));
-        await Assert.ThrowsAsync<WorkflowException>(() => _evaluator.RenderTemplateAsync("{{amount", Variables));
+        await Assert.ThrowsAsync<WorkflowException>(() => _evaluator.EvaluateConditionAsync("amount + 1", Variables, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<WorkflowException>(() => _evaluator.EvaluateConditionAsync("unknownVar > 1", Variables, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<WorkflowException>(() => _evaluator.EvaluateConditionAsync("amount >", Variables, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<WorkflowException>(() => _evaluator.RenderTemplateAsync("{{amount", Variables, TestContext.Current.CancellationToken));
     }
 }

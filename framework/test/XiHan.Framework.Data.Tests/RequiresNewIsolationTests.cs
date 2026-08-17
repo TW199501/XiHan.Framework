@@ -95,7 +95,7 @@ public sealed class RequiresNewIsolationTests : IDisposable
             using (var inner = _unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true))
             {
                 Insert(InnerConfigId, 2, "inner");
-                await inner.CompleteAsync();
+                await inner.CompleteAsync(TestContext.Current.CancellationToken);
             }
 
             // 外层不 Complete，随 Dispose 回滚。

@@ -29,33 +29,33 @@ public class DefinitionManagerTests : IDisposable
     [Fact]
     public async Task 定义生命周期与版本管理()
     {
-        var created = await _host.DefinitionManager.CreateAsync(ValidBuilder().Build());
+        var created = await _host.DefinitionManager.CreateAsync(ValidBuilder().Build(), TestContext.Current.CancellationToken);
         Assert.Equal(1, created.Version);
         Assert.Equal(WorkflowDefinitionStatus.Draft, created.Status);
 
-        var published = await _host.DefinitionManager.PublishAsync(created.Id);
+        var published = await _host.DefinitionManager.PublishAsync(created.Id, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowDefinitionStatus.Published, published.Status);
         Assert.NotNull(published.PublishTime);
 
         // 已发布不可更新
-        await Assert.ThrowsAsync<WorkflowException>(() => _host.DefinitionManager.UpdateDraftAsync(published));
+        await Assert.ThrowsAsync<WorkflowException>(() => _host.DefinitionManager.UpdateDraftAsync(published, TestContext.Current.CancellationToken));
 
-        var v2 = await _host.DefinitionManager.CreateNewVersionAsync("vacation");
+        var v2 = await _host.DefinitionManager.CreateNewVersionAsync("vacation", TestContext.Current.CancellationToken);
         Assert.Equal(2, v2.Version);
         Assert.Equal(WorkflowDefinitionStatus.Draft, v2.Status);
         Assert.NotEqual(published.Id, v2.Id);
 
-        await _host.DefinitionManager.PublishAsync(v2.Id);
-        var latest = await _host.DefinitionManager.GetPublishedAsync("vacation");
+        await _host.DefinitionManager.PublishAsync(v2.Id, TestContext.Current.CancellationToken);
+        var latest = await _host.DefinitionManager.GetPublishedAsync("vacation", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(2, latest.Version);
 
         // 指定版本仍可获取
-        var v1 = await _host.DefinitionManager.GetPublishedAsync("vacation", 1);
+        var v1 = await _host.DefinitionManager.GetPublishedAsync("vacation", 1, TestContext.Current.CancellationToken);
         Assert.Equal(1, v1.Version);
 
-        var disabled = await _host.DefinitionManager.DisableAsync(latest.Id);
+        var disabled = await _host.DefinitionManager.DisableAsync(latest.Id, TestContext.Current.CancellationToken);
         Assert.Equal(WorkflowDefinitionStatus.Disabled, disabled.Status);
-        var fallback = await _host.DefinitionManager.GetPublishedAsync("vacation");
+        var fallback = await _host.DefinitionManager.GetPublishedAsync("vacation", cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(1, fallback.Version);
     }
 
@@ -72,10 +72,10 @@ public class DefinitionManagerTests : IDisposable
             .AddTransition("start", "missing-node")
             .AddTransition("start", "ghost-target", "amount >")
             .Build();
-        var created = await _host.DefinitionManager.CreateAsync(invalid);
+        var created = await _host.DefinitionManager.CreateAsync(invalid, TestContext.Current.CancellationToken);
 
         var exception = await Assert.ThrowsAsync<WorkflowDefinitionValidationException>(() =>
-            _host.DefinitionManager.PublishAsync(created.Id));
+            _host.DefinitionManager.PublishAsync(created.Id, TestContext.Current.CancellationToken));
 
         Assert.Contains(exception.Errors, error => error.Contains("missing-node"));
         Assert.Contains(exception.Errors, error => error.Contains("条件表达式非法"));
@@ -117,12 +117,12 @@ public class DefinitionManagerTests : IDisposable
     [Fact]
     public async Task 仅草稿可删除()
     {
-        var created = await _host.DefinitionManager.CreateAsync(ValidBuilder("deletable").Build());
-        await _host.DefinitionManager.DeleteAsync(created.Id);
-        await Assert.ThrowsAsync<WorkflowException>(() => _host.DefinitionManager.GetAsync(created.Id));
+        var created = await _host.DefinitionManager.CreateAsync(ValidBuilder("deletable").Build(), TestContext.Current.CancellationToken);
+        await _host.DefinitionManager.DeleteAsync(created.Id, TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<WorkflowException>(() => _host.DefinitionManager.GetAsync(created.Id, TestContext.Current.CancellationToken));
 
         var published = await _host.PublishAsync(ValidBuilder("undeletable").Build());
-        await Assert.ThrowsAsync<WorkflowException>(() => _host.DefinitionManager.DeleteAsync(published.Id));
+        await Assert.ThrowsAsync<WorkflowException>(() => _host.DefinitionManager.DeleteAsync(published.Id, TestContext.Current.CancellationToken));
     }
 
     /// <summary>

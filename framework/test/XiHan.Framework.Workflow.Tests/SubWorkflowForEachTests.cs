@@ -51,7 +51,7 @@ public class SubWorkflowForEachTests : IDisposable
         {
             DefinitionCode = "parent",
             Variables = new() { ["seed"] = 21 }
-        });
+        }, TestContext.Current.CancellationToken);
 
         var reloaded = await _host.ReloadAsync(instance.Id);
         Assert.Equal(WorkflowInstanceStatus.Completed, reloaded.Status);
@@ -61,7 +61,7 @@ public class SubWorkflowForEachTests : IDisposable
         Assert.Equal(42m, WorkflowValueConverter.ConvertTo<decimal>(childResult["doubled"]));
 
         // 子实例带父链接且已完成
-        var children = await _host.InstanceStore.GetListAsync(definitionCode: "child");
+        var children = await _host.InstanceStore.GetListAsync(definitionCode: "child", cancellationToken: TestContext.Current.CancellationToken);
         var child = Assert.Single(children);
         Assert.Equal(instance.Id, child.ParentInstanceId);
         Assert.Equal(WorkflowInstanceStatus.Completed, child.Status);
@@ -80,7 +80,7 @@ public class SubWorkflowForEachTests : IDisposable
         {
             DefinitionCode = "foreach-parent",
             Variables = new() { ["numbers"] = new List<object?> { 1, 2, 3 } }
-        });
+        }, TestContext.Current.CancellationToken);
 
         await AssertForEachCompletedAsync(instance.Id);
     }
@@ -98,7 +98,7 @@ public class SubWorkflowForEachTests : IDisposable
         {
             DefinitionCode = "foreach-parent",
             Variables = new() { ["numbers"] = new List<object?> { 1, 2, 3 } }
-        });
+        }, TestContext.Current.CancellationToken);
 
         await AssertForEachCompletedAsync(instance.Id);
     }
