@@ -48,8 +48,9 @@ jobs:
 
       - name: 测试（MTP 模式，采集覆盖率）
         # dotnet test 由 global.json 的 test.runner 直接驱动 Microsoft.Testing.Platform
-        # 测试应用；--coverage 经 TestingPlatformCommandLineArguments 透传给每个测试程序，
-        # 覆盖率文件统一产出到 framework/TestResults/。失败即中断。
+        # 测试应用；--coverage 经 TestingPlatformCommandLineArguments 透传给每个测试程序。
+        # 覆盖率文件落在仓库根的 TestResults/：MTP 是相对「工作目录」产出，
+        # 而不是相对解决方案所在目录，这一点与 VSTest 时代不同。失败即中断。
         run: >
           dotnet test framework/XiHan.Framework.slnx
           --configuration Release
@@ -57,11 +58,13 @@ jobs:
           -p:TestingPlatformCommandLineArguments="--coverage --coverage-output-format cobertura"
 
       - name: 合并覆盖率报告
-        # MTP 模式下各测试应用的 cobertura 文件统一落在 framework/TestResults/ 下
+        # MTP 模式下各测试应用的 cobertura 文件统一落在仓库根的 TestResults/ 下。
+        # 此前这里写的是 framework/TestResults/，但测试步骤长期失败，
+        # 本步骤一直被 skip，路径错了也没人发现。
         run: |
           dotnet tool install --global dotnet-reportgenerator-globaltool
           reportgenerator \
-            "-reports:framework/TestResults/*.cobertura.xml" \
+            "-reports:TestResults/*.cobertura.xml" \
             "-targetdir:${{ runner.temp }}/coverage" \
             "-reporttypes:JsonSummary"
 
@@ -92,5 +95,5 @@ jobs:
         with:
           name: test-results
           path: |
-            framework/TestResults/
+            TestResults/
           if-no-files-found: ignore
