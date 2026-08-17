@@ -1,0 +1,23 @@
+framework/src/XiHan.Framework.Core/DynamicProxy/IXiHanMethodInvocation.cs
+  s_fe2baaa9a3a9f0::t_13c9eb3340ff2b 41-44
+framework/src/XiHan.Framework.Castle/CastleInterceptorAdapter.cs
+  s_fe2baaa9a3a9f0::t_92b650a8ba7e7f 119
+framework/src/XiHan.Framework.Castle/CastleXiHanMethodInvocation.cs
+  s_fe2baaa9a3a9f0::t_4c46036d25875f 57,59,61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ce15026079aef25875289d622510d9c15e6102db",
+  "prompts": {},
+  "sessions": {
+    "s_fe2baaa9a3a9f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "728f024f-cf9e-46ca-af5a-5a7f3a8227aa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
