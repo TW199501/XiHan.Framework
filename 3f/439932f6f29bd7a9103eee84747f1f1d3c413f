@@ -1,0 +1,19 @@
+framework/test/XiHan.Framework.EventBus.Redis.Tests/RedisPendingBehaviorTests.cs
+  s_2b4187c9778a9c::t_7dd5fc953d5ba9 15,29-30,44-54,177,182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3f439932f6f29bd7a9103eee84747f1f1d3c413f",
+  "prompts": {},
+  "sessions": {
+    "s_2b4187c9778a9c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6f7a67e-6fa0-4fbd-ac43-cf368c65c0f3",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
