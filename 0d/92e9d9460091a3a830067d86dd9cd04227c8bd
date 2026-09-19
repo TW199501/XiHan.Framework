@@ -1,0 +1,21 @@
+framework/test/XiHan.Framework.Docs.Mcp.Tests/XiHan.Framework.Docs.Mcp.Tests.csproj
+  s_2b4187c9778a9c::t_b5bf6144e0fd8c 16
+framework/tool/XiHan.Framework.Docs.Mcp/XiHan.Framework.Docs.Mcp.csproj
+  s_2b4187c9778a9c::t_8e67a7f7bb63e5 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "0d92e9d9460091a3a830067d86dd9cd04227c8bd",
+  "prompts": {},
+  "sessions": {
+    "s_2b4187c9778a9c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6f7a67e-6fa0-4fbd-ac43-cf368c65c0f3",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
