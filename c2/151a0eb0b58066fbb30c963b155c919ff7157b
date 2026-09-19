@@ -1,0 +1,34 @@
+framework/props/test.props
+  h_be8240d2cfaa4b 17,19
+framework/src/XiHan.Framework.AI.Abstractions/XiHan.Framework.AI.Abstractions.csproj
+  h_be8240d2cfaa4b 17
+framework/src/XiHan.Framework.AI/XiHan.Framework.AI.csproj
+  h_be8240d2cfaa4b 17
+framework/src/XiHan.Framework.Bot.Email/XiHan.Framework.Bot.Email.csproj
+  h_be8240d2cfaa4b 17
+framework/src/XiHan.Framework.Data/XiHan.Framework.Data.csproj
+  h_be8240d2cfaa4b 17
+framework/src/XiHan.Framework.Observability/XiHan.Framework.Observability.csproj
+  h_be8240d2cfaa4b 23-27
+framework/src/XiHan.Framework.Web.Docs/XiHan.Framework.Web.Docs.csproj
+  h_be8240d2cfaa4b 30
+framework/test/XiHan.Framework.EventBus.Redis.Tests/RedisPendingBehaviorTests.cs
+  h_be8240d2cfaa4b 15,29-30,44-54,177,182
+framework/test/XiHan.Framework.Web.Core.Tests/XiHan.Framework.Web.Core.Tests.csproj
+  h_be8240d2cfaa4b 12
+framework/test/XiHan.Framework.Web.Gateway.Tests/XiHan.Framework.Web.Gateway.Tests.csproj
+  h_be8240d2cfaa4b 15
+framework/test/XiHan.Framework.Web.Grpc.Tests/XiHan.Framework.Web.Grpc.Tests.csproj
+  h_be8240d2cfaa4b 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c2151a0eb0b58066fbb30c963b155c919ff7157b",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
