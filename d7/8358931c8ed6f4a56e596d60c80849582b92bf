@@ -1,0 +1,37 @@
+framework/props/test.props
+  s_2b4187c9778a9c::t_bfe2408bf96ef0 17,19
+framework/src/XiHan.Framework.AI.Abstractions/XiHan.Framework.AI.Abstractions.csproj
+  s_2b4187c9778a9c::t_6186a389d931b2 17
+framework/src/XiHan.Framework.AI/XiHan.Framework.AI.csproj
+  s_2b4187c9778a9c::t_e4e6adbdbf27cb 17
+framework/src/XiHan.Framework.Bot.Email/XiHan.Framework.Bot.Email.csproj
+  s_2b4187c9778a9c::t_66b42987cc7b50 17
+framework/src/XiHan.Framework.Data/XiHan.Framework.Data.csproj
+  s_2b4187c9778a9c::t_8ac756de49ea95 17
+framework/src/XiHan.Framework.Observability/XiHan.Framework.Observability.csproj
+  s_2b4187c9778a9c::t_662e90bcf68d59 23-27
+framework/src/XiHan.Framework.Web.Docs/XiHan.Framework.Web.Docs.csproj
+  s_2b4187c9778a9c::t_93b433189f7308 30
+framework/test/XiHan.Framework.Web.Core.Tests/XiHan.Framework.Web.Core.Tests.csproj
+  s_2b4187c9778a9c::t_1c67c9934ad79a 12
+framework/test/XiHan.Framework.Web.Gateway.Tests/XiHan.Framework.Web.Gateway.Tests.csproj
+  s_2b4187c9778a9c::t_0ec41a5ae81171 15
+framework/test/XiHan.Framework.Web.Grpc.Tests/XiHan.Framework.Web.Grpc.Tests.csproj
+  s_2b4187c9778a9c::t_28c4e366eac537 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d78358931c8ed6f4a56e596d60c80849582b92bf",
+  "prompts": {},
+  "sessions": {
+    "s_2b4187c9778a9c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6f7a67e-6fa0-4fbd-ac43-cf368c65c0f3",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
