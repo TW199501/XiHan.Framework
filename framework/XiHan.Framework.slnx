@@ -103,6 +103,8 @@
     <Project Path="test/XiHan.Framework.Data.Tests/XiHan.Framework.Data.Tests.csproj" />
     <Project Path="test/XiHan.Framework.DevTools.Tests/XiHan.Framework.DevTools.Tests.csproj" Id="8b65e93b-e710-44b2-9107-4234c0eb2643" />
     <Project Path="test/XiHan.Framework.DistributedIds.Tests/XiHan.Framework.DistributedIds.Tests.csproj" />
+    <Project Path="test/XiHan.Framework.Docs.Mcp.Tests/XiHan.Framework.Docs.Mcp.Tests.csproj" />
+    <Project Path="test/XiHan.Framework.Docs.Mcp.Web.Tests/XiHan.Framework.Docs.Mcp.Web.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Domain.Shared.Tests/XiHan.Framework.Domain.Shared.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Domain.Tests/XiHan.Framework.Domain.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.Abstractions.Tests/XiHan.Framework.EventBus.Abstractions.Tests.csproj" />
@@ -157,6 +159,12 @@
   <Folder Name="/4.tool/" />
   <Folder Name="/4.tool/1.ProjectStandardization/">
     <Project Path="tool/Region/Region.csproj" Id="41b103a1-9eaf-4915-968e-0416ca8773dd" />
+  </Folder>
+  <Folder Name="/4.tool/2.DocsMcp/">
+    <Project Path="tool/XiHan.Framework.Docs.Mcp/XiHan.Framework.Docs.Mcp.csproj" />
+  </Folder>
+  <Folder Name="/4.tool/3.DocsMcpWeb/">
+    <Project Path="tool/XiHan.Framework.Docs.Mcp.Web/XiHan.Framework.Docs.Mcp.Web.csproj" />
   </Folder>
   <Folder Name="/5.others/" />
   <Folder Name="/5.others/1.Props/">

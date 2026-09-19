@@ -51,11 +51,13 @@ jobs:
         # 测试应用；--coverage 经 TestingPlatformCommandLineArguments 透传给每个测试程序，
         # 覆盖率文件产出到工作目录下的 TestResults/。失败即中断。
         # MTP 模式下解决方案必须经 --solution 传入，位置参数会被直接拒绝。
+        # codecoverage.settings.xml 排除了一个会让插桩崩溃的程序集，原因见该文件内的说明；
+        # 该参数由各测试程序自行解析，工作目录不一定是仓库根，因此传绝对路径。
         run: >
           dotnet test --solution framework/XiHan.Framework.slnx
           --configuration Release
           --no-build
-          -p:TestingPlatformCommandLineArguments="--coverage --coverage-output-format cobertura"
+          -p:TestingPlatformCommandLineArguments="--coverage --coverage-output-format cobertura --coverage-settings ${{ github.workspace }}/.github/codecoverage.settings.xml"
 
       - name: 合并覆盖率报告
         # 覆盖率产物并不落在 dotnet test 的工作目录，而是每个测试工程各自的
