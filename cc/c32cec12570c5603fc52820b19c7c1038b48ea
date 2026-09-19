@@ -1,0 +1,179 @@
+.github/codecoverage.settings.xml
+  s_cfac1b7d026843::t_31a460d2843368 9-10
+  s_cfac1b7d026843::t_4cac7f8664227e 1-8,11-41
+.github/workflows/ci.yml
+  s_cfac1b7d026843::t_60d991f2c78a49 54-55,60
+framework/XiHan.Framework.slnx
+  s_cfac1b7d026843::t_2bacaa5b679bcc 163-166
+  s_cfac1b7d026843::t_1c25441879d7e4 106-107,167-168
+.github/workflows/claude-code-review.yml
+  s_8d85f348e33c5d::t_d479dae8376957 1-68
+.github/workflows/claude.yml
+  s_8d85f348e33c5d::t_35afa36381c6b1 1-73
+.mcp.json
+  s_8d85f348e33c5d::t_9eeb09678994ea 1-10
+.mcp.json.example
+  s_8d85f348e33c5d::t_2a6e58db769694 1-13
+.superpowers/plans/2026-08-16-docs-mcp-server.md
+  s_8d85f348e33c5d::t_0a4c4e34b7a2a8 1-3672
+.superpowers/specs/2026-08-16-docs-mcp-server-design.md
+  s_8d85f348e33c5d::t_09edfe099bfd38 1-241
+AGENTS.md
+  s_8d85f348e33c5d::t_708392cba249be 1-215
+framework/src/XiHan.Framework.AI/Mcp/SkillMcpToolsConfigurator.cs
+  s_8d85f348e33c5d::t_b6155e55aa1f14 15,17-26,41,44,50-53,56-74,77-86
+framework/src/XiHan.Framework.Web.Mcp/Extensions/ApplicationBuilderExtensions.cs
+  s_8d85f348e33c5d::t_a83d60dbd3eaa9 4-6,27,38-42
+framework/src/XiHan.Framework.Web.Mcp/Extensions/DependencyInjection/XiHanWebMcpServiceCollectionExtensions.cs
+  s_cfac1b7d026843::t_bd483afecc58ab 4-6,8,24-27,45
+framework/src/XiHan.Framework.Web.Mcp/Filters/McpToolExposureFilter.cs
+  s_8d85f348e33c5d::t_bbb5b7e5acdde0 1-114
+framework/src/XiHan.Framework.Web.Mcp/Options/XiHanMcpOptions.cs
+  s_8d85f348e33c5d::t_11938d43527d6e 12-15,49-67
+framework/src/XiHan.Framework.Web.Mcp/README.md
+  s_8d85f348e33c5d::t_c52db3e8e020ea 6-9,15,31-164,175,189
+framework/test/XiHan.Framework.Docs.Mcp.Tests/BigramIndexTests.cs
+  s_8d85f348e33c5d::t_d5a2018c543152 1-83
+framework/test/XiHan.Framework.Docs.Mcp.Tests/CapturingLogger.cs
+  s_8d85f348e33c5d::t_44be2f496c5e46 1-96
+framework/test/XiHan.Framework.Docs.Mcp.Tests/DataTypeContractTests.cs
+  s_8d85f348e33c5d::t_7c586caf678360 1-93
+framework/test/XiHan.Framework.Docs.Mcp.Tests/DocIndexTests.cs
+  s_8d85f348e33c5d::t_fbeb22f1e2591c 1-158
+framework/test/XiHan.Framework.Docs.Mcp.Tests/DocSourceLocatorTests.cs
+  s_8d85f348e33c5d::t_ff0b31b6891c71 1-261
+framework/test/XiHan.Framework.Docs.Mcp.Tests/DocsMcpToolsLoggingTests.cs
+  s_8d85f348e33c5d::t_e6b74a4e718ac1 1-275
+framework/test/XiHan.Framework.Docs.Mcp.Tests/DocsMcpToolsTests.cs
+  s_8d85f348e33c5d::t_0fda774480bdde 1-282
+framework/test/XiHan.Framework.Docs.Mcp.Tests/GoldenQueryTests.cs
+  s_8d85f348e33c5d::t_f32889e3d47cc7 1-260
+framework/test/XiHan.Framework.Docs.Mcp.Tests/MarkdownSectionSplitterTests.cs
+  s_8d85f348e33c5d::t_b53be30f4f8cc9 1-273
+framework/test/XiHan.Framework.Docs.Mcp.Tests/SectionScorerTests.cs
+  s_8d85f348e33c5d::t_c77897908680cf 1-183
+framework/test/XiHan.Framework.Docs.Mcp.Tests/StdioHostIntegrationTests.cs
+  s_8d85f348e33c5d::t_8860cf9ce85bc0 1-549
+framework/test/XiHan.Framework.Docs.Mcp.Tests/SynonymExpanderTests.cs
+  s_8d85f348e33c5d::t_c7af72f81aa715 1-130
+framework/test/XiHan.Framework.Docs.Mcp.Tests/TokenizerTests.cs
+  s_8d85f348e33c5d::t_57851bc6d83ed6 1-84
+framework/test/XiHan.Framework.Docs.Mcp.Tests/XiHan.Framework.Docs.Mcp.Tests.csproj
+  s_cfac1b7d026843::t_5a54b8801f6bd1 1-19
+framework/test/XiHan.Framework.Docs.Mcp.Web.Tests/ApiKeyAuthTests.cs
+  s_8d85f348e33c5d::t_54a1843a5ce3e4 1-163
+framework/test/XiHan.Framework.Docs.Mcp.Web.Tests/DocsMcpWebTestHost.cs
+  s_8d85f348e33c5d::t_a21e9c31a39776 1-204
+framework/test/XiHan.Framework.Docs.Mcp.Web.Tests/DocsToolsOverHttpTests.cs
+  s_8d85f348e33c5d::t_d037faccd36da9 1-124
+framework/test/XiHan.Framework.Docs.Mcp.Web.Tests/EndpointExposureTests.cs
+  s_8d85f348e33c5d::t_15e8eb59a1eb8d 1-98
+framework/test/XiHan.Framework.Docs.Mcp.Web.Tests/OptionsValidationTests.cs
+  s_8d85f348e33c5d::t_1c7bcca5d274f0 1-162
+framework/test/XiHan.Framework.Docs.Mcp.Web.Tests/ServiceRegistrationTests.cs
+  s_8d85f348e33c5d::t_286a53b1b7892e 1-102
+framework/test/XiHan.Framework.Docs.Mcp.Web.Tests/XiHan.Framework.Docs.Mcp.Web.Tests.csproj
+  s_cfac1b7d026843::t_1b9b4bc384ce04 1-15
+framework/test/XiHan.Framework.Web.Mcp.Tests/EchoAiSkill.cs
+  s_8d85f348e33c5d::t_c4f2aef7609985 1-46
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpApiKeyFilterTests.cs
+  s_8d85f348e33c5d::t_8ee5cba252e9e8 1-132
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpDuplicateToolNameTests.cs
+  s_8d85f348e33c5d::t_68d22bdbb6c336 1-63
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpExposureGateTests.cs
+  s_8d85f348e33c5d::t_289d011f0fe04d 1-172
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpSkillProjectionTests.cs
+  s_8d85f348e33c5d::t_126f04306b41da 1-71
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpTestHost.cs
+  s_8d85f348e33c5d::t_32eda7d277b5af 1-336
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpToolExposurePolicyTests.cs
+  s_8d85f348e33c5d::t_e78c700817caeb 1-256
+framework/test/XiHan.Framework.Web.Mcp.Tests/NamedEchoAiSkill.cs
+  s_8d85f348e33c5d::t_ecfe179056323f 1-55
+framework/test/XiHan.Framework.Web.Mcp.Tests/XiHan.Framework.Web.Mcp.Tests.csproj
+  s_cfac1b7d026843::t_a6597c03864c33 8-9,12-20
+framework/tool/XiHan.Framework.Docs.Mcp.Web/Extensions/ApplicationBuilderExtensions.cs
+  s_8d85f348e33c5d::t_1045d91aa707a5 1-42
+framework/tool/XiHan.Framework.Docs.Mcp.Web/Extensions/DependencyInjection/XiHanDocsMcpWebServiceCollectionExtensions.cs
+  s_8d85f348e33c5d::t_ae811bc68f5543 1-81
+framework/tool/XiHan.Framework.Docs.Mcp.Web/Options/XiHanDocsMcpWebOptions.cs
+  s_8d85f348e33c5d::t_b193deaf9a3d9f 1-57
+framework/tool/XiHan.Framework.Docs.Mcp.Web/Options/XiHanDocsMcpWebOptionsValidator.cs
+  s_8d85f348e33c5d::t_c02970d5016ecd 1-145
+framework/tool/XiHan.Framework.Docs.Mcp.Web/Program.cs
+  s_8d85f348e33c5d::t_ef9bed266699d0 1-65
+framework/tool/XiHan.Framework.Docs.Mcp.Web/README.md
+  s_8d85f348e33c5d::t_88b46bc045fb76 1-246
+framework/tool/XiHan.Framework.Docs.Mcp.Web/XiHan.Framework.Docs.Mcp.Web.csproj
+  s_8d85f348e33c5d::t_ab2e0297f6a075 1-48
+framework/tool/XiHan.Framework.Docs.Mcp.Web/appsettings.json
+  s_8d85f348e33c5d::t_754305f5883517 1-18
+framework/tool/XiHan.Framework.Docs.Mcp.Web/deploy/Caddyfile.example
+  s_8d85f348e33c5d::t_fc17df36e15494 1-145
+framework/tool/XiHan.Framework.Docs.Mcp.Web/deploy/nginx.conf.example
+  s_8d85f348e33c5d::t_55a1189e171744 1-182
+framework/tool/XiHan.Framework.Docs.Mcp/Indexing/BigramIndex.cs
+  s_8d85f348e33c5d::t_739a3f2d4688b6 1-71
+framework/tool/XiHan.Framework.Docs.Mcp/Indexing/DocIndex.cs
+  s_8d85f348e33c5d::t_b2faafa90bd894 1-150
+framework/tool/XiHan.Framework.Docs.Mcp/Indexing/DocSection.cs
+  s_8d85f348e33c5d::t_82413ba83e31ed 1-27
+framework/tool/XiHan.Framework.Docs.Mcp/Indexing/IndexSnapshot.cs
+  s_8d85f348e33c5d::t_5954b5995f4ae9 1-24
+framework/tool/XiHan.Framework.Docs.Mcp/Indexing/MarkdownSectionSplitter.cs
+  s_8d85f348e33c5d::t_2df0794521ba9e 1-232
+framework/tool/XiHan.Framework.Docs.Mcp/Indexing/Tokenizer.cs
+  s_8d85f348e33c5d::t_a9e33ae1caabe9 1-147
+framework/tool/XiHan.Framework.Docs.Mcp/Options/DocsMcpOptions.cs
+  s_8d85f348e33c5d::t_31f1103176bd04 1-93
+framework/tool/XiHan.Framework.Docs.Mcp/Program.cs
+  s_8d85f348e33c5d::t_37b8860a59a8b6 1-55
+framework/tool/XiHan.Framework.Docs.Mcp/README.md
+  s_8d85f348e33c5d::t_02787170e66e78 1-214
+framework/tool/XiHan.Framework.Docs.Mcp/Resources/synonyms.json
+  s_8d85f348e33c5d::t_538cf516c66ce1 1-30
+framework/tool/XiHan.Framework.Docs.Mcp/Search/RelevanceGate.cs
+  s_8d85f348e33c5d::t_86b63c839d170d 1-212
+framework/tool/XiHan.Framework.Docs.Mcp/Search/SearchHit.cs
+  s_8d85f348e33c5d::t_f8348ff4acb8b3 1-13
+framework/tool/XiHan.Framework.Docs.Mcp/Search/SectionScorer.cs
+  s_8d85f348e33c5d::t_c7b7a255a7fb96 1-126
+framework/tool/XiHan.Framework.Docs.Mcp/Search/SynonymExpander.cs
+  s_8d85f348e33c5d::t_a2eb2e944e8eb9 1-132
+framework/tool/XiHan.Framework.Docs.Mcp/Search/WeightedTerm.cs
+  s_8d85f348e33c5d::t_e8deb5fadd9fe5 1-11
+framework/tool/XiHan.Framework.Docs.Mcp/Sources/DocFile.cs
+  s_8d85f348e33c5d::t_710ef6228779c1 1-17
+framework/tool/XiHan.Framework.Docs.Mcp/Sources/DocSourceKind.cs
+  s_8d85f348e33c5d::t_126076cdcc392f 1-30
+framework/tool/XiHan.Framework.Docs.Mcp/Sources/DocSourceLocator.cs
+  s_8d85f348e33c5d::t_f4312af59df0fd 1-191
+framework/tool/XiHan.Framework.Docs.Mcp/Tools/DocsMcpTools.cs
+  s_8d85f348e33c5d::t_6fff26b42512bb 1-517
+framework/tool/XiHan.Framework.Docs.Mcp/XiHan.Framework.Docs.Mcp.csproj
+  s_8d85f348e33c5d::t_0c36c75809c0db 1-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ccc32cec12570c5603fc52820b19c7c1038b48ea",
+  "prompts": {},
+  "sessions": {
+    "s_8d85f348e33c5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab174c78-ca03-47ac-88c6-229937a5b3b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_cfac1b7d026843": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac56b906-e7b2-4036-afe0-92c773e833d0",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
