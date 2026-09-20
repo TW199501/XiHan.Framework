@@ -1,0 +1,27 @@
+docs/packages/ai.md
+  s_2b4187c9778a9c::t_a742911148ca56 98
+  s_2b4187c9778a9c::t_c5bbe5e9eae9dc 105-106
+docs/packages/web-mcp.md
+  s_2b4187c9778a9c::t_a3c857aedfb38c 45-46
+  s_2b4187c9778a9c::t_811c82eaedf984 77
+  s_2b4187c9778a9c::t_17f907be439005 68
+  s_2b4187c9778a9c::t_6ba276542cf638 87-88
+framework/src/XiHan.Framework.Web.Mcp/README.md
+  s_2b4187c9778a9c::t_871b09aec7595f 6-9,15,31-164,175,189
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7219af68f6a9db0d0ffe9170fc012cfa4142e8b7",
+  "prompts": {},
+  "sessions": {
+    "s_2b4187c9778a9c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6f7a67e-6fa0-4fbd-ac43-cf368c65c0f3",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
