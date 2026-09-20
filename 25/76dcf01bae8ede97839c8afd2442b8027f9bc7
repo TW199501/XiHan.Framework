@@ -1,0 +1,14 @@
+.superpowers/plans/2026-09-21-auditing-sqlsugar-p2-writers.md
+  h_be8240d2cfaa4b 1162-1163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2576dcf01bae8ede97839c8afd2442b8027f9bc7",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
