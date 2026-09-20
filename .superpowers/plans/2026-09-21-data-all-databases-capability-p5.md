@@ -440,13 +440,15 @@ git commit -m "feat(data): 可查询当前工作单元已登记的连接标识"
 在 `docs/packages/data.md` 的建表选取规则一节，把「未声明的实体不进模块库」补成三条通路，并加示例：
 
 ```csharp
-// 基础设施表：每个库都要有一份（发件箱、审计、分布式锁等）
-[SugarTable("sys_event_outbox")]
+// 基础设施表：每个库都要有一份（收发件箱、审计、分布式锁等）
+[SugarTable("sys_infrastructure_record")]
 [TableInitialization(IncludeModuleConnections = true)]
-public class SysEventOutbox : SugarEntity<Guid> { }
+public class SysInfrastructureRecord : SugarEntity<Guid> { }
 ```
 
 说明三条通路：当前连接不是模块库、该 ConfigId 命中 `SharedConnectionConfigIds`、实体标注了 `IncludeModuleConnections`。并点明 `SharedConnectionConfigIds` 是连接层级的整体放行，新属性是实体层级的单点放行，两者并存。
+
+示例实体名是**示意用的占位**，不要改成 `SysEventOutbox` 之类的具体类型——那些类型由别的 PR 引入，本 PR 的文档不能引用尚不存在的类。
 
 - [ ] **Step 2: 补模块分库一节**
 
