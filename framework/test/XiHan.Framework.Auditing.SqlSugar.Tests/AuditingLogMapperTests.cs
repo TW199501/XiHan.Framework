@@ -12,9 +12,6 @@ public class AuditingLogMapperTests
 {
     private static readonly DateTimeOffset CreatedTime = new(2026, 9, 21, 10, 30, 0, TimeSpan.Zero);
 
-    /// <summary>
-    /// 操作日志映射保留全部字段
-    /// </summary>
     [Fact]
     public void 操作日志映射保留全部字段()
     {
@@ -58,9 +55,6 @@ public class AuditingLogMapperTests
         Assert.Null(entity.ErrorMessage);
     }
 
-    /// <summary>
-    /// 登录日志的登录时间与创建时间各自独立
-    /// </summary>
     [Fact]
     public void 登录日志的登录时间与创建时间各自独立()
     {
@@ -87,9 +81,6 @@ public class AuditingLogMapperTests
         Assert.Equal("device-1", entity.DeviceId);
     }
 
-    /// <summary>
-    /// 异常日志映射保留异常三要素
-    /// </summary>
     [Fact]
     public void 异常日志映射保留异常三要素()
     {
@@ -110,9 +101,6 @@ public class AuditingLogMapperTests
         Assert.Equal(500, entity.StatusCode);
     }
 
-    /// <summary>
-    /// 接口日志映射保留签名校验结果
-    /// </summary>
     [Fact]
     public void 接口日志映射保留签名校验结果()
     {
@@ -137,9 +125,6 @@ public class AuditingLogMapperTests
         Assert.Equal("client-1", entity.ClientId);
     }
 
-    /// <summary>
-    /// 访问日志映射保留响应大小与耗时
-    /// </summary>
     [Fact]
     public void 访问日志映射保留响应大小与耗时()
     {

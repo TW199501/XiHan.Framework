@@ -11,9 +11,6 @@ namespace XiHan.Framework.Auditing.SqlSugar.Tests;
 /// </summary>
 public class TableInitializationTests
 {
-    /// <summary>
-    /// 五类日志实体都能建出当月分表
-    /// </summary>
     [Fact]
     public void 五类日志实体都能建出当月分表()
     {
@@ -80,9 +77,6 @@ public class TableInitializationTests
         }
     }
 
-    /// <summary>
-    /// 操作日志写入后能按时间区间查回
-    /// </summary>
     [Fact]
     public void 操作日志写入后能按时间区间查回()
     {
@@ -164,16 +158,21 @@ public class TableInitializationTests
         }
     }
 
-    private static string NewDatabasePath() =>
-        Path.Combine(Path.GetTempPath(), $"xihan_auditing_{Guid.NewGuid():N}.db");
+    private static string NewDatabasePath()
+    {
+        return Path.Combine(Path.GetTempPath(), $"xihan_auditing_{Guid.NewGuid():N}.db");
+    }
 
-    private static SqlSugarClient CreateClient(string databaseFile) => new(new ConnectionConfig
+    private static SqlSugarClient CreateClient(string databaseFile)
     {
         // 关闭连接池，避免用例结束后驱动仍持有临时库文件句柄。
-        ConnectionString = $"DataSource={databaseFile};Pooling=False",
-        DbType = DbType.Sqlite,
-        IsAutoCloseConnection = true
-    });
+        return new(new ConnectionConfig
+        {
+            ConnectionString = $"DataSource={databaseFile};Pooling=False",
+            DbType = DbType.Sqlite,
+            IsAutoCloseConnection = true
+        });
+    }
 
     private static void DeleteDatabase(string path)
     {

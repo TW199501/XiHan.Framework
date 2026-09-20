@@ -18,9 +18,6 @@ namespace XiHan.Framework.Auditing.SqlSugar.Tests;
 /// </summary>
 public class LogWriterTests
 {
-    /// <summary>
-    /// 操作日志写入后能查回且主键非零
-    /// </summary>
     [Fact]
     public async Task 操作日志写入后能查回且主键非零()
     {
@@ -100,9 +97,6 @@ public class LogWriterTests
         Assert.Equal(expectedImplementationType, descriptor.ImplementationType);
     }
 
-    /// <summary>
-    /// 登录日志写入后能查回
-    /// </summary>
     [Fact]
     public async Task 登录日志写入后能查回()
     {
@@ -142,16 +136,21 @@ public class LogWriterTests
         }
     }
 
-    private static string NewDatabasePath() =>
-        Path.Combine(Path.GetTempPath(), $"xihan_writer_{Guid.NewGuid():N}.db");
+    private static string NewDatabasePath()
+    {
+        return Path.Combine(Path.GetTempPath(), $"xihan_writer_{Guid.NewGuid():N}.db");
+    }
 
-    private static SqlSugarClient CreateClient(string databaseFile) => new(new ConnectionConfig
+    private static SqlSugarClient CreateClient(string databaseFile)
     {
         // 关闭连接池，避免用例结束后驱动仍持有临时库文件句柄。
-        ConnectionString = $"DataSource={databaseFile};Pooling=False",
-        DbType = DbType.Sqlite,
-        IsAutoCloseConnection = true
-    });
+        return new(new ConnectionConfig
+        {
+            ConnectionString = $"DataSource={databaseFile};Pooling=False",
+            DbType = DbType.Sqlite,
+            IsAutoCloseConnection = true
+        });
+    }
 
     private static void DeleteDatabase(string path)
     {
