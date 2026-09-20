@@ -1,0 +1,27 @@
+.superpowers/specs/2026-09-21-auditing-sqlsugar-p1-entities-design.md
+  s_8e1de276d9ee27::t_7b001211eb03b8 6
+.superpowers/specs/2026-09-21-eventbus-sqlsugar-p3-outbox-entity-design.md
+  s_8e1de276d9ee27::t_7b001211eb03b8 6,281
+.superpowers/specs/2026-09-21-data-all-databases-capability-p5-design.md
+  s_8e1de276d9ee27::t_7b001211eb03b8 7
+.superpowers/specs/2026-09-21-auditing-sqlsugar-p2-writers-design.md
+  s_8e1de276d9ee27::t_7b001211eb03b8 7,277
+.superpowers/specs/2026-09-21-eventbus-sqlsugar-p4-outbox-write-claim-design.md
+  s_8e1de276d9ee27::t_7b001211eb03b8 7,304
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "63b35a01f1468aa753e2baae9727e1f96fcfc83e",
+  "prompts": {},
+  "sessions": {
+    "s_8e1de276d9ee27": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "070e7f55-255f-4e55-a689-460ed507b409",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
