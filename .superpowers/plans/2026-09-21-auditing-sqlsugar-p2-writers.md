@@ -1159,7 +1159,8 @@ PR1 可提交时应满足：
 
 ## 本机验收记录（2026-09-21，Windows / SDK 10.0.112）
 
-- **构建**：本包两个项目单独重建为 **0 警告 0 错误**。全解决方案构建 0 错误，**无任何 CS/NU/分析器警告**；警告全部是 MSB3026 复制重试，占用方指向 `XiHan.Framework.EventBus.SqlSugar.Tests` 与 `Workflow.Tests` 的 bin——即另一会话在同一 worktree 并发构建与跑测试所致。断线前一次无并发的全量构建为 0 警告 0 错误（137 个输出）。**开 PR 前请在另一会话停止后复跑一次，确认 0 警告。**
+- **构建**：门槛已验证成立，三层证据。① 全解决方案强制 `-t:Rebuild`：0 错误、无任何 CS/NU/分析器警告，只有 MSB3026 复制重试；② 本包两个项目单独 `-t:Rebuild --no-dependencies`（强制全编译本次改动）：各 **0 警告 0 错误**；③ 门槛原命令增量构建：**0 个警告 0 个错误**，且 `MSB3026` 计数为 0。结论：MSB3026 纯属两个会话同时读写 `bin/obj` 的产物，与代码无关。
+  - 踩坑：不要用 `-p:BaseIntermediateOutputPath` 把多个项目的 obj 重定向到同一目录，MSBuild 会报 MSB4006「CleanReferencedProjects 目标依赖图形中有循环依赖性」，该次构建结果无效。
 - **测试**：`XiHan.Framework.Auditing.SqlSugar.Tests` 31 通过 / 0 失败。全量 11380 例中 1 失败 + `Utils.Tests` 整项目异常退出，两处都在本 PR 零改动的包：
   - `Script.Tests` 内存用例两次红的不是同一个（`MemoryUsageTests.cs:55` 与 `:77`），属既有随机失败。仓库先例：`452dc323 test(script): 修掉 GC 计数用例的随机失败`、`c6fe01dd test: 兼容零托管堆内存读数`
   - `Utils.Tests` 退出码 -1，MTP 报「收到测试会话开始事件，但没有对应的会话结束」；单跑同样崩在 96 线程压力阶段（该用例族约写 2.6 GB）
