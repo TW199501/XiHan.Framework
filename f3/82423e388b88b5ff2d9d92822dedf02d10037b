@@ -1,0 +1,20 @@
+framework/src/XiHan.Framework.Auditing.SqlSugar/Extensions/DependencyInjection/XiHanAuditingSqlSugarServiceCollectionExtensions.cs
+  h_be8240d2cfaa4b 1-29
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarOperationLogWriter.cs
+  h_be8240d2cfaa4b 1-49
+framework/src/XiHan.Framework.Auditing.SqlSugar/XiHanAuditingSqlSugarModule.cs
+  h_be8240d2cfaa4b 4,15,23-30
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/LogWriterTests.cs
+  h_be8240d2cfaa4b 1-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f382423e388b88b5ff2d9d92822dedf02d10037b",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
