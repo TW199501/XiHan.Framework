@@ -1,0 +1,14 @@
+docs/packages/data.md
+  h_be8240d2cfaa4b 137,155,428,434-443,485-489,501,526
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ea51b5f2067b3508acc731ea71fc3c054eb3adc4",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
