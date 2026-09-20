@@ -24,22 +24,17 @@ namespace XiHan.Framework.Web.Mcp.Tests;
 /// 进程内测试宿主：按给定配置装配 <c>AddXiHanWebMcp</c> + <c>MapXiHanMcp</c>，在回环临时端口上跑真实 HTTP
 /// </summary>
 /// <remarks>
-/// 为什么必须起真实服务端而不是只调扩展方法：被测的两个性质都只在 HTTP 层才有意义——
-/// 「端点不存在」要由 404 来证，「密钥不对」要由端点过滤器在真实请求管道里跑出 401 来证。
-/// 只断言服务集合的话，一个映射了无鉴权端点的实现照样能全绿。
-/// <para>
-/// 端口固定写 0 交给操作系统分配，CI 上并行跑多个测试项目也不会撞；只绑 127.0.0.1，不出网。
-/// </para>
+/// 端口固定写 0 交给操作系统分配，只绑 127.0.0.1，不出网。
 /// </remarks>
 internal sealed class McpTestHost : IAsyncDisposable
 {
     /// <summary>
-    /// 单次请求的等待上限，够宽以容忍 CI 冷启动，又不至于让挂起的测试拖死整个套件
+    /// 单次请求的等待上限
     /// </summary>
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// 一条最小可用的 initialize 请求；握手是所有 MCP 会话的第一步，用它探端点最贴近真实客户端
+    /// 一条最小可用的 initialize 请求
     /// </summary>
     private const string InitializeRequestJson =
         """
@@ -108,14 +103,12 @@ internal sealed class McpTestHost : IAsyncDisposable
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
 
-        // 放在配置源链的最后，压过开发机上可能存在的 XiHan__AI__Mcp__* 环境变量，
-        // 否则测试结果会随执行机器的环境而变
+        // 内存配置源加在配置链末尾，覆盖 XiHan__AI__Mcp__* 环境变量
         builder.Configuration.AddInMemoryCollection(BuildSettings(enabled, apiKey, allowedTools, deniedTools));
 
         _ = builder.Services.AddXiHanWebMcp(builder.Configuration);
 
-        // 技能注册表本由 AddXiHanAI 注册，这里只补这一件依赖：
-        // SkillMcpToolsConfigurator 要它，而拉起整个 AI 模块会连带一串与本包无关的 provider 配置
+        // 只注册 SkillMcpToolsConfigurator 依赖的 IAiSkillRegistry，不拉起整个 AI 模块
         builder.Services.TryAddSingleton<IAiSkillRegistry, DefaultAiSkillRegistry>();
         foreach (var skill in skills)
         {
@@ -153,8 +146,7 @@ internal sealed class McpTestHost : IAsyncDisposable
             Content = new StringContent(InitializeRequestJson, Encoding.UTF8, "application/json")
         };
 
-        // Streamable HTTP 传输要求 Accept 同时列出这两种，缺一会被服务端以 406 拒绝，
-        // 那样 401/404 的断言就测不到该测的东西了
+        // Streamable HTTP 传输要求 Accept 头同时列出这两种
         request.Headers.Accept.ParseAdd("application/json");
         request.Headers.Accept.ParseAdd("text/event-stream");
 
@@ -200,7 +192,7 @@ internal sealed class McpTestHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// 停止并释放宿主，断言失败时也不留下占着端口的监听器
+    /// 停止并释放宿主
     /// </summary>
     /// <returns>释放任务</returns>
     public async ValueTask DisposeAsync()
@@ -227,7 +219,7 @@ internal sealed class McpTestHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// 组装内存配置项，宿主与「只看服务集合」的测试共用同一套，两边看到的配置必然一致
+    /// 组装内存配置项，宿主与直接检视服务集合的测试共用
     /// </summary>
     /// <param name="enabled">是否启用</param>
     /// <param name="apiKey">访问密钥，null 表示不写这个键</param>

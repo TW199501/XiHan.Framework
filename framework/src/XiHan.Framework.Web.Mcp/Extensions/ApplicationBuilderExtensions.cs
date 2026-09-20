@@ -35,9 +35,7 @@ public static class ApplicationBuilderExtensions
             return endpoints;
         }
 
-        // 主动把 McpServerOptions 装配出来：工具集的装配（技能投影、清单裁剪）本是懒的，
-        // 不提前跑一遍的话，技能撞名这类装配期错误要等第一个 MCP 请求到达才炸成 500。
-        // 宁可让宿主起不来，也不要让它带着「注册过的技能凭空不存在」上线。
+        // 提前装配 McpServerOptions，使工具集在映射端点前完成构建
         _ = endpoints.ServiceProvider.GetRequiredService<IOptions<McpServerOptions>>().Value;
 
         _ = endpoints.MapMcp(options.Path)

@@ -11,16 +11,12 @@ namespace XiHan.Framework.Web.Mcp.Filters;
 /// MCP 工具暴露过滤器（按 <see cref="XiHanMcpOptions.AllowedTools"/> 与 <see cref="XiHanMcpOptions.DeniedTools"/> 裁剪经 /mcp 暴露的工具集）
 /// </summary>
 /// <remarks>
-/// 为什么落在本包而不是技能投影处：允许/拒绝清单是 **HTTP 暴露面的部署级策略**，与 ApiKey 同层，属本包的事;
-/// <c>XiHan.Framework.AI</c> 的技能投影与传输无关，不该认得本包的选项类型。
+/// 被裁掉的工具既不出现在 tools/list，也不能经 tools/call 调用；两个清单都为空时不触碰工具集。
 /// <para>
-/// 为什么是 PostConfigure：它必在全部 <see cref="IConfigureOptions{TOptions}"/> 之后运行，
-/// 于是官方 <c>AddMcpServer()</c> 收集的工具、本框架投影的技能工具都已就位，一次裁剪覆盖整个暴露面——
-/// 只过滤技能的话，宿主经 <c>WithTools</c> 直接注册的工具会绕过清单。
-/// </para>
-/// <para>
-/// 工具集同时供 tools/list 与 tools/call 使用，从中移除即两条路都断，不是只在列表里藏起来。
-/// 两个清单都为空时直接返回、不触碰工具集，既有宿主升级后暴露面逐字不变。
+/// 裁剪的对象是 <see cref="McpServerOptions.ToolCollection"/>。宿主若另行设置
+/// <c>Handlers.ListToolsHandler</c> / <c>CallToolHandler</c>，这两个 handler 提供的工具不在裁剪范围内；
+/// 且 <c>CallToolHandler</c> 是「工具集里找不到才调用」的回退，被拒绝的名字有可能落到它身上。
+/// 启用清单的宿主不应同时使用这两个 handler。
 /// </para>
 /// </remarks>
 public sealed class McpToolExposureFilter : IPostConfigureOptions<McpServerOptions>
@@ -89,7 +85,7 @@ public sealed class McpToolExposureFilter : IPostConfigureOptions<McpServerOptio
     }
 
     /// <summary>
-    /// 把配置里的名字收成按序号比较的集合（跳过空白项，配置里留空行不至于变成一个匹配不上的名字）
+    /// 把配置里的名字收成按序号比较的集合（空白项跳过）
     /// </summary>
     /// <param name="names">配置里的名字</param>
     /// <returns>按序号比较的名字集合</returns>
