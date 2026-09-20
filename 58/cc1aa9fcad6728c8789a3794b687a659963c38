@@ -1,0 +1,43 @@
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpToolExposurePolicyTests.cs
+  s_2b4187c9778a9c::t_e304534364d636 242
+  s_2b4187c9778a9c::t_8cd8c1c02edb85 147
+  s_2b4187c9778a9c::t_d1c52856666841 171
+  s_2b4187c9778a9c::t_3764a9d027afd4 13-15
+  s_2b4187c9778a9c::t_c7be4ce1a3cccb 10-12
+  s_2b4187c9778a9c::t_14ff9bed02ad2a 16-18,144-146
+  s_2b4187c9778a9c::t_0afdc73d6b5027 148-150,168-170
+  s_2b4187c9778a9c::t_cbc55db457b9d6 172-174,239-241
+  s_2b4187c9778a9c::t_41c2baf0ca18f2 243-245
+  s_d1ebc416a1e5b3::t_dc8c917c75b2e0 1-9,19-143,151-167,175-238
+framework/src/XiHan.Framework.Web.Mcp/Filters/McpToolExposureFilter.cs
+  s_2b4187c9778a9c::t_db4824da052474 14
+  s_2b4187c9778a9c::t_8cf3ff0a1f0aa1 11-13
+  s_2b4187c9778a9c::t_b8eb07906f1907 15-17
+  s_d1ebc416a1e5b3::t_e2ecbbb9070098 1-10,18-104
+framework/src/XiHan.Framework.Web.Mcp/Extensions/DependencyInjection/XiHanWebMcpServiceCollectionExtensions.cs
+  s_2b4187c9778a9c::t_6f0f8c4355a766 4-6,8,24-27,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "58cc1aa9fcad6728c8789a3794b687a659963c38",
+  "prompts": {},
+  "sessions": {
+    "s_2b4187c9778a9c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6f7a67e-6fa0-4fbd-ac43-cf368c65c0f3",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_d1ebc416a1e5b3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a452857fb1dceee9d",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
