@@ -1,0 +1,21 @@
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/LogWriterTests.cs
+  s_94057b8e5cf9b6::t_8da4071973e188 139-142,144,147-153
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/TableInitializationTests.cs
+  s_94057b8e5cf9b6::t_e4acbee4a61fc2 161-164,166,169-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "278ce7c993867df80d03c134caedddbc0b9900ae",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
