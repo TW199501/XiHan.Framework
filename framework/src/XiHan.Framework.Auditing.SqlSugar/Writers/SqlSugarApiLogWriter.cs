@@ -35,7 +35,7 @@ public class SqlSugarApiLogWriter : IApiLogWriter
     /// 写入接口日志
     /// </summary>
     /// <param name="record">接口日志记录</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="cancellationToken">取消令牌，仅在写入前检查，不传递给数据库</param>
     public async Task WriteAsync(ApiLogRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);

@@ -35,7 +35,7 @@ public class SqlSugarAccessLogWriter : IAccessLogWriter
     /// 写入访问日志
     /// </summary>
     /// <param name="record">访问日志记录</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="cancellationToken">取消令牌，仅在写入前检查，不传递给数据库</param>
     public async Task WriteAsync(AccessLogRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
