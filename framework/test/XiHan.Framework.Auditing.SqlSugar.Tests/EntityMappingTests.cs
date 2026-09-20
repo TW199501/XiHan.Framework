@@ -70,4 +70,55 @@ public class EntityMappingTests
         Assert.NotNull(column);
         Assert.Equal("Trace_Id", column!.ColumnName);
     }
+
+    /// <summary>
+    /// 四个实体的表名均带 sys_ 前缀与三个分表变量
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(SysAccessLog), "sys_access_log_{year}{month}{day}")]
+    [InlineData(typeof(SysApiLog), "sys_api_log_{year}{month}{day}")]
+    [InlineData(typeof(SysExceptionLog), "sys_exception_log_{year}{month}{day}")]
+    [InlineData(typeof(SysLoginLog), "sys_login_log_{year}{month}{day}")]
+    public void 其余日志实体_表名符合约定(Type entityType, string expectedTableName)
+    {
+        var table = entityType.GetCustomAttribute<SugarTable>();
+
+        Assert.NotNull(table);
+        Assert.Equal(expectedTableName, table!.TableName);
+    }
+
+    /// <summary>
+    /// 四个实体均按月分表且分表字段为创建时间
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(SysAccessLog))]
+    [InlineData(typeof(SysApiLog))]
+    [InlineData(typeof(SysExceptionLog))]
+    [InlineData(typeof(SysLoginLog))]
+    public void 其余日志实体_按月分表且分表字段为创建时间(Type entityType)
+    {
+        var split = entityType.GetCustomAttribute<SplitTableAttribute>();
+        Assert.NotNull(split);
+        Assert.Equal(SplitType.Month, split!.SplitType);
+
+        var property = entityType.GetProperty("CreatedTime");
+        Assert.NotNull(property);
+        Assert.NotNull(property!.GetCustomAttribute<SplitFieldAttribute>());
+
+        Assert.True(typeof(ISplitTableEntity).IsAssignableFrom(entityType));
+    }
+
+    /// <summary>
+    /// 登录日志的业务时间与分表字段是两个不同的列
+    /// </summary>
+    [Fact]
+    public void SysLoginLog_登录时间与创建时间分列()
+    {
+        var loginTime = typeof(SysLoginLog).GetProperty(nameof(SysLoginLog.LoginTime));
+        var column = loginTime!.GetCustomAttribute<SugarColumn>();
+
+        Assert.NotNull(column);
+        Assert.Equal("Login_Time", column!.ColumnName);
+        Assert.Null(loginTime.GetCustomAttribute<SplitFieldAttribute>());
+    }
 }
