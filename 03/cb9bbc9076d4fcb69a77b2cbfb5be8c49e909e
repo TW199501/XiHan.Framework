@@ -1,0 +1,19 @@
+framework/src/XiHan.Framework.Web.Mcp/Options/XiHanMcpOptions.cs
+  s_49b25a46c1ffae::t_b4bba7bfbc7e41 12-15,49-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "03cb9bbc9076d4fcb69a77b2cbfb5be8c49e909e",
+  "prompts": {},
+  "sessions": {
+    "s_49b25a46c1ffae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ab9edcf628589533a",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
