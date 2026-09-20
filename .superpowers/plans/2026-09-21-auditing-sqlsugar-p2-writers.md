@@ -115,7 +115,7 @@ framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/
 
 **本任务禁止事项：** 不要引入 AutoMapper 或 `XiHan.Framework.ObjectMapping`——字段是一一对应的平铺赋值，加映射框架会让上游审查质疑必要性。不要在映射里调用 `LogSanitizer`（硬约束 ④）。不要在映射里生成主键或取当前时间——两者都由调用方传入，这样映射才是纯函数。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 `framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/AuditingLogMapperTests.cs`：
 
@@ -287,7 +287,7 @@ public class AuditingLogMapperTests
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiHan.Framework.Auditing.SqlSugar.Tests.csproj -c Release
@@ -295,7 +295,7 @@ dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiH
 
 预期：编译失败，`AuditingLogMapper` 不存在。
 
-- [ ] **Step 3: 实现映射器**
+- [x] **Step 3: 实现映射器**
 
 `framework/src/XiHan.Framework.Auditing.SqlSugar/Mapping/AuditingLogMapper.cs`：
 
@@ -480,7 +480,7 @@ public static class AuditingLogMapper
 }
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 ```bash
 dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiHan.Framework.Auditing.SqlSugar.Tests.csproj -c Release
@@ -488,7 +488,7 @@ dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiH
 
 预期：全部 PASS。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add framework/src/XiHan.Framework.Auditing.SqlSugar/Mapping framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/AuditingLogMapperTests.cs
@@ -521,7 +521,7 @@ git commit -m "feat(auditing-sqlsugar): 新增日志记录到实体的映射"
 
 **依赖可得性说明：** `IDistributedIdGenerator<long>` 由 `XiHanDistributedIdsModule` 注册，而 `XiHanDataModule` 已 `[DependsOn(typeof(XiHanDistributedIdsModule))]`，本模块经 `XiHanDataModule` 间接获得，**不需要**新增 `ProjectReference` 或 `DependsOn`。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 `framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/LogWriterTests.cs`：
 
@@ -643,7 +643,7 @@ internal sealed class StubClientResolver : ISqlSugarClientResolver
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiHan.Framework.Auditing.SqlSugar.Tests.csproj -c Release
@@ -651,7 +651,7 @@ dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiH
 
 预期：编译失败，`SqlSugarOperationLogWriter` 不存在。
 
-- [ ] **Step 3: 实现写入器**
+- [x] **Step 3: 实现写入器**
 
 `framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarOperationLogWriter.cs`：
 
@@ -709,7 +709,7 @@ public class SqlSugarOperationLogWriter : IOperationLogWriter
 
 **关于取消令牌**：`SplitInsertable.ExecuteCommandAsync()` **没有**接受 `CancellationToken` 的重载（已核对 `/e/source/external/SqlSugar/Src/Asp.Net/SqlSugar/Abstract/InsertableProvider/SplitInsertable.cs:42`，该类只有 `ExecuteCommand()`、`ExecuteCommandAsync()`、`ExecuteReturnSnowflakeId*` 几个执行方法）。因此令牌只能在执行前检查一次，**不要**试图传进去，也不要为此改用非分表的 `Insertable` 重载。
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 ```bash
 dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiHan.Framework.Auditing.SqlSugar.Tests.csproj -c Release
@@ -717,7 +717,7 @@ dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiH
 
 预期：全部 PASS。
 
-- [ ] **Step 5: 实现注册扩展**
+- [x] **Step 5: 实现注册扩展**
 
 `framework/src/XiHan.Framework.Auditing.SqlSugar/Extensions/DependencyInjection/XiHanAuditingSqlSugarServiceCollectionExtensions.cs`：
 
@@ -754,7 +754,7 @@ public static class XiHanAuditingSqlSugarServiceCollectionExtensions
 
 `Replace` 位于 `Microsoft.Extensions.DependencyInjection.Extensions` 命名空间，需要额外 `using`。
 
-- [ ] **Step 6: 在模块里调用扩展**
+- [x] **Step 6: 在模块里调用扩展**
 
 把 `XiHanAuditingSqlSugarModule.cs` 改为：
 
@@ -792,7 +792,7 @@ public class XiHanAuditingSqlSugarModule : XiHanModule
 }
 ```
 
-- [ ] **Step 7: 补一个注册断言测试**
+- [x] **Step 7: 补一个注册断言测试**
 
 在 `LogWriterTests.cs` 的 `LogWriterTests` 类里追加：
 
@@ -821,7 +821,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using XiHan.Framework.Auditing.SqlSugar.Extensions.DependencyInjection;
 ```
 
-- [ ] **Step 8: 运行测试并验证构建**
+- [x] **Step 8: 运行测试并验证构建**
 
 ```bash
 dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiHan.Framework.Auditing.SqlSugar.Tests.csproj -c Release
@@ -830,7 +830,7 @@ dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild
 
 预期：测试全部 PASS；构建 0 Warning(s) 0 Error(s)。
 
-- [ ] **Step 9: 提交**
+- [x] **Step 9: 提交**
 
 ```bash
 git add framework/src/XiHan.Framework.Auditing.SqlSugar framework/test/XiHan.Framework.Auditing.SqlSugar.Tests
@@ -859,7 +859,7 @@ git commit -m "feat(auditing-sqlsugar): 新增操作日志写入器并替换空�
 
 **本任务禁止事项：** 同 Task 2 全部四条硬约束。
 
-- [ ] **Step 1: 追加失败的测试**
+- [x] **Step 1: 追加失败的测试**
 
 在 `LogWriterTests` 类里追加：
 
@@ -938,7 +938,7 @@ git commit -m "feat(auditing-sqlsugar): 新增操作日志写入器并替换空�
     }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiHan.Framework.Auditing.SqlSugar.Tests.csproj -c Release
@@ -946,7 +946,7 @@ dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiH
 
 预期：编译失败，四个写入器类型不存在。
 
-- [ ] **Step 3: 实现四个写入器**
+- [x] **Step 3: 实现四个写入器**
 
 四个文件结构一致，仅记录类型、实体类型、接口不同。
 
@@ -1014,7 +1014,7 @@ public class SqlSugarAccessLogWriter : IAccessLogWriter
 
 「XML 注释中的日志名」指类摘要（`/// 访问日志 SqlSugar 写入器`）、`WriteAsync` 摘要（`/// 写入访问日志`）与其 `record` 参数说明（`/// <param name="record">访问日志记录</param>`）三处的「访问日志」。
 
-- [ ] **Step 4: 补齐注册**
+- [x] **Step 4: 补齐注册**
 
 把 `AddXiHanAuditingSqlSugar` 的方法体改为：
 
@@ -1030,7 +1030,7 @@ public class SqlSugarAccessLogWriter : IAccessLogWriter
         return services;
 ```
 
-- [ ] **Step 5: 运行测试并验证构建**
+- [x] **Step 5: 运行测试并验证构建**
 
 ```bash
 dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiHan.Framework.Auditing.SqlSugar.Tests.csproj -c Release
@@ -1039,7 +1039,7 @@ dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild
 
 预期：测试全部 PASS；构建 0 Warning(s) 0 Error(s)。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add framework/src/XiHan.Framework.Auditing.SqlSugar framework/test/XiHan.Framework.Auditing.SqlSugar.Tests
@@ -1067,7 +1067,7 @@ git commit -m "feat(auditing-sqlsugar): 新增访问、接口、异常、登录�
 
 **本任务禁止事项：** 不要顺手重写与本 PR 无关的文档。上游明确要求「一个 PR 只做一件事」——一个改代码的 PR 附带无关的文档重写，等于请他审一份他没要的文档 PR。不要在文档里声称仓库有 `.codegraph/` 目录。
 
-- [ ] **Step 1: 更新包 README**
+- [x] **Step 1: 更新包 README**
 
 把 P1 写的 README「核心能力」一节改为：
 
@@ -1086,7 +1086,7 @@ git commit -m "feat(auditing-sqlsugar): 新增访问、接口、异常、登录�
 写入器以 `services.Replace` 顶替 `XiHan.Framework.Auditing` 注册的空实现。应用侧若要再次替换，同样使用 `Replace`——`TryAdd` 不会生效。
 ```
 
-- [ ] **Step 2: 新增包文档**
+- [x] **Step 2: 新增包文档**
 
 `docs/packages/auditing-sqlsugar.md`，按 `docs/packages/auditing.md` 的结构组织，至少包含：包定位、表清单与分表规则、主键与列名约定、启用方式（`[DependsOn]`）、与 `XiHan.Framework.Auditing` 的关系、审计写入不参与业务事务这一行为说明。
 
@@ -1110,15 +1110,15 @@ sys_login_log    sys_operation_log
 
 `SysLoginLog` 的 `Login_Time` 是业务时间，与分表字段 `Created_Time` 各占一列。
 
-- [ ] **Step 3: 挂上侧边栏**
+- [x] **Step 3: 挂上侧边栏**
 
 在 `docs/.vitepress/config.ts` 的 packages 分组里、`auditing` 条目之后插入 `auditing-sqlsugar` 条目，`text` 用「审计日志 SqlSugar」。
 
-- [ ] **Step 4: 更新根 README 模块清单**
+- [x] **Step 4: 更新根 README 模块清单**
 
 在 `README.md` 与 `README_cn.md` 的模块表格中，紧随 `XiHan.Framework.Auditing` 之后加入 `XiHan.Framework.Auditing.SqlSugar` 一行，描述用「审计日志 SqlSugar 持久化」。若表格顶部或徽章处写了模块总数（原为 66），一并 +1。
 
-- [ ] **Step 5: 全量验收**
+- [x] **Step 5: 全量验收**
 
 ```bash
 dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false
@@ -1127,11 +1127,11 @@ dotnet test --solution framework/XiHan.Framework.slnx -c Release
 
 预期：构建 0 Warning(s) 0 Error(s)；全部测试通过。
 
-- [ ] **Step 6: 复查注释是否混入论证**
+- [x] **Step 6: 复查注释是否混入论证**
 
 逐个通读本 PR 新增的 `.cs` 文件的注释。判定标准不是比对字面词，而是判断是否在讲论证、权衡、叙事——前后对比的故事、设计理由、反事实推理都算。发现即移出到提交信息。
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add framework/src/XiHan.Framework.Auditing.SqlSugar/README.md docs README.md README_cn.md
@@ -1156,6 +1156,18 @@ PR1 可提交时应满足：
 - **逐条插入**：`IXxxLogWriter.WriteAsync` 是单条契约，队列 Worker 批量取出后仍逐条调用（见 `OperationLogQueueWorker.FlushAsync`）。高吞吐场景下这是 N 次往返。批量写入需要给写入器契约加批量重载，属于 `XiHan.Framework.Auditing` 主包的改动，不在本 PR 范围。
 - **分表查询**：跨月查询需显式 `SplitTable(begin, end)`，仓储层未暴露该能力，属框架既有缺口。
 - **审计写入不参与业务事务**：有意设计，日志由后台 Worker 在业务请求之外消费，不应因业务回滚而丢失。
+
+## 本机验收记录（2026-09-21，Windows / SDK 10.0.112）
+
+- **构建**：本包两个项目单独重建为 **0 警告 0 错误**。全解决方案构建 0 错误，**无任何 CS/NU/分析器警告**；警告全部是 MSB3026 复制重试，占用方指向 `XiHan.Framework.EventBus.SqlSugar.Tests` 与 `Workflow.Tests` 的 bin——即另一会话在同一 worktree 并发构建与跑测试所致。断线前一次无并发的全量构建为 0 警告 0 错误（137 个输出）。**开 PR 前请在另一会话停止后复跑一次，确认 0 警告。**
+- **测试**：`XiHan.Framework.Auditing.SqlSugar.Tests` 31 通过 / 0 失败。全量 11380 例中 1 失败 + `Utils.Tests` 整项目异常退出，两处都在本 PR 零改动的包：
+  - `Script.Tests` 内存用例两次红的不是同一个（`MemoryUsageTests.cs:55` 与 `:77`），属既有随机失败。仓库先例：`452dc323 test(script): 修掉 GC 计数用例的随机失败`、`c6fe01dd test: 兼容零托管堆内存读数`
+  - `Utils.Tests` 退出码 -1，MTP 报「收到测试会话开始事件，但没有对应的会话结束」；单跑同样崩在 96 线程压力阶段（该用例族约写 2.6 GB）
+  - 判定为既有环境问题，**按决定不修**，写进 PR 描述
+- **与计划的两处偏差**（已核实为计划的错误假设，不是实现遗漏）：
+  - Task 4 Step 4 要「在根 README 的模块表格加一行」：根 `README.md` / `README_cn.md` 没有逐包表格，只有指向 `framework/README.md#module-catalog` 的入口。实际改动是模块总数 66→67（含徽章与文档站文案），清单行加在 `framework/README.md` 与 `framework/README_cn.md`
+  - Task 4 Step 3 要侧边栏 `text` 用「审计日志 SqlSugar」：与同组条目的 `<包名> <中文简述>` 格式、以及同类子包先例（`EventBus.RabbitMQ`、`Bot.Telegram` 用裸包名）都不符，最终用 `pkg("Auditing.SqlSugar", "auditing-sqlsugar")`
+- **Task 4 Step 6 复查结论**：17 个 `.cs` 的版权头、file-scoped namespace、LF 无 BOM、五个 Writer 逐字同构全部通过。发现并修正 18 处：9 处 `<summary>` 与中文用例名逐字重复（既有惯例是中文用例名不附 summary，见 `Data.Tests/ModuleDataSourceRoutingTests.cs`）、4 处表达式体私有方法（撞 `framework/.editorconfig:106`）、5 个 Writer 的 `cancellationToken` 文档未写明「仅在写入前检查、不传递给数据库」这一边界。修正提交 `d01c5b64`、`278ce7c9`
 
 ## 下一份计划（P3，本计划完成后再写）
 
