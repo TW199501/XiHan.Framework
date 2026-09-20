@@ -112,6 +112,7 @@
     <Project Path="test/XiHan.Framework.EventBus.Kafka.Tests/XiHan.Framework.EventBus.Kafka.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.RabbitMQ.Tests/XiHan.Framework.EventBus.RabbitMQ.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.Redis.Tests/XiHan.Framework.EventBus.Redis.Tests.csproj" />
+    <Project Path="test/XiHan.Framework.EventBus.SqlSugar.Tests/XiHan.Framework.EventBus.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.Tests/XiHan.Framework.EventBus.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Http.Tests/XiHan.Framework.Http.Tests.csproj" Id="e7a9d4d6-0153-45ed-a7f5-890cd0f51854" />
     <Project Path="test/XiHan.Framework.Localization.Abstractions.Tests/XiHan.Framework.Localization.Abstractions.Tests.csproj" />
