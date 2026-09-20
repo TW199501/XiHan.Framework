@@ -1,0 +1,16 @@
+framework/src/XiHan.Framework.Auditing.SqlSugar/Mapping/AuditingLogMapper.cs
+  h_be8240d2cfaa4b 1-178
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/AuditingLogMapperTests.cs
+  h_be8240d2cfaa4b 1-165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9129f2cd759b79dc365977908893d6fbb78cfa97",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
