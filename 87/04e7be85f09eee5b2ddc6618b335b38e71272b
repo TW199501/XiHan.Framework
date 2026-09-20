@@ -1,0 +1,34 @@
+README.md
+  h_be8240d2cfaa4b 8,20,55
+README_cn.md
+  h_be8240d2cfaa4b 8,20,55
+docs/.vitepress/config.ts
+  h_be8240d2cfaa4b 182
+docs/index.md
+  h_be8240d2cfaa4b 9,41
+docs/introduction.md
+  h_be8240d2cfaa4b 57
+docs/packages/auditing-sqlsugar.md
+  h_be8240d2cfaa4b 1-177
+docs/packages/index.md
+  h_be8240d2cfaa4b 3,98
+docs/why.md
+  h_be8240d2cfaa4b 86,123,142,160
+framework/README.md
+  h_be8240d2cfaa4b 55,86,185,197
+framework/README_cn.md
+  h_be8240d2cfaa4b 55,86,185,197
+framework/src/XiHan.Framework.Auditing.SqlSugar/README.md
+  h_be8240d2cfaa4b 7,10,31-32,42-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "8704e7be85f09eee5b2ddc6618b335b38e71272b",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
