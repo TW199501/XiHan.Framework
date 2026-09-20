@@ -1,0 +1,22 @@
+framework/src/XiHan.Framework.Auditing.SqlSugar/Entities/SysAccessLog.cs
+  h_be8240d2cfaa4b 1-134
+framework/src/XiHan.Framework.Auditing.SqlSugar/Entities/SysApiLog.cs
+  h_be8240d2cfaa4b 1-182
+framework/src/XiHan.Framework.Auditing.SqlSugar/Entities/SysExceptionLog.cs
+  h_be8240d2cfaa4b 1-134
+framework/src/XiHan.Framework.Auditing.SqlSugar/Entities/SysLoginLog.cs
+  h_be8240d2cfaa4b 1-98
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/EntityMappingTests.cs
+  h_be8240d2cfaa4b 73-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "86c2a2ba5352238e1c17d112dd5ba8760b0b970f",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
