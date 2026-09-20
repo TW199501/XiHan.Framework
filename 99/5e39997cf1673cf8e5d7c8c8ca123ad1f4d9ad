@@ -1,0 +1,32 @@
+.superpowers/plans/2026-09-21-auditing-sqlsugar-p1-entities.md
+  s_8e1de276d9ee27::t_57c6180008db35 11-13
+.superpowers/specs/2026-09-21-auditing-sqlsugar-p1-entities-design.md
+  s_8e1de276d9ee27::t_b82001786af9b2 1-231
+.superpowers/specs/2026-09-21-auditing-sqlsugar-p2-writers-design.md
+  s_8e1de276d9ee27::t_9f7318a1010141 111,156,191,201,205,256
+  s_8e1de276d9ee27::t_4abd31574304f9 154-155,157-179
+  s_8e1de276d9ee27::t_bd1e2ff5a0779d 1-110,112-153,180-190,192-200,202-204,206-255,257-277
+.superpowers/specs/2026-09-21-sqlsugar-persistence-design.md
+  s_8e1de276d9ee27::t_3021f9babc1adf 1,4-24
+.superpowers/plans/2026-09-21-auditing-sqlsugar-p2-writers.md
+  s_8e1de276d9ee27::t_f137d688506e10 11-13
+  s_8e1de276d9ee27::t_47a6883abf5240 1093-1112
+.superpowers/plans/2026-09-21-fix.md
+  s_8e1de276d9ee27::t_c778b3c7228c53 1-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "995e39997cf1673cf8e5d7c8c8ca123ad1f4d9ad",
+  "prompts": {},
+  "sessions": {
+    "s_8e1de276d9ee27": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "070e7f55-255f-4e55-a689-460ed507b409",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
