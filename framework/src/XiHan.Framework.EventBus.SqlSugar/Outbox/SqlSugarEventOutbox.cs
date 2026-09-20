@@ -58,12 +58,60 @@ public class SqlSugarEventOutbox : IEventOutbox
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>本次领取到的事件信息</returns>
     /// <exception cref="NotSupportedException"><paramref name="filter"/> 不为空</exception>
-    public Task<List<OutgoingEventInfo>> GetWaitingEventsAsync(
+    public async Task<List<OutgoingEventInfo>> GetWaitingEventsAsync(
         int maxCount,
         Expression<Func<IOutgoingEventInfo, bool>>? filter = null,
         CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        if (filter is not null)
+        {
+            throw new NotSupportedException(
+                "SqlSugar 发件箱暂不支持 filter 参数，请改为在消费端筛选。");
+        }
+
+        if (maxCount <= 0)
+        {
+            return [];
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = _clientResolver.GetClientForEntity<SysEventOutbox>();
+        var now = DateTimeOffset.UtcNow;
+        var staleBefore = now - _options.ClaimTimeout;
+        var claimToken = Guid.NewGuid().ToString("N");
+
+        var candidateIds = await client.Queryable<SysEventOutbox>()
+            .Where(item => item.Status == SysEventOutbox.StatusPending
+                || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore))
+            .OrderBy(item => item.CreatedTime)
+            .Take(maxCount)
+            .Select(item => item.BasicId)
+            .ToListAsync(cancellationToken);
+
+        if (candidateIds.Count == 0)
+        {
+            return [];
+        }
+
+        await client.Updateable<SysEventOutbox>()
+            .SetColumns(item => new SysEventOutbox
+            {
+                Status = SysEventOutbox.StatusClaimed,
+                ClaimToken = claimToken,
+                ClaimTime = now
+            })
+            .Where(item => candidateIds.Contains(item.BasicId)
+                && (item.Status == SysEventOutbox.StatusPending
+                    || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore)))
+            .ExecuteCommandAsync(cancellationToken);
+
+        var claimed = await client.Queryable<SysEventOutbox>()
+            .Where(item => item.ClaimToken == claimToken)
+            .OrderBy(item => item.CreatedTime)
+            .ToListAsync(cancellationToken);
+
+        return [.. claimed.Select(EventOutboxMapper.ToEventInfo)];
     }
 
     /// <summary>
