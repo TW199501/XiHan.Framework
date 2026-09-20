@@ -4,7 +4,7 @@
 - **状态**：已评审通过，待实现
 - **对应计划**：`.superpowers/plans/2026-09-21-auditing-sqlsugar-p2-writers.md`
 - **前置**：P1（`.superpowers/specs/2026-09-21-auditing-sqlsugar-p1-entities-design.md`）必须已完成
-- **系列**：SqlSugar 持久化层 P2 / 共 7 份（P1–P2 `Auditing.SqlSugar`，P5 `Data`，P3–P4、P6–P7 `EventBus.SqlSugar`）
+- **系列**：SqlSugar 持久化层 P2 / 规划 7 份，**现存 P1–P5**（P6–P7 待写）。P1–P2 `Auditing.SqlSugar`，P5 `Data`，P3–P4、P6–P7 `EventBus.SqlSugar`
 
 > 本文档**自成一体**。实现 P2 所需的全部约束都写在这里，不引用其他设计文档。系列中其他 spec 的共用约定在各自文档里重复一份——若发现不一致，以对应计划正在实现的那份为准并提出修正。
 
@@ -274,4 +274,4 @@ CI 在 ubuntu 运行且不启动任何外部服务。P2 的测试全部可在 CI
 
 ## 9. 下一份
 
-P3（`.superpowers/specs/2026-09-21-eventbus-sqlsugar-p3-outbox-entity-design.md`，待写）：`XiHan.Framework.EventBus.SqlSugar` 的包骨架与发件箱实体、`OutgoingEventInfo` 双向映射。
+P3（`.superpowers/specs/2026-09-21-eventbus-sqlsugar-p3-outbox-entity-design.md`，已写）：`XiHan.Framework.EventBus.SqlSugar` 的包骨架与发件箱实体、`OutgoingEventInfo` 双向映射。

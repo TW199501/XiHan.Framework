@@ -3,7 +3,7 @@
 - **日期**：2026-09-21
 - **状态**：已评审通过，待实现
 - **对应计划**：`.superpowers/plans/2026-09-21-eventbus-sqlsugar-p3-outbox-entity.md`
-- **系列**：SqlSugar 持久化层 P3 / 共 7 份（P1–P2 `Auditing.SqlSugar`，P5 `Data`，P3–P4、P6–P7 `EventBus.SqlSugar`）
+- **系列**：SqlSugar 持久化层 P3 / 规划 7 份，**现存 P1–P5**（P6–P7 待写）。P1–P2 `Auditing.SqlSugar`，P5 `Data`，P3–P4、P6–P7 `EventBus.SqlSugar`
 
 > 本文档**自成一体**。实现 P3 所需的全部约束都写在这里，不引用其他设计文档。系列中其他 spec 的共用约定在各自文档里重复一份——若发现不一致，以对应计划正在实现的那份为准并提出修正。
 
@@ -278,4 +278,4 @@ CI 在 ubuntu 运行且不启动任何外部服务。P3 的测试全部可在 CI
 
 ## 9. 下一份
 
-P4（`.superpowers/specs/2026-09-21-eventbus-sqlsugar-p4-outbox-write-claim-design.md`，待写）：`IEventOutbox` 实现——入箱的事务参与（必须用工作单元 scope 的客户端）与原子领取（条件 `UPDATE` 抢占 + 超时释放）。
+P4（`.superpowers/specs/2026-09-21-eventbus-sqlsugar-p4-outbox-write-claim-design.md`，已写）：`IEventOutbox` 实现——入箱的事务参与（必须用工作单元 scope 的客户端）与原子领取（条件 `UPDATE` 抢占 + 超时释放）。

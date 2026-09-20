@@ -4,7 +4,7 @@
 - **状态**：已评审通过，待实现
 - **对应计划**：`.superpowers/plans/2026-09-21-eventbus-sqlsugar-p4-outbox-write-claim.md`
 - **前置**：P3（`.superpowers/specs/2026-09-21-eventbus-sqlsugar-p3-outbox-entity-design.md`）必须已完成
-- **系列**：SqlSugar 持久化层 P4 / 共 7 份（P1–P2 `Auditing.SqlSugar`，P5 `Data`，P3–P4、P6–P7 `EventBus.SqlSugar`）
+- **系列**：SqlSugar 持久化层 P4 / 规划 7 份，**现存 P1–P5**（P6–P7 待写）。P1–P2 `Auditing.SqlSugar`，P5 `Data`，P3–P4、P6–P7 `EventBus.SqlSugar`
 
 > 本文档**自成一体**。实现 P4 所需的全部约束都写在这里，不引用其他设计文档。系列中其他 spec 的共用约定在各自文档里重复一份——若发现不一致，以对应计划正在实现的那份为准并提出修正。
 
@@ -301,4 +301,4 @@ services.Configure<XiHanDistributedEventBusOptions>(options =>
 
 ## 9. 下一份
 
-P5（`.superpowers/specs/2026-09-21-eventbus-sqlsugar-p5-multi-database-design.md`，待写）：多库遍历——业务实体经 `[ModuleDataSource]` 落在模块库时，发件箱须写在同一个库，发送端须遍历 `GetCurrentLayoutConfigIds()` 列出的全部库。
+P5（`.superpowers/specs/2026-09-21-data-all-databases-capability-p5-design.md`，已写）：补齐 `XiHan.Framework.Data` 的两个能力——实体可声明在模块库也建表、可查询当前工作单元已登记的连接。它是 P6 发件箱多库的前置，独立成 PR。
