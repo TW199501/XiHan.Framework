@@ -1,0 +1,23 @@
+framework/src/XiHan.Framework.Web.Mcp/Filters/McpToolExposureFilter.cs
+  s_2b4187c9778a9c::t_e4c2291e618294 15-20
+framework/src/XiHan.Framework.Web.Mcp/README.md
+  s_2b4187c9778a9c::t_8fa36840933fcc 6,34,38,43-46,69,71
+docs/packages/web-mcp.md
+  s_2b4187c9778a9c::t_975f67846df6f2 68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f8f1217da127d50f2c9ce5cc641c006823ced32d",
+  "prompts": {},
+  "sessions": {
+    "s_2b4187c9778a9c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6f7a67e-6fa0-4fbd-ac43-cf368c65c0f3",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
