@@ -76,6 +76,72 @@ public class LogWriterTests
         Assert.Equal(typeof(SqlSugarOperationLogWriter), descriptor.ImplementationType);
     }
 
+    /// <summary>
+    /// 五个写入器全部被注册扩展顶替
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(IAccessLogWriter), typeof(SqlSugarAccessLogWriter))]
+    [InlineData(typeof(IApiLogWriter), typeof(SqlSugarApiLogWriter))]
+    [InlineData(typeof(IExceptionLogWriter), typeof(SqlSugarExceptionLogWriter))]
+    [InlineData(typeof(ILoginLogWriter), typeof(SqlSugarLoginLogWriter))]
+    [InlineData(typeof(IOperationLogWriter), typeof(SqlSugarOperationLogWriter))]
+    public void 五个写入器全部被顶替(Type serviceType, Type expectedImplementationType)
+    {
+        var services = new ServiceCollection();
+        services.TryAddScoped<IAccessLogWriter, NullAccessLogWriter>();
+        services.TryAddScoped<IApiLogWriter, NullApiLogWriter>();
+        services.TryAddScoped<IExceptionLogWriter, NullExceptionLogWriter>();
+        services.TryAddScoped<ILoginLogWriter, NullLoginLogWriter>();
+        services.TryAddScoped<IOperationLogWriter, NullOperationLogWriter>();
+
+        services.AddXiHanAuditingSqlSugar();
+
+        var descriptor = Assert.Single(services, item => item.ServiceType == serviceType);
+        Assert.Equal(expectedImplementationType, descriptor.ImplementationType);
+    }
+
+    /// <summary>
+    /// 登录日志写入后能查回
+    /// </summary>
+    [Fact]
+    public async Task 登录日志写入后能查回()
+    {
+        var databaseFile = NewDatabasePath();
+
+        try
+        {
+            using var db = CreateClient(databaseFile);
+
+            db.CodeFirst.SplitTables().InitTables(typeof(SysLoginLog));
+
+            var writer = new SqlSugarLoginLogWriter(
+                new StubClientResolver(db),
+                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload());
+
+            await writer.WriteAsync(new LoginLogRecord
+            {
+                TraceId = "trace-login",
+                UserName = "tester",
+                LoginResult = 1,
+                LoginTime = DateTimeOffset.UtcNow
+            });
+
+            var now = DateTime.UtcNow;
+            var found = db.Queryable<SysLoginLog>()
+                .SplitTable(now.AddDays(-1), now.AddDays(1))
+                .Where(item => item.TraceId == "trace-login")
+                .ToList();
+
+            Assert.Single(found);
+            Assert.Equal("tester", found[0].UserName);
+            Assert.Equal(1, found[0].LoginResult);
+        }
+        finally
+        {
+            DeleteDatabase(databaseFile);
+        }
+    }
+
     private static string NewDatabasePath() =>
         Path.Combine(Path.GetTempPath(), $"xihan_writer_{Guid.NewGuid():N}.db");
 
