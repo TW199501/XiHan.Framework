@@ -1,0 +1,27 @@
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarAccessLogWriter.cs
+  s_94057b8e5cf9b6::t_53ee0bf43c5094 38
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarApiLogWriter.cs
+  s_94057b8e5cf9b6::t_a3157d8f4e1d7b 38
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarExceptionLogWriter.cs
+  s_94057b8e5cf9b6::t_f6a58a154fdb65 38
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarLoginLogWriter.cs
+  s_94057b8e5cf9b6::t_9b16f701c7b1b5 38
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarOperationLogWriter.cs
+  s_94057b8e5cf9b6::t_df85621c129d0d 38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d01c5b64615355140be6aeaf6172d993577e4a2e",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
