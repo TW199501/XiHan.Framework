@@ -8,7 +8,9 @@
 
 **Tech Stack:** .NET 10、SqlSugarCore 5.1.4.221、xunit.v3 + Microsoft.Testing.Platform
 
-**Spec:** `E:/source/XiHan/XiHan.Framework/.superpowers/specs/2026-09-21-sqlsugar-persistence-design.md`（本计划实现其 §7.3）
+**Spec:** `E:/source/XiHan/XiHan.Framework/.superpowers/specs/2026-09-21-auditing-sqlsugar-p2-writers-design.md`
+
+> 该 spec 自成一体，实现 P2 所需的全部约束都在其中。**不要**去读 `2026-09-21-sqlsugar-persistence-design.md`——那是拆分前的总纲，已停用。
 
 **前置:** P1（`.superpowers/plans/2026-09-21-auditing-sqlsugar-p1-entities.md`）必须已完成——本计划依赖它产出的 5 个实体与测试项目。
 
@@ -1087,6 +1089,26 @@ git commit -m "feat(auditing-sqlsugar): 新增访问、接口、异常、登录�
 - [ ] **Step 2: 新增包文档**
 
 `docs/packages/auditing-sqlsugar.md`，按 `docs/packages/auditing.md` 的结构组织，至少包含：包定位、表清单与分表规则、主键与列名约定、启用方式（`[DependsOn]`）、与 `XiHan.Framework.Auditing` 的关系、审计写入不参与业务事务这一行为说明。
+
+文档里要用到的 P1 既定约定（**本任务只是引用，不要改动实体**）：
+
+**五张表**，按月分表，实际表名带月份后缀（如 `sys_operation_log_20260901`）：
+
+```
+sys_access_log   sys_api_log   sys_exception_log
+sys_login_log    sys_operation_log
+```
+
+| 约定 | 值 |
+| --- | --- |
+| 表名 | `sys_` 前缀、全小写下划线 |
+| 分表 | `[SplitTable(SplitType.Month)]`，`[SugarTable]` 模板含 `{year}{month}{day}` 三个变量 |
+| 分表字段 | `Created_Time` |
+| 列名 | Pascal_Snake_Case，如 `Basic_Id`、`Trace_Id`、`Status_Code` |
+| 主键 | `Basic_Id`，`long`，非自增，雪花 ID |
+| 实体基类 | `SugarCreationEntity<long>`，实现 `ISplitTableEntity` |
+
+`SysLoginLog` 的 `Login_Time` 是业务时间，与分表字段 `Created_Time` 各占一列。
 
 - [ ] **Step 3: 挂上侧边栏**
 

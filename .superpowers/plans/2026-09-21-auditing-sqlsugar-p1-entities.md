@@ -8,7 +8,9 @@
 
 **Tech Stack:** .NET 10、SqlSugarCore 5.1.4.221、xunit.v3 + Microsoft.Testing.Platform
 
-**Spec:** `E:/source/XiHan/XiHan.Framework/.superpowers/specs/2026-09-21-sqlsugar-persistence-design.md`
+**Spec:** `E:/source/XiHan/XiHan.Framework/.superpowers/specs/2026-09-21-auditing-sqlsugar-p1-entities-design.md`
+
+> 该 spec 自成一体，实现 P1 所需的全部约束都在其中。**不要**去读 `2026-09-21-sqlsugar-persistence-design.md`——那是拆分前的总纲，已停用。
 
 > 设计文档提交在 `dev` 分支，本计划在 `feat/sqlsugar` worktree（`E:/source/XiHan/XiHan.Framework-sqlsugar`）执行。worktree 内看不到该文件，请按上面的绝对路径读取。
 
