@@ -1,0 +1,46 @@
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpApiKeyFilterTests.cs
+  s_2b4187c9778a9c::t_fb9815ce291184 105-107,131-133
+  s_2b4187c9778a9c::t_f93428512923f2 13-15,39-41
+  s_2b4187c9778a9c::t_1f11890907f9cf 134-135
+  s_2b4187c9778a9c::t_5307f2fd7c7cbf 104
+  s_2b4187c9778a9c::t_e589d0e32aa348 9-11
+  s_2b4187c9778a9c::t_0bb381a7c196a0 42
+  s_2b4187c9778a9c::t_d10ded4e5cd3bb 43-45,101-103
+  s_2b4187c9778a9c::t_f22402cdb74f9c 59-86
+  s_2b4187c9778a9c::t_72b80175e059f3 12
+  s_b6419f79135273::t_0c66e5d271bb4c 1-8,16-38,46-58,87-100,108-130,139-150
+  s_2b4187c9778a9c::t_2d80d8774699c0 136-138
+framework/test/XiHan.Framework.Web.Mcp.Tests/McpExposureGateTests.cs
+  s_2b4187c9778a9c::t_0786dabeeff260 152
+  s_2b4187c9778a9c::t_f42ae3bda63c7c 15-17
+  s_b6419f79135273::t_c2e2c0f6d1d65e 1-14,23-44,52-148,156-162
+  s_2b4187c9778a9c::t_2f3ca3c0a706ac 20-22,45-47
+  s_2b4187c9778a9c::t_58ef94237ee3a1 49-51,149-151
+  s_2b4187c9778a9c::t_d6bfa24b83e667 48
+  s_2b4187c9778a9c::t_49c0b3da811501 18-19
+  s_2b4187c9778a9c::t_fc9a8eca1f10c6 153-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "dc40d67a26ac0410a912ebd24ebcdf083ce5e8ac",
+  "prompts": {},
+  "sessions": {
+    "s_2b4187c9778a9c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6f7a67e-6fa0-4fbd-ac43-cf368c65c0f3",
+        "model": "claude-opus-5"
+      },
+      "human_author": null
+    },
+    "s_b6419f79135273": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a93b43d226592c587",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
