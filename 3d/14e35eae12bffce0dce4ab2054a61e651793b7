@@ -1,0 +1,33 @@
+framework/test/XiHan.Framework.Web.Mcp.Tests/Extensions/McpDuplicateToolNameTests.cs
+  s_2b4187c9778a9c::t_dbb8061f83f9b0 4-38
+  s_2b4187c9778a9c::t_6e3c4b633f5957 49
+framework/test/XiHan.Framework.Web.Mcp.Tests/Extensions/McpSkillProjectionTests.cs
+  s_2b4187c9778a9c::t_c3278eb5209a33 6,22,39
+framework/test/XiHan.Framework.Web.Mcp.Tests/Extensions/McpExposureGateEndToEndTests.cs
+  s_2b4187c9778a9c::t_f38e523561724c 10-58
+framework/test/XiHan.Framework.Web.Mcp.Tests/Filters/McpApiKeyEndToEndTests.cs
+  s_2b4187c9778a9c::t_846c3e5e8ed340 6-44
+framework/test/XiHan.Framework.Web.Mcp.Tests/Filters/McpToolExposureFilterTests.cs
+  s_2b4187c9778a9c::t_6bdc454dab2e69 7-174
+framework/test/XiHan.Framework.Web.Mcp.Tests/Options/XiHanMcpOptionsTests.cs
+  s_2b4187c9778a9c::t_38716b8f00ced2 128
+  s_2b4187c9778a9c::t_7e02242134ef70 122-123
+  s_2b4187c9778a9c::t_1fe9014b896ca0 109-111
+  s_2b4187c9778a9c::t_b192651062ab44 145-146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3d14e35eae12bffce0dce4ab2054a61e651793b7",
+  "prompts": {},
+  "sessions": {
+    "s_2b4187c9778a9c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6f7a67e-6fa0-4fbd-ac43-cf368c65c0f3",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
