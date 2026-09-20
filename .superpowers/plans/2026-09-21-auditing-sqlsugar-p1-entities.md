@@ -236,7 +236,7 @@ git commit -m "feat(auditing-sqlsugar): 新增包骨架与模块装配"
 
 **Interfaces:**
 - Consumes: Task 1 的程序集与命名空间
-- Produces: `SysOperationLog`（`XiHan.Framework.Auditing.SqlSugar.Entities`），继承 `SugarCreationEntity<long>`，实现 `ISplitTableEntity`；后续任务的 4 个实体照此形状
+- Produces: `SysOperationLog`（`XiHan.Framework.Auditing.SqlSugar.Entities`），继承 `SugarCreationEntity<long>`，实现 `ISplitTableEntity`；公开构造函数两个——`SysOperationLog()` 与 `SysOperationLog(long basicId)`；后续任务的 4 个实体照此形状
 
 **参考来源（动手前先读）：**
 - 列映射范本：`framework/src/XiHan.Framework.Data/SqlSugar/Entities/SugarCreationEntity.cs`（`Basic_Id` / `Created_Time` / `Row_Version` 的写法）
@@ -387,6 +387,21 @@ namespace XiHan.Framework.Auditing.SqlSugar.Entities;
 [SugarTable("sys_operation_log_{year}{month}{day}")]
 public class SysOperationLog : SugarCreationEntity<long>, ISplitTableEntity
 {
+    /// <summary>
+    /// 构造函数，供 SqlSugar 物化实体使用
+    /// </summary>
+    public SysOperationLog() : base()
+    {
+    }
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="basicId">主键</param>
+    public SysOperationLog(long basicId) : base(basicId)
+    {
+    }
+
     /// <summary>
     /// 创建时间，同时作为分表字段
     /// </summary>
@@ -619,6 +634,21 @@ namespace XiHan.Framework.Auditing.SqlSugar.Entities;
 public class SysAccessLog : SugarCreationEntity<long>, ISplitTableEntity
 {
     /// <summary>
+    /// 构造函数，供 SqlSugar 物化实体使用
+    /// </summary>
+    public SysAccessLog() : base()
+    {
+    }
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="basicId">主键</param>
+    public SysAccessLog(long basicId) : base(basicId)
+    {
+    }
+
+    /// <summary>
     /// 创建时间，同时作为分表字段
     /// </summary>
     [SplitField]
@@ -744,6 +774,21 @@ namespace XiHan.Framework.Auditing.SqlSugar.Entities;
 [SugarTable("sys_api_log_{year}{month}{day}")]
 public class SysApiLog : SugarCreationEntity<long>, ISplitTableEntity
 {
+    /// <summary>
+    /// 构造函数，供 SqlSugar 物化实体使用
+    /// </summary>
+    public SysApiLog() : base()
+    {
+    }
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="basicId">主键</param>
+    public SysApiLog(long basicId) : base(basicId)
+    {
+    }
+
     /// <summary>
     /// 创建时间，同时作为分表字段
     /// </summary>
@@ -919,6 +964,21 @@ namespace XiHan.Framework.Auditing.SqlSugar.Entities;
 public class SysExceptionLog : SugarCreationEntity<long>, ISplitTableEntity
 {
     /// <summary>
+    /// 构造函数，供 SqlSugar 物化实体使用
+    /// </summary>
+    public SysExceptionLog() : base()
+    {
+    }
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="basicId">主键</param>
+    public SysExceptionLog(long basicId) : base(basicId)
+    {
+    }
+
+    /// <summary>
     /// 创建时间，同时作为分表字段
     /// </summary>
     [SplitField]
@@ -1044,6 +1104,21 @@ namespace XiHan.Framework.Auditing.SqlSugar.Entities;
 [SugarTable("sys_login_log_{year}{month}{day}")]
 public class SysLoginLog : SugarCreationEntity<long>, ISplitTableEntity
 {
+    /// <summary>
+    /// 构造函数，供 SqlSugar 物化实体使用
+    /// </summary>
+    public SysLoginLog() : base()
+    {
+    }
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="basicId">主键</param>
+    public SysLoginLog(long basicId) : base(basicId)
+    {
+    }
+
     /// <summary>
     /// 创建时间，同时作为分表字段
     /// </summary>
@@ -1253,7 +1328,7 @@ public class TableInitializationTests
             db.CodeFirst.SplitTables().InitTables(typeof(SysOperationLog));
 
             var now = DateTimeOffset.UtcNow;
-            var log = new SysOperationLog
+            var log = new SysOperationLog(DateTime.UtcNow.Ticks)
             {
                 CreatedTime = now,
                 TraceId = "trace-1",
@@ -1292,7 +1367,7 @@ dotnet test --project framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiH
 
 预期：全部 PASS。
 
-若 `Basic_Id` 因未赋值导致主键冲突，在测试里显式赋一个 `long` 值（例如 `DateTime.UtcNow.Ticks`）；雪花 ID 的接入属于 P2 的写入器任务，本任务不引入 `DistributedIds` 依赖。
+关于主键赋值：`EntityBase<TKey>.BasicId` 是 `{ get; protected set; }`，**不能用对象初始化器赋值**，只能经构造函数 `SysOperationLog(long basicId)` 传入——这就是 Task 2、Task 3 给每个实体都加两个构造函数的原因（无参的供 SqlSugar 物化，带参的供调用方指定主键）。测试里用 `DateTime.UtcNow.Ticks` 即可；雪花 ID 的接入属于 P2 的写入器任务，本任务不引入 `DistributedIds` 依赖。
 
 - [ ] **Step 4: 验证全解决方案构建与测试**
 
