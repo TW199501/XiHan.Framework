@@ -1,0 +1,19 @@
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/TableInitializationTests.cs
+  s_8e1de276d9ee27::t_48303b62a1c138 1-185
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1e1780aba7c1922adf5b95786b7e51687f0cd5f3",
+  "prompts": {},
+  "sessions": {
+    "s_8e1de276d9ee27": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "070e7f55-255f-4e55-a689-460ed507b409",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
