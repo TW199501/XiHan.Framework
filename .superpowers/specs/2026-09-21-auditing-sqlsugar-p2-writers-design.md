@@ -4,7 +4,7 @@
 - **状态**：已评审通过，待实现
 - **对应计划**：`.superpowers/plans/2026-09-21-auditing-sqlsugar-p2-writers.md`
 - **前置**：P1（`.superpowers/specs/2026-09-21-auditing-sqlsugar-p1-entities-design.md`）必须已完成
-- **系列**：SqlSugar 持久化层 P2 / 共 6 份（P1–P2 为 `Auditing.SqlSugar`，P3–P6 为 `EventBus.SqlSugar`）
+- **系列**：SqlSugar 持久化层 P2 / 共 7 份（P1–P2 `Auditing.SqlSugar`，P5 `Data`，P3–P4、P6–P7 `EventBus.SqlSugar`）
 
 > 本文档**自成一体**。实现 P2 所需的全部约束都写在这里，不引用其他设计文档。系列中其他 spec 的共用约定在各自文档里重复一份——若发现不一致，以对应计划正在实现的那份为准并提出修正。
 
@@ -121,7 +121,7 @@ framework/src/XiHan.Framework.Auditing.SqlSugar/Entities/   P1 产出的 5 个�
 - **不做另外 12 个 Store**（权限、角色、用户、设置、租户、灰度、工作流、升级等）。本包只做审计日志，其余照本包建立的范式后续补齐。
 - **不给写入器契约加批量重载**。属 `XiHan.Framework.Auditing` 主包的改动，是独立 PR。
 - **不做日志查询 API、保留期清理、归档**。
-- **不做 `EventBus.SqlSugar`**（P3–P6）。
+- **不做 `EventBus.SqlSugar`**（P3–P4、P6–P7）。
 - **不连接真实数据库**。本包无并发语义，SQLite 足够。
 - **不修复 `docs/packages/data.md` 第 170 行的列名表述笔误**。单独 PR 处理。
 

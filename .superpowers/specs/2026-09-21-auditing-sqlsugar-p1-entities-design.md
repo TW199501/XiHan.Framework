@@ -3,7 +3,7 @@
 - **日期**：2026-09-21
 - **状态**：已评审通过，待实现
 - **对应计划**：`.superpowers/plans/2026-09-21-auditing-sqlsugar-p1-entities.md`
-- **系列**：SqlSugar 持久化层 P1 / 共 6 份（P1–P2 为 `Auditing.SqlSugar`，P3–P6 为 `EventBus.SqlSugar`）
+- **系列**：SqlSugar 持久化层 P1 / 共 7 份（P1–P2 `Auditing.SqlSugar`，P5 `Data`，P3–P4、P6–P7 `EventBus.SqlSugar`）
 
 > 本文档**自成一体**。实现 P1 所需的全部约束都写在这里，不引用其他设计文档。系列中其他 spec 的共用约定在各自文档里重复一份——若发现不一致，以对应计划正在实现的那份为准并提出修正。
 
@@ -114,7 +114,7 @@ framework/src/XiHan.Framework.Data/README.md        README 七段结构范本
 
 - **不实现写入器**（P2）。
 - **不接入 `DistributedIds`**。P1 不需要生成主键，测试里用 `DateTime.UtcNow.Ticks` 即可；雪花 ID 接入是 P2 的事。
-- **不做 `EventBus.SqlSugar`**（P3–P6）。
+- **不做 `EventBus.SqlSugar`**（P3–P4、P6–P7）。
 - **不做另外 12 个 Store**。
 - **不连接真实数据库**。P1 无并发语义，SQLite 足够。
 - **不修复 `docs/packages/data.md` 第 170 行的列名表述笔误**（文档写 snake_case，代码实为 Pascal_Snake_Case）。单独 PR 处理。

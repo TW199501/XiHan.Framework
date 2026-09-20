@@ -1174,10 +1174,10 @@ P4 完成时应满足：
 - **`filter` 未支持**：非 `null` 抛 `NotSupportedException`。需要时应加表达式翻译器，是独立改动。
 - **方法名与语义落差**：`GetWaitingEventsAsync` 实为领取。
 - **至少一次投递**：消费端必须幂等。
-- **单库**：本份只处理当前解析出的那一个库，多库遍历在 P5。
+- **单库**：本份只处理当前解析出的那一个库，多库遍历在 P6。
 - **`IEventOutbox` 生命周期变更**：由 Singleton 改为 Scoped。框架内无构造函数注入该接口，不会产生被捕获依赖。
 - **两次往返**：「先选后抢」比 `SKIP LOCKED` 多一次往返，是可移植性的代价。
 
-## 下一份计划（P5，本计划完成后再写）
+## 下一份计划（P6，本计划完成后再写）
 
 多库遍历：业务实体经 `[ModuleDataSource]` 落在模块库时，发件箱须写在同一个库；发送端须遍历 `ISqlSugarClientResolver.GetCurrentLayoutConfigIds()` 列出的全部库。

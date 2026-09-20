@@ -1,8 +1,8 @@
 # SqlSugar 持久化层设计（总纲，已拆分）
 
 - **日期**：2026-09-21
-- **状态**：**已拆分为 6 份单元 spec，实现时不要读本文档**
-- **范围**：两个独立可交付的包，分 6 个交付单元
+- **状态**：**已拆分为 7 份单元 spec，实现时不要读本文档**
+- **范围**：三个 PR（Auditing / Data / EventBus），分 7 个交付单元
 
 ---
 
@@ -14,12 +14,13 @@
 > | --- | --- | --- |
 > | P1 | `2026-09-21-auditing-sqlsugar-p1-entities-design.md` | `2026-09-21-auditing-sqlsugar-p1-entities.md` |
 > | P2 | `2026-09-21-auditing-sqlsugar-p2-writers-design.md` | `2026-09-21-auditing-sqlsugar-p2-writers.md` |
-> | P3 | 待写 | 待写 |
-> | P4 | 待写 | 待写 |
-> | P5 | 待写 | 待写 |
-> | P6 | 待写 | 待写 |
+> | P3 | `2026-09-21-eventbus-sqlsugar-p3-outbox-entity-design.md` | `2026-09-21-eventbus-sqlsugar-p3-outbox-entity.md` |
+> | P4 | `2026-09-21-eventbus-sqlsugar-p4-outbox-write-claim-design.md` | `2026-09-21-eventbus-sqlsugar-p4-outbox-write-claim.md` |
+> | P5 | `2026-09-21-data-all-databases-capability-p5-design.md` | `2026-09-21-data-all-databases-capability-p5.md` |
+> | P6 | 待写（发件箱多库） | 待写 |
+> | P7 | 待写（收件箱与文档） | 待写 |
 >
-> 本文档保留的价值只剩两处：第 1 节的缺口清点（13 个内存 Store 的全貌）与第 8–9 节的 `EventBus.SqlSugar` 设计——后者会在写 P3–P6 的 spec 时被吸收，吸收完本文档即可归档。
+> 本文档保留的价值只剩两处：第 1 节的缺口清点（13 个内存 Store 的全貌）与第 8–9 节的 `EventBus.SqlSugar` 设计——后者会在写 P6–P7 的 spec 时被吸收，吸收完本文档即可归档。
 
 ---
 

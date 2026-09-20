@@ -4,7 +4,7 @@
 - **状态**：已评审通过，待实现
 - **对应计划**：`.superpowers/plans/2026-09-21-eventbus-sqlsugar-p4-outbox-write-claim.md`
 - **前置**：P3（`.superpowers/specs/2026-09-21-eventbus-sqlsugar-p3-outbox-entity-design.md`）必须已完成
-- **系列**：SqlSugar 持久化层 P4 / 共 6 份（P1–P2 为 `Auditing.SqlSugar`，P3–P6 为 `EventBus.SqlSugar`）
+- **系列**：SqlSugar 持久化层 P4 / 共 7 份（P1–P2 `Auditing.SqlSugar`，P5 `Data`，P3–P4、P6–P7 `EventBus.SqlSugar`）
 
 > 本文档**自成一体**。实现 P4 所需的全部约束都写在这里，不引用其他设计文档。系列中其他 spec 的共用约定在各自文档里重复一份——若发现不一致，以对应计划正在实现的那份为准并提出修正。
 
@@ -29,7 +29,7 @@ P3 已建立 `XiHan.Framework.EventBus.SqlSugar` 包与 `sys_event_outbox` 表�
 1. **入箱与业务数据同事务**：业务回滚，事件随之消失；业务提交，事件必然在库
 2. **多实例不重复投递**：`N` 个实例同时轮询，同一条记录只会被一个实例领走
 
-**P4 结束时的状态**：应用声明 `[DependsOn(typeof(XiHanSqlSugarEventBusModule))]` 后，发件箱真正落库并可靠投递（单库）。多库遍历在 P5，收件箱在 P6。
+**P4 结束时的状态**：应用声明 `[DependsOn(typeof(XiHanSqlSugarEventBusModule))]` 后，发件箱真正落库并可靠投递（单库）。多库遍历在 P6，收件箱在 P7。
 
 **成功标准**：
 
@@ -112,14 +112,14 @@ framework/src/XiHan.Framework.EventBus.SqlSugar/   P3 产出的实体与映射
 - **不写方言相关的 SQL**。`FOR UPDATE SKIP LOCKED`、`UPDATE ... LIMIT`、`UPDATE TOP` 一律不用，见 §4.4。
 - **不改 `IEventOutbox` 契约**。原子领取在实现内解决。
 - **不改动 `EventBoxOutboxSenderHostedService`**。它的「取 → 投递 → 删」循环保持原样。
-- **不做多库遍历**（P5）。本份只处理 `GetClientForEntity<SysEventOutbox>()` 解析出的那一个库。
-- **不做收件箱**（P6）。
+- **不做多库遍历**（P6）。本份只处理 `GetClientForEntity<SysEventOutbox>()` 解析出的那一个库。
+- **不做收件箱**（P7）。
 - **不静默忽略 `filter` 参数**。见 §4.5。
 
 ## 3. 非目标
 
-- **不做多库遍历发送**（P5）。
-- **不做收件箱**（P6）。
+- **不做多库遍历发送**（P6）。
+- **不做收件箱**（P7）。
 - **不支持 `filter` 参数的表达式翻译**。见 §4.5，本份的选择是 fail-closed 抛异常而非静默忽略。
 - **不追求恰好一次投递**。至少一次是发件箱模式的固有语义，消费端需幂等。
 - **不做保留期清理**。发件箱记录在投递成功后由宿主循环删除。
@@ -278,7 +278,7 @@ services.Configure<XiHanDistributedEventBusOptions>(options =>
 | `filter` 未支持 | 非 `null` 抛 `NotSupportedException`。需要时应加表达式翻译器，是独立改动 |
 | 方法名与语义落差 | `GetWaitingEventsAsync` 实为领取。若上游愿意调整契约，应改为显式的领取方法 |
 | 至少一次投递 | 消费端必须幂等，框架不提供恰好一次 |
-| 单库 | 本份只处理当前解析出的那一个库；业务实体经 `[ModuleDataSource]` 落在模块库时的多库遍历在 P5 |
+| 单库 | 本份只处理当前解析出的那一个库；业务实体经 `[ModuleDataSource]` 落在模块库时的多库遍历在 P6 |
 | `IEventOutbox` 生命周期变更 | 由 Singleton 改为 Scoped，见 §4.3 |
 | 两次往返 | 「先选后抢」比 `SKIP LOCKED` 多一次往返，是可移植性的代价 |
 
