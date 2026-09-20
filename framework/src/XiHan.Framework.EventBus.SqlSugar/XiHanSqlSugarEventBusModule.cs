@@ -1,8 +1,10 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using XiHan.Framework.Core.Extensions.DependencyInjection;
 using XiHan.Framework.Core.Modularity;
 using XiHan.Framework.Data;
+using XiHan.Framework.EventBus.SqlSugar.Extensions.DependencyInjection;
 
 namespace XiHan.Framework.EventBus.SqlSugar;
 
@@ -11,7 +13,8 @@ namespace XiHan.Framework.EventBus.SqlSugar;
 /// </summary>
 /// <remarks>
 /// 在应用模块上 <c>[DependsOn(typeof(XiHanSqlSugarEventBusModule))]</c> 即启用。
-/// 本模块提供收发件箱的 SqlSugar 实体定义；收发件箱实现在后续版本提供。
+/// 本模块以 SqlSugar 发件箱替换默认的进程内发件箱；收件箱在后续版本提供。
+/// 配置节：<c>XiHan:EventBus:SqlSugar</c>。
 /// </remarks>
 [DependsOn(
     typeof(XiHanEventBusModule),
@@ -19,4 +22,14 @@ namespace XiHan.Framework.EventBus.SqlSugar;
 )]
 public class XiHanSqlSugarEventBusModule : XiHanModule
 {
+    /// <summary>
+    /// 服务配置
+    /// </summary>
+    /// <param name="context"></param>
+    public override void ConfigureServices(ServiceConfigurationContext context)
+    {
+        var services = context.Services;
+
+        services.AddXiHanSqlSugarEventBus(services.GetConfiguration());
+    }
 }
