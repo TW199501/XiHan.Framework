@@ -1,0 +1,26 @@
+.superpowers/plans/2026-09-21-auditing-sqlsugar-p1-entities.md
+  s_8e1de276d9ee27::t_2a5ec0b32caee9 778-791
+  s_8e1de276d9ee27::t_950d453780447d 637-650
+  s_8e1de276d9ee27::t_a96b9d9451c23f 239
+  s_8e1de276d9ee27::t_d26252fb4cc8ac 391-404
+  s_8e1de276d9ee27::t_fd21336c3fdc28 967-980
+  s_8e1de276d9ee27::t_7bd95aa6f8ed2b 1370
+  s_8e1de276d9ee27::t_a5d6a2d70e1d8c 390,636,777,966,1107-1121
+  s_8e1de276d9ee27::t_53c48b4a25eb8f 1331
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4dbb1387791b01a897d18fed6973a8fad79ed599",
+  "prompts": {},
+  "sessions": {
+    "s_8e1de276d9ee27": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "070e7f55-255f-4e55-a689-460ed507b409",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}

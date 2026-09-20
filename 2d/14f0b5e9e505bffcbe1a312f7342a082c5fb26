@@ -1,0 +1,21 @@
+.superpowers/specs/2026-09-21-eventbus-sqlsugar-p4-outbox-write-claim-design.md
+  s_8e1de276d9ee27::t_7a1c7f0ce18495 1-304
+.superpowers/plans/2026-09-21-eventbus-sqlsugar-p4-outbox-write-claim.md
+  s_8e1de276d9ee27::t_ac855af58e19df 1-1183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2d14f0b5e9e505bffcbe1a312f7342a082c5fb26",
+  "prompts": {},
+  "sessions": {
+    "s_8e1de276d9ee27": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "070e7f55-255f-4e55-a689-460ed507b409",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}

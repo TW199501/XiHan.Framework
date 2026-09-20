@@ -1,0 +1,20 @@
+.superpowers/specs/2026-09-21-sqlsugar-persistence-design.md
+  s_8e1de276d9ee27::t_a2226f5322d30d 7-24
+  s_8e1de276d9ee27::t_9980aedeb7248e 1-6,25-296
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "411cfe7cbafacf1d72de477507eff724c59872ef",
+  "prompts": {},
+  "sessions": {
+    "s_8e1de276d9ee27": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "070e7f55-255f-4e55-a689-460ed507b409",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
