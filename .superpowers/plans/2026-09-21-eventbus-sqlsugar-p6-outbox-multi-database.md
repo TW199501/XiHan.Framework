@@ -794,7 +794,11 @@ using Microsoft.Extensions.Logging;
 
 - [ ] **Step 4: 把单库领取逻辑下沉为私有方法**
 
-把 `GetWaitingEventsAsync` 方法体中**从取客户端之后、到返回映射结果之前**的整段逻辑，原样搬进新的私有方法。该方法放在 `GetWaitingEventsAsync` 之后、`DeleteAsync` 之前：
+把 `GetWaitingEventsAsync` 中**从取客户端之后、到返回映射结果之前**的整段逻辑搬进新的私有方法。该方法放在 `GetWaitingEventsAsync` 之后、`DeleteAsync` 之前。
+
+> ⚠️ **当前实现本身就是一个重试循环，必须连同它一起搬。** `SqlSugarEventOutbox.cs:80` 有 `const int maxClaimAttempts = 3;`，`:84` 是 `for (var attempt = 0; attempt < maxClaimAttempts; attempt++)`，`claimToken` 在**循环体内**每轮新建（`:90`），抢占之后 `var affected = await …`（`:107`）配 `if (affected == 0) { continue; }`（`:117-121`）——即「候选被抢光则另选一批重试，最多三轮」，且它的 `<remarks>` 明确承诺了这件事。**丢掉这个循环不会有任何测试变红**：唯一能覆盖竞态的 `OutboxConcurrencyTests` 在 `:20-23` 读环境变量 `XIHAN_TEST_MYSQL`、`:30` `Assert.SkipWhen(...)`，CI 上不设真库时整类跳过。
+>
+> 搬动时只允许三处改动：① `Take(maxCount)` → `Take(quota)`；② 返回值由 `List<OutgoingEventInfo>` 改为 `List<SysEventOutbox>`（末尾的 `Select(EventOutboxMapper.ToEventInfo)` 交给外层做）；③ 私有方法的 `<remarks>` 沿用原来那句。抢占的 `Where` 条件一行都不要动。令牌既然每轮新建，私有方法**不再接收 `claimToken` 参数**。
 
 ```csharp
     /// <summary>
@@ -802,51 +806,64 @@ using Microsoft.Extensions.Logging;
     /// </summary>
     /// <param name="client">该库的客户端</param>
     /// <param name="quota">本库最多领取的条数</param>
-    /// <param name="claimToken">本次领取的令牌</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>本库领取到的记录</returns>
     private async Task<List<SysEventOutbox>> ClaimFromDatabaseAsync(
         ISqlSugarClient client,
         int quota,
-        string claimToken,
         CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
-        var staleBefore = now - _options.ClaimTimeout;
+        const int maxClaimAttempts = 3;
 
-        var candidateIds = await client.Queryable<SysEventOutbox>()
-            .Where(item => item.Status == SysEventOutbox.StatusPending
-                || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore))
-            .OrderBy(item => item.CreatedTime)
-            .Take(quota)
-            .Select(item => item.BasicId)
-            .ToListAsync(cancellationToken);
-
-        if (candidateIds.Count == 0)
+        for (var attempt = 0; attempt < maxClaimAttempts; attempt++)
         {
-            return [];
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var now = DateTimeOffset.UtcNow;
+            var staleBefore = now - _options.ClaimTimeout;
+            var claimToken = Guid.NewGuid().ToString("N");
+
+            var candidateIds = await client.Queryable<SysEventOutbox>()
+                .Where(item => item.Status == SysEventOutbox.StatusPending
+                    || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore))
+                .OrderBy(item => item.CreatedTime)
+                .Take(quota)
+                .Select(item => item.BasicId)
+                .ToListAsync(cancellationToken);
+
+            if (candidateIds.Count == 0)
+            {
+                return [];
+            }
+
+            var affected = await client.Updateable<SysEventOutbox>()
+                .SetColumns(item => new SysEventOutbox
+                {
+                    Status = SysEventOutbox.StatusClaimed,
+                    ClaimToken = claimToken,
+                    ClaimTime = now
+                })
+                .Where(item => candidateIds.Contains(item.BasicId)
+                    && (item.Status == SysEventOutbox.StatusPending
+                        || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore)))
+                .ExecuteCommandAsync(cancellationToken);
+
+            if (affected == 0)
+            {
+                continue;
+            }
+
+            return await client.Queryable<SysEventOutbox>()
+                .Where(item => item.ClaimToken == claimToken)
+                .OrderBy(item => item.CreatedTime)
+                .ToListAsync(cancellationToken);
         }
 
-        await client.Updateable<SysEventOutbox>()
-            .SetColumns(item => new SysEventOutbox
-            {
-                Status = SysEventOutbox.StatusClaimed,
-                ClaimToken = claimToken,
-                ClaimTime = now
-            })
-            .Where(item => candidateIds.Contains(item.BasicId)
-                && (item.Status == SysEventOutbox.StatusPending
-                    || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore)))
-            .ExecuteCommandAsync(cancellationToken);
-
-        return await client.Queryable<SysEventOutbox>()
-            .Where(item => item.ClaimToken == claimToken)
-            .OrderBy(item => item.CreatedTime)
-            .ToListAsync(cancellationToken);
+        return [];
     }
 ```
 
-> **若当前实现已含「候选被抢光则另选一批重试」的循环**，把那个循环连同它内部的三步一起搬进本方法，只把 `Take(maxCount)` 改成 `Take(quota)`、把返回值由 `List<OutgoingEventInfo>` 改成 `List<SysEventOutbox>`（映射交给外层）。抢占的 `Where` 条件一行都不要动。
+私有方法的 XML 注释里，把原来那句「候选全部被其他实例抢走时另选一批重试，最多三轮」一并带上（它现在是这段代码的核心语义）。
 
 - [ ] **Step 5: 改写 GetWaitingEventsAsync 为遍历**
 
@@ -873,7 +890,6 @@ using Microsoft.Extensions.Logging;
         }
 
         var quota = Math.Max(1, maxCount / configIds.Count);
-        var claimToken = Guid.NewGuid().ToString("N");
         var claimed = new List<SysEventOutbox>();
 
         foreach (var configId in configIds)
@@ -884,7 +900,7 @@ using Microsoft.Extensions.Logging;
             {
                 var client = _clientResolver.GetClient(configId);
 
-                claimed.AddRange(await ClaimFromDatabaseAsync(client, quota, claimToken, cancellationToken));
+                claimed.AddRange(await ClaimFromDatabaseAsync(client, quota, cancellationToken));
             }
             catch (OperationCanceledException)
             {
@@ -1167,11 +1183,9 @@ git commit -m "feat(eventbus-sqlsugar): 删除遍历当前布局的全部库"
 ```markdown
 事件行的落库由当前工作单元已登记的连接决定：恰好一个时写该库，一个都没有时写当前库，多于一个时抛 `InvalidOperationException`。因此业务代码应**先写业务数据、后发布事件**——反过来会让事件落在主库而业务落在模块库，两者不在同一个事务里，且不会报错。
 
-一次领取的总量不超过 `maxCount`，配额在当前布局的各库间平均分配。
+领取配额在当前布局的各库间平均分配：每库最多领取 `maxCount` 除以库数的整数商，且每库至少领取 1 条；库数超过 `maxCount` 时，单次领取的总量等于库数。
 
 发件箱表由 `[TableInitialization(IncludeModuleConnections = true)]` 声明进入所有库，主库与每个模块库都会建出 `sys_event_outbox`。
-
-进程重启后、首次流量之前，模块库尚未建连，该库中的待发事件暂时不会被领取；首次访问该模块库后即恢复。
 
 发送循环运行在无租户上下文的后台作用域，只遍历默认布局，租户独立库的发件箱不在本包范围。
 ```
@@ -1236,7 +1250,7 @@ P6 完成时应满足：
 
 ## 已知边界（写入 PR 描述，不写进代码注释）
 
-- **冷启动缺口**：`GetCurrentLayoutConfigIds()` 只列出已建连的模块库。`SqlSugarScope` 是单例、判定是进程级，因此模块库被任何请求碰过一次后即长期在列；但进程重启后、首次流量之前，模块库里的待发事件暂时领不到。
+- ~~**冷启动缺口**~~：**经实现阶段核对为不存在，已撤销。** `XiHanDataServiceCollectionExtensions.CreateScope` 把主库与全部静态配置的模块库 `ConnectionConfig` 一次性交给 `new SqlSugarScope(...)`，其构造回调对每个 `ConfigId` 都调了 `GetConnectionScope`，`IsAnyConnection` 在单例构造时即对全部模块库为真。懒注册只存在于运行期动态租户模块库，发送循环不遍历那些库。
 - **跨库事务歧义**：当前工作单元登记多于一个连接时抛异常，合法的跨库事务会被挡下，出路是拆小工作单元。
 - **发布早于写入**：业务若先 `PublishAsync` 再写仓储，入箱那一刻已登记连接为空，事件落主库而业务落模块库——两个独立事务，且不报错。
 - **单库故障吞异常**：不可达的库只记录错误日志并跳过，领取与删除都是如此。
