@@ -74,11 +74,13 @@ framework/src/XiHan.Framework.EventBus/Distributed/
 **② SqlSugar 源码 —— API 真实签名的唯一权威**
 
 ```
-/e/source/external/SqlSugar/Src/Asp.Net/SqlSugar/
-  Abstract/UpdateableProvider/    条件更新、SetColumns
-  Abstract/QueryableProvider/     Take / OrderBy / In
-  Abstract/DeleteProvider/        条件删除
+/e/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
+  Abstract/UpdateProvider/UpdateableProvider.cs    条件更新、SetColumns
+  Abstract/QueryableProvider/QueryableProvider.cs  Take / OrderBy / In
+  Abstract/DeleteProvider/DeleteableProvider.cs    条件删除
 ```
+
+> 树与目录名：本包引用 SqlSugarCore 5.1.4.221（依赖 `Microsoft.Data.Sqlite`），权威源码是 `Src/Asp.NetCore2/`。同级的 `Src/Asp.Net/` 是 .NET Framework 变体（`Realization/Sqlite/SqliteProvider.cs` 引用 `System.Data.SQLite`）。两棵树的公开 API 逐条一致、仅行号有少量偏移，读错不会得出错误结论，只是白跑。更新提供者的目录名是 `UpdateProvider`，不是 `UpdateableProvider`。
 
 当前引用版本：`SqlSugarCore 5.1.4.221`。
 
@@ -153,6 +155,8 @@ public class SysEventOutbox : SugarEntity<Guid>
 | 多于 1 个 | 抛 `InvalidOperationException`，消息列出已登记的标识 |
 
 `GetClient(configId)` 内部调用 `EnlistCurrentUnitOfWork`，事件行因此与业务数据落在同一个事务上。
+
+**为什么不看 `OutboxConfig.DatabaseName`。** 框架确实给每个发件箱留了这个字段（`Abstractions/Distributed/OutboxConfig.cs:38-41`，EventBus 在 `XiHanEventBusServiceCollectionExtensions.cs:87-89` 兜底为 `"Default"`），但 SqlSugar 实现读不到它：`IEventOutbox` 的四个方法没有任何一个接收 `OutboxConfig`——发送循环按 `ImplementationType` 解析出实例后就把它丢了（`EventBoxOutboxSenderHostedService.cs:95`）。何况它的语义是「第几个发件箱的名字」（`Outboxes` 字典的键），不是 SqlSugar 的 `ConnectionConfigId`，拿它去 `GetClient()` 属误用。由工作单元实际登记的连接推导落点，才是与业务数据同源的信息。
 
 **0 个的含义**：无工作单元、工作单元非事务型、或当前事务尚未写过任何库。此时退回当前布局的主库——与 P4 的行为完全一致，单库应用与非事务场景不受本份影响。
 
@@ -252,6 +256,11 @@ P4 硬约束 ②：抢占步骤若只按主键更新令牌，两个并发领取�
 - **取消传播**：已取消的令牌传入时抛 `OperationCanceledException`，不被逐库隔离吞掉
 - **单库回归**：P4 的既有用例在只有一个库的桩上继续全绿
 
+写用例时有两条来自实测的约束：
+
+- **不要写「读回的时间等于写入的时间」这类断言**。SQLite 侧的 `DateTimeOffset` 不保存偏移：表达式参数经 `UtilMethods.ConvertFromDateTimeOffset` 折叠成 `DateTime`，列被建成 `datetime` 文本，读回时偏移由 `DateTime.Kind` 反推。在 UTC+8 机器上写入 `+00:00` 会读回 `+08:00`、瞬时被平移 8 小时。同理不要写贴着 `ClaimTimeout` 边界的断言——批量写入的字面量小数位是 `.fffffff`，基类格式是 `.fff`。本份的领取/删除时间比较都发生在 SQL 侧、两侧同向归一，因此 P4 的超时用例安全，第一层也可照此写法。
+- **「候选被抢光则另选一批重试」只能由第二层的真实数据库用例覆盖**。第一层的桩构造不出跨实例竞态，本轮计划也没有任何第一层用例断言重试行为——这意味着重构领取逻辑时若丢掉 `maxClaimAttempts` 那个循环，CI 上不会有任何反应。搬动该循环时以代码为准，不要以用例是否变绿为准。
+
 **第二层 —— 真实数据库，本机执行，CI 自动跳过**
 
 沿用 P4 的 `XIHAN_TEST_MYSQL` 与 `Assert.SkipWhen(...)`，范式见 `framework/test/XiHan.Framework.EventBus.Redis.Tests/RedisPendingBehaviorTests.cs`。P4 的并发用例保持可用（签名变更后同步更新构造调用）。
@@ -273,6 +282,9 @@ SQLite 临时库的连接串必须带 `Pooling=False`，否则用例结束后驱
 | 租户独立库 | 发送循环无租户上下文，只遍历默认布局。租户独立库的发件箱不在本份范围 |
 | 单批吞吐 | 每库配额为 `maxCount / 库数`，单库单轮吞吐降为 1/N；轮询是连续的，累计吞吐不受影响 |
 | N 条删除 | 每批删除向每个库各发一次 `DELETE`，其中至多一条有效，其余是空操作 |
+| 在事务型工作单元内领取或删除 | 逐库 `GetClient(configId)` 会为布局里**每一个**库登记事务 API，这些标识随后全部出现在 `GetEnlistedConfigIds()` 里，于是同一工作单元再入箱必然命中「多于 1 个」而抛异常——而那条异常建议「拆小工作单元」，方向是错的。宿主发送循环跑在无工作单元的作用域（`EventBoxOutboxSenderHostedService.cs:86-90` 自建 scope），正常路径不触发；不要把领取或删除放进业务工作单元里调 |
+| 抢占的受影响行数口径 | MySQL 返回「匹配行数」还是「实际变更行数」由连接串与驱动决定，SqlSugar 源码层面确认不了。当前每轮抢占都会写入新的 `Claim_Token` 与 `Claim_Time`，两种口径下都大于 0，不受影响；但若日后把抢占 UPDATE 优化成「仅在必要时改列」，`affected == 0` 就会被误判为「被其他实例抢光」而空转三轮 |
+| 取消令牌的残留 | SqlSugar 的 `*Async(CancellationToken)` 不把令牌交给 ADO，而是 `Context.Ado.CancellationToken = token`（`Abstract/UpdateProvider/UpdateableProvider.cs:182`）且执行后不清除，只有显式 `RemoveCancellationToken()` 会清。跨库各有 provider 无影响；同库三轮重试会继承同一残留值，而每轮开头已 `ThrowIfCancellationRequested()`，行为仍然正确 |
 
 ## 8. 验收标准
 

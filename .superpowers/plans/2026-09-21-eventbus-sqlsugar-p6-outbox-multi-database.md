@@ -106,7 +106,7 @@ ITenant AsTenant()
 ```
 framework/src/XiHan.Framework.EventBus.SqlSugar/
   Entities/SysEventOutbox.cs        修改：加建表标注
-  Outbox/SqlSugarEventOutbox.cs     修改：三个方法多库化，新增 ILogger 与两个私有方法
+  Outbox/SqlSugarEventOutbox.cs     修改：四个方法多库化，新增 ILogger 与两个私有方法
   README.md                         修改：核心能力与已知边界
 
 framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/
@@ -323,18 +323,12 @@ internal sealed class OutboxTestContext : IDisposable
     /// <summary>
     /// 主库客户端
     /// </summary>
-    public SqlSugarClient Client
-    {
-        get { return Clients[MainConfigId]; }
-    }
+    public SqlSugarClient Client => Clients[MainConfigId];
 
     /// <summary>
     /// 模块库客户端
     /// </summary>
-    public SqlSugarClient ModuleClient
-    {
-        get { return Clients[ModuleConfigId]; }
-    }
+    public SqlSugarClient ModuleClient => Clients[ModuleConfigId];
 
     /// <summary>
     /// 释放客户端并删除临时库文件
@@ -471,6 +465,23 @@ internal sealed class StubClientResolver : ISqlSugarClientResolver
         throw new NotSupportedException("测试桩不支持多租户切换。");
     }
 }
+```
+
+还有一处**直接构造桩解析器**的用例文件必须在本步一并改掉，否则测试项目从这一步起就编译不过——`OutboxConcurrencyTests.cs:91` 调的是已被删掉的单参数构造，届时「运行测试」拿到的会是 CS1729 而不是预期的用例失败。把 `framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxConcurrencyTests.cs` 的 `CreateOutbox` 换为（此时发件箱构造函数仍是两个参数，`NullLogger` 到 Task 3 Step 6 再加）：
+
+```csharp
+    private static SqlSugarEventOutbox CreateOutbox(SqlSugarClient client)
+    {
+        return new SqlSugarEventOutbox(
+            new StubClientResolver(
+                new Dictionary<string, SqlSugarClient>(StringComparer.Ordinal) { ["Main"] = client },
+                ["Main"],
+                "Main"),
+            Microsoft.Extensions.Options.Options.Create(new XiHanSqlSugarEventBoxOptions
+            {
+                ClaimTimeout = TimeSpan.FromMinutes(5)
+            }));
+    }
 ```
 
 - [ ] **Step 2: 写失败的测试**
@@ -983,7 +994,7 @@ using Microsoft.Extensions.Logging.Abstractions;
     }
 ```
 
-参数类型由 `ISqlSugarClient` 收窄为 `SqlSugarClient`——两个调用点传的都是 `CreateClient()` 的返回值，本来就是该类型，收窄后不需要强制转换。该文件的 `using SqlSugar;` 已存在，`using XiHan.Framework.Data.SqlSugar.Clients;` 这一条因此不再需要，不要加。
+参数类型 `SqlSugarClient` 与三参数桩构造在 Task 2 Step 1 已经就位，本步只是在这个整体替换里补上末位的 `NullLogger<SqlSugarEventOutbox>.Instance`。该文件的 `using SqlSugar;` 已存在，`StubClientResolver` 又与本文件同命名空间，因此只新增上面那一条 `using Microsoft.Extensions.Logging.Abstractions;`，不删除任何 using。
 
 - [ ] **Step 7: 运行测试确认通过**
 
