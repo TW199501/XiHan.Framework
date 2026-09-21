@@ -1,0 +1,16 @@
+.superpowers/plans/2026-09-21-eventbus-sqlsugar-p6-outbox-multi-database.md
+  h_be8240d2cfaa4b 109,326,331,470-486,997
+.superpowers/specs/2026-09-21-eventbus-sqlsugar-p6-outbox-multi-database-design.md
+  h_be8240d2cfaa4b 77-80,83-84,159-160,259-263,285-287
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "560d5063529475f4721f0e5a0405a20490a1d9b7",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
