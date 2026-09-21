@@ -127,6 +127,94 @@ public class OutboxClaimTests
         Assert.Equal("corr-claim", claimed[0].GetCorrelationId());
     }
 
+    /// <summary>
+    /// 两个库的待发记录都会被领到
+    /// </summary>
+    [Fact]
+    public async Task 两个库的待发记录都会被领到()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        var mainEvent = NewEvent();
+        var moduleEvent = NewEvent();
+
+        await context.Outbox.EnqueueAsync(mainEvent);
+
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+        await context.Outbox.EnqueueAsync(moduleEvent);
+        context.Resolver.EnlistedConfigIds.Clear();
+
+        var claimed = await context.Outbox.GetWaitingEventsAsync(10);
+
+        Assert.Equal(2, claimed.Count);
+        Assert.Contains(claimed, item => item.Id == mainEvent.Id);
+        Assert.Contains(claimed, item => item.Id == moduleEvent.Id);
+    }
+
+    /// <summary>
+    /// 单批总量不超过上限且配额按库平均分配
+    /// </summary>
+    [Fact]
+    public async Task 单批总量不超过上限且配额按库平均分配()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        var baseTime = DateTime.UtcNow.AddMinutes(-10);
+
+        for (var index = 0; index < 10; index++)
+        {
+            await context.Outbox.EnqueueAsync(
+                new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [1], baseTime.AddSeconds(index)));
+        }
+
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+        for (var index = 0; index < 10; index++)
+        {
+            await context.Outbox.EnqueueAsync(
+                new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [2], baseTime.AddSeconds(index)));
+        }
+        context.Resolver.EnlistedConfigIds.Clear();
+
+        var claimed = await context.Outbox.GetWaitingEventsAsync(4);
+
+        Assert.Equal(4, claimed.Count);
+        Assert.Equal(2, claimed.Count(item => item.EventData[0] == 1));
+        Assert.Equal(2, claimed.Count(item => item.EventData[0] == 2));
+    }
+
+    /// <summary>
+    /// 单个库不可达时其余库照常领取
+    /// </summary>
+    [Fact]
+    public async Task 单个库不可达时其余库照常领取()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        var mainEvent = NewEvent();
+        await context.Outbox.EnqueueAsync(mainEvent);
+
+        context.Resolver.FaultyConfigIds[OutboxTestContext.ModuleConfigId] =
+            new InvalidOperationException("模拟模块库不可达。");
+
+        var claimed = await context.Outbox.GetWaitingEventsAsync(10);
+
+        Assert.Single(claimed);
+        Assert.Equal(mainEvent.Id, claimed[0].Id);
+    }
+
+    /// <summary>
+    /// 已取消的令牌抛出取消异常
+    /// </summary>
+    [Fact]
+    public async Task 已取消的令牌抛出取消异常()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        await context.Outbox.EnqueueAsync(NewEvent());
+
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => context.Outbox.GetWaitingEventsAsync(10, cancellationToken: cancellation.Token));
+    }
+
     private static OutgoingEventInfo NewEvent()
     {
         return new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [1, 2, 3], DateTime.UtcNow);

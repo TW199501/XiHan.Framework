@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Linq.Expressions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SqlSugar;
 using XiHan.Framework.Data.SqlSugar.Clients;
@@ -18,6 +19,7 @@ namespace XiHan.Framework.EventBus.SqlSugar.Outbox;
 public class SqlSugarEventOutbox : IEventOutbox
 {
     private readonly ISqlSugarClientResolver _clientResolver;
+    private readonly ILogger<SqlSugarEventOutbox> _logger;
     private readonly XiHanSqlSugarEventBoxOptions _options;
 
     /// <summary>
@@ -25,12 +27,15 @@ public class SqlSugarEventOutbox : IEventOutbox
     /// </summary>
     /// <param name="clientResolver">客户端解析器</param>
     /// <param name="options">收发件箱存储配置</param>
+    /// <param name="logger">日志器</param>
     public SqlSugarEventOutbox(
         ISqlSugarClientResolver clientResolver,
-        IOptions<XiHanSqlSugarEventBoxOptions> options)
+        IOptions<XiHanSqlSugarEventBoxOptions> options,
+        ILogger<SqlSugarEventOutbox> logger)
     {
         _clientResolver = clientResolver;
         _options = options.Value;
+        _logger = logger;
     }
 
     /// <summary>
@@ -79,6 +84,7 @@ public class SqlSugarEventOutbox : IEventOutbox
     /// <remarks>
     /// 本方法在返回前会把记录标记为已领取，不是纯查询。
     /// 领取超时后记录可被重新领取，超时时长由 <see cref="XiHanSqlSugarEventBoxOptions.ClaimTimeout"/> 配置。
+    /// 领取会遍历当前布局的全部库，每库最多领取 <c>maxCount</c> 除以库数的条数；某个库不可达时记录日志并跳过。
     /// </remarks>
     /// <param name="maxCount">最大数量</param>
     /// <param name="filter">过滤条件，本实现不支持，传入非空值将抛出异常</param>
@@ -103,16 +109,61 @@ public class SqlSugarEventOutbox : IEventOutbox
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var client = _clientResolver.GetClientForEntity<SysEventOutbox>();
+        var configIds = _clientResolver.GetCurrentLayoutConfigIds();
+        if (configIds.Count == 0)
+        {
+            return [];
+        }
+
+        var quota = Math.Max(1, maxCount / configIds.Count);
+        var claimToken = Guid.NewGuid().ToString("N");
+        var claimed = new List<SysEventOutbox>();
+
+        foreach (var configId in configIds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                var client = _clientResolver.GetClient(configId);
+
+                claimed.AddRange(await ClaimFromDatabaseAsync(client, quota, claimToken, cancellationToken));
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "从数据库 {ConfigId} 领取待发送事件失败，已跳过该库。", configId);
+            }
+        }
+
+        return [.. claimed.OrderBy(item => item.CreatedTime).Select(EventOutboxMapper.ToEventInfo)];
+    }
+
+    /// <summary>
+    /// 在指定库上领取一批待发送的记录
+    /// </summary>
+    /// <param name="client">该库的客户端</param>
+    /// <param name="quota">本库最多领取的条数</param>
+    /// <param name="claimToken">本次领取的令牌</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>本库领取到的记录</returns>
+    private async Task<List<SysEventOutbox>> ClaimFromDatabaseAsync(
+        ISqlSugarClient client,
+        int quota,
+        string claimToken,
+        CancellationToken cancellationToken)
+    {
         var now = DateTimeOffset.UtcNow;
         var staleBefore = now - _options.ClaimTimeout;
-        var claimToken = Guid.NewGuid().ToString("N");
 
         var candidateIds = await client.Queryable<SysEventOutbox>()
             .Where(item => item.Status == SysEventOutbox.StatusPending
                 || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore))
             .OrderBy(item => item.CreatedTime)
-            .Take(maxCount)
+            .Take(quota)
             .Select(item => item.BasicId)
             .ToListAsync(cancellationToken);
 
@@ -133,12 +184,10 @@ public class SqlSugarEventOutbox : IEventOutbox
                     || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore)))
             .ExecuteCommandAsync(cancellationToken);
 
-        var claimed = await client.Queryable<SysEventOutbox>()
+        return await client.Queryable<SysEventOutbox>()
             .Where(item => item.ClaimToken == claimToken)
             .OrderBy(item => item.CreatedTime)
             .ToListAsync(cancellationToken);
-
-        return [.. claimed.Select(EventOutboxMapper.ToEventInfo)];
     }
 
     /// <summary>

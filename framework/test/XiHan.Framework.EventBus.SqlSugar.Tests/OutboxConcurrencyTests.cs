@@ -1,6 +1,7 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using Microsoft.Extensions.Logging.Abstractions;
 using SqlSugar;
 using XiHan.Framework.EventBus.Abstractions.Distributed;
 using XiHan.Framework.EventBus.SqlSugar.Entities;
@@ -98,6 +99,7 @@ public class OutboxConcurrencyTests
             Microsoft.Extensions.Options.Options.Create(new XiHanSqlSugarEventBoxOptions
             {
                 ClaimTimeout = TimeSpan.FromMinutes(5)
-            }));
+            }),
+            NullLogger<SqlSugarEventOutbox>.Instance);
     }
 }
