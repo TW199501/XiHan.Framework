@@ -1,0 +1,24 @@
+framework/src/XiHan.Framework.EventBus.SqlSugar/Entities/SysEventOutbox.cs
+  s_94057b8e5cf9b6::t_9365a9ff97b51c 6
+  s_94057b8e5cf9b6::t_6bde6ec059e694 14
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/EventOutboxEntityTests.cs
+  s_94057b8e5cf9b6::t_19edecf82a5767 86-96
+  s_94057b8e5cf9b6::t_8706cccc11fd32 6
+  s_94057b8e5cf9b6::t_4c41638e44bad8 85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c87138341a4b396c1a826cab1340f9dd25b59a2e",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
