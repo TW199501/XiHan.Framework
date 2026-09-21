@@ -85,10 +85,16 @@ public class OutboxConcurrencyTests
         });
     }
 
-    private static SqlSugarEventOutbox CreateOutbox(ISqlSugarClient client)
+    private static SqlSugarEventOutbox CreateOutbox(SqlSugarClient client)
     {
+        var clients = new Dictionary<string, SqlSugarClient>(StringComparer.Ordinal)
+        {
+            [OutboxTestContext.MainConfigId] = client
+        };
+        var resolver = new StubClientResolver(clients, [OutboxTestContext.MainConfigId], OutboxTestContext.MainConfigId);
+
         return new SqlSugarEventOutbox(
-            new StubClientResolver(client),
+            resolver,
             Microsoft.Extensions.Options.Options.Create(new XiHanSqlSugarEventBoxOptions
             {
                 ClaimTimeout = TimeSpan.FromMinutes(5)

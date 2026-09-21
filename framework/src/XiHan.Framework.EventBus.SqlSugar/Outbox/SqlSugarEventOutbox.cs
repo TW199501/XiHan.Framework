@@ -41,9 +41,36 @@ public class SqlSugarEventOutbox : IEventOutbox
     {
         ArgumentNullException.ThrowIfNull(outgoingEvent);
 
-        var client = _clientResolver.GetClientForEntity<SysEventOutbox>();
+        var client = ResolveEnqueueClient();
 
         await client.Insertable(EventOutboxMapper.ToEntity(outgoingEvent)).ExecuteCommandAsync();
+    }
+
+    /// <summary>
+    /// 解析入箱写入的客户端
+    /// </summary>
+    /// <remarks>
+    /// 当前工作单元已登记恰好一个连接时写该库，未登记任何连接时写当前库。
+    /// </remarks>
+    /// <returns>事件行写入的客户端</returns>
+    /// <exception cref="InvalidOperationException">当前工作单元登记了多个连接</exception>
+    private ISqlSugarClient ResolveEnqueueClient()
+    {
+        var enlistedConfigIds = _clientResolver.GetEnlistedConfigIds();
+
+        if (enlistedConfigIds.Count == 0)
+        {
+            return _clientResolver.GetCurrentClient();
+        }
+
+        if (enlistedConfigIds.Count == 1)
+        {
+            return _clientResolver.GetClient(enlistedConfigIds[0]);
+        }
+
+        throw new InvalidOperationException(
+            $"当前工作单元登记了多个数据库连接（{string.Join("、", enlistedConfigIds)}），无法确定事件应写入哪个库。" +
+            "请拆分工作单元，使每个事务只写入一个库。");
     }
 
     /// <summary>

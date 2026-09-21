@@ -114,6 +114,51 @@ public class OutboxEnqueueTests
         Assert.Equal(0, count);
     }
 
+    /// <summary>
+    /// 已登记单个模块库时事件写进该库
+    /// </summary>
+    [Fact]
+    public async Task 已登记单个模块库时事件写进该库()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+        var info = NewEvent();
+
+        await context.Outbox.EnqueueAsync(info);
+
+        Assert.Equal(1, await context.ModuleClient.Queryable<SysEventOutbox>().CountAsync());
+        Assert.Equal(0, await context.Client.Queryable<SysEventOutbox>().CountAsync());
+    }
+
+    /// <summary>
+    /// 未登记任何连接时事件写进当前库
+    /// </summary>
+    [Fact]
+    public async Task 未登记任何连接时事件写进当前库()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        var info = NewEvent();
+
+        await context.Outbox.EnqueueAsync(info);
+
+        Assert.Equal(1, await context.Client.Queryable<SysEventOutbox>().CountAsync());
+        Assert.Equal(0, await context.ModuleClient.Queryable<SysEventOutbox>().CountAsync());
+    }
+
+    /// <summary>
+    /// 登记了多个连接时抛出无法确定落点
+    /// </summary>
+    [Fact]
+    public async Task 登记了多个连接时抛出无法确定落点()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.MainConfigId);
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => context.Outbox.EnqueueAsync(NewEvent()));
+    }
+
     private static OutgoingEventInfo NewEvent()
     {
         return new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [1, 2, 3], DateTime.UtcNow);
