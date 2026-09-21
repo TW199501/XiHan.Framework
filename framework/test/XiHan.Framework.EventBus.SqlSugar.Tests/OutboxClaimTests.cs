@@ -218,6 +218,43 @@ public class OutboxClaimTests
             () => context.Outbox.GetWaitingEventsAsync(10, cancellationToken: cancellation.Token));
     }
 
+    /// <summary>
+    /// 单个库领取时抛出取消异常会向上传播而不是被当作普通故障吞掉
+    /// </summary>
+    [Fact]
+    public async Task 单个库领取时抛出取消异常会向上传播()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        await context.Outbox.EnqueueAsync(NewEvent());
+
+        context.Resolver.FaultyConfigIds[OutboxTestContext.MainConfigId] =
+            new OperationCanceledException("模拟主库领取时被取消。");
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => context.Outbox.GetWaitingEventsAsync(10));
+    }
+
+    /// <summary>
+    /// 两个连接标识指向同一个物理库时，领取到的记录不重复
+    /// </summary>
+    [Fact]
+    public async Task 两个连接标识指向同一物理库时领取结果不重复()
+    {
+        using var context = new OutboxTestContext(moduleSharesMainDatabase: true);
+        var baseTime = DateTime.UtcNow.AddMinutes(-10);
+
+        for (var index = 0; index < 6; index++)
+        {
+            await context.Outbox.EnqueueAsync(
+                new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [(byte)index], baseTime.AddSeconds(index)));
+        }
+
+        var claimed = await context.Outbox.GetWaitingEventsAsync(10);
+
+        Assert.Equal(6, claimed.Count);
+        Assert.Equal(claimed.Count, claimed.Select(item => item.Id).Distinct().Count());
+    }
+
     private static OutgoingEventInfo NewEvent()
     {
         return new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [1, 2, 3], DateTime.UtcNow);

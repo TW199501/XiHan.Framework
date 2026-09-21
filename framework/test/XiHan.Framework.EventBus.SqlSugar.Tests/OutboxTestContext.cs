@@ -32,14 +32,24 @@ internal sealed class OutboxTestContext : IDisposable
     /// </summary>
     /// <param name="claimTimeout">领取超时</param>
     /// <param name="withModuleDatabase">是否额外创建一个模块库</param>
-    public OutboxTestContext(TimeSpan? claimTimeout = null, bool withModuleDatabase = false)
+    /// <param name="moduleSharesMainDatabase">模块库连接标识是否与主库指向同一个客户端（不额外建库）</param>
+    public OutboxTestContext(
+        TimeSpan? claimTimeout = null,
+        bool withModuleDatabase = false,
+        bool moduleSharesMainDatabase = false)
     {
-        List<string> configIds = withModuleDatabase
+        List<string> configIds = withModuleDatabase || moduleSharesMainDatabase
             ? [MainConfigId, ModuleConfigId]
             : [MainConfigId];
 
         foreach (var configId in configIds)
         {
+            if (moduleSharesMainDatabase && configId == ModuleConfigId)
+            {
+                Clients[configId] = Clients[MainConfigId];
+                continue;
+            }
+
             var databaseFile = Path.Combine(Path.GetTempPath(), $"xihan_outbox_{Guid.NewGuid():N}.db");
             _databaseFiles.Add(databaseFile);
 
@@ -102,7 +112,8 @@ internal sealed class OutboxTestContext : IDisposable
     /// </summary>
     public void Dispose()
     {
-        foreach (var client in Clients.Values)
+        // 模块库可能与主库共用同一个客户端实例，去重后再释放，避免重复 Dispose
+        foreach (var client in Clients.Values.Distinct())
         {
             client.Dispose();
         }
