@@ -187,16 +187,19 @@ public class OutboxClaimTests
     public async Task 单个库不可达时其余库照常领取()
     {
         using var context = new OutboxTestContext(withModuleDatabase: true);
-        var mainEvent = NewEvent();
-        await context.Outbox.EnqueueAsync(mainEvent);
 
-        context.Resolver.FaultyConfigIds[OutboxTestContext.ModuleConfigId] =
-            new InvalidOperationException("模拟模块库不可达。");
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+        var moduleEvent = NewEvent();
+        await context.Outbox.EnqueueAsync(moduleEvent);
+        context.Resolver.EnlistedConfigIds.Clear();
+
+        context.Resolver.FaultyConfigIds[OutboxTestContext.MainConfigId] =
+            new InvalidOperationException("模拟主库不可达。");
 
         var claimed = await context.Outbox.GetWaitingEventsAsync(10);
 
         Assert.Single(claimed);
-        Assert.Equal(mainEvent.Id, claimed[0].Id);
+        Assert.Equal(moduleEvent.Id, claimed[0].Id);
     }
 
     /// <summary>

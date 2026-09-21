@@ -116,7 +116,6 @@ public class SqlSugarEventOutbox : IEventOutbox
         }
 
         var quota = Math.Max(1, maxCount / configIds.Count);
-        var claimToken = Guid.NewGuid().ToString("N");
         var claimed = new List<SysEventOutbox>();
 
         foreach (var configId in configIds)
@@ -127,7 +126,7 @@ public class SqlSugarEventOutbox : IEventOutbox
             {
                 var client = _clientResolver.GetClient(configId);
 
-                claimed.AddRange(await ClaimFromDatabaseAsync(client, quota, claimToken, cancellationToken));
+                claimed.AddRange(await ClaimFromDatabaseAsync(client, quota, cancellationToken));
             }
             catch (OperationCanceledException)
             {
@@ -147,17 +146,16 @@ public class SqlSugarEventOutbox : IEventOutbox
     /// </summary>
     /// <param name="client">该库的客户端</param>
     /// <param name="quota">本库最多领取的条数</param>
-    /// <param name="claimToken">本次领取的令牌</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>本库领取到的记录</returns>
     private async Task<List<SysEventOutbox>> ClaimFromDatabaseAsync(
         ISqlSugarClient client,
         int quota,
-        string claimToken,
         CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
         var staleBefore = now - _options.ClaimTimeout;
+        var claimToken = Guid.NewGuid().ToString("N");
 
         var candidateIds = await client.Queryable<SysEventOutbox>()
             .Where(item => item.Status == SysEventOutbox.StatusPending
