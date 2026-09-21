@@ -194,14 +194,15 @@ public class SqlSugarEventOutbox : IEventOutbox
     /// <param name="id">事件唯一标识符</param>
     public async Task DeleteAsync(Guid id)
     {
-        var client = _clientResolver.GetClientForEntity<SysEventOutbox>();
-
-        await client.Deleteable<SysEventOutbox>().In(id).ExecuteCommandAsync();
+        await DeleteManyAsync([id]);
     }
 
     /// <summary>
     /// 批量删除事件信息
     /// </summary>
+    /// <remarks>
+    /// 删除会遍历当前布局的全部库；主键全局唯一，没有该记录的库上执行只删除 0 行。
+    /// </remarks>
     /// <param name="ids">事件唯一标识符集合</param>
     public async Task DeleteManyAsync(IEnumerable<Guid> ids)
     {
@@ -213,8 +214,18 @@ public class SqlSugarEventOutbox : IEventOutbox
             return;
         }
 
-        var client = _clientResolver.GetClientForEntity<SysEventOutbox>();
+        foreach (var configId in _clientResolver.GetCurrentLayoutConfigIds())
+        {
+            try
+            {
+                var client = _clientResolver.GetClient(configId);
 
-        await client.Deleteable<SysEventOutbox>().In(idList).ExecuteCommandAsync();
+                await client.Deleteable<SysEventOutbox>().In(idList).ExecuteCommandAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "从数据库 {ConfigId} 删除已投递事件失败，已跳过该库。", configId);
+            }
+        }
     }
 }
