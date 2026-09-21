@@ -84,7 +84,8 @@ public class SqlSugarEventOutbox : IEventOutbox
     /// <remarks>
     /// 本方法在返回前会把记录标记为已领取，不是纯查询。
     /// 领取超时后记录可被重新领取，超时时长由 <see cref="XiHanSqlSugarEventBoxOptions.ClaimTimeout"/> 配置。
-    /// 领取会遍历当前布局的全部库，每库最多领取 <c>maxCount</c> 除以库数的条数；某个库不可达时记录日志并跳过。
+    /// 领取会遍历当前布局的全部库，每库最多领取 <c>maxCount</c> 除以库数的整数商，且每库至少领取 1 条；
+    /// 库数超过 <c>maxCount</c> 时，单次领取的总量等于库数；某个库不可达时记录日志并跳过。
     /// </remarks>
     /// <param name="maxCount">最大数量</param>
     /// <param name="filter">过滤条件，本实现不支持，传入非空值将抛出异常</param>
@@ -202,6 +203,8 @@ public class SqlSugarEventOutbox : IEventOutbox
     /// </summary>
     /// <remarks>
     /// 删除会遍历当前布局的全部库；主键全局唯一，没有该记录的库上执行只删除 0 行。
+    /// 某个库删除失败时记录日志并跳过该库，不向调用方传播异常；该库上的记录保持可领取状态，
+    /// 会在后续轮询中被重新领取并再次投递。
     /// </remarks>
     /// <param name="ids">事件唯一标识符集合</param>
     public async Task DeleteManyAsync(IEnumerable<Guid> ids)
