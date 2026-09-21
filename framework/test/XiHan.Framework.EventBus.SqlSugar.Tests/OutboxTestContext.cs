@@ -45,7 +45,7 @@ internal sealed class OutboxTestContext : IDisposable
 
             var client = new SqlSugarClient(new ConnectionConfig
             {
-                // 关闭连接池，用例结束后驱动不再持有临时库文件句柄
+                // 禁用连接池
                 ConnectionString = $"DataSource={databaseFile};Pooling=False",
                 DbType = DbType.Sqlite,
                 IsAutoCloseConnection = true
