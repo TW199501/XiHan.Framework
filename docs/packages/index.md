@@ -1,6 +1,6 @@
 # 模块总览
 
-XiHan.Framework 由 **67 个 NuGet 包**组成，按分层组织。本册是**参考手册**——每个包一页，写完整的 API 清单与配置项全表。
+XiHan.Framework 由 **68 个 NuGet 包**组成，按分层组织。本册是**参考手册**——每个包一页，写完整的 API 清单与配置项全表。
 
 ::: tip 先看指南还是先看这里
 文档分两册，解决的问题不同：
@@ -82,6 +82,7 @@ DDD 分层与应用服务契约。
 | [EventBus.RabbitMQ](./eventbus-rabbitmq) | 分布式事件总线的 RabbitMQ 提供程序：direct 交换机 + 事件名路由键、队列竞争消费 |
 | [EventBus.Kafka](./eventbus-kafka) | 分布式事件总线的 Kafka 提供程序：单主题 + 事件名作 Key、消费者组竞争消费 |
 | [EventBus.Redis](./eventbus-redis) | 分布式事件总线的 Redis Streams 提供程序：`XADD` / `XREADGROUP` 消费者组竞争消费 |
+| [EventBus.SqlSugar](./eventbus-sqlsugar) | 事件发件箱的 SqlSugar 持久化提供程序：入箱与业务同事务、条件抢占领取 |
 | [Messaging](./messaging) | 消息处理：消息代理抽象（发布/消费/路由） |
 | [Http](./http) | HTTP 客户端：Polly 韧性策略（重试/熔断）、请求管道 |
 

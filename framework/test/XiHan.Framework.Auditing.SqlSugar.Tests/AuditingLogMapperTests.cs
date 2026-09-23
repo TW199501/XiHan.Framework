@@ -147,4 +147,81 @@ public class AuditingLogMapperTests
         Assert.Equal(8L, entity.ElapsedMilliseconds);
         Assert.Equal(2048L, entity.ResponseSize);
     }
+
+    [Fact]
+    public void 超出列宽的文本按列宽截断()
+    {
+        var record = new AccessLogRecord
+        {
+            TraceId = new string('t', 200),
+            ResourceName = new string('n', 600),
+            Method = new string('m', 40),
+            Path = new string('p', 900),
+            QueryString = new string('q', 5000),
+            RemoteIp = new string('1', 200),
+            UserAgent = new string('u', 5000),
+            Referer = new string('r', 900)
+        };
+
+        var entity = AuditingLogMapper.ToEntity(record, 1006L, CreatedTime);
+
+        Assert.Equal(64, entity.TraceId.Length);
+        Assert.Equal(256, entity.ResourceName!.Length);
+        Assert.Equal(16, entity.Method.Length);
+        Assert.Equal(512, entity.Path.Length);
+        Assert.Equal(2048, entity.QueryString!.Length);
+        Assert.Equal(64, entity.RemoteIp!.Length);
+        Assert.Equal(512, entity.UserAgent!.Length);
+        Assert.Equal(512, entity.Referer!.Length);
+        Assert.StartsWith("qqq", entity.QueryString);
+    }
+
+    [Fact]
+    public void 截断不会在代理对中间切开()
+    {
+        var record = new AccessLogRecord
+        {
+            TraceId = new string('t', 63) + "😀",
+            Method = "GET",
+            Path = "/"
+        };
+
+        var entity = AuditingLogMapper.ToEntity(record, 1007L, CreatedTime);
+
+        Assert.Equal(63, entity.TraceId.Length);
+        Assert.DoesNotContain(entity.TraceId, char.IsSurrogate);
+    }
+
+    [Fact]
+    public void 代理对正好落在列宽内时完整保留()
+    {
+        var record = new AccessLogRecord
+        {
+            TraceId = new string('t', 62) + "😀",
+            Method = "GET",
+            Path = "/"
+        };
+
+        var entity = AuditingLogMapper.ToEntity(record, 1008L, CreatedTime);
+
+        Assert.Equal(64, entity.TraceId.Length);
+        Assert.EndsWith("😀", entity.TraceId);
+    }
+
+    [Fact]
+    public void 未超列宽的文本与空值原样保留()
+    {
+        var record = new AccessLogRecord
+        {
+            TraceId = "trace-short",
+            QueryString = "?a=1",
+            UserAgent = null
+        };
+
+        var entity = AuditingLogMapper.ToEntity(record, 1007L, CreatedTime);
+
+        Assert.Equal("trace-short", entity.TraceId);
+        Assert.Equal("?a=1", entity.QueryString);
+        Assert.Null(entity.UserAgent);
+    }
 }

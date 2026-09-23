@@ -6,7 +6,7 @@
 ## 核心能力
 - 5 类审计日志（访问 / 接口 / 异常 / 登录 / 操作）的 SqlSugar 实体与写入器
 - 按月自动分表，表名形如 `sys_operation_log_20260901`
-- 表结构由 `DbInitializer` 在应用启动时创建
+- 表结构由 `DbInitializer` 在应用启动时创建，需开启 `XiHan:Data:SqlSugarCore:EnableTableInitialization`（默认 `false`）
 - 主键为雪花 ID，由 `XiHan.Framework.DistributedIds` 生成
 
 ## 依赖关系
@@ -14,6 +14,8 @@
 
 ## 配置与约定
 表名 `sys_` 前缀、全小写下划线；列名 Pascal_Snake_Case；主键 `Basic_Id` 为雪花 ID，非自增。分表字段为 `Created_Time`。
+
+建表沿用 `XiHan.Framework.Data` 的开关 `XiHan:Data:SqlSugarCore:EnableTableInitialization`，默认 `false`；未开启时由 SqlSugar 在分表插入缺少目标表时补建。请求体、响应体、异常堆栈等大文本列为 `CodeFirst_BigString`，不设上限；其余定长列由映射层按列宽截断，避免超长的路径、查询串、User-Agent 让整批日志写入失败。
 
 ## 使用方式
 在应用启动模块上声明依赖：

@@ -9,7 +9,7 @@
 - 发件箱实体 `sys_event_outbox` 与 `OutgoingEventInfo` 的双向映射
 - 入箱与业务数据落在同一事务：业务回滚，事件随之消失
 - 多实例领取互斥：条件抢占 + 领取超时释放，不依赖任何数据库方言特性
-- 表结构由 `DbInitializer` 在应用启动时创建
+- 表结构由 `DbInitializer` 在应用启动时创建，**必须开启** `XiHan:Data:SqlSugarCore:EnableTableInitialization`（默认 `false`）
 
 ## 依赖关系
 
@@ -18,6 +18,8 @@
 ## 配置与约定
 
 表名 `sys_` 前缀、全小写下划线，不分表；列名 Pascal_Snake_Case；主键为事件自身的 `Guid` 标识，非自增。
+
+`sys_event_outbox` 不是分表，没有 SqlSugar 插入时自动建表的兜底，因此未开启建表初始化时首次入箱即抛「表不存在」，并使所在业务事务一同失败。自行维护表结构时按本包实体的列定义建表。
 
 配置节 `XiHan:EventBus:SqlSugar`，`ClaimTimeout` 控制领取超时，默认 5 分钟。
 

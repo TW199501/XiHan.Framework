@@ -63,6 +63,7 @@ sys_login_log    sys_operation_log
 | 主键 | `Basic_Id`，`long`，`IsIdentity = false`，雪花 ID |
 | 实体基类 | `SugarCreationEntity<long>`，实现 `ISplitTableEntity` |
 | 大文本列 | `ColumnDataType = StaticConfig.CodeFirst_BigString`，由 SqlSugar 按当前数据库方言挑选类型 |
+| 定长列 | 标注 `Length`（`Trace_Id` 64、`Path` 512、`User_Agent` 512、`Query_String` 2048 等），超长值由 `AuditingLogMapper` 截断到列宽 |
 
 `SysLoginLog` 的 `Login_Time` 是记录模型自带的业务时间，与分表字段 `Created_Time` 各占一列：前者由应用写入，后者由写入器在落库时生成。
 
@@ -90,7 +91,14 @@ sys_login_log    sys_operation_log
 
 客户端经 `ISqlSugarClientResolver` 取得，因此这 5 张表遵循 [Data](./data) 的多数据源与租户路由规则：默认落当前租户的主库。
 
-**审计写入不参与业务事务。** 日志由后台 Worker 在业务请求之外消费，写入器不开事务、不加入工作单元——业务回滚不应带走已经发生的审计记录。
+**写入器自身不开事务，但「是否与业务事务同行」取决于调用时机。** 写入器不调用 `BeginTran`、也不主动登记工作单元；然而客户端经 `ISqlSugarClientResolver` 解析，按 [Data](./data) 的规则，**当前若存在事务型工作单元，解析器会自动把连接并入该事务**，此时审计行随该工作单元一同提交或回滚。
+
+分两种情况：
+
+- **访问 / 接口 / 异常 / 操作** 这 4 类由框架采集。采集用的过滤器注册在 `XiHanUnitOfWorkFilter` 的外层（见 `XiHanWebApiServiceCollectionExtensions`），且在 `await next()` 返回之后才写日志，因此写入时工作单元已经结束；开启队列（`XiHan:Auditing:LogQueue`）时更是由后台 Worker 在请求之外消费。这两条路径上，业务回滚不会带走已发生的审计记录。
+- **登录日志**由应用在自己的登录分支里调 `ILoginLogPipeline`（见 [审计日志指南](../guide/auditing)）——框架不采集它。如果这个调用发生在应用服务内、且此刻有活动的事务型工作单元，这条登录日志就在那笔事务里：业务回滚它会一起回滚；若工作单元已经回滚再写，`GetClientForEntity` 会直接抛异常，需要用 `IUnitOfWorkManager.Begin(requiresNew: true)` 另开一个工作单元。
+
+这与 `IEntityDiffLogWriter`「必须与业务同事务」的契约方向相反（同指南的「写入器的事务契约」一节）：日志类走的是「尽量不与业务同生共死」，差异类走的是「必须同生共死」。需要绝对独立的审计，可替换写入器，在内部用独立连接或另开非事务工作单元。
 
 ## 主要 API / 类型
 
@@ -161,6 +169,7 @@ services.Replace(ServiceDescriptor.Scoped<IOperationLogWriter, MyOperationLogWri
 - **`CreatedTime` 按 UTC 写入**，分表切换点随之按 UTC 划分，跨时区部署时切表时刻不等于本地零点。
 - **脱敏在采集端完成**。记录到达写入器时已脱敏，写入器不再处理，重复脱敏会二次遮蔽已遮蔽的内容。
 - **实体变更日志仍为空实现**。`IEntityDiffLogWriter` 不在本包范围，需要它请自行实现。
+- **定长列由映射层截断**。路径、查询串、User-Agent、来源页、异常类型等列宽有限，而采集端不夹长度；超长的自由文本在 SQL Server / MySQL 严格模式下会让整条 `INSERT` 抛错（队列模式下 `FlushAsync` 的 try 在逐条循环外层，一条失败连带丢弃整批），MySQL 非严格模式则会静默截断。`AuditingLogMapper` 统一把这些列截到列宽，保留前缀；请求体、响应体、异常堆栈等大文本列不设上限。
 - **日志落库失败不重试**。Worker 捕获写入异常仅记 `LogWarning`，这一批日志会丢失，需要可靠性请在写入器内自行兜底。
 
 ## 依赖模块

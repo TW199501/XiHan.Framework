@@ -52,7 +52,7 @@
 
 ## 模块清单
 
-共 67 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
+共 68 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
 
 ### 公共与核心
 
@@ -89,6 +89,7 @@
 | `EventBus.RabbitMQ` | 分布式事件总线 RabbitMQ 提供程序 |
 | `EventBus.Kafka` | 分布式事件总线 Kafka 提供程序 |
 | `EventBus.Redis` | 分布式事件总线 Redis（Streams）提供程序 |
+| `EventBus.SqlSugar` | 事件发件箱 SqlSugar 持久化提供程序：入箱与业务同事务，多实例领取互斥 |
 | `Workflow.Abstractions` | 工作流抽象：流程定义模型、活动契约、运行时实例与书签模型、存储端口、人工任务契约，不含执行实现 |
 | `Workflow` | 工作流引擎：图执行引擎、内置活动集、人工任务（审批）、表达式求值、定时器调度、内存存储默认实现 |
 | `Castle` | AOP 动态代理：Castle DynamicProxy 集成，服务拦截器注册 |
@@ -182,7 +183,7 @@ Utils (零第三方依赖)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx              # 解决方案文件
-│   ├── src/                               # 源码（67 个模块）
+│   ├── src/                               # 源码（68 个模块）
 │   │   ├── XiHan.Framework.Utils/         #   公共工具
 │   │   ├── XiHan.Framework.Metadata/      #   框架元数据
 │   │   ├── XiHan.Framework.Core/          #   模块化核心
@@ -194,7 +195,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   Web 核心
 │   │   ├── XiHan.Framework.Web.Api/       #   动态 API
 │   │   └── ...                            #   其他模块
-│   ├── test/                              # 测试（src 下每个项目一一对应，共 67 个单测工程）
+│   ├── test/                              # 测试（src 下每个项目一一对应，共 68 个单测工程）
 │   │   ├── XiHan.Framework.Utils.Tests/   #   工具测试
 │   │   ├── XiHan.Framework.Core.Tests/    #   内核测试
 │   │   └── ...                            #   其余按 <项目名>.Tests 一一对应

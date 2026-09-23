@@ -52,6 +52,7 @@ public class SqlSugarEventOutbox : IEventOutbox
     /// <remarks>
     /// 本方法在返回前会把记录标记为已领取，不是纯查询。
     /// 领取超时后记录可被重新领取，超时时长由 <see cref="XiHanSqlSugarEventBoxOptions.ClaimTimeout"/> 配置。
+    /// 选中的候选被其他实例抢先领走时另选一批重试，最多三轮；返回空集合表示确实没有可领取的记录。
     /// </remarks>
     /// <param name="maxCount">最大数量</param>
     /// <param name="filter">过滤条件，本实现不支持，传入非空值将抛出异常</param>
@@ -76,42 +77,58 @@ public class SqlSugarEventOutbox : IEventOutbox
 
         cancellationToken.ThrowIfCancellationRequested();
 
+        const int maxClaimAttempts = 3;
+
         var client = _clientResolver.GetClientForEntity<SysEventOutbox>();
-        var now = DateTimeOffset.UtcNow;
-        var staleBefore = now - _options.ClaimTimeout;
-        var claimToken = Guid.NewGuid().ToString("N");
 
-        var candidateIds = await client.Queryable<SysEventOutbox>()
-            .Where(item => item.Status == SysEventOutbox.StatusPending
-                || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore))
-            .OrderBy(item => item.CreatedTime)
-            .Take(maxCount)
-            .Select(item => item.BasicId)
-            .ToListAsync(cancellationToken);
-
-        if (candidateIds.Count == 0)
+        for (var attempt = 0; attempt < maxClaimAttempts; attempt++)
         {
-            return [];
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var now = DateTimeOffset.UtcNow;
+            var staleBefore = now - _options.ClaimTimeout;
+            var claimToken = Guid.NewGuid().ToString("N");
+
+            var candidateIds = await client.Queryable<SysEventOutbox>()
+                .Where(item => item.Status == SysEventOutbox.StatusPending
+                    || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore))
+                .OrderBy(item => item.CreatedTime)
+                .Take(maxCount)
+                .Select(item => item.BasicId)
+                .ToListAsync(cancellationToken);
+
+            if (candidateIds.Count == 0)
+            {
+                return [];
+            }
+
+            var affected = await client.Updateable<SysEventOutbox>()
+                .SetColumns(item => new SysEventOutbox
+                {
+                    Status = SysEventOutbox.StatusClaimed,
+                    ClaimToken = claimToken,
+                    ClaimTime = now
+                })
+                .Where(item => candidateIds.Contains(item.BasicId)
+                    && (item.Status == SysEventOutbox.StatusPending
+                        || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore)))
+                .ExecuteCommandAsync(cancellationToken);
+
+            // 候选全被其他实例抢走，另选一批重试
+            if (affected == 0)
+            {
+                continue;
+            }
+
+            var claimed = await client.Queryable<SysEventOutbox>()
+                .Where(item => item.ClaimToken == claimToken)
+                .OrderBy(item => item.CreatedTime)
+                .ToListAsync(cancellationToken);
+
+            return [.. claimed.Select(EventOutboxMapper.ToEventInfo)];
         }
 
-        await client.Updateable<SysEventOutbox>()
-            .SetColumns(item => new SysEventOutbox
-            {
-                Status = SysEventOutbox.StatusClaimed,
-                ClaimToken = claimToken,
-                ClaimTime = now
-            })
-            .Where(item => candidateIds.Contains(item.BasicId)
-                && (item.Status == SysEventOutbox.StatusPending
-                    || (item.Status == SysEventOutbox.StatusClaimed && item.ClaimTime != null && item.ClaimTime < staleBefore)))
-            .ExecuteCommandAsync(cancellationToken);
-
-        var claimed = await client.Queryable<SysEventOutbox>()
-            .Where(item => item.ClaimToken == claimToken)
-            .OrderBy(item => item.CreatedTime)
-            .ToListAsync(cancellationToken);
-
-        return [.. claimed.Select(EventOutboxMapper.ToEventInfo)];
+        return [];
     }
 
     /// <summary>

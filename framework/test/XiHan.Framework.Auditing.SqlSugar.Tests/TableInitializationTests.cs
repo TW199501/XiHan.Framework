@@ -64,7 +64,8 @@ public class TableInitializationTests
 
             db.CodeFirst.SplitTables().InitTables(typeof(SysOperationLog));
 
-            var expected = $"sys_operation_log_{DateTimeOffset.UtcNow:yyyyMM}01";
+            // 初始分表名由 SqlSugar 用数据库时钟推出（SQLite 为本地时间），期望值取同一来源
+            var expected = $"sys_operation_log_{db.GetDate():yyyyMM}01";
             var tableNames = db.DbMaintenance.GetTableInfoList(false)
                 .Select(table => table.Name)
                 .ToList();
