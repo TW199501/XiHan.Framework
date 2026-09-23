@@ -1,0 +1,67 @@
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/AuditingLogMapperTests.cs
+  s_8e1de276d9ee27::t_61936e52792238 151,153-155,164,168,177,179-211,213-215,219,221,226
+  s_8e1de276d9ee27::t_a23b4ddd258f42 150
+  s_8e1de276d9ee27::t_d2b02bb1638a99 152
+  s_8e1de276d9ee27::t_1f4fabe792703e 156-158,161-163
+  s_8e1de276d9ee27::t_83354911ad0726 165-167
+  s_8e1de276d9ee27::t_e6d610c1c5d8b9 169-171,174-176
+  s_8e1de276d9ee27::t_8b740d4ec74063 178
+  s_8e1de276d9ee27::t_2f25fd9ff93ab6 212
+  s_8e1de276d9ee27::t_3e1ff1f6715c12 216-218
+  s_8e1de276d9ee27::t_db3617a53ceadf 220
+  s_8e1de276d9ee27::t_58e918b60c56cc 222-225
+  s_8e1de276d9ee27::t_96eee4bc127787 159-160,172-173
+docs/packages/eventbus-sqlsugar.md
+  s_8e1de276d9ee27::t_5f14bf370900e9 1-139
+framework/src/XiHan.Framework.EventBus.SqlSugar/Outbox/SqlSugarEventOutbox.cs
+  s_8e1de276d9ee27::t_419f16afeaaa1e 55
+  s_8e1de276d9ee27::t_3cc8aa860d8e14 80-81,83-84,86-98,100,102-131
+framework/src/XiHan.Framework.EventBus.SqlSugar/README.md
+  s_8e1de276d9ee27::t_898a54ca4a2251 12
+  s_8e1de276d9ee27::t_77308370a7f3e6 22-23
+framework/src/XiHan.Framework.Auditing.SqlSugar/Mapping/AuditingLogMapper.cs
+  s_8e1de276d9ee27::t_9fa56a9ff4c531 181-200
+  s_8e1de276d9ee27::t_370035b329df56 179-180
+  s_8e1de276d9ee27::t_733724e308cd14 201
+  s_8e1de276d9ee27::t_ab3727ec758574 4,28,30-35,38-40,61,63-65,67-72,77-79,102,104-108,110,116-117,135,137-138,140-143,162-163,165-169,174-175
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/LogWriterTests.cs
+  s_8e1de276d9ee27::t_beddccc807e3d3 307-311
+  s_8e1de276d9ee27::t_48091a15147864 305-306
+  s_8e1de276d9ee27::t_072f852b9814d6 22-207,217,219,222,225,231,233-235,237-238,241-244,291,293-296,298-303,340,351-356,359,365,371
+README.md
+  s_8e1de276d9ee27::t_d4651c1a5f4b1e 8,20,55
+README_cn.md
+  s_8e1de276d9ee27::t_a23d2c04a62853 8,20,55
+docs/.vitepress/config.ts
+  s_8e1de276d9ee27::t_6beb54c0ae352d 168
+docs/index.md
+  s_8e1de276d9ee27::t_6a792d1933780d 9,41
+docs/introduction.md
+  s_8e1de276d9ee27::t_8fd4c305ff8f32 57
+docs/packages/index.md
+  s_8e1de276d9ee27::t_433d38fd6fe36b 3,85
+docs/why.md
+  s_8e1de276d9ee27::t_fc767eaf751c47 86,123,142,160
+framework/README.md
+  s_8e1de276d9ee27::t_85bb9ae6d7f3f2 55,92,186,198
+framework/README_cn.md
+  s_8e1de276d9ee27::t_d573d5c9dfd492 55,92,186,198
+framework/src/XiHan.Framework.Auditing.SqlSugar/README.md
+  s_8e1de276d9ee27::t_cad16989bb8675 9,18-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "cdeec5ec73316cccd7a24220e85872dcae52a26c",
+  "prompts": {},
+  "sessions": {
+    "s_8e1de276d9ee27": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "070e7f55-255f-4e55-a689-460ed507b409",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
