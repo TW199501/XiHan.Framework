@@ -114,6 +114,91 @@ public class OutboxEnqueueTests
         Assert.Equal(0, count);
     }
 
+    /// <summary>
+    /// 已登记单个模块库时事件写进该库
+    /// </summary>
+    [Fact]
+    public async Task 已登记单个模块库时事件写进该库()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+        var info = NewEvent();
+
+        await context.Outbox.EnqueueAsync(info);
+
+        Assert.Equal(1, await context.ModuleClient.Queryable<SysEventOutbox>().CountAsync());
+        Assert.Equal(0, await context.Client.Queryable<SysEventOutbox>().CountAsync());
+    }
+
+    /// <summary>
+    /// 未登记任何连接时事件写进当前库
+    /// </summary>
+    [Fact]
+    public async Task 未登记任何连接时事件写进当前库()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        var info = NewEvent();
+
+        await context.Outbox.EnqueueAsync(info);
+
+        Assert.Equal(1, await context.Client.Queryable<SysEventOutbox>().CountAsync());
+        Assert.Equal(0, await context.ModuleClient.Queryable<SysEventOutbox>().CountAsync());
+    }
+
+    /// <summary>
+    /// 登记了多个连接时抛出无法确定落点
+    /// </summary>
+    [Fact]
+    public async Task 登记了多个连接时抛出无法确定落点()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.MainConfigId);
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => context.Outbox.EnqueueAsync(NewEvent()));
+    }
+
+    /// <summary>
+    /// 跨库批量删除两个库都清空
+    /// </summary>
+    [Fact]
+    public async Task 跨库批量删除两个库都清空()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        var mainEvent = NewEvent();
+        var moduleEvent = NewEvent();
+
+        await context.Outbox.EnqueueAsync(mainEvent);
+
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+        await context.Outbox.EnqueueAsync(moduleEvent);
+        context.Resolver.EnlistedConfigIds.Clear();
+
+        await context.Outbox.DeleteManyAsync([mainEvent.Id, moduleEvent.Id]);
+
+        Assert.Equal(0, await context.Client.Queryable<SysEventOutbox>().CountAsync());
+        Assert.Equal(0, await context.ModuleClient.Queryable<SysEventOutbox>().CountAsync());
+    }
+
+    /// <summary>
+    /// 按标识删除模块库中的记录
+    /// </summary>
+    [Fact]
+    public async Task 按标识删除模块库中的记录()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        var moduleEvent = NewEvent();
+
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+        await context.Outbox.EnqueueAsync(moduleEvent);
+        context.Resolver.EnlistedConfigIds.Clear();
+
+        await context.Outbox.DeleteAsync(moduleEvent.Id);
+
+        Assert.Equal(0, await context.ModuleClient.Queryable<SysEventOutbox>().CountAsync());
+    }
+
     private static OutgoingEventInfo NewEvent()
     {
         return new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [1, 2, 3], DateTime.UtcNow);

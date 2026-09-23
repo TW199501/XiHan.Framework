@@ -3,6 +3,7 @@
 
 using System.Reflection;
 using SqlSugar;
+using XiHan.Framework.Data.SqlSugar.Initializers;
 using XiHan.Framework.EventBus.SqlSugar.Entities;
 
 namespace XiHan.Framework.EventBus.SqlSugar.Tests;
@@ -79,6 +80,18 @@ public class EventOutboxEntityTests
 
         Assert.NotNull(column);
         Assert.Equal(expectedColumnName, column.ColumnName);
+    }
+
+    /// <summary>
+    /// 发件箱在模块库也建表
+    /// </summary>
+    [Fact]
+    public void 发件箱在模块库也建表()
+    {
+        var attribute = typeof(SysEventOutbox).GetCustomAttribute<TableInitializationAttribute>(inherit: true);
+
+        Assert.NotNull(attribute);
+        Assert.True(attribute.IncludeModuleConnections);
     }
 
     /// <summary>

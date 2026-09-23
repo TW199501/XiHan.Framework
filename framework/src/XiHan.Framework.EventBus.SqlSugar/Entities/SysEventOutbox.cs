@@ -3,6 +3,7 @@
 
 using SqlSugar;
 using XiHan.Framework.Data.SqlSugar.Entities;
+using XiHan.Framework.Data.SqlSugar.Initializers;
 
 namespace XiHan.Framework.EventBus.SqlSugar.Entities;
 
@@ -10,6 +11,7 @@ namespace XiHan.Framework.EventBus.SqlSugar.Entities;
 /// 发件箱实体
 /// </summary>
 [SugarTable("sys_event_outbox")]
+[TableInitialization(IncludeModuleConnections = true)]
 public class SysEventOutbox : SugarEntity<Guid>
 {
     /// <summary>

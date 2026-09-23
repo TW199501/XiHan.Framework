@@ -127,6 +127,134 @@ public class OutboxClaimTests
         Assert.Equal("corr-claim", claimed[0].GetCorrelationId());
     }
 
+    /// <summary>
+    /// 两个库的待发记录都会被领到
+    /// </summary>
+    [Fact]
+    public async Task 两个库的待发记录都会被领到()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        var mainEvent = NewEvent();
+        var moduleEvent = NewEvent();
+
+        await context.Outbox.EnqueueAsync(mainEvent);
+
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+        await context.Outbox.EnqueueAsync(moduleEvent);
+        context.Resolver.EnlistedConfigIds.Clear();
+
+        var claimed = await context.Outbox.GetWaitingEventsAsync(10);
+
+        Assert.Equal(2, claimed.Count);
+        Assert.Contains(claimed, item => item.Id == mainEvent.Id);
+        Assert.Contains(claimed, item => item.Id == moduleEvent.Id);
+    }
+
+    /// <summary>
+    /// 单批总量不超过上限且配额按库平均分配
+    /// </summary>
+    [Fact]
+    public async Task 单批总量不超过上限且配额按库平均分配()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        var baseTime = DateTime.UtcNow.AddMinutes(-10);
+
+        for (var index = 0; index < 10; index++)
+        {
+            await context.Outbox.EnqueueAsync(
+                new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [1], baseTime.AddSeconds(index)));
+        }
+
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+        for (var index = 0; index < 10; index++)
+        {
+            await context.Outbox.EnqueueAsync(
+                new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [2], baseTime.AddSeconds(index)));
+        }
+        context.Resolver.EnlistedConfigIds.Clear();
+
+        var claimed = await context.Outbox.GetWaitingEventsAsync(4);
+
+        Assert.Equal(4, claimed.Count);
+        Assert.Equal(2, claimed.Count(item => item.EventData[0] == 1));
+        Assert.Equal(2, claimed.Count(item => item.EventData[0] == 2));
+    }
+
+    /// <summary>
+    /// 单个库不可达时其余库照常领取
+    /// </summary>
+    [Fact]
+    public async Task 单个库不可达时其余库照常领取()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+
+        context.Resolver.EnlistedConfigIds.Add(OutboxTestContext.ModuleConfigId);
+        var moduleEvent = NewEvent();
+        await context.Outbox.EnqueueAsync(moduleEvent);
+        context.Resolver.EnlistedConfigIds.Clear();
+
+        context.Resolver.FaultyConfigIds[OutboxTestContext.MainConfigId] =
+            new InvalidOperationException("模拟主库不可达。");
+
+        var claimed = await context.Outbox.GetWaitingEventsAsync(10);
+
+        Assert.Single(claimed);
+        Assert.Equal(moduleEvent.Id, claimed[0].Id);
+    }
+
+    /// <summary>
+    /// 已取消的令牌抛出取消异常
+    /// </summary>
+    [Fact]
+    public async Task 已取消的令牌抛出取消异常()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        await context.Outbox.EnqueueAsync(NewEvent());
+
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => context.Outbox.GetWaitingEventsAsync(10, cancellationToken: cancellation.Token));
+    }
+
+    /// <summary>
+    /// 单个库领取时抛出取消异常会向上传播而不是被当作普通故障吞掉
+    /// </summary>
+    [Fact]
+    public async Task 单个库领取时抛出取消异常会向上传播()
+    {
+        using var context = new OutboxTestContext(withModuleDatabase: true);
+        await context.Outbox.EnqueueAsync(NewEvent());
+
+        context.Resolver.FaultyConfigIds[OutboxTestContext.MainConfigId] =
+            new OperationCanceledException("模拟主库领取时被取消。");
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => context.Outbox.GetWaitingEventsAsync(10));
+    }
+
+    /// <summary>
+    /// 两个连接标识指向同一个物理库时，领取到的记录不重复
+    /// </summary>
+    [Fact]
+    public async Task 两个连接标识指向同一物理库时领取结果不重复()
+    {
+        using var context = new OutboxTestContext(moduleSharesMainDatabase: true);
+        var baseTime = DateTime.UtcNow.AddMinutes(-10);
+
+        for (var index = 0; index < 6; index++)
+        {
+            await context.Outbox.EnqueueAsync(
+                new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [(byte)index], baseTime.AddSeconds(index)));
+        }
+
+        var claimed = await context.Outbox.GetWaitingEventsAsync(10);
+
+        Assert.Equal(6, claimed.Count);
+        Assert.Equal(claimed.Count, claimed.Select(item => item.Id).Distinct().Count());
+    }
+
     private static OutgoingEventInfo NewEvent()
     {
         return new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [1, 2, 3], DateTime.UtcNow);
