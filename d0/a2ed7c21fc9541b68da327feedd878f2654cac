@@ -1,0 +1,33 @@
+framework/src/XiHan.Framework.EventBus.SqlSugar/Entities/SysEventOutbox.cs
+  s_94057b8e5cf9b6::t_3b1dc6e226dbdf 6,14
+framework/src/XiHan.Framework.EventBus.SqlSugar/Outbox/SqlSugarEventOutbox.cs
+  s_94057b8e5cf9b6::t_202eb5cfb3c90c 5,22,30,33-34,38,49,54-80,87-88,113-140,142-160,174,201,216,222-226,238-242,244-250
+framework/src/XiHan.Framework.EventBus.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_8c6fe99d9a0eff 10-11,29-30,33-44
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/EventOutboxEntityTests.cs
+  s_94057b8e5cf9b6::t_53daf896ad41d0 6,85-96
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxClaimTests.cs
+  s_94057b8e5cf9b6::t_6b0517eeed163c 130-257
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxConcurrencyTests.cs
+  s_94057b8e5cf9b6::t_87600e46ca5faf 4,89,91-96,98,102-103
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxEnqueueTests.cs
+  s_94057b8e5cf9b6::t_53d2998c45ac8a 117-201
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxTestContext.cs
+  s_94057b8e5cf9b6::t_4fe5d875ab4ca3 4,14,18-28,34-39,41-43,45,47-66,68,71,75-76,80,82-87,94-109,115-119,121,123-126,132,136-138,143-149,151-153,156-165,169,172,179,182,189,192-206,215,224,233
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d0a2ed7c21fc9541b68da327feedd878f2654cac",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
