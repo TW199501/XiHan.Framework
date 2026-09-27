@@ -12,7 +12,7 @@ namespace XiHan.Framework.Auditing.SqlSugar.Tests;
 public class TableInitializationTests
 {
     [Fact]
-    public void 五类日志实体都能建出当月分表()
+    public void 六类日志实体都能建出当月分表()
     {
         var databaseFile = NewDatabasePath();
 
@@ -26,7 +26,8 @@ public class TableInitializationTests
                 typeof(SysApiLog),
                 typeof(SysExceptionLog),
                 typeof(SysLoginLog),
-                typeof(SysOperationLog)
+                typeof(SysOperationLog),
+                typeof(SysDiffLog)
             ];
 
             foreach (var entityType in entityTypes)
@@ -43,6 +44,7 @@ public class TableInitializationTests
             Assert.Contains(tableNames, name => name.StartsWith("sys_exception_log_", StringComparison.OrdinalIgnoreCase));
             Assert.Contains(tableNames, name => name.StartsWith("sys_login_log_", StringComparison.OrdinalIgnoreCase));
             Assert.Contains(tableNames, name => name.StartsWith("sys_operation_log_", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(tableNames, name => name.StartsWith("sys_diff_log_", StringComparison.OrdinalIgnoreCase));
         }
         finally
         {

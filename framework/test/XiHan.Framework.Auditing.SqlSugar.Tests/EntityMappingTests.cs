@@ -121,4 +121,76 @@ public class EntityMappingTests
         Assert.Equal("Login_Time", column!.ColumnName);
         Assert.Null(loginTime.GetCustomAttribute<SplitFieldAttribute>());
     }
+
+    /// <summary>
+    /// 差异日志表名带前缀与三个分表变量
+    /// </summary>
+    [Fact]
+    public void SysDiffLog_表名带前缀与三个分表变量()
+    {
+        var table = typeof(SysDiffLog).GetCustomAttribute<SugarTable>();
+
+        Assert.NotNull(table);
+        Assert.Equal("sys_diff_log_{year}{month}{day}", table.TableName);
+    }
+
+    /// <summary>
+    /// 差异日志按月分表且分表字段为创建时间
+    /// </summary>
+    [Fact]
+    public void SysDiffLog_按月分表且分表字段为创建时间()
+    {
+        var split = typeof(SysDiffLog).GetCustomAttribute<SplitTableAttribute>();
+        Assert.NotNull(split);
+        Assert.Equal(SplitType.Month, split!.SplitType);
+
+        var property = typeof(SysDiffLog).GetProperty(nameof(SysDiffLog.CreatedTime));
+        Assert.NotNull(property);
+        Assert.NotNull(property!.GetCustomAttribute<SplitFieldAttribute>());
+
+        Assert.True(typeof(ISplitTableEntity).IsAssignableFrom(typeof(SysDiffLog)));
+    }
+
+    /// <summary>
+    /// 差异日志的实体标识列不是主键，只是普通业务列
+    /// </summary>
+    [Fact]
+    public void SysDiffLog_实体标识列不是主键()
+    {
+        var property = typeof(SysDiffLog).GetProperty(nameof(SysDiffLog.EntityId));
+        var column = property!.GetCustomAttribute<SugarColumn>();
+
+        Assert.NotNull(column);
+        Assert.Equal("Entity_Id", column!.ColumnName);
+        Assert.False(column.IsPrimaryKey);
+    }
+
+    /// <summary>
+    /// 差异日志的大文本列用 BigString 且不设长度上限
+    /// </summary>
+    [Theory]
+    [InlineData(nameof(SysDiffLog.BeforeData), "Before_Data")]
+    [InlineData(nameof(SysDiffLog.AfterData), "After_Data")]
+    [InlineData(nameof(SysDiffLog.ChangedFields), "Changed_Fields")]
+    public void SysDiffLog_大文本列用BigString且不设长度(string propertyName, string expectedColumnName)
+    {
+        var property = typeof(SysDiffLog).GetProperty(propertyName);
+        var column = property!.GetCustomAttribute<SugarColumn>();
+
+        Assert.NotNull(column);
+        Assert.Equal(expectedColumnName, column!.ColumnName);
+        Assert.Equal(StaticConfig.CodeFirst_BigString, column.ColumnDataType);
+        Assert.Equal(0, column.Length);
+    }
+
+    /// <summary>
+    /// 审计类型默认值为EntityChange
+    /// </summary>
+    [Fact]
+    public void SysDiffLog_审计类型默认值为EntityChange()
+    {
+        var entity = new SysDiffLog();
+
+        Assert.Equal("EntityChange", entity.AuditType);
+    }
 }
