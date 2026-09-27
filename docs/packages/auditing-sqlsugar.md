@@ -11,11 +11,12 @@
 
 [Auditing](./auditing) 负责「采集什么、怎么异步化、怎么脱敏」，但它的 6 个写入器契约（5 个 `IXxxLogWriter` 加 `IEntityDiffLogWriter`）默认实现全是空实现——日志采集到就被丢弃。本包补上最后一步：把这 6 类日志写进数据表。
 
-启用本包后，[Web.Api](./web-api) 各中间件与过滤器采集到的记录、以及 SqlSugar 原生 `Aop.OnDiffLogEvent` 产出的实体差异记录，会自动落到 6 张按月分表的数据表，应用侧不需要再写任何写入代码。
+启用本包后，[Web.Api](./web-api) 各中间件与过滤器采集到的记录、以及 SqlSugar 原生 `Aop.OnDiffLogEvent` 产出的实体差异记录，会自动落到 6 张按月分表的数据表，应用侧不需要再写任何写入代码——前提是该开的开关都开了：实体差异日志还要求 `XiHan:Data:SqlSugarCore:EnableDiffLog = true`，只开建表开关时 `sys_diff_log` 仍是一张空表（见「安装与启用」）。
 
 ## 何时使用
 
 - 需要把访问 / 操作 / 异常 / 接口 / 登录日志存进关系型数据库
+- 需要实体差异审计：每笔走框架仓储的写留下 before/after 快照与变更字段清单，软删除与恢复也计入
 - 日志量级大到需要按月切表，同时希望建表由框架在启动时完成
 - 已在用 [Data](./data)，希望审计日志与业务数据走同一套多数据源、读写分离与租户路由
 
@@ -41,10 +42,11 @@ public class MyModule : XiHanModule { }
 | `IOperationLogWriter` | `NullOperationLogWriter` | `SqlSugarOperationLogWriter` |
 | `IEntityDiffLogWriter` | `NullEntityDiffLogWriter` | `SqlSugarEntityDiffLogWriter` |
 
-本包**没有自己的配置节**，两条既有配置决定它的行为：
+本包**没有自己的配置节**，三条既有配置决定它的行为：
 
 - **建表**：`XiHan:Data:SqlSugarCore:EnableTableInitialization`（默认 `false`）。打开后 [Data](./data) 的 `DbInitializer` 扫描全部 `[SugarTable]` 实体，对这 6 个实体走 `CodeFirst.SplitTables().InitTables()` 建出当月分表
 - **队列**：`XiHan:Auditing:LogQueue` 的 5 个 `EnableXxxLogQueue`（默认全 `false`，即同步写入器调用），语义见 [Auditing](./auditing)
+- **实体差异日志**：`XiHan:Data:SqlSugarCore:EnableDiffLog`（默认 `false`）。[Data](./data) 只在打开它时才把 `SqlSugarDiffLogAop` 挂到 SqlSugar 客户端上；未打开时本包的 `SqlSugarEntityDiffLogWriter` 照常注册，但收不到任何记录。开启后还需业务写走框架仓储——仓储的 Insert / Update / Delete 内建 `.EnableDiffLogEvent`，裸 SQL 与直接用 `ISqlSugarClient` 绕过仓储的写入不产生差异记录
 
 ## 表结构
 
@@ -84,11 +86,15 @@ sys_exception_log   sys_login_log   sys_operation_log
                                                 │
                                                 ▼
                           Insertable(entity).SplitTable().ExecuteCommandAsync()
+
+实体差异日志走另一条分支（由 Data 包的 AOP 回调直接调用写入器，在业务写操作的同一个调用栈内同步完成）：
+   SqlSugarDiffLogAop → AuditingLogMapper.ToEntity → GetCurrentClient()
+   → Insertable(entity).SplitTable().ExecuteCommandAsync()  —— 与业务写同一事务
 ```
 
 写入器做三件事：向 `IDistributedIdGenerator<long>` 取主键、取 `DateTimeOffset.UtcNow` 作为创建时间、把记录交给映射器后插入对应分表。字段搬运全在 `AuditingLogMapper`，它是静态纯方法，可脱离数据库单测。
 
-客户端经 `ISqlSugarClientResolver` 取得，因此这 5 张日志表遵循 [Data](./data) 的多数据源与租户路由规则：默认落当前租户的主库。
+客户端经 `ISqlSugarClientResolver` 取得，因此这 5 张可按 `[ModuleDataSource]` 路由的日志表遵循 [Data](./data) 的多数据源与租户路由规则：默认落当前租户的主库。
 
 **写入器自身不开事务，但「是否与业务事务同行」取决于取客户端的方法。** 访问 / 接口 / 异常 / 登录 / 操作这 5 类写入器经 `GetClientForEntity<TEntity>()` 取客户端；实体差异日志写入器经 `GetCurrentClient()` 取客户端——两者都会在存在事务型工作单元时自动登记进该事务（[Data](./data) 的 `EnlistCurrentUnitOfWork` 规则），区别在于 `GetClientForEntity` 支持 `[ModuleDataSource]` 按实体路由、`GetCurrentClient` 固定解析当前布局主库。
 
@@ -167,6 +173,7 @@ services.Replace(ServiceDescriptor.Scoped<IOperationLogWriter, MyOperationLogWri
 - **`CreatedTime` 按 UTC 写入**，分表切换点随之按 UTC 划分，跨时区部署时切表时刻不等于本地零点。
 - **脱敏在采集端完成**。记录到达写入器时已脱敏，写入器不再处理，重复脱敏会二次遮蔽已遮蔽的内容。
 - **实体差异日志固定落主库**。`SqlSugarEntityDiffLogWriter` 经 `GetCurrentClient()` 取客户端，不支持 `[ModuleDataSource]` 路由；业务实体声明了模块数据源时，该实体的差异日志仍落在当前布局主库。
+- **差异日志写失败会把业务一起回滚**。`SqlSugarDiffLogAop` 的整体 try/catch 只保证异常不外抛、错误进日志，保护不了已被数据库中止的事务：差异日志的 `INSERT` 与业务写同一事务，PostgreSQL 下事务内的任何报错都会让事务进入 aborted 状态（SQL Server 开 `XACT_ABORT ON` 时同理），随后的提交失败，那笔业务写入随之回滚。其余 5 类日志一般在业务事务之外落库，写入失败只是丢日志（登录日志若在活动事务作用域内调用，同样随那笔事务回滚）。
 - **定长列由映射层截断**。路径、查询串、User-Agent、来源页、异常类型等列宽有限，而采集端不夹长度；超长的自由文本在 SQL Server / MySQL 严格模式下会让整条 `INSERT` 抛错（队列模式下 `FlushAsync` 的 try 在逐条循环外层，一条失败连带丢弃整批），MySQL 非严格模式则会静默截断。`AuditingLogMapper` 统一把这些列截到列宽，保留前缀；请求体、响应体、异常堆栈等大文本列不设上限。
 - **日志落库失败不重试**。Worker 捕获写入异常仅记 `LogWarning`，这一批日志会丢失，需要可靠性请在写入器内自行兜底。
 
