@@ -4,7 +4,7 @@
 
 **Goal:** 新增 `XiHan.Framework.Settings.SqlSugar` 包，用一个 SqlSugar 落库实现顶替 `XiHan.Framework.Settings` 的 `NullSettingStore`；本包同时是「简单 CRUD Store」系列的范本，`Security.SqlSugar`/`Traffic.SqlSugar`/`Upgrade.SqlSugar` 三个后续小包照本计划的形状抄。完成后本包的独立 PR 可提交。
 
-**Architecture:** 单实体 `SysSetting`（不分表、单库），四个契约方法直接在 `SqlSugarSettingStore` 里实现（不需要单独的 Mapping 层——契约的 `SettingValue` 本身就是名值对，没有复杂对象需要转换）。写入用「先查后写」而非数据库原子 upsert，读取对可能出现的重复行做防御式合并，不假设数据库唯一约束替自己兜底。
+**Architecture:** 单实体 `SysSetting`（不分表、单库），四个契约方法直接在 `SqlSugarSettingStore` 里实现（不需要单独的 Mapping 层——契约的 `SettingValue` 本身就是名值对，没有复杂对象需要转换）。`Provider_Name`/`Provider_Key` 归一化为非空列（`null` → 哨兵值 `string.Empty`），配合三列复合唯一索引 `uk_sys_setting_key`：常见路径是先查后写，并发首次创建同一设置时数据库唯一索引 + 一次重新查询把竞态收敛成正常更新，不产生重复行、不抛异常给调用方。
 
 **Tech Stack:** .NET 10、SqlSugarCore 5.1.4.221、xunit.v3 + Microsoft.Testing.Platform
 
@@ -41,6 +41,7 @@ git worktree add ../XiHan.Framework-settings -b feat/settings-sqlsugar dev
 | `Migrations` / `Add-Migration` / `EnsureCreated()` | `CodeFirst.InitTables()` |
 | `IQueryable<T>` + LINQ 扩展 | `ISugarQueryable<T>`，扩展方法不通用 |
 | `DbSet.Find(key)` / `FirstOrDefaultAsync()` | `Queryable<T>().FirstAsync(expression)`，方法名是 `FirstAsync` 不是 `FirstOrDefaultAsync` |
+| `[Index(nameof(A), nameof(B), IsUnique = true)]`（EF Core 模型级索引） | `[SugarIndex(indexName, nameof(A), OrderByType.Asc, nameof(B), OrderByType.Asc, isUnique: true)]`，字段名是 C# 属性名，不是列名 |
 
 **SqlSugar 签名只信源码**：
 
@@ -72,6 +73,20 @@ Task<int> ExecuteCommandAsync();
 // item.ProviderKey == providerKey 在 providerKey 为 null 时翻译为 IS NULL，不是 = NULL
 // ExpressionsToSql/ResolveItems/MethodCallExpressionResolve.cs:89-96
 // names.Contains(item.SettingName) 翻译为 IN 查询（ContainsArray）
+
+// Entities/Mapping/SugarMappingAttribute.cs:341-467
+// 类级特性，AllowMultiple = true；字段位传的是 C# 属性名，由 CodeFirstProvider.CreateIndex
+// 按 entityInfo.Columns.FirstOrDefault(z => z.PropertyName == it.Key) 解析出真实列名
+[AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
+public class SugarIndexAttribute : Attribute
+{
+    public SugarIndexAttribute(string indexName, string fieldName1, OrderByType sortType1,
+        string fieldName2, OrderByType sortType2, string fieldName3, OrderByType sortType3,
+        bool isUnique = false);
+}
+
+// Abstract/CodeFirstProvider/CodeFirstProvider.cs:317-328
+// db.CodeFirst.InitTables(type) 内部会对每个表调用 CreateIndex(entityInfo)，索引随建表一起创建，不需要额外调用
 ```
 
 **编码约定**：
@@ -107,7 +122,7 @@ var client = new SqlSugarClient(new ConnectionConfig
 });
 ```
 
-**本包不需要真实数据库测试层**（spec §6 已说明理由：没有依赖具体方言的并发原语），`Assert.SkipWhen(...)` 那一套本计划不涉及。
+**本包不需要真实数据库测试层**（spec §6 已说明理由：唯一约束冲突是标准 SQL 行为，`catch` 块的处理逻辑不依赖任何方言细节；真正的写入时序竞态无法在任何单进程同步测试里确定性构造，加真实数据库层也验证不了这一点），`Assert.SkipWhen(...)` 那一套本计划不涉及。
 
 **构建环境坑**：构建若报 `MSB3027` / `MSB3021` 说文件被 `XiHan.Framework.*.Tests.exe` 锁住，是残留的测试进程，`taskkill //F //IM "<name>.exe"` 后重建即可，不是代码问题。
 
@@ -125,17 +140,46 @@ var client = new SqlSugarClient(new ConnectionConfig
 
 `SqlSugarSettingStore` 依赖 `ISqlSugarClientResolver`（`XiHanDataServiceCollectionExtensions.cs:61` 注册为 `Scoped`），不能注册为单例——单例捕获作用域依赖会在容器验证阶段构造失败。`ISettingManager` 本身是 `IScopedDependency`，两个值提供者是 `ITransientDependency`，改成 `Scoped` 不会产生新的被捕获依赖问题。
 
-**③ 查询条件里的 `null` 直接用 `==` 比较，不要手写字符串 SQL。**
+**③ `Provider_Name`/`Provider_Key` 是非空列，四个方法的第一步永远是归一化。**
 
-`item.ProviderKey == providerKey`（`providerKey` 可能是 `null`）会被 SqlSugar 正确翻译成 `IS NULL`（已核对 `BinaryExpressionResolve.cs:256-278`）。如果图省事换成字符串拼接，`providerKey` 为 `null` 时会拼出 `Provider_Key = ''` 或类似结果，全局设置（`providerKey` 恒为 `null`）会全部查不到值，且不报错，只是读回 `null`，与「设置从未写入」表现完全一样。
+`SysSetting.ProviderName`/`ProviderKey` 声明为非空 `string`（不是 `string?`），`null` 在存储边界统一归一化为哨兵值 `string.Empty`（私有静态方法 `Normalize(string? value) => value ?? string.Empty`）。`GetOrNullAsync`/`GetAllAsync`/`SetAsync`/`DeleteAsync` 的第一步都是 `Normalize(providerName)`/`Normalize(providerKey)`，之后的查询/写入只使用归一化后的局部变量，**不再触碰方法参数本身**。
 
-**④ `GetAllAsync` 用手写 `foreach` 写入 `Dictionary`，不能用 `rows.ToDictionary(...)`。**
+漏掉这一步的后果：SqlSugar 把 `item.ProviderKey == providerKey`（`providerKey` 为原始的 `null`）翻译成 `Provider_Key IS NULL`，但列里从来不存真正的 `NULL`，`IS NULL` 永远为假——全局设置（`providerKey` 恒为 `null`）的读写会**彻底静默失效**，不抛任何异常，表现和「从未配置过」一模一样。
 
-`SetAsync` 是「先查后写」而非原子 upsert（本包引用的 SqlSugar 版本没有能安全处理可空复合键的声明式 upsert，也没有声明式复合唯一索引特性）。两个并发的 `SetAsync` 同时首次写同一个 `(name, providerName, providerKey)` 会各自插入一行。`ToDictionary` 遇到重复键抛 `ArgumentException`，且只有在真的发生过这种竞态后才会触发——"只测正常路径"的测试永远发现不了这个问题，上线后才会在一个和两次并发写入完全无关的读请求上炸出来。手写 `foreach` 逐条覆盖写入普通 `Dictionary` 则永不抛异常，语义与 `SetAsync` 的「后写覆盖前写」一致。Task 3 的测试要故意插入两行重复数据来验证这一点，不能只测「正常情况不重复」。
+**④ 三列复合唯一索引 `uk_sys_setting_key` 是正确性的地基，不是查询优化。**
 
-**⑤ 不要调用 `IUpdateable<T>.IsEnableUpdateVersionValidation()`。**
+`SysSetting` 上的 `[SugarIndex("uk_sys_setting_key", nameof(SysSetting.SettingName), OrderByType.Asc, nameof(SysSetting.ProviderName), OrderByType.Asc, nameof(SysSetting.ProviderKey), OrderByType.Asc, isUnique: true)]` 随 `db.CodeFirst.InitTables(typeof(SysSetting))` 一并创建（`CodeFirstProvider.cs:317-328` 的 `CreateIndex` 调用）。它保证同一个 `(Setting_Name, Provider_Name, Provider_Key)` 组合在数据库层面永远只有一行——这是 `SetAsync` 处理并发首次创建同一设置的**唯一**防线，不能删掉或误标成非唯一索引。
 
-`SugarEntity<long>` 基类的 `RowVersion` 列带 `[SugarColumn(IsEnableUpdateVersionValidation = true)]`，但这只是列的元数据标注，本身不启用任何校验——真正的开关是 `Updateable(...).IsEnableUpdateVersionValidation()` 这个链式调用（`UpdateableProvider.cs:399`）。本包的 `SetAsync` **不**调用它：`Updateable(existing).ExecuteCommandAsync()` 就是普通的整实体更新，不做乐观锁校验。Task 3 的测试要覆盖「连续两次 `SetAsync` 覆盖同一设置」且第二次不抛 `VersionExceptions`。
+**⑤ `SetAsync` 里对唯一约束冲突的处理是「捕获后重新查询确认」，不是解析异常类型或错误码。**
+
+```csharp
+try
+{
+    await client.Insertable(entity).ExecuteCommandAsync();
+}
+catch (Exception)
+{
+    var winner = await FindAsync(client, name, normalizedProviderName, normalizedProviderKey);
+
+    if (winner is null)
+    {
+        throw;
+    }
+
+    winner.SettingValue = value;
+    await client.Updateable(winner).ExecuteCommandAsync();
+}
+```
+
+**不要**把 `catch (Exception)` 收窄成 `catch (SqliteException ex) when (ex.SqliteErrorCode == 19)` 这类只认单一方言的写法——本地用 SQLite 跑的测试完全发现不了这个问题（因为测试环境本来就是 SQLite），等应用换成 MySQL/PostgreSQL 部署后，插入失败会因为异常类型不匹配而直接抛给调用方，`SetAsync` 在竞态下从「静默处理」退化成「对外抛异常」。`catch` 之后立即按业务键重新查询：查到就说明是并发写入触发的约束冲突，按更新处理；查不到就说明失败另有原因，`throw;`（不是 `throw ex;`）保留原始堆栈重新抛出。
+
+**⑥ 不要调用 `IUpdateable<T>.IsEnableUpdateVersionValidation()`。**
+
+`SugarEntity<long>` 基类的 `RowVersion` 列带 `[SugarColumn(IsEnableUpdateVersionValidation = true)]`，但这只是列的元数据标注，本身不启用任何校验——真正的开关是 `Updateable(...).IsEnableUpdateVersionValidation()` 这个链式调用（`UpdateableProvider.cs:399`）。本包的 `SetAsync` **不**调用它：两处 `Updateable(...).ExecuteCommandAsync()` 都是普通的整实体更新，不做乐观锁校验。Task 2 的测试要覆盖「连续两次 `SetAsync` 覆盖同一设置」且第二次不抛 `VersionExceptions`。
+
+**⑦ `GetAllAsync` 用手写 `foreach` 写入 `Dictionary`，不能用 `rows.ToDictionary(...)`。**
+
+正常写入路径下，唯一索引保证同一个键不会出现两行，`foreach` 和 `ToDictionary` 结果一致。但索引只在 `EnableTableInitialization` 开启并跑过 `CodeFirst.InitTables(...)` 之后才存在——若某个部署跳过建表初始化、手工建了一张没有这个索引的旧表，历史数据仍可能重复。`foreach` 逐条覆盖写入是零成本的防御：正常情况下结果和 `ToDictionary` 一样，出现历史脏数据时也不会抛 `ArgumentException`。
 
 ---
 
@@ -147,7 +191,7 @@ framework/src/XiHan.Framework.Settings.SqlSugar/
   XiHanSettingsSqlSugarModule.cs                模块类，只做装配
   README.md                                     固定七段结构
   Entities/
-    SysSetting.cs                               唯一实体
+    SysSetting.cs                               唯一实体，三列复合唯一索引
   Stores/
     SqlSugarSettingStore.cs                     ISettingStore 的实现
   Extensions/DependencyInjection/
@@ -155,8 +199,8 @@ framework/src/XiHan.Framework.Settings.SqlSugar/
 
 framework/test/XiHan.Framework.Settings.SqlSugar.Tests/
   XiHan.Framework.Settings.SqlSugar.Tests.csproj
-  EntityMappingTests.cs          实体元数据 + SQLite 建表集成测试
-  SqlSugarSettingStoreTests.cs   四个契约方法的行为测试（含竞态防御用例）
+  EntityMappingTests.cs          实体元数据、建表、唯一索引的结构性测试
+  SqlSugarSettingStoreTests.cs   四个契约方法的行为测试（含归一化、并发首次创建）
   RegistrationTests.cs           注册顶替断言
 ```
 
@@ -164,7 +208,7 @@ framework/test/XiHan.Framework.Settings.SqlSugar.Tests/
 
 ---
 
-### Task 1: 包骨架、实体与建表测试
+### Task 1: 包骨架、实体（含唯一索引）与建表测试
 
 **Files:**
 - Create: `framework/src/XiHan.Framework.Settings.SqlSugar/XiHan.Framework.Settings.SqlSugar.csproj`
@@ -177,17 +221,18 @@ framework/test/XiHan.Framework.Settings.SqlSugar.Tests/
 
 **Interfaces:**
 - Consumes: `XiHan.Framework.Settings`（本任务尚不引用其类型，下个任务才用到 `ISettingStore`）、`XiHan.Framework.Data`（`SugarEntity<long>`）
-- Produces: 程序集 `XiHan.Framework.Settings.SqlSugar`；`SysSetting`（`XiHan.Framework.Settings.SqlSugar.Entities`），继承 `SugarEntity<long>`，两个公开构造函数——`SysSetting()` 与 `SysSetting(long basicId)`；模块类型 `XiHanSettingsSqlSugarModule`（本任务暂无 `ConfigureServices` 覆写，Task 3 补上）
+- Produces: 程序集 `XiHan.Framework.Settings.SqlSugar`；`SysSetting`（`XiHan.Framework.Settings.SqlSugar.Entities`），继承 `SugarEntity<long>`，两个公开构造函数——`SysSetting()` 与 `SysSetting(long basicId)`；三个字符串属性 `SettingName`/`ProviderName`/`ProviderKey`（均非空 `string`，不是 `string?`）+ 可空的 `SettingValue`；类级 `[SugarIndex("uk_sys_setting_key", ...)]`；模块类型 `XiHanSettingsSqlSugarModule`（本任务暂无 `ConfigureServices` 覆写，Task 3 补上）
 
 **参考来源（动手前先读）：**
 - csproj 范本：`framework/src/XiHan.Framework.EventBus.SqlSugar/XiHan.Framework.EventBus.SqlSugar.csproj`
 - 实体基类：`framework/src/XiHan.Framework.Data/SqlSugar/Entities/SugarEntity.cs`（`Basic_Id`/`Row_Version` 列由基类提供，不要在 `SysSetting` 里重复声明）
 - 大文本列类型：`framework/src/XiHan.Framework.EventBus.SqlSugar/Entities/SysEventOutbox.cs`（`StaticConfig.CodeFirst_BigString` 的用法）
+- 唯一索引特性：`/e/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/Entities/Mapping/SugarMappingAttribute.cs:341-467`（`SugarIndexAttribute` 的构造函数重载，字段位是属性名）
 - README 七段结构范本：`framework/src/XiHan.Framework.EventBus.SqlSugar/README.md`
 - 测试项目范本：`framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/XiHan.Framework.EventBus.SqlSugar.Tests.csproj`
 - SQLite 建表 API：`/e/source/platfrom-admin/docs/SqlSugar-docs/`（`CodeFirst.InitTables(type)`，本实体不分表，不需要 `SplitTables()`）
 
-**本任务禁止事项：** 不要给 `SysSetting` 加 `[TableInitialization(IncludeModuleConnections = true)]`（本包单库，见 spec 共同问题第 4 条）。不要给 `SysSetting` 加任何索引特性。不要在这个任务里写 `SqlSugarSettingStore` 或注册逻辑——严格按 TDD 顺序，本任务只到「实体能被建出表」为止。
+**本任务禁止事项：** 不要给 `SysSetting` 加 `[TableInitialization(IncludeModuleConnections = true)]`（本包单库，见 spec 共同问题第 4 条）。不要把 `ProviderName`/`ProviderKey` 声明成 `string?`——它们是非空列，`null` 的处理在 Store 层（Task 2），实体本身不应该出现可空的提供者字段。不要在这个任务里写 `SqlSugarSettingStore` 或注册逻辑——严格按 TDD 顺序，本任务只到「实体能被建出表、唯一索引确实生效」为止。
 
 - [ ] **Step 1: 创建 csproj**
 
@@ -229,7 +274,6 @@ framework/test/XiHan.Framework.Settings.SqlSugar.Tests/
 
 using XiHan.Framework.Core.Modularity;
 using XiHan.Framework.Data;
-using XiHan.Framework.Settings;
 
 namespace XiHan.Framework.Settings.SqlSugar;
 
@@ -272,6 +316,7 @@ public class XiHanSettingsSqlSugarModule : XiHanModule
 
 - `ISettingStore` 的 SqlSugar 实现，四个契约方法（读单个、批量读、写、删）全部落库
 - 按 `(设置名, 提供者名, 提供者键)` 三元组定位一条设置值，全局/租户/用户等任意作用域通用
+- 三列复合唯一索引保证同一组合永远只有一行，并发首次创建同一设置不会产生重复数据
 - 表结构由 `DbInitializer` 在应用启动时创建（需开启建表初始化，见下）
 
 ## 依赖关系
@@ -280,7 +325,7 @@ public class XiHanSettingsSqlSugarModule : XiHanModule
 
 ## 配置与约定
 
-表名 `sys_setting`；列名 Pascal_Snake_Case；主键 `Basic_Id` 为雪花 ID，非自增；不分表、单库。
+表名 `sys_setting`；列名 Pascal_Snake_Case；主键 `Basic_Id` 为雪花 ID，非自增；`Provider_Name`/`Provider_Key` 为非空列，未指定时存归一化占位符（空字符串）；不分表、单库。
 
 建表需要开启 `XiHan.Framework.Data` 的建表初始化，**默认是关闭的**：
 
@@ -389,20 +434,20 @@ public class EntityMappingTests
     }
 
     /// <summary>
-    /// 提供者名与提供者键列均可空
+    /// 提供者名与提供者键列均为非空列
     /// </summary>
     [Fact]
-    public void SysSetting_提供者名与提供者键均可空()
+    public void SysSetting_提供者名与提供者键均非空()
     {
         var providerName = typeof(SysSetting).GetProperty(nameof(SysSetting.ProviderName))!.GetCustomAttribute<SugarColumn>();
         var providerKey = typeof(SysSetting).GetProperty(nameof(SysSetting.ProviderKey))!.GetCustomAttribute<SugarColumn>();
 
         Assert.NotNull(providerName);
-        Assert.True(providerName.IsNullable);
+        Assert.False(providerName.IsNullable);
         Assert.Equal("Provider_Name", providerName.ColumnName);
 
         Assert.NotNull(providerKey);
-        Assert.True(providerKey.IsNullable);
+        Assert.False(providerKey.IsNullable);
         Assert.Equal("Provider_Key", providerKey.ColumnName);
     }
 
@@ -417,6 +462,22 @@ public class EntityMappingTests
         Assert.NotNull(column);
         Assert.Equal("Setting_Value", column.ColumnName);
         Assert.Equal(StaticConfig.CodeFirst_BigString, column.ColumnDataType);
+    }
+
+    /// <summary>
+    /// 声明了覆盖三列的唯一索引
+    /// </summary>
+    [Fact]
+    public void SysSetting_声明了唯一索引()
+    {
+        var index = typeof(SysSetting).GetCustomAttribute<SugarIndexAttribute>();
+
+        Assert.NotNull(index);
+        Assert.True(index.IsUnique);
+        Assert.Equal(3, index.IndexFields.Count);
+        Assert.Contains(nameof(SysSetting.SettingName), index.IndexFields.Keys);
+        Assert.Contains(nameof(SysSetting.ProviderName), index.IndexFields.Keys);
+        Assert.Contains(nameof(SysSetting.ProviderKey), index.IndexFields.Keys);
     }
 
     /// <summary>
@@ -441,6 +502,50 @@ public class EntityMappingTests
             var tableNames = db.DbMaintenance.GetTableInfoList(false).Select(table => table.Name).ToList();
 
             Assert.Contains("sys_setting", tableNames, StringComparer.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (File.Exists(databaseFile))
+            {
+                File.Delete(databaseFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 相同键的第二次插入被唯一索引拒绝
+    /// </summary>
+    [Fact]
+    public void SysSetting_相同键的第二次插入被唯一索引拒绝()
+    {
+        var databaseFile = Path.Combine(Path.GetTempPath(), $"xihan_settings_{Guid.NewGuid():N}.db");
+
+        try
+        {
+            using var db = new SqlSugarClient(new ConnectionConfig
+            {
+                ConnectionString = $"DataSource={databaseFile};Pooling=False",
+                DbType = DbType.Sqlite,
+                IsAutoCloseConnection = true
+            });
+
+            db.CodeFirst.InitTables(typeof(SysSetting));
+
+            db.Insertable(new SysSetting(1L)
+            {
+                SettingName = "App.PageSize",
+                ProviderName = "G",
+                ProviderKey = string.Empty,
+                SettingValue = "20"
+            }).ExecuteCommand();
+
+            Assert.ThrowsAny<Exception>(() => db.Insertable(new SysSetting(2L)
+            {
+                SettingName = "App.PageSize",
+                ProviderName = "G",
+                ProviderKey = string.Empty,
+                SettingValue = "30"
+            }).ExecuteCommand());
         }
         finally
         {
@@ -478,6 +583,11 @@ namespace XiHan.Framework.Settings.SqlSugar.Entities;
 /// 设置值实体
 /// </summary>
 [SugarTable("sys_setting")]
+[SugarIndex("uk_sys_setting_key",
+    nameof(SettingName), OrderByType.Asc,
+    nameof(ProviderName), OrderByType.Asc,
+    nameof(ProviderKey), OrderByType.Asc,
+    isUnique: true)]
 public class SysSetting : SugarEntity<long>
 {
     /// <summary>
@@ -502,16 +612,16 @@ public class SysSetting : SugarEntity<long>
     public string SettingName { get; set; } = string.Empty;
 
     /// <summary>
-    /// 提供者名称
+    /// 提供者名称，未指定时存归一化占位符
     /// </summary>
-    [SugarColumn(ColumnName = "Provider_Name", Length = 32, IsNullable = true, ColumnDescription = "提供者名称")]
-    public string? ProviderName { get; set; }
+    [SugarColumn(ColumnName = "Provider_Name", Length = 32, IsNullable = false, ColumnDescription = "提供者名称，未指定时存归一化占位符")]
+    public string ProviderName { get; set; } = string.Empty;
 
     /// <summary>
-    /// 提供者键
+    /// 提供者键，未指定时存归一化占位符
     /// </summary>
-    [SugarColumn(ColumnName = "Provider_Key", Length = 64, IsNullable = true, ColumnDescription = "提供者键")]
-    public string? ProviderKey { get; set; }
+    [SugarColumn(ColumnName = "Provider_Key", Length = 64, IsNullable = false, ColumnDescription = "提供者键，未指定时存归一化占位符")]
+    public string ProviderKey { get; set; } = string.Empty;
 
     /// <summary>
     /// 设置值
@@ -521,13 +631,15 @@ public class SysSetting : SugarEntity<long>
 }
 ```
 
+`[SugarIndex]` 的字段位用 `nameof(SettingName)` 等（类内可以省略类型前缀），传的是 C# 属性名，不是 `Setting_Name` 这样的列名——传列名会在建表时找不到对应属性而抛异常。
+
 - [ ] **Step 8: 运行测试确认通过**
 
 ```bash
 dotnet test --project framework/test/XiHan.Framework.Settings.SqlSugar.Tests/XiHan.Framework.Settings.SqlSugar.Tests.csproj -c Release
 ```
 
-预期：5 个测试全部 PASS。
+预期：7 个测试全部 PASS。
 
 - [ ] **Step 9: 验证全解决方案 0 警告**
 
@@ -541,12 +653,12 @@ dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild
 
 ```bash
 git add framework/src/XiHan.Framework.Settings.SqlSugar framework/test/XiHan.Framework.Settings.SqlSugar.Tests framework/XiHan.Framework.slnx
-git commit -m "feat(settings-sqlsugar): 新增包骨架与设置值实体"
+git commit -m "feat(settings-sqlsugar): 新增包骨架、设置值实体与唯一索引"
 ```
 
 ---
 
-### Task 2: Store 实现（四个契约方法）
+### Task 2: Store 实现（四个契约方法 + 归一化 + 并发首次创建兜底）
 
 **Files:**
 - Create: `framework/src/XiHan.Framework.Settings.SqlSugar/Stores/SqlSugarSettingStore.cs`
@@ -554,7 +666,7 @@ git commit -m "feat(settings-sqlsugar): 新增包骨架与设置值实体"
 
 **Interfaces:**
 - Consumes: Task 1 的 `SysSetting`；`XiHan.Framework.Settings` 的 `ISettingStore`、`SettingValue`；`XiHan.Framework.Data` 的 `ISqlSugarClientResolver`；`XiHan.Framework.DistributedIds` 的 `IDistributedIdGenerator<long>`
-- Produces: `public class SqlSugarSettingStore : ISettingStore`，构造函数 `SqlSugarSettingStore(ISqlSugarClientResolver clientResolver, IDistributedIdGenerator<long> idGenerator)`
+- Produces: `public class SqlSugarSettingStore : ISettingStore`，构造函数 `SqlSugarSettingStore(ISqlSugarClientResolver clientResolver, IDistributedIdGenerator<long> idGenerator)`；私有静态方法 `Normalize(string?)`、`FindAsync(ISqlSugarClient, string, string, string)`
 
 **参考来源（动手前先读）：**
 - 契约：`framework/src/XiHan.Framework.Settings/Stores/ISettingStore.cs`
@@ -563,7 +675,7 @@ git commit -m "feat(settings-sqlsugar): 新增包骨架与设置值实体"
 - ID 生成器注册可得性：`XiHan.Framework.Data` 已 `[DependsOn(typeof(XiHanDistributedIdsModule))]`，本模块经 `XiHan.Framework.Data` 间接获得 `IDistributedIdGenerator<long>`，**不需要**新增 `ProjectReference` 或 `DependsOn`
 - 测试用桩：`framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/LogWriterTests.cs` 里的 `StubClientResolver`（固定返回同一个客户端）与 `IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload()` 的用法
 
-**本任务禁止事项：** 见「本计划特有的硬约束」①②③④⑤全部五条。另外不要给 `SqlSugarSettingStore` 加任何缓存——设置读取是否需要缓存由调用方（`SettingManager`/上层应用）决定，本包只做存储透传。不要给方法加 `CancellationToken` 参数——`ISettingStore` 契约本身没有。
+**本任务禁止事项：** 见「本计划特有的硬约束」③④⑤⑥⑦全部五条。另外不要给 `SqlSugarSettingStore` 加任何缓存——设置读取是否需要缓存由调用方（`SettingManager`/上层应用）决定，本包只做存储透传。不要给方法加 `CancellationToken` 参数——`ISettingStore` 契约本身没有。
 
 - [ ] **Step 1: 写失败的测试**
 
@@ -663,6 +775,23 @@ public class SqlSugarSettingStoreTests : IDisposable
     }
 
     /// <summary>
+    /// 提供者键为 null 时反复写入只保留一行，验证归一化生效
+    /// </summary>
+    [Fact]
+    public async Task 提供者键为Null时反复写入只保留一行()
+    {
+        await _store.SetAsync("App.PageSize", "20", "G", null);
+        await _store.SetAsync("App.PageSize", "30", "G", null);
+
+        var rows = await _client.Queryable<SysSetting>()
+            .Where(item => item.SettingName == "App.PageSize" && item.ProviderName == "G")
+            .ToListAsync();
+
+        Assert.Single(rows);
+        Assert.Equal("30", rows[0].SettingValue);
+    }
+
+    /// <summary>
     /// 未命中返回 null
     /// </summary>
     [Fact]
@@ -732,33 +861,103 @@ public class SqlSugarSettingStoreTests : IDisposable
     }
 
     /// <summary>
-    /// 批量读取遇到重复行时不抛异常，返回其中一个值
+    /// 写入命中已被其他写入者创建的行时更新而不是重复插入
     /// </summary>
     [Fact]
-    public async Task 批量读取遇到重复行时不抛异常()
+    public async Task 写入命中已存在的行时更新而不是重复插入()
     {
         var idGenerator = IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload();
 
         await _client.Insertable(new SysSetting(idGenerator.NextId())
         {
-            SettingName = "App.Duplicated",
+            SettingName = "App.NewSetting",
             ProviderName = "G",
-            ProviderKey = null,
+            ProviderKey = string.Empty,
             SettingValue = "first"
         }).ExecuteCommandAsync();
 
-        await _client.Insertable(new SysSetting(idGenerator.NextId())
+        await _store.SetAsync("App.NewSetting", "second", "G", null);
+
+        var rows = await _client.Queryable<SysSetting>()
+            .Where(item => item.SettingName == "App.NewSetting")
+            .ToListAsync();
+
+        Assert.Single(rows);
+        Assert.Equal("second", rows[0].SettingValue);
+    }
+
+    /// <summary>
+    /// 插入前被竞争对手抢先创建同一设置时，回退为更新且只剩一行
+    /// </summary>
+    [Fact]
+    public async Task 插入前被竞争对手抢先创建同一设置时回退为更新()
+    {
+        var idGenerator = IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload();
+
+        using var competingClient = new SqlSugarClient(new ConnectionConfig
         {
-            SettingName = "App.Duplicated",
-            ProviderName = "G",
-            ProviderKey = null,
-            SettingValue = "second"
-        }).ExecuteCommandAsync();
+            ConnectionString = $"DataSource={_databaseFile};Pooling=False",
+            DbType = DbType.Sqlite,
+            IsAutoCloseConnection = true
+        });
 
-        var values = await _store.GetAllAsync(["App.Duplicated"], "G", null);
+        var racingStore = new RacingSqlSugarSettingStore(
+            new StubClientResolver(_client),
+            idGenerator,
+            competingClient,
+            () => new SysSetting(idGenerator.NextId())
+            {
+                SettingName = "App.Racing",
+                ProviderName = "G",
+                ProviderKey = string.Empty,
+                SettingValue = "first"
+            });
 
-        Assert.Single(values);
-        Assert.Contains(values[0].Value, new[] { "first", "second" });
+        await racingStore.SetAsync("App.Racing", "second", "G", null);
+
+        var rows = await _client.Queryable<SysSetting>()
+            .Where(item => item.SettingName == "App.Racing")
+            .ToListAsync();
+
+        Assert.Single(rows);
+        Assert.Equal("second", rows[0].SettingValue);
+    }
+}
+
+/// <summary>
+/// 测试用 Store 子类，在插入前的钩子里通过另一个客户端抢先插入同一个键，模拟“先查阶段都判定不存在、写入阶段才分出先后”的竞态
+/// </summary>
+internal sealed class RacingSqlSugarSettingStore : SqlSugarSettingStore
+{
+    private readonly ISqlSugarClient _competingClient;
+    private readonly Func<SysSetting> _competingEntityFactory;
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="clientResolver">客户端解析器</param>
+    /// <param name="idGenerator">主键生成器</param>
+    /// <param name="competingClient">代表竞争对手的另一个客户端，指向同一个数据库文件</param>
+    /// <param name="competingEntityFactory">竞争对手抢先插入的行</param>
+    public RacingSqlSugarSettingStore(
+        ISqlSugarClientResolver clientResolver,
+        IDistributedIdGenerator<long> idGenerator,
+        ISqlSugarClient competingClient,
+        Func<SysSetting> competingEntityFactory)
+        : base(clientResolver, idGenerator)
+    {
+        _competingClient = competingClient;
+        _competingEntityFactory = competingEntityFactory;
+    }
+
+    /// <summary>
+    /// 在基类确认目标行不存在、正式插入之前，抢先用另一个客户端插入同一个键
+    /// </summary>
+    /// <param name="entity">即将插入的实体</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    protected override async Task OnBeforeInsertAsync(SysSetting entity, CancellationToken cancellationToken)
+    {
+        await _competingClient.Insertable(_competingEntityFactory()).ExecuteCommandAsync();
     }
 }
 
@@ -871,6 +1070,7 @@ dotnet test --project framework/test/XiHan.Framework.Settings.SqlSugar.Tests/XiH
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using SqlSugar;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.DistributedIds;
 using XiHan.Framework.Settings.Definitions;
@@ -911,10 +1111,7 @@ public class SqlSugarSettingStore : ISettingStore
     {
         var client = _clientResolver.GetClientForEntity<SysSetting>();
 
-        var entity = await client.Queryable<SysSetting>()
-            .FirstAsync(item => item.SettingName == name
-                && item.ProviderName == providerName
-                && item.ProviderKey == providerKey);
+        var entity = await FindAsync(client, name, Normalize(providerName), Normalize(providerKey));
 
         return entity?.SettingValue;
     }
@@ -934,11 +1131,13 @@ public class SqlSugarSettingStore : ISettingStore
         }
 
         var client = _clientResolver.GetClientForEntity<SysSetting>();
+        var normalizedProviderName = Normalize(providerName);
+        var normalizedProviderKey = Normalize(providerKey);
 
         var rows = await client.Queryable<SysSetting>()
             .Where(item => names.Contains(item.SettingName)
-                && item.ProviderName == providerName
-                && item.ProviderKey == providerKey)
+                && item.ProviderName == normalizedProviderName
+                && item.ProviderKey == normalizedProviderKey)
             .ToListAsync();
 
         var valuesByName = new Dictionary<string, string?>(StringComparer.Ordinal);
@@ -960,29 +1159,43 @@ public class SqlSugarSettingStore : ISettingStore
     public async Task SetAsync(string name, string? value, string? providerName, string? providerKey)
     {
         var client = _clientResolver.GetClientForEntity<SysSetting>();
+        var normalizedProviderName = Normalize(providerName);
+        var normalizedProviderKey = Normalize(providerKey);
 
-        var existing = await client.Queryable<SysSetting>()
-            .FirstAsync(item => item.SettingName == name
-                && item.ProviderName == providerName
-                && item.ProviderKey == providerKey);
+        var existing = await FindAsync(client, name, normalizedProviderName, normalizedProviderKey);
 
-        if (existing is null)
-        {
-            var entity = new SysSetting(_idGenerator.NextId())
-            {
-                SettingName = name,
-                ProviderName = providerName,
-                ProviderKey = providerKey,
-                SettingValue = value
-            };
-
-            await client.Insertable(entity).ExecuteCommandAsync();
-        }
-        else
+        if (existing is not null)
         {
             existing.SettingValue = value;
-
             await client.Updateable(existing).ExecuteCommandAsync();
+            return;
+        }
+
+        var entity = new SysSetting(_idGenerator.NextId())
+        {
+            SettingName = name,
+            ProviderName = normalizedProviderName,
+            ProviderKey = normalizedProviderKey,
+            SettingValue = value
+        };
+
+        await OnBeforeInsertAsync(entity, CancellationToken.None);
+
+        try
+        {
+            await client.Insertable(entity).ExecuteCommandAsync();
+        }
+        catch (Exception)
+        {
+            var winner = await FindAsync(client, name, normalizedProviderName, normalizedProviderKey);
+
+            if (winner is null)
+            {
+                throw;
+            }
+
+            winner.SettingValue = value;
+            await client.Updateable(winner).ExecuteCommandAsync();
         }
     }
 
@@ -995,15 +1208,56 @@ public class SqlSugarSettingStore : ISettingStore
     public async Task DeleteAsync(string name, string? providerName, string? providerKey)
     {
         var client = _clientResolver.GetClientForEntity<SysSetting>();
+        var normalizedProviderName = Normalize(providerName);
+        var normalizedProviderKey = Normalize(providerKey);
 
         await client.Deleteable<SysSetting>()
             .Where(item => item.SettingName == name
-                && item.ProviderName == providerName
-                && item.ProviderKey == providerKey)
+                && item.ProviderName == normalizedProviderName
+                && item.ProviderKey == normalizedProviderKey)
             .ExecuteCommandAsync();
+    }
+
+    /// <summary>
+    /// 把可空的提供者字段归一化为非空的哨兵值
+    /// </summary>
+    /// <param name="value">原始值</param>
+    /// <returns>归一化后的值</returns>
+    private static string Normalize(string? value)
+    {
+        return value ?? string.Empty;
+    }
+
+    /// <summary>
+    /// 按业务键查找一行设置
+    /// </summary>
+    /// <param name="client">客户端</param>
+    /// <param name="name">设置名称</param>
+    /// <param name="providerName">已归一化的提供者名称</param>
+    /// <param name="providerKey">已归一化的提供者键</param>
+    /// <returns>命中的实体，未命中返回 null</returns>
+    private static async Task<SysSetting?> FindAsync(
+        ISqlSugarClient client, string name, string providerName, string providerKey)
+    {
+        return await client.Queryable<SysSetting>()
+            .FirstAsync(item => item.SettingName == name
+                && item.ProviderName == providerName
+                && item.ProviderKey == providerKey);
+    }
+
+    /// <summary>
+    /// 插入前的扩展点，供测试注入并发写入
+    /// </summary>
+    /// <param name="entity">即将插入的实体</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    protected virtual Task OnBeforeInsertAsync(SysSetting entity, CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
     }
 }
 ```
+
+`SqlSugarSettingStore` 不加 `sealed`：`OnBeforeInsertAsync` 是留给测试的扩展点，测试项目里的 `RacingSqlSugarSettingStore`（Task 2 Step 1）需要能继承它并重写这个方法，在“确认不存在”与“正式插入”之间的窗口里用另一个客户端抢先插入同一行，从而确定性地复现 §4.3 描述的竞态时序，不依赖真实的多线程/多进程并发。
 
 - [ ] **Step 4: 运行测试确认通过**
 
@@ -1011,9 +1265,19 @@ public class SqlSugarSettingStore : ISettingStore
 dotnet test --project framework/test/XiHan.Framework.Settings.SqlSugar.Tests/XiHan.Framework.Settings.SqlSugar.Tests.csproj -c Release
 ```
 
-预期：全部 PASS（Task 1 的 5 个 + 本任务的 9 个）。
+预期：全部 PASS（Task 1 的 7 个 + 本任务的 11 个）。
 
-- [ ] **Step 5: 验证全解决方案 0 警告**
+- [ ] **Step 5: 反向验证——确认新增的竞态测试真的在测 `catch` 分支**
+
+临时把 `SetAsync` 的 `try`/`catch` 改成不做任何恢复（例如把 `catch (Exception) { ... }` 整块删掉，只留 `await client.Insertable(entity).ExecuteCommandAsync();`），重新跑：
+
+```bash
+dotnet test --project framework/test/XiHan.Framework.Settings.SqlSugar.Tests/XiHan.Framework.Settings.SqlSugar.Tests.csproj -c Release
+```
+
+预期：**只有**「插入前被竞争对手抢先创建同一设置时回退为更新」这一条变红（唯一索引冲突异常直接抛给了测试），其余用例不受影响——这确认了这条测试确实在验证 `catch` 分支的行为，不是凑巧通过。确认后**撤销**这个临时改动，把 `SetAsync` 恢复成 Step 3 的实现，再跑一次确认全部转回绿色。
+
+- [ ] **Step 6: 验证全解决方案 0 警告**
 
 ```bash
 dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false
@@ -1021,7 +1285,7 @@ dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild
 
 预期：0 Warning(s) 0 Error(s)。
 
-- [ ] **Step 6: 提交**
+- [ ] **Step 7: 提交**
 
 ```bash
 git add framework/src/XiHan.Framework.Settings.SqlSugar/Stores framework/test/XiHan.Framework.Settings.SqlSugar.Tests/SqlSugarSettingStoreTests.cs
@@ -1171,17 +1435,6 @@ public class XiHanSettingsSqlSugarModule : XiHanModule
 }
 ```
 
-`using XiHan.Framework.Settings;` 这一行要删掉——`XiHanSettingsModule` 现在只在 `[DependsOn]` 里以命名空间限定的方式被引用（`XiHan.Framework.Settings` 命名空间与本包自己的命名空间 `XiHan.Framework.Settings.SqlSugar` 前缀相同，`XiHanSettingsModule` 可以不加 `using` 直接写全名，或按下面这样保留 `using XiHan.Framework.Settings;`——两种写法任选，保留更清晰）：
-
-```csharp
-using XiHan.Framework.Core.Modularity;
-using XiHan.Framework.Data;
-using XiHan.Framework.Settings;
-using XiHan.Framework.Settings.SqlSugar.Extensions.DependencyInjection;
-
-namespace XiHan.Framework.Settings.SqlSugar;
-```
-
 - [ ] **Step 5: 运行测试并验证构建**
 
 ```bash
@@ -1189,7 +1442,7 @@ dotnet test --project framework/test/XiHan.Framework.Settings.SqlSugar.Tests/XiH
 dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false
 ```
 
-预期：测试全部 PASS（累计 15 个）；构建 0 Warning(s) 0 Error(s)。
+预期：测试全部 PASS（累计 19 个）；构建 0 Warning(s) 0 Error(s)。
 
 - [ ] **Step 6: 提交**
 
@@ -1219,15 +1472,16 @@ git commit -m "feat(settings-sqlsugar): 接线注册扩展并顶替空存储"
 **参考来源（动手前先读）：**
 - 包文档范本：`docs/packages/eventbus-sqlsugar.md`（已读，结构照抄：概述 / 何时使用 / 安装与启用 / 表结构 / 工作原理 / 配置 / 主要 API / 注意事项 / 扩展点 / 依赖模块 / 相关模块）
 - 侧边栏结构：`docs/.vitepress/config.ts`，「多租户 · 配置 · 校验」分组，`pkg("Settings 设置", "settings")` 所在行（约第 154 行）
-- 根 README 模块计数：`README.md`、`README_cn.md` 各出现 3 处（badge、标语、文档站介绍行，约第 8、20、55 行），**没有逐包表格**——不要去找一个不存在的表格
-- `framework/README.md`/`framework/README_cn.md` 模块表格：`Settings` 行（各自第 103 行附近），以及各 3 处计数（约第 55、186、198 行，其中第 198 行数的是测试项目数）
-- **模块计数不是固定的 `68`**：本系列后续还有 `Tasks`/`Authentication`/`Authorization`/`Workflow`/`Security`/`Traffic`/`Upgrade` 七个包陆续落地，每个包合并时这个数字都会再 +1。动手改之前先读一遍这些文件里当前实际写的数字，不要假设是某个具体值
+- 根 README：`README.md`、`README_cn.md` 各出现 3 处模块计数（badge、标语、文档站介绍行），**没有逐包表格**——不要去找一个不存在的表格
+- `framework/README.md`/`framework/README_cn.md` 模块表格：`Settings` 行（各自第 103 行附近）
+- **模块计数一共分布在 8 个文件、20 处，不只是 4 个 README**：`docs/index.md`（2 处）、`docs/introduction.md`（1 处）、`docs/why.md`（4 处）也各有模块计数字符串，Step 6 有完整的 `grep` 定位与核对流程，不要只改 README 就以为改全了
+- **模块计数不是固定的 `68`**：本系列后续还有 `Tasks`/`Authentication`/`Authorization`/`Workflow`/`Security`/`Traffic`/`Upgrade` 七个包陆续落地，每个包合并时这个数字都会再 +1。动手改之前先用 `grep` 读一遍当前实际写的数字，不要假设是某个具体值
 - **不要碰** `docs/packages/settings.md`：它记录的是主包既有缺口（`DefinitionProviders`/`ValueProviders` 未接线、`"T"` 只写不读等），与本包无关，改它等于顺手审一份无关的文档 PR
 - **不要碰**架构 ASCII 图（`framework/README.md`/`framework/README_cn.md` 的 `Architecture Overview` 代码块）：`EventBus.SqlSugar`、`Auditing.SqlSugar` 落地时都没有把 `.SqlSugar` 子包加进这张图，保持一致
 
 **本任务禁止事项：** 不要顺手重写与本 PR 无关的文档。不要在文档里声称仓库有 `.codegraph/` 目录。不要给 `docs/packages/settings-sqlsugar.md` 编造 `docs/packages/settings.md` 里没有核实过的行为——凡是引用主包行为的地方用链接指回去，不要复述。
 
-- [ ] **Step 1: 更新包 README 的「使用方式」小节**
+- [ ] **Step 1: 更新包 README 的「扩展点」小节**
 
 在 `framework/src/XiHan.Framework.Settings.SqlSugar/README.md` 的「扩展点」一节末尾追加一行：
 
@@ -1301,19 +1555,21 @@ public class YourAppModule : XiHanModule
 | `Basic_Id` | `long`，主键，非自增 | 雪花 ID |
 | `Row_Version` | `long` | 版本标识列（本包不激活乐观锁校验，见「注意事项」） |
 | `Setting_Name` | `string(128)`，非空 | 设置名称 |
-| `Provider_Name` | `string(32)`，可空 | 提供者名称，如 `"G"`（全局）、`"U"`（用户） |
-| `Provider_Key` | `string(64)`，可空 | 提供者键，如用户 ID；全局设置为 `null` |
+| `Provider_Name` | `string(32)`，非空 | 提供者名称，如 `"G"`（全局）、`"U"`（用户）；未指定时存归一化占位符（空字符串） |
+| `Provider_Key` | `string(64)`，非空 | 提供者键，如用户 ID；全局设置时存归一化占位符（空字符串） |
 | `Setting_Value` | 大文本，可空 | 设置值，写空即等价于从未写入 |
 
-**没有数据库级别的复合唯一约束**：`(Setting_Name, Provider_Name, Provider_Key)` 的唯一性由应用层的「先查后写」保证，不是数据库兜底，见「注意事项」。
+**`(Setting_Name, Provider_Name, Provider_Key)` 有复合唯一索引 `uk_sys_setting_key`**：同一组合在数据库层面永远只有一行，并发首次创建同一设置不会产生重复数据，见「注意事项」。
 
 ## 工作原理
 
 ### 读写
 
-四个方法都先经 `ISqlSugarClientResolver.GetClientForEntity<SysSetting>()` 取客户端（`SysSetting` 未声明 `[DataSource]`，等价于取当前库），再按 `(Setting_Name, Provider_Name, Provider_Key)` 精确匹配一行。`Provider_Key` 为 `null` 时（全局设置）查询条件会被 SqlSugar 翻译为 `IS NULL`，不是 `= NULL`。
+四个方法都先经 `ISqlSugarClientResolver.GetClientForEntity<SysSetting>()` 取客户端（`SysSetting` 未声明 `[DataSource]`，等价于取当前库），把入参 `providerName`/`providerKey` 归一化（`null` → 空字符串）后按 `(Setting_Name, Provider_Name, Provider_Key)` 精确匹配一行。
 
-`SetAsync` 是「先查后写」：查到已有行就整行更新，查不到就插入新行；不是数据库原子 upsert。
+`SetAsync` 是「先查后写」：查到已有行就整行更新；查不到就插入新行。若插入因唯一索引冲突失败（两个调用者同时首次创建同一设置），会重新按业务键查询——查到就转为更新，最终只留一行；查不到（例如隔离级别看不见另一事务已提交的行）就把原始的唯一约束冲突异常重新抛给调用方。
+
+**在事务型工作单元内，`GetClientForEntity` 会把本包的读写钉在当前事务上**（`ISqlSugarClientResolver.GetClientForEntity` 内部无条件登记进当前工作单元，不是本包可以关闭的行为）。这意味着：SQLite/MySQL 下，上一段的“重新查询转为更新”通常按预期工作；**PostgreSQL 下，一旦某条语句在事务内失败（含唯一约束冲突），整个事务立即进入 `aborted` 状态，同一事务里的后续命令（包括这次重新查询）也会失败**——竞态因此在 PostgreSQL 上会以异常形式暴露，并连带拖垮调用方当次业务事务里的其他写入，不是“`SetAsync` 单独失败”这么轻。
 
 ## 配置
 
@@ -1329,10 +1585,13 @@ public class YourAppModule : XiHanModule
 
 ## 注意事项与最佳实践
 
-- **并发写同一设置无原子性**：两个并发写入者同时首次写同一 `(name, providerName, providerKey)` 会各自插入一行；`GetOrNullAsync`/`GetAllAsync` 对重复行采用「任取/后者覆盖前者」的方式读取，不抛异常，但也不保证读到哪一行。这是已知限制，不引入锁
-- **不做乐观锁**：`Row_Version` 列存在但未激活校验（未调用 SqlSugar 的 `IsEnableUpdateVersionValidation()`），后写覆盖前写是既定语义
+- **并发首次创建同一设置由唯一索引兜底，但不保证不抛异常**：数据库唯一约束保证最终只有一行；SQLite/MySQL 下竞态通常被静默吸收转为更新，**PostgreSQL 下且处于事务型工作单元内时，竞态会以异常形式暴露、并拖垮调用方当次事务的其他写入**——本包的读写会被自动登记进当前事务（`ISqlSugarClientResolver.GetClientForEntity` 的固有行为，不是本包可以关闭的开关）。并发更新同一个已存在的设置仍是普通的先查后改，后写覆盖前写，不做乐观锁
+- **空字符串与 `null` 的 `providerKey` 不可区分**：两者归一化后是同一个值，会读写同一行。当前主包的调用点都不会传空字符串，这是已接受的边界
+- **Oracle 把空字符串当作 `NULL`**：本包用空字符串做归一化哨兵值，这个设计在 Oracle 上不成立——`Provider_Key = ''` 会被 Oracle 存成 `NULL`，全局设置的唯一索引语义随之退化回“NULL 各不相同”的老问题。当前仓库未把 Oracle 列为支持方言，记录在案，接入 Oracle 前需要换一个非空字符串哨兵
+- **不做乐观锁**：`Row_Version` 列存在但未激活校验（未调用 SqlSugar 的 `IsEnableUpdateVersionValidation()`）
 - **`"T"`（租户）提供者当前只写不读**：这是 [Settings](./settings) 主包的既有行为，`SettingManager.ResolveProvider` 会把 `Tenant` 作用域写成 `("T", tenantId)`，但读取路径尚未接入对应的值提供者；本包的存储层对任意 `providerName` 一视同仁，缺口不在本包
 - **加密与校验在上层完成**：`SettingManager` 负责加密（`XiHanAesOptions`）与自定义校验（`SettingDefinition.Validator`），本包收到的 `value` 是最终存储值，原样落库
+- **升级到带唯一索引的版本时，历史脏数据会让建表在启动时失败**：`CodeFirst.InitTables(...)` 在检测到同名索引已存在时会跳过、不会重建；但对一张已经存在、且 `(Setting_Name, Provider_Name, Provider_Key)` 有重复行的旧表首次创建这个索引时，数据库会因为违反唯一约束而拒绝建索引，应用因此在启动阶段报错。升级前需要先清理重复数据
 
 ## 扩展点 / 自定义
 
@@ -1372,9 +1631,7 @@ public class YourAppModule : XiHanModule
 
 **这一步对后续三个小包同样适用**：`Security.SqlSugar`/`Traffic.SqlSugar`/`Upgrade.SqlSugar` 各自在自己所属的分组表格里、紧跟主包那一行之后加一行，格式相同，不需要另外发明。
 
-`docs/packages/index.md` 第 3 行也有一处模块计数（`XiHan.Framework 由 **NN 个 NuGet 包**组成`），一并计入下面 Step 5 的计数核对范围，不要漏改。
-
-- [ ] **Step 5: 更新 framework/README.md 与 framework/README_cn.md**
+- [ ] **Step 5: 新增 `framework/README.md` 与 `framework/README_cn.md` 的模块清单行**
 
 在 `framework/README.md` 的模块表格里、`Settings` 那一行之后插入：
 
@@ -1388,23 +1645,52 @@ public class YourAppModule : XiHanModule
 | `Settings.SqlSugar` | 设置管理持久化：`ISettingStore` 的 SqlSugar 落库实现 |
 ```
 
-两个文件里各有 3 处模块计数字符串：
+**不要**改动 `Architecture Overview` 下面的 ASCII 图代码块——`EventBus.SqlSugar`、`Auditing.SqlSugar` 都没有出现在那张图里，保持一致。模块计数字符串在下一步统一处理，这一步只管清单行。
 
-- `framework/README.md:55`（形如 `NN modules, one per project ...`）、`:186`（ASCII 目录树注释 `# sources (NN modules)`）、`:198`（ASCII 目录树注释 `# tests (one per src project, NN unit-test projects)` —— 这一处数的是测试项目数，本计划的 Task 1 新增了 `XiHan.Framework.Settings.SqlSugar.Tests`，同样要 +1）
-- `framework/README_cn.md` 的对应三处（`:55`、`:186`、`:198`，后者同样是测试项目数）
+- [ ] **Step 6: 全局替换模块计数（8 个文件、20 处，`grep` 是唯一事实来源）**
 
-**不要硬编码「68 → 69」这类具体数字**：本系列后续还有七个包陆续落地，每次合并这个数字都会再变。正确做法是**先读这几处当前实际写的数字，在此基础上 +1**，而不是假设它就是某个固定值——这两个文件（连同 Step 4 的 `docs/packages/index.md` 第 3 行、下面 Step 6 的根 README）加起来总共 13 处这样的计数字符串，一次性用 `grep -n` 之类的方式定位到全部，逐一确认后再改，改完用 `grep` 复查这五个文件里的数字是否已经全部一致（同一个文件内的几处计数、以及跨文件之间，应该始终相等）。
+模块计数不是只在 4 个 README 里出现，`docs/` 下还有 4 处。**不要凭第 4、5 步看到的行号猜全部位置**，用 `grep` 一次性定位：
 
-**不要**改动 `Architecture Overview` 下面的 ASCII 图代码块——`EventBus.SqlSugar`、`Auditing.SqlSugar` 都没有出现在那张图里，保持一致。
+```bash
+grep -o 'Modules-[0-9]\+-' README.md
+```
 
-- [ ] **Step 6: 更新根 README.md 与 README_cn.md**
+读到的数字记为 `N`（写这份计划时是 68，实现时以实际读到的为准）。用 `grep` 定位当前所有出现位置：
 
-这两个文件**没有逐包表格**，只有 3 处模块计数字符串（badge 图标、`<p>` 标语、文档站介绍行），同样**不要硬编码具体数字**——先读当前值再 +1：
+```bash
+grep -rn -w "$N" README.md README_cn.md framework/README.md framework/README_cn.md docs --include='*.md' | grep -v node_modules
+```
 
-- `README.md`：约第 8 行 `<p>...NN modular components...</p>`、第 20 行 `Modules-NN-1f6feb` badge、第 55 行 `for all NN packages`
-- `README_cn.md`：约第 8 行 `<p>...NN 个模块化组件...</p>`、第 20 行同一个 badge、第 55 行 `NN 个包的逐包 API 文档`
+预期模块计数命中 **8 个文件、20 处**（若有巧合数字命中，逐条排除），大致分布（仅供核对，行号可能因本 PR 前面几步的编辑而略有偏移，一切以这条 `grep` 的实际输出为准）：
 
-改完后这五个文件（`README.md`、`README_cn.md`、`framework/README.md`、`framework/README_cn.md`、`docs/packages/index.md`）里所有的计数字符串必须是**同一个数字**——五个文件、总共 13 处，缺一处没改就会出现前后矛盾的计数，肉眼或 `grep -c` 都能一眼看出。
+| 文件 | 处数 | 大致位置 |
+| --- | --- | --- |
+| `README.md` | 3 | 约 8、20、55 行（`<p>` 标语、badge、文档站介绍行） |
+| `README_cn.md` | 3 | 约 8、20、55 行（同上，中文版） |
+| `framework/README.md` | 3 | 约 55、186、198 行（`198` 数的是测试项目数，本计划 Task 1 新增了 `XiHan.Framework.Settings.SqlSugar.Tests`，同样要 +1） |
+| `framework/README_cn.md` | 3 | 约 55、186、198 行（同上） |
+| `docs/packages/index.md` | 1 | 约第 3 行（`由 **N 个 NuGet 包**组成`） |
+| `docs/index.md` | 2 | 约 9、41 行 |
+| `docs/introduction.md` | 1 | 约第 57 行 |
+| `docs/why.md` | 4 | 约 86、123、142、160 行 |
+
+逐处把 `N` 改成 `N+1`（含徽章 URL 里的数字、`<p>` 标语、正文叙述、表格单元格），**不要跳过表面上看起来是「同一句话」的重复行**——`docs/why.md` 里有 4 处独立的句子都提到这个数字，各自都要改。
+
+改完后重新跑同一条命令确认零命中：
+
+```bash
+grep -rn -w "$N" README.md README_cn.md framework/README.md framework/README_cn.md docs --include='*.md' | grep -v node_modules
+```
+
+预期：不再有属于模块计数的命中。数字可能与无关文字巧合（例如 `docs/guide/distributed-ids.md` 的「约 69 年」），逐条看输出，巧合命中保持原样、不要改。再确认新数字的模块计数命中为 20 处：
+
+```bash
+grep -rn -w "$((N + 1))" README.md README_cn.md framework/README.md framework/README_cn.md docs --include='*.md' | grep -v node_modules | wc -l
+```
+
+预期：扣除巧合命中后为 `20`（N+1 为 69 时会多出上面那条「约 69 年」，总数显示 21）。
+
+**这一步对后续三个小包同样适用**：每个包落地时都用同一套「先 `grep` 读数、改完再 `grep` 复查旧数字不再有模块计数命中、再 `grep` 确认新数字的模块计数命中为 20 处」的流程，不要凭记忆枚举文件清单——文件集合本身可能随文档站演进而变化，`grep` 的结果才是事实。
 
 - [ ] **Step 7: 全量验收**
 
@@ -1435,19 +1721,23 @@ PR 可提交时应满足：
 - `dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false` 0 警告 0 错误
 - `dotnet test --solution framework/XiHan.Framework.slnx -c Release` 全绿（已知无关抖动见 Global Constraints）
 - `ISettingStore` 经 `services.Replace` 顶替，有测试断言生命周期为 `Scoped`
-- 四个契约方法都有 SQLite 落库测试覆盖，包括 §5.1/§5.2 两个陷阱各自的用例（重复行不抛异常、连续两次写入不抛 `VersionExceptions`）
+- 四个契约方法都有 SQLite 落库测试覆盖，包括归一化（§5.1）、唯一索引结构性验证、`OnBeforeInsertAsync` 扩展点确定性复现的并发首次创建竞态、连续两次写入不抛 `VersionExceptions`（§5.2）四类用例
 - 包 README、`docs/packages/settings-sqlsugar.md`、VitePress 侧边栏、`docs/packages/index.md` 目录行、`framework/README.md`/`framework/README_cn.md` 模块清单与计数、根 `README.md`/`README_cn.md` 计数均已更新
 - 新增代码的注释只说明代码做什么
 
 ## 已知边界（写入 PR 描述，不写进代码注释）
 
-- **并发写同一设置无原子性**：`SetAsync` 是先查后写，不是数据库级 upsert。已知限制，见 spec §7
-- **无数据库级复合唯一约束**：正确性完全依赖应用层的先查后写与去重读取
-- **不做乐观锁**：`Row_Version` 列存在但不激活校验，后写覆盖前写
+- **本包的读写会自动登记进当前事务型工作单元**：`ISqlSugarClientResolver.GetClientForEntity` 的固有行为，不是本包可以关闭的开关，见「待确认的决策」的 `requiresNew` 选项
+- **并发首次创建同一设置：SQLite/MySQL 下由唯一索引兜底且不抛异常，PostgreSQL 事务内会抛异常并拖垮调用方事务**：PostgreSQL 上一旦事务内某条语句失败（含唯一约束冲突），整个事务立即中止，`catch` 块的重新查询也会失败，原始异常连同当次事务的其他写入一起报错。若唯一索引本身因跳过建表初始化或手工建表而缺失，唯一性保证也不成立
+- **并发更新同一个已存在的设置无原子性**：普通的先查后改，后写覆盖前写，不做乐观锁
+- **空字符串与 `null` 的 `providerKey` 不可区分**：两者归一化后读写同一行，当前主包调用点不会触发
+- **Oracle 把空字符串当作 `NULL`**：本包用空字符串做归一化哨兵值，这个设计在 Oracle 上不成立，接入 Oracle 前需要换一个非空哨兵
+- **建了同名索引就不会再检查其定义是否一致，对有历史重复数据的旧表升级会在启动时建索引失败**：两者都属于 `CodeFirst.InitTables(...)` 的既有行为，升级前需要先核实索引定义、清理重复数据
+- **不做乐观锁**：`Row_Version` 列存在但不激活校验
 - **建表默认关闭**：`EnableTableInitialization` 默认 `false`，配置层面的逃生口是把它打开
 - **"T"（租户）只写不读**：主包既有缺口，不在本包范围
 - **不做批量写入**：`SetAsync` 每次一条 SQL 往返
 
 ## 下一份计划
 
-拆分方案（`.superpowers/specs/2026-09-23-sqlsugar-remaining-modules-decomposition.md`）建议的下一个包是 `Tasks.SqlSugar`（背景作业领取可复用 `EventBus.SqlSugar` P4/P6 已验证过的三步抢占协议），随后是 `Authentication.SqlSugar`、`Authorization.SqlSugar`；`Security.SqlSugar`/`Traffic.SqlSugar`/`Upgrade.SqlSugar` 三个小包应直接照抄本计划建立的形状（单实体、无 Mapping 层、先查后写、GetAllAsync 手写 `foreach` 去重）。
+拆分方案（`.superpowers/specs/2026-09-23-sqlsugar-remaining-modules-decomposition.md`）建议的下一个包是 `Tasks.SqlSugar`（背景作业领取可复用 `EventBus.SqlSugar` P4/P6 已验证过的三步抢占协议），随后是 `Authentication.SqlSugar`、`Authorization.SqlSugar`；`Security.SqlSugar`/`Traffic.SqlSugar`/`Upgrade.SqlSugar` 三个小包应直接照抄本计划建立的形状（归一化非空列 + 复合唯一索引 + 先查后写 + 唯一约束冲突重新查询兜底，而不是容忍重复行）。

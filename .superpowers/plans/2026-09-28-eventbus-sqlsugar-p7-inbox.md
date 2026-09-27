@@ -187,6 +187,7 @@ framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/
 
 docs/packages/eventbus-sqlsugar.md              修改：整页重写，补收件箱与 P6 多库
 framework/README.md                             修改：第 92 行
+docs/packages/index.md                          修改：第 85 行
 framework/README_cn.md                          修改：第 92 行
 ```
 
@@ -618,6 +619,22 @@ public class EventInboxMapperTests
             Status = SysEventInbox.StatusPending
         };
     }
+```
+
+并把类的 XML 注释由：
+
+```csharp
+/// <summary>
+/// 发件箱建表测试
+/// </summary>
+```
+
+改为：
+
+```csharp
+/// <summary>
+/// 收发件箱建表测试
+/// </summary>
 ```
 
 该文件已有 `using SqlSugar;` 与 `using XiHan.Framework.EventBus.SqlSugar.Entities;`，不新增 using。
@@ -2106,6 +2123,45 @@ public class InboxStateTests
         Assert.Equal(second.Id, (await FindAsync(context, second.Id)).BasicId);
     }
 
+    /// <summary>
+    /// 租户上下文中状态流转与清理仍作用于宿主主库
+    /// </summary>
+    [Fact]
+    public async Task 租户上下文中状态流转与清理仍作用于宿主主库()
+    {
+        using var context = new InboxTestContext(retentionPeriod: TimeSpan.FromDays(7));
+        var processed = NewEvent();
+        var retried = NewEvent();
+        var discarded = NewEvent();
+        await context.Inbox.EnqueueAsync(processed);
+        await context.Inbox.EnqueueAsync(retried);
+        await context.Inbox.EnqueueAsync(discarded);
+
+        using (context.CurrentTenant.Change(InboxTestContext.TenantId))
+        {
+            await context.Inbox.MarkAsProcessedAsync(processed.Id);
+            await context.Inbox.RetryLaterAsync(retried.Id, 3, null);
+            await context.Inbox.MarkAsDiscardAsync(discarded.Id);
+        }
+
+        Assert.Equal(SysEventInbox.StatusProcessed, (await FindAsync(context, processed.Id)).Status);
+        Assert.Equal(3, (await FindAsync(context, retried.Id)).RetryCount);
+        Assert.Equal(SysEventInbox.StatusDiscarded, (await FindAsync(context, discarded.Id)).Status);
+
+        var old = DateTimeOffset.UtcNow.AddDays(-30);
+        await context.Client.Updateable<SysEventInbox>()
+            .SetColumns(item => new SysEventInbox { HandledTime = old })
+            .Where(item => item.BasicId == processed.Id)
+            .ExecuteCommandAsync();
+
+        using (context.CurrentTenant.Change(InboxTestContext.TenantId))
+        {
+            await context.Inbox.DeleteOldEventsAsync();
+        }
+
+        Assert.Equal(2, await context.Client.Queryable<SysEventInbox>().CountAsync());
+    }
+
     private static async Task<SysEventInbox> FindAsync(InboxTestContext context, Guid id)
     {
         var stored = await context.Client.Queryable<SysEventInbox>()
@@ -2697,6 +2753,7 @@ git commit -m "feat(eventbus-sqlsugar): 以 SqlSugar 收件箱替换默认的进
 - Modify: `docs/packages/eventbus-sqlsugar.md`（整份替换）
 - Modify: `framework/README.md`（第 92 行）
 - Modify: `framework/README_cn.md`（第 92 行）
+- Modify: `docs/packages/index.md`（第 85 行）
 - 核对不改：`docs/.vitepress/config.ts`、根 `README.md`、根 `README_cn.md`
 
 **Interfaces:**
@@ -2725,7 +2782,7 @@ git commit -m "feat(eventbus-sqlsugar): 以 SqlSugar 收件箱替换默认的进
 ## 核心能力
 
 - 发件箱实体 `sys_event_outbox` 与 `OutgoingEventInfo` 的双向映射
-- 入箱与业务数据落在同一事务、同一个库：业务写在哪个库，事件行就写在哪个库
+- 发件箱入箱写在调用方工作单元已登记的那个库上；在未完成的事务型工作单元内入箱时与业务数据同一事务（发件箱何时被写入见「配置与约定 / 发件箱」）
 - 发送端遍历当前布局的全部库，单个库不可达时只跳过该库
 - 收件箱实体 `sys_event_inbox` 与 `IncomingEventInfo` 的双向映射
 - 收件箱按消息标识去重：入箱前先查，唯一索引兜住多实例同时入箱的竞态
@@ -2753,6 +2810,8 @@ git commit -m "feat(eventbus-sqlsugar): 以 SqlSugar 收件箱替换默认的进
 本包把 `IEventOutbox` 与 `IEventInbox` 的注册生命周期都由单例改为作用域——两者都经作用域内的 `ISqlSugarClientResolver` 取连接。框架内没有构造函数注入这两个接口的地方。
 
 ### 发件箱
+
+发件箱只在调用方于**未完成的工作单元内**以 `onUnitOfWorkComplete: false` 发布、且配置了至少一个 `Outboxes` 时才会被写入；工作单元为事务型时事件行与业务数据同一个事务，非事务型时各自提交。按默认的 `onUnitOfWorkComplete: true` 发布时，工作单元先提交、再发布缓冲的分布式事件，此时已没有当前工作单元，`AddToOutboxAsync` 返回 `false`，事件**绕过发件箱直接发出**——本包对这条路径不起作用。
 
 投递语义为**至少一次**：宿主在投递成功后才删除记录，若进程在投递与删除之间退出，记录会被重新领取并再次投递，消费端需幂等。
 
@@ -2813,7 +2872,7 @@ Extensions/DependencyInjection/  服务注册扩展
 ````markdown
 # XiHan.Framework.EventBus.SqlSugar
 
-> 事件收发件箱的 SqlSugar 持久化提供程序：发件箱入箱与业务数据落在同一事务、同一个库；收件箱按消息标识去重；两者的领取都是多实例互斥。替换 [EventBus](./eventbus) 的进程内收发件箱后，outbox / inbox 模式才真正成立。
+> 事件收发件箱的 SqlSugar 持久化提供程序：发件箱落库并按业务所在库落点；收件箱按消息标识去重；两者的领取都是多实例互斥。发件箱何时被写入有前提条件，见「发件箱入箱」。
 
 - **NuGet**：`XiHan.Framework.EventBus.SqlSugar`
 - **模块类**：`XiHanSqlSugarEventBusModule`
@@ -2826,7 +2885,7 @@ Extensions/DependencyInjection/  服务注册扩展
 
 本包把两者落到数据表，补上这些保证：
 
-- **发件箱入箱与业务同事务**：业务回滚，事件随之消失；业务提交，事件必然在库。业务写在模块库时，事件也写在那个模块库
+- **发件箱入箱与业务同事务（有前提）**：在未完成的事务型工作单元内以 `onUnitOfWorkComplete: false` 发布时，事件行与业务数据同一个事务、同一个库。按默认方式发布时发件箱不被使用，见「发件箱入箱」
 - **收件箱去重**：同一消息被 broker 重复投递，只处理一次（在保留期内）
 - **多实例领取互斥**：N 个实例同时轮询，同一条记录只会被一个实例领走
 
@@ -2918,6 +2977,8 @@ public class YourAppModule : XiHanModule
 ## 工作原理
 
 ### 发件箱入箱
+
+发件箱只在调用方于**未完成的工作单元内**以 `onUnitOfWorkComplete: false` 发布、且配置了至少一个 `Outboxes` 时才会被写入；工作单元为事务型时事件行与业务数据同一个事务，非事务型时各自提交。按默认的 `onUnitOfWorkComplete: true` 发布时，工作单元先提交、再发布缓冲的分布式事件，此时已没有当前工作单元，`AddToOutboxAsync` 返回 `false`，事件**绕过发件箱直接发出**——本包对这条路径不起作用。
 
 `DistributedEventBusBase` 在工作单元的作用域内解析发件箱实现，因此 `SqlSugarEventOutbox` 注册为 `Scoped`。事件行的落库由当前工作单元已登记的连接决定：
 
@@ -3031,7 +3092,7 @@ public class YourAppModule : XiHanModule
 改为：
 
 ```markdown
-| `EventBus.SqlSugar` | SqlSugar persistence provider for the event outbox and inbox: outbox enqueue joins the business transaction, the inbox deduplicates by message id, claiming is mutually exclusive across instances |
+| `EventBus.SqlSugar` | SqlSugar persistence provider for the event outbox and inbox: the outbox is persisted in the database the business writes to, the inbox deduplicates by message id, claiming is mutually exclusive across instances |
 ```
 
 `framework/README_cn.md` 第 92 行由：
@@ -3043,10 +3104,24 @@ public class YourAppModule : XiHanModule
 改为：
 
 ```markdown
-| `EventBus.SqlSugar` | 事件收发件箱 SqlSugar 持久化提供程序：发件箱入箱与业务同事务，收件箱按消息标识去重，多实例领取互斥 |
+| `EventBus.SqlSugar` | 事件收发件箱 SqlSugar 持久化提供程序：发件箱按业务所在库落库，收件箱按消息标识去重，多实例领取互斥 |
 ```
 
 改之前先 `sed -n 92p` 确认行号仍对应该条目；若不对，按条目内容定位。
+
+`docs/packages/index.md` 第 85 行由：
+
+```markdown
+| [EventBus.SqlSugar](./eventbus-sqlsugar) | 事件发件箱的 SqlSugar 持久化提供程序：入箱与业务同事务、条件抢占领取 |
+```
+
+改为：
+
+```markdown
+| [EventBus.SqlSugar](./eventbus-sqlsugar) | 事件收发件箱的 SqlSugar 持久化提供程序：发件箱按业务所在库落库、收件箱按消息标识去重、条件抢占领取 |
+```
+
+同样先 `sed -n 85p docs/packages/index.md` 确认行号。
 
 - [ ] **Step 4: 核对不改的三处**
 
@@ -3083,6 +3158,10 @@ dotnet test --project framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/XiH
 
 预期：`InboxConcurrencyTests.并发领取时记录不重复` 与 `InboxConcurrencyTests.并发入箱同一消息只保留一条` PASS，发件箱的 `并发领取时记录不重复` 同样 PASS。
 
+**反向验证（必须做）**：SQLite 用例发现不了抢占 `UPDATE` 丢掉可领取条件，`InboxConcurrencyTests.并发领取时记录不重复` 是唯一的防线，必须确认它真能变红。临时把 `SqlSugarEventInbox.ClaimAsync` 中抢占步骤的 `Where` 改成只剩 `.Where(item => candidateIds.Contains(item.BasicId))`，重跑上面的命令，预期该用例**失败**（领到的标识有重复或总数不等于 200）；随后 `git checkout -- framework/src/XiHan.Framework.EventBus.SqlSugar/Inbox/SqlSugarEventInbox.cs` 还原，再跑一次确认回到 PASS。临时改动**不得提交**。入箱侧的并发用例不需要反向验证——没有唯一索引时 8 个并发插入全部成功，库里是 8 条，天然为红。
+
+**若出现 MySQL 错误 1213（Deadlock found）**：这是死锁，不是抢占协议失效。收件箱比发件箱多一个 `ix_sys_event_inbox_status (Status, Created_Time)`，抢占 `UPDATE` 改动 `Status` 会额外锁二级索引，8 个并发更新可能互相等待——发件箱的真库用例通过不能外推到这里。排查死锁日志（`SHOW ENGINE INNODB STATUS`）后再定对策，**不要**放宽断言、吞异常或删掉索引来换取变绿；无法解决时停下来上报。
+
 **若领取用例出现重复标识**，说明抢占的 `Where` 丢了可领取条件（硬约束 ④）——回到 Task 2 Step 7 核对，不要通过放宽断言来让它变绿。**若入箱用例抛出异常**，说明回查没有识别出重复——核对 `catch` 里的回查条件是否用的是 `DedupKey`。**若入箱用例库里多于一条**，说明唯一索引没有建出来——在 MySQL 上执行 `SHOW INDEX FROM sys_event_inbox` 确认 `ux_sys_event_inbox_dedup_key` 存在且 `Non_unique = 0`。
 
 - [ ] **Step 7: 注释复查**
@@ -3094,8 +3173,8 @@ dotnet test --project framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/XiH
 - [ ] **Step 8: 提交**
 
 ```bash
-git add framework/src/XiHan.Framework.EventBus.SqlSugar/README.md docs/packages/eventbus-sqlsugar.md framework/README.md framework/README_cn.md
-git commit -m "docs(eventbus-sqlsugar): 补写收件箱的文档站条目与模块清单" -m "文档站页面原先只写了单库发件箱：补上收件箱、P6 的多库落点与遍历，以及两个建表开关都需开启。根 README 的表格是常用包清单，SqlSugar 子包均不在其中，维持现状。"
+git add framework/src/XiHan.Framework.EventBus.SqlSugar/README.md docs/packages/eventbus-sqlsugar.md docs/packages/index.md framework/README.md framework/README_cn.md
+git commit -m "docs(eventbus-sqlsugar): 补写收件箱的文档站条目与模块清单" -m "文档站页面原先只写了单库发件箱：补上收件箱、P6 的多库落点与遍历、两个建表开关都需开启；发件箱与业务同事务的说法改为写明前提——按默认 onUnitOfWorkComplete: true 发布时工作单元已提交完毕，事件绕过发件箱直接发出。根 README 的表格是常用包清单，SqlSugar 子包均不在其中，维持现状。"
 ```
 
 ---

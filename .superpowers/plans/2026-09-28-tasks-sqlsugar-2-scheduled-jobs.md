@@ -125,7 +125,9 @@ public sealed class TasksHostClientAccessor
 
 **① 运行中实例必须带截止时刻，查询只认截止时刻未到的。**
 
-崩溃遗留的「运行中」实例会让不允许并发的任务**永远**不再触发，只留一行警告日志（spec §5 ①）。截止时刻 = `(StartedAt ?? ScheduledAt) + max(0, JobInfo.TimeoutMilliseconds) + RunningInstanceGracePeriod`，三项缺一不可：漏掉宽限期或用错起点，真正在跑的长任务会被提前判定为「不在运行」，调度器再触发一份，同一任务并发两份。
+崩溃遗留的「运行中」实例会让不允许并发的任务**永远**不再触发，只留一行警告日志（spec §5 ①）。截止时刻 = `(StartedAt ?? ScheduledAt) + JobInfo.TimeoutMilliseconds + RunningInstanceGracePeriod`，三项缺一不可：漏掉宽限期或用错起点，真正在跑的长任务会被提前判定为「不在运行」，调度器再触发一份，同一任务并发两份。
+
+**`TimeoutMilliseconds <= 0` 表示不限时**（`TimeoutMiddleware.cs:32-35` 直接放行），此时截止时刻取 `JobStoreMapper.UnboundedRunningDeadline`（9999-12-31），实例在被显式结束之前一直算运行中。**不要**写成 `max(0, timeout)`：那会让一个不限时、不允许并发的任务跑过 1 分钟宽限期后就不再算运行中，调度器随即再触发一份——同一任务并发两份，不报错。
 
 **② 实体时间列一律是 UTC 的 `DateTime`。**
 
@@ -133,7 +135,7 @@ public sealed class TasksHostClientAccessor
 
 **③ 保存实例不许因参数序列化失败而抛异常。**
 
-`JobExecutor` 在执行任务**之前**保存实例，这里抛异常任务就不会执行（spec §5 ③）。捕获 `NotSupportedException` 与 `JsonException`，存 `null`。
+`JobExecutor` 在执行任务**之前**保存实例，这里抛异常任务就不会执行（spec §5 ③）。捕获 `NotSupportedException` 与 `JsonException`，存 `null`。只捕获这两类：参数对象的属性 getter 抛出的其他异常仍会向上传播，这是已知边界，不要为了「不失败」改成 `catch (Exception)`。
 
 **④ 写库必须经 `TasksHostClientAccessor`。**
 
@@ -169,6 +171,7 @@ docs/.vitepress/config.ts                            Task 4  侧边栏追加一�
 framework/README.md                                  Task 4  模块清单追加一行、计数加一
 framework/README_cn.md                               Task 4  模块清单追加一行、计数加一
 README.md / README_cn.md                             Task 4  只改模块计数（含徽章）
+docs/index.md、docs/introduction.md、docs/why.md     Task 4  只改模块计数
 ```
 
 ---
@@ -410,6 +413,25 @@ public class JobStoreMapperTests
         };
 
         Assert.Null(JobStoreMapper.ToEntity(instance, GracePeriod).RunningDeadline);
+    }
+
+    /// <summary>
+    /// 超时关闭时截止时刻为无限远
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void 超时关闭时截止时刻为无限远(int timeoutMilliseconds)
+    {
+        var instance = new JobInstance
+        {
+            JobName = "Report.NoTimeout",
+            JobInfo = new JobInfo { JobName = "Report.NoTimeout", TimeoutMilliseconds = timeoutMilliseconds },
+            Status = JobStatus.Running,
+            StartedAt = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero)
+        };
+
+        Assert.Equal(JobStoreMapper.UnboundedRunningDeadline, JobStoreMapper.ToEntity(instance, GracePeriod).RunningDeadline);
     }
 
     /// <summary>
@@ -808,11 +830,17 @@ namespace XiHan.Framework.Tasks.SqlSugar.Mapping;
 public static class JobStoreMapper
 {
     /// <summary>
+    /// 不限时任务的运行截止时刻，表示实例在被显式结束之前一直视为运行中
+    /// </summary>
+    public static readonly DateTime UnboundedRunningDeadline = new(9999, 12, 31, 0, 0, 0, DateTimeKind.Utc);
+
+    /// <summary>
     /// 把任务实例转换为实体
     /// </summary>
     /// <remarks>
-    /// 运行中状态的实例计算运行截止时刻：开始时间（为空时取计划时间）加任务超时再加宽限期。
-    /// 执行参数无法序列化时存为空。
+    /// 运行中状态的实例计算运行截止时刻：开始时间（为空时取计划时间）加任务超时再加宽限期；
+    /// 任务超时小于等于 0 时取 <see cref="UnboundedRunningDeadline"/>。
+    /// 执行参数序列化抛出 <see cref="NotSupportedException"/> 或 <see cref="JsonException"/> 时存为空。
     /// </remarks>
     /// <param name="instance">任务实例</param>
     /// <param name="runningGracePeriod">运行中实例的宽限期</param>
@@ -950,7 +978,7 @@ public static class JobStoreMapper
     }
 
     /// <summary>
-    /// 计算运行中实例的截止时刻，非运行中状态返回空
+    /// 计算运行中实例的截止时刻，非运行中状态返回空，不限时的任务返回 <see cref="UnboundedRunningDeadline"/>
     /// </summary>
     private static DateTime? ComputeRunningDeadline(JobInstance instance, TimeSpan runningGracePeriod)
     {
@@ -959,10 +987,15 @@ public static class JobStoreMapper
             return null;
         }
 
-        var startedAt = instance.StartedAt ?? instance.ScheduledAt;
-        var timeout = TimeSpan.FromMilliseconds(Math.Max(0, instance.JobInfo?.TimeoutMilliseconds ?? 0));
+        var timeoutMilliseconds = instance.JobInfo?.TimeoutMilliseconds ?? 0;
+        if (timeoutMilliseconds <= 0)
+        {
+            return UnboundedRunningDeadline;
+        }
 
-        return ToUtc(startedAt + timeout + runningGracePeriod);
+        var startedAt = instance.StartedAt ?? instance.ScheduledAt;
+
+        return ToUtc(startedAt + TimeSpan.FromMilliseconds(timeoutMilliseconds) + runningGracePeriod);
     }
 
     /// <summary>
@@ -1051,7 +1084,7 @@ dotnet test --project framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHan.
 
 预期：全部 PASS，含第 ① 份的全部用例。
 
-若 `运行中实例的截止时刻为开始时间加超时再加宽限` 得到的值差 10 分钟，是起点用成了 `ScheduledAt`；差 1 分钟，是漏了宽限期（硬约束 ①）。
+若 `运行中实例的截止时刻为开始时间加超时再加宽限` 得到的值差 10 分钟，是起点用成了 `ScheduledAt`；差 1 分钟，是漏了宽限期（硬约束 ①）。若 `超时关闭时截止时刻为无限远` 得到的是「开始 + 1 分钟」，是把 `<= 0` 当成了 0 毫秒超时（硬约束 ①）。
 
 若 `参数无法序列化时存为空` 抛出了异常而不是返回空：用例的异常类型会出现在失败输出里，把它加进 `SerializeParameters` 的 `catch`，**不要**改成 `catch (Exception)`。
 
@@ -1232,7 +1265,11 @@ internal sealed class TasksTestContext : IDisposable
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using XiHan.Framework.Tasks.ScheduledJobs.Abstractions;
 using XiHan.Framework.Tasks.ScheduledJobs.Models;
+using XiHan.Framework.Tasks.ScheduledJobs.Scheduler;
 using XiHan.Framework.Tasks.SqlSugar.Entities;
 
 namespace XiHan.Framework.Tasks.SqlSugar.Tests;
@@ -1414,6 +1451,51 @@ public class JobStoreInstanceTests
     }
 
     /// <summary>
+    /// 超时关闭的非并发任务在宽限期后仍算运行中且调度器不再触发第二份
+    /// </summary>
+    [Fact]
+    public async Task 超时关闭的非并发任务在宽限期后仍算运行中且调度器不再触发第二份()
+    {
+        using var context = new TasksTestContext();
+        var jobInfo = new JobInfo
+        {
+            JobName = "Report.NoTimeout",
+            JobType = typeof(JobStoreInstanceTests),
+            TriggerType = JobTriggerType.Manual,
+            AllowConcurrent = false,
+            TimeoutMilliseconds = 0
+        };
+        var startedAt = DateTimeOffset.UtcNow.AddHours(-2);
+        var running = new JobInstance
+        {
+            JobName = jobInfo.JobName,
+            JobInfo = jobInfo,
+            Status = JobStatus.Running,
+            ScheduledAt = startedAt,
+            StartedAt = startedAt,
+            TriggerType = JobTriggerType.Manual
+        };
+        await context.JobStore.SaveJobInstanceAsync(running);
+
+        var stillRunning = Assert.Single(await context.JobStore.GetRunningInstancesAsync(jobInfo.JobName));
+        Assert.Equal(running.InstanceId, stillRunning.InstanceId);
+
+        var executor = new RecordingJobExecutor();
+        using var serviceProvider = new ServiceCollection().BuildServiceProvider();
+        var scheduler = new CompositeJobScheduler(
+            executor,
+            NullLogger<CompositeJobScheduler>.Instance,
+            context.JobStore,
+            serviceProvider);
+        scheduler.RegisterJob(jobInfo);
+
+        var triggeredInstanceId = await scheduler.TriggerJobAsync(jobInfo.JobName);
+
+        Assert.Equal(string.Empty, triggeredInstanceId);
+        Assert.Equal(0, executor.CallCount);
+    }
+
+    /// <summary>
     /// 任务名为空白时抛出参数异常
     /// </summary>
     [Fact]
@@ -1474,8 +1556,35 @@ public class JobStoreInstanceTests
             Math.Abs((expected - actual).TotalSeconds) < 1,
             $"期望 {expected:O}，实际 {actual:O}");
     }
+
+    /// <summary>
+    /// 记录调用次数的任务执行器
+    /// </summary>
+    private sealed class RecordingJobExecutor : IJobExecutor
+    {
+        private int _callCount;
+
+        /// <summary>
+        /// 被调用的次数
+        /// </summary>
+        public int CallCount => Volatile.Read(ref _callCount);
+
+        /// <summary>
+        /// 记录一次调用并返回成功
+        /// </summary>
+        public Task<JobResult> ExecuteAsync(
+            JobInstance jobInstance,
+            IDictionary<string, object?>? parameters = null,
+            CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _callCount);
+            return Task.FromResult(JobResult.Success());
+        }
+    }
 }
 ```
+
+`超时关闭的非并发任务在宽限期后仍算运行中且调度器不再触发第二份` 用真实的 `CompositeJobScheduler` 走一遍手动触发：`TriggerJobAsync` 在不允许并发且查到运行中实例时返回空字符串、不调用执行器（`CompositeJobScheduler.cs:260-267`）。若截止时刻按 `max(0, timeout)` 计算，查询返回空、调度器返回新实例标识，两个断言都会变红。
 
 `保存后按标识查回任务实例` 用 `+08:00` 偏移的输入：若实体时间列误用了 `DateTimeOffset`，在任何时区的机器上读回都会差出 8 小时，`AssertClose` 变红（硬约束 ②）。
 
@@ -1923,6 +2032,7 @@ dotnet test --project framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHan.
 
 - `保存后按标识查回任务实例` 的时间差出整数小时：实体时间列被声明成了 `DateTimeOffset`，或映射没走 `ToUtc` / `FromUtc`（硬约束 ②）
 - `超过截止时刻的运行中实例不再算运行中` 返回两条：`GetRunningInstancesAsync` 缺了截止时刻条件（硬约束 ①）
+- `超时关闭的非并发任务在宽限期后仍算运行中且调度器不再触发第二份` 查不到运行中实例：映射把 `<= 0` 的超时当成了 0 毫秒（硬约束 ①）。若日后在 MySQL 上写入时报日期越界，检查截止时刻是否被改成了 `DateTime.MaxValue`——它带 7 位小数秒，`datetime` 列按精度四舍五入后会越过 9999-12-31，因此常量取 `9999-12-31 00:00:00`
 - `按开始时间倒序分页返回执行历史` 第 1 页内容不对：核对是否直接把 `pageIndex` 传给了 `ToPageListAsync`
 - `在租户上下文中保存时以宿主上下文写库` 失败：存储绕过了 `TasksHostClientAccessor`（硬约束 ④）
 
@@ -2140,6 +2250,7 @@ git commit -m "feat(tasks-sqlsugar): 以 SqlSugar 存储顶替默认定时任务
 - Modify: `framework/README.md`
 - Modify: `framework/README_cn.md`
 - Modify: `README.md`、`README_cn.md`（只改模块计数）
+- Modify: `docs/index.md`、`docs/introduction.md`、`docs/why.md`（只改模块计数；`docs/packages/index.md` 另有计数一处）
 
 **Interfaces:**
 - Consumes: 两份计划的全部产出
@@ -2151,7 +2262,7 @@ git commit -m "feat(tasks-sqlsugar): 以 SqlSugar 存储顶替默认定时任务
 - 已知边界：第 ① 份 spec §7、本份 spec §7
 - 新增模块要动的地方：仓库根 `CLAUDE.md`「新增一个模块要动的地方」
 
-**本任务禁止事项：** 根 `README.md` / `README_cn.md` **只改模块计数，不往「常用包」表加行**（spec 待确认的决策第 9 条）。**不要**把计数写死成某个数字——实现时读当前值再加一（spec 待确认的决策第 12 条）。**不改** `docs/packages/tasks.md`、`docs/guide/` 下的任何文件。不改 `docs/package.json`、`docs/changelog.md`（版本号与更新日志由发版流程负责）。不把权衡论证写进代码注释。
+**本任务禁止事项：** 根 `README.md` / `README_cn.md` **只改模块计数，不往「常用包」表加行**（spec 待确认的决策第 9 条）。**不要**把计数写死成某个数字——实现时读当前值再加一（spec 待确认的决策第 13 条）。**不改** `docs/packages/tasks.md`、`docs/guide/` 下的任何文件。不改 `docs/package.json`、`docs/changelog.md`（版本号与更新日志由发版流程负责）。不把权衡论证写进代码注释。
 
 - [ ] **Step 1: 补全包 README**
 
@@ -2205,6 +2316,8 @@ git commit -m "feat(tasks-sqlsugar): 以 SqlSugar 存储顶替默认定时任务
 - 多个节点共用一个库时，某节点的运行中实例会让其他节点跳过不允许并发的任务
 - 截止时刻依赖协作式超时：任务代码不响应取消时，可能在截止时刻之后仍在运行，此时调度器会再触发一份
 - 超过截止时刻的遗留实例仍标为 `Running`，只是不再阻塞调度
+- 任务超时小于等于 0（不限时）时，运行中实例在被显式结束之前一直算运行中。这类任务若不允许并发、又在执行途中崩溃，遗留实例会一直阻塞该任务的后续触发。清除方法：调用 `IJobStore.UpdateJobStatusAsync(实例标识, JobStatus.Failed)`，或直接执行 `UPDATE sys_job_instance SET Status = 3 WHERE Basic_Id = '实例标识'`（`3` 为 `JobStatus.Failed`）；遗留实例可按 `Status = 1` 且 `Running_Deadline` 为 `9999-12-31` 查出
+- 经 `UpdateJobStatusAsync` 把实例改成 `Running` 不会写入截止时刻，这样的实例不算运行中；框架内没有这条调用路径
 - `UpdateJobStatusAsync` 只写状态与完成时间，错误信息与耗时记录在执行历史里
 - 读回的实例只还原任务信息的任务名、任务类型（能解析时）、触发类型与租户；执行参数的值读回为 `JsonElement`，无法序列化的参数存为空
 
@@ -2348,7 +2461,7 @@ public class YourAppModule : XiHanModule
 
 ### 定时任务的运行中实例
 
-不允许并发的任务在触发前会查询「是否有运行中实例」。执行途中进程退出会留下一条永远是「运行中」的记录。本包为运行中实例记录截止时刻（开始时间 + 任务超时 + 宽限期），查询只认截止时刻未到的实例。
+不允许并发的任务在触发前会查询「是否有运行中实例」。执行途中进程退出会留下一条永远是「运行中」的记录。本包为运行中实例记录截止时刻（开始时间 + 任务超时 + 宽限期），查询只认截止时刻未到的实例。任务超时小于等于 0（不限时）时截止时刻为 `9999-12-31`，实例在被显式结束之前一直算运行中。
 
 ## 配置
 
@@ -2378,6 +2491,7 @@ public class YourAppModule : XiHanModule
 - **`GetWaitingJobsAsync` 是领取不是查询**。调用后作业已被盖上令牌，不要在别处当作只读查询复用，也不要在事务型工作单元里调用它。
 - **执行记录只增不减**。框架不会自动清理，需应用定期调用 `IJobStore.CleanupHistoryAsync`；放弃的后台作业同样需要应用自行清理。
 - **运行中实例对所有节点可见**。多节点共用一个库时，不允许并发的任务在节点之间也互斥。
+- **不限时的任务要留意遗留实例**。任务超时小于等于 0 时，运行中实例在被显式结束之前一直算运行中；这类任务若不允许并发、又在执行途中崩溃，会一直被跳过。用 `IJobStore.UpdateJobStatusAsync(实例标识, JobStatus.Failed)` 清除，遗留实例的 `Running_Deadline` 为 `9999-12-31`。
 - **跨库写入不是一个事务**。业务数据在模块库或租户独立库时，作业的入队与业务各自提交。
 - **两个存储的生命周期仍是单例**，与主包一致。之后调用 `UseRedisBackgroundJobStore()` 或 `XiHanJobBuilder.UseStore<T>()` 会覆盖本包。
 
@@ -2460,13 +2574,14 @@ public class YourAppModule : XiHanModule
 grep -n "Modules-[0-9]*-1f6feb" README.md README_cn.md
 ```
 
-记下徽章里的数字为 `N`（写本计划时 `N = 68`）。然后列出四个文件里所有出现 `N` 的地方：
+记下徽章里的数字为 `N`（写本计划时 `N = 68`）。然后列出四个 README 与文档站里所有出现 `N` 的地方（把命令里的 `N` 换成实际数字）：
 
 ```bash
 grep -n "N" README.md README_cn.md framework/README.md framework/README_cn.md
+grep -rn "N" docs --include=*.md --exclude-dir=node_modules --exclude-dir=.vitepress
 ```
 
-（把命令里的 `N` 换成实际数字。）写本计划时共 12 处，每个文件 3 处，行号会随先落地的包漂移，**以 grep 结果为准**：
+写本计划时共 20 处，行号会随先落地的包漂移，**以 grep 结果为准**：
 
 | 文件 | 写本计划时的行 | 内容 | 改为 |
 | --- | --- | --- | --- |
@@ -2476,19 +2591,28 @@ grep -n "N" README.md README_cn.md framework/README.md framework/README_cn.md
 | `README_cn.md` | 8、20、55 | 同上三处（`N 个模块化组件`、徽章、`N 个包`） | `N+1` |
 | `framework/README.md` | 55 | `N modules, one per project` | `N+1` |
 | `framework/README.md` | 186 | `src/ ... (N modules)` | `N+1` |
-| `framework/README.md` | 198 | `test/ ... N unit-test projects` —— **测试工程计数**，与模块计数是两个数 | 当前值 + 1（本包新增了一个测试项目） |
+| `framework/README.md` | 198 | `test/ ... N unit-test projects` —— **测试工程计数**，与模块计数是两个数 | 按它自己的当前值 + 1（本包新增了一个测试项目） |
 | `framework/README_cn.md` | 55、186、198 | 同上三处，198 行是测试工程计数 | 同上 |
+| `docs/index.md` | 9、41 | `N 个可独立引用的 NuGet 包`、`N 个包按七层组织` | `N+1` |
+| `docs/introduction.md` | 57 | `参考手册**（N 页）` | `N+1`（本包新增了一页） |
+| `docs/why.md` | 86、123、142、160 | `N 个可独立引用的 NuGet 包`、`N 个包可以单独引用`、`包参考 N 页`、`N 个包逐一查阅` | `N+1`；142 行同一行的「开发指南 38 章」不改（本包没有新增指南章节） |
+| `docs/packages/index.md` | 3 | `**N 个 NuGet 包**组成` | `N+1` |
 
-注意：`framework/README*.md` 第 198 行那一处是**测试工程**计数，它当前恰好也等于模块计数，但两者独立——若 grep 出的测试工程计数与模块计数不同，按它自己的当前值加一。
+注意：
 
-grep 命中的行里若有与计数无关的同一数字（例如某个版本号、端口），不要改。改完再跑一次：
+- `framework/README*.md` 第 198 行是**测试工程**计数，它当前恰好也等于模块计数，但两者独立——若 grep 出的测试工程计数与模块计数不同，按它自己的当前值加一
+- `docs/changelog.md` 里若命中，是历史版本的记录，**不改**
+- grep 命中的行里若有与计数无关的同一数字（例如版本号、端口），不要改
+
+改完再跑一次：
 
 ```bash
 grep -n "Modules-[0-9]*-1f6feb" README.md README_cn.md
-grep -rn "N" README.md README_cn.md framework/README.md framework/README_cn.md
+grep -n "N" README.md README_cn.md framework/README.md framework/README_cn.md
+grep -rn "N" docs --include=*.md --exclude-dir=node_modules --exclude-dir=.vitepress
 ```
 
-预期：两个徽章都是 `N+1`；第二条命令（`N` 仍为旧值）不再命中任何计数位置。
+预期：两个徽章都是 `N+1`；后两条命令（`N` 仍为旧值）除 `docs/changelog.md` 的历史记录外不再命中任何计数位置。
 
 根 README 的「常用包」表**不加行**。
 
@@ -2535,7 +2659,8 @@ dotnet test --project framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHan.
 - [ ] **Step 10: 提交**
 
 ```bash
-git add framework/src/XiHan.Framework.Tasks.SqlSugar/README.md docs/packages/tasks-sqlsugar.md docs/packages/index.md docs/.vitepress/config.ts framework/README.md framework/README_cn.md README.md README_cn.md
+git add framework/src/XiHan.Framework.Tasks.SqlSugar/README.md framework/README.md framework/README_cn.md README.md README_cn.md docs
+git status
 git commit -m "docs(tasks-sqlsugar): 补写包说明与文档站条目"
 ```
 
@@ -2550,10 +2675,11 @@ git commit -m "docs(tasks-sqlsugar): 补写包说明与文档站条目"
 - `AddXiHanTasksSqlSugar` 之后容器里 `IBackgroundJobStore`、`IJobStore` 各只有一条注册，实现类型为本包的类型，生命周期 `Singleton`；`ValidateScopes = true` 时均可从根容器解析
 - `IJobStore` 的 7 个方法行为与 `DefaultJobStore` 一致（参数校验、补完成时间、补历史标识、倒序分页）
 - 超过截止时刻的运行中实例不出现在 `GetRunningInstancesAsync` 的结果里，但 `GetJobInstanceAsync` 仍如实返回其 `Running` 状态
+- 任务超时小于等于 0 时截止时刻为 `JobStoreMapper.UnboundedRunningDeadline`；不允许并发的这类任务在宽限期之后仍算运行中，`CompositeJobScheduler.TriggerJobAsync` 返回空字符串且不调用执行器
 - 以 `+08:00` 写入的时间读回后瞬时不变
 - 在租户上下文里保存实例时，SQL 执行期间当前租户为 `null`，行上保留实例自带的租户
 - `CleanupHistoryAsync` 删除过期历史与过期的已结束实例，保留运行中实例
-- 包 README 七段结构、`docs/packages/tasks-sqlsugar.md`、`docs/packages/index.md`、`docs/.vitepress/config.ts`、`framework/README.md`、`framework/README_cn.md` 全部更新；四个 README 的模块计数（含两个徽章）与 `framework/README*.md` 的测试工程计数各按当前值加一；根 README 的「常用包」表未加行
+- 包 README 七段结构、`docs/packages/tasks-sqlsugar.md`、`docs/packages/index.md`、`docs/.vitepress/config.ts`、`framework/README.md`、`framework/README_cn.md` 全部更新；四个 README 与文档站的模块计数（含两个徽章，以 grep 结果为准，写计划时共 20 处）与 `framework/README*.md` 的测试工程计数各按当前值加一；根 README 的「常用包」表未加行
 - 本机配置 `XIHAN_TEST_MYSQL` 后第 ① 份的并发测试仍通过
 
 ## 已知边界（写入 PR 描述，不写进代码注释）
@@ -2563,6 +2689,9 @@ git commit -m "docs(tasks-sqlsugar): 补写包说明与文档站条目"
 - **运行中实例对所有节点可见**：多节点共用一个库时，不允许并发的任务在节点之间也互斥，与内存存储「只看本进程」不同。
 - **截止时刻依赖协作式超时**：任务代码不响应取消时，可能在截止时刻之后仍在运行，调度器会再触发一份。
 - **遗留记录不改状态**：超过截止时刻的遗留实例仍标为 `Running`。
+- **不限时任务的遗留实例会一直阻塞**：任务超时小于等于 0 时截止时刻为 9999-12-31。不允许并发的这类任务在执行途中崩溃后，遗留实例会一直让后续触发被跳过，需运维调用 `UpdateJobStatusAsync(实例标识, JobStatus.Failed)` 或直接把该行 `Status` 改为 3 清除。这是「不允许并发」优先于「可用性」的取舍，见 spec 待确认的决策第 10 条。
+- **改成 `Running` 不写截止时刻**：经 `UpdateJobStatusAsync` 把实例改成 `Running` 的不算运行中；框架内没有这条调用路径。
+- **参数序列化只兜住两类异常**：`NotSupportedException` 与 `JsonException` 存为空；参数对象的属性 getter 抛出的其他异常仍会让保存实例失败、任务不执行。
 - **实例状态字段有限**：`UpdateJobStatusAsync` 只写状态与完成时间，错误信息与耗时在历史行里。
 - **`JobInfo` 只还原最小快照**；**参数读回为 `JsonElement`**，无法序列化的参数存为空。
 - **只落宿主主库**，与第 ① 份一致。

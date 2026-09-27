@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 以 SqlSugar 实现替换 `IWorkflowBookmarkStore`（10 个方法），用真实 `WorkflowEngine` 跑通六个端到端流程，并完成新包的全部登记与文档。
+**Goal:** 以 SqlSugar 实现替换 `IWorkflowBookmarkStore`（10 个方法），加上书签消费守卫（`DeleteAsync` 删到 0 行抛 `WorkflowException`）与进程内锁的启动警告，用真实 `WorkflowEngine` 跑通六个端到端流程与一个双节点竞争用例，并完成新包的全部登记与文档。
 
 **Architecture:** 一张表 `sys_workflow_bookmark`，四个索引覆盖全部查询（实例、节点实例、到期时间、种类+键+创建时间）。按种类与键匹配的两个查询在数据库条件之后再按序数比较过滤一遍，使匹配区分大小写且不受数据库排序规则影响。所有读写经第 1 份的 `WorkflowSqlSugarExecutor`。端到端测试用 `AddXiHanWorkflow` + `AddXiHanWorkflowSqlSugar` 组装真实引擎，存储落在临时 SQLite。
 
@@ -93,6 +93,10 @@ IWorkflowEngine.CancelAsync(string instanceId, string? reason = null, Cancellati
 IWorkflowUserTaskService.GetPendingAsync(string assigneeId, CancellationToken cancellationToken = default)
 IWorkflowUserTaskService.CompleteAsync(string taskId, string actorId, string outcome, string? comment = null, Dictionary<string, object?>? variables = null, CancellationToken cancellationToken = default)
 XiHanWorkflowOptions.NotResumableTimerBackoffSeconds   // 默认 300
+XiHan.Framework.Workflow.Abstractions.Exceptions.WorkflowException(string message)
+XiHan.Framework.Core.Application.ApplicationInitializationContext.ServiceProvider   // IServiceProvider
+XiHanModule.OnApplicationInitialization(ApplicationInitializationContext context)  // public virtual void
+XiHan.Framework.Caching.Distributed.DefaultDistributedLock                          // public sealed，无参构造，只在进程内互斥
 ```
 
 **编码约定**：每个 `.cs` 以两行版权声明开头（`XHFH001`）；注释与 XML 文档注释一律简体中文、只写代码做什么；file-scoped namespace；表达式体方法与构造函数关闭（属性与访问器可以）；`public` 成员必须有 `<summary>`。
@@ -136,13 +140,15 @@ MySQL 默认排序规则不区分大小写，SQLite 区分——单元测试永�
 
 **③ `GetDueAsync` 必须同时有 `DueTime != null`、`DueTime <= now`、`Take(max)`，且 `max <= 0` 直接返回空。**
 
-**④ 所有读写经执行器；`UpdateAsync` 纯更新；`DeleteAsync` 删到 0 行不报错。**
+**④ 所有读写经执行器；`UpdateAsync` 纯更新；`DeleteAsync` 删到 0 行抛 `WorkflowException`；`DeleteByInstanceAsync` 删到 0 行不抛。**
+
+`DeleteAsync` 的 0 行抛出是书签消费守卫（spec §4.7）：没有 Redis 锁时，它让同一书签只被一个节点推进。它有意比内存默认实现更严格。单元测试只证明存储会抛出；只有双节点竞争用例能证明引擎路径被拦住：去掉守卫时 Task 3 的单元测试会变红，但端到端用例照样全绿，因此 Task 7 必须做反向验证。
 
 **⑤ 端到端测试主机必须 `CreateScope()` 后从作用域解析引擎与存储。**
 
 **⑥ 不改 `docs/packages/workflow.md`、`XiHan.Framework.Workflow` 与 `Workflow.Abstractions` 的任何文件；根目录 `README.md` / `README_cn.md` 只改模块计数，不在「常用包」表格加行。**
 
-**⑦ 模块计数不写死。** 实现时读出当前值再加一，见 Task 8 Step 5。
+**⑦ 模块计数不写死。** 实现时读出当前值再加一，见 Task 10 Step 5。
 
 ---
 
@@ -154,6 +160,8 @@ framework/src/XiHan.Framework.Workflow.SqlSugar/
   Mapping/WorkflowBookmarkMapper.cs                                          新建
   Stores/SqlSugarWorkflowBookmarkStore.cs                                    新建
   Extensions/DependencyInjection/XiHanWorkflowSqlSugarServiceCollectionExtensions.cs   修改：追加一行 Replace
+  Extensions/DependencyInjection/XiHanWorkflowSqlSugarServiceProviderExtensions.cs   新建：进程内锁警告
+  XiHanWorkflowSqlSugarModule.cs                                             修改：OnApplicationInitialization 调警告
   README.md                                                                  新建
 
 framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/
@@ -166,6 +174,9 @@ framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/
   EngineTestDoubles.cs                                                       新建
   WorkflowEngineTestHost.cs                                                  新建
   WorkflowEngineEndToEndTests.cs                                             新建
+  RendezvousBookmarkStore.cs                                                 新建：让两个节点的书签删除同时发生
+  WorkflowBookmarkRaceMySqlTests.cs                                          新建：双节点竞争同一到期书签
+  DistributedLockWarningTests.cs                                             新建
 
 docs/packages/workflow-sqlsugar.md                                           新建
 docs/packages/index.md                                                       修改：加一行
@@ -615,6 +626,7 @@ git commit -m "feat(workflow-sqlsugar): 新增流程书签映射"
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using XiHan.Framework.Workflow.Abstractions;
+using XiHan.Framework.Workflow.Abstractions.Exceptions;
 using XiHan.Framework.Workflow.Abstractions.Runtime;
 using XiHan.Framework.Workflow.SqlSugar.Entities;
 using XiHan.Framework.Workflow.SqlSugar.Stores;
@@ -797,12 +809,35 @@ public class SqlSugarWorkflowBookmarkStoreTests : IDisposable
         await _store.InsertAsync(NewBookmark("b3", WorkflowBookmarkKinds.Timer, null, instanceId: "i2"));
 
         await _store.DeleteAsync("b1");
-        await _store.DeleteAsync("missing");
         Assert.Null(await _store.FindAsync("b1"));
 
         await _store.DeleteByInstanceAsync("i1");
         Assert.Empty(await _store.GetByInstanceAsync("i1"));
         Assert.Equal("b3", Assert.Single(await _store.GetByInstanceAsync("i2")).Id);
+    }
+
+    /// <summary>
+    /// 删除不存在或已被删除的书签抛出工作流异常
+    /// </summary>
+    [Fact]
+    public async Task 删除不存在或已被删除的书签抛出工作流异常()
+    {
+        await _store.InsertAsync(NewBookmark("b1", WorkflowBookmarkKinds.Timer, null));
+        await _store.DeleteAsync("b1");
+
+        await Assert.ThrowsAsync<WorkflowException>(() => _store.DeleteAsync("b1"));
+        await Assert.ThrowsAsync<WorkflowException>(() => _store.DeleteAsync("missing"));
+    }
+
+    /// <summary>
+    /// 删除没有书签的实例不抛异常
+    /// </summary>
+    [Fact]
+    public async Task 删除没有书签的实例不抛异常()
+    {
+        await _store.DeleteByInstanceAsync("no-bookmarks");
+
+        Assert.Empty(await _store.GetByInstanceAsync("no-bookmarks"));
     }
 
     /// <summary>
@@ -868,6 +903,7 @@ dotnet test --project framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/XiH
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using XiHan.Framework.Workflow.Abstractions;
+using XiHan.Framework.Workflow.Abstractions.Exceptions;
 using XiHan.Framework.Workflow.Abstractions.Runtime;
 using XiHan.Framework.Workflow.Abstractions.Stores;
 using XiHan.Framework.Workflow.SqlSugar.Entities;
@@ -880,6 +916,7 @@ namespace XiHan.Framework.Workflow.SqlSugar.Stores;
 /// </summary>
 /// <remarks>
 /// 按种类与索引键匹配的查询在数据库条件之后再按序数比较过滤，匹配区分大小写。
+/// 按标识删除时未删到任何行即抛出 <see cref="WorkflowException"/>。
 /// </remarks>
 public class SqlSugarWorkflowBookmarkStore : IWorkflowBookmarkStore
 {
@@ -1058,18 +1095,24 @@ public class SqlSugarWorkflowBookmarkStore : IWorkflowBookmarkStore
     }
 
     /// <summary>
-    /// 删除书签
+    /// 删除书签，未删到任何行时抛出异常
     /// </summary>
     /// <param name="id">书签标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>任务</returns>
+    /// <exception cref="WorkflowException">书签不存在或已被删除</exception>
     public async Task DeleteAsync(string id, CancellationToken cancellationToken = default)
     {
-        await _executor.ExecuteAsync(
+        var affected = await _executor.ExecuteAsync(
             client => client.Deleteable<SysWorkflowBookmark>()
                 .Where(item => item.BasicId == id)
                 .ExecuteCommandAsync(cancellationToken),
             cancellationToken);
+
+        if (affected == 0)
+        {
+            throw new WorkflowException($"书签 {id} 不存在或已被处理");
+        }
     }
 
     /// <summary>
@@ -1097,7 +1140,7 @@ dotnet test --project framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/XiH
 
 预期：全部 PASS。
 
-**若 `信号相关性为空串时不是广播` 读到全部四个**，说明相关性条件被写成了 `IsNullOrEmpty`（硬约束 ②）。**若 `到期查询...` 包含 `no-due`**，检查 `DueTime != null`。改实现，不改断言。**若 SqlSugar 对 `item.DueTime <= now` 报表达式不支持**，改写为 `item.DueTime!.Value <= now`，其余不动。
+**若 `删除不存在或已被删除的书签抛出工作流异常` 失败**，检查 `DeleteAsync` 是否判断了受影响行数。**若 `信号相关性为空串时不是广播` 读到全部四个**，说明相关性条件被写成了 `IsNullOrEmpty`（硬约束 ②）。**若 `到期查询...` 包含 `no-due`**，检查 `DueTime != null`。改实现，不改断言。**若 SqlSugar 对 `item.DueTime <= now` 报表达式不支持**，改写为 `item.DueTime!.Value <= now`，其余不动。
 
 - [ ] **Step 5: 验证构建并提交**
 
@@ -1105,6 +1148,15 @@ dotnet test --project framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/XiH
 dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false
 git add framework/src/XiHan.Framework.Workflow.SqlSugar framework/test/XiHan.Framework.Workflow.SqlSugar.Tests
 git commit -m "feat(workflow-sqlsugar): 新增 SqlSugar 流程书签存储"
+```
+
+提交信息正文写明守卫的取舍（注释里不写）：
+
+```
+书签按标识删除未删到任何行时抛 WorkflowException。
+引擎消费书签的删除在执行批次开始之前，两个节点竞争同一书签时后删者在此放弃，
+批次不开始、不留半写状态；定时器 Worker 与信号投递已把 WorkflowException 当作并发处理跳过。
+比内存默认实现更严格：后者删除不存在的键静默成功。
 ```
 
 预期：**0 Warning(s) 0 Error(s)**。
@@ -1121,7 +1173,7 @@ git commit -m "feat(workflow-sqlsugar): 新增 SqlSugar 流程书签存储"
 - Consumes: Task 3 的存储；`ServiceRegistrationTests.CreateServices(bool)`
 - Produces: `services.Replace(ServiceDescriptor.Scoped<IWorkflowBookmarkStore, SqlSugarWorkflowBookmarkStore>())`
 
-**参考来源（动手前先读）：** `framework/src/XiHan.Framework.Workflow/Extensions/DependencyInjection/XiHanWorkflowServiceCollectionExtensions.cs:48-50`。
+**参考来源（动手前先读）：** `framework/src/XiHan.Framework.Workflow/Extensions/DependencyInjection/XiHanWorkflowServiceCollectionExtensions.cs:51-53`。
 
 **本任务禁止事项：** 不用 `TryAdd`；生命周期保持 Scoped。
 
@@ -1346,7 +1398,7 @@ git commit -m "test(workflow-sqlsugar): 新增书签匹配区分大小写的真�
 
 **Interfaces:**
 - Consumes: 三个 SqlSugar 存储与注册扩展；`WorkflowTestDatabase`；主包 `AddXiHanWorkflow`
-- Produces: 测试主机 `WorkflowEngineTestHost`（属性 `Clock`、`Engine`、`DefinitionManager`、`UserTaskService`、`InstanceStore`、`BookmarkStore`；方法 `PublishAsync(WorkflowDefinition)`、`ReloadAsync(string)`）
+- Produces: 测试主机 `WorkflowEngineTestHost`，构造 `(WorkflowTestDatabase? database = null, Action<IServiceCollection>? configureServices = null, ushort workerId = 1)`（`database` 为空时新建临时 SQLite 库，主机负责释放）；属性 `Clock`、`Engine`、`DefinitionManager`、`UserTaskService`、`InstanceStore`、`BookmarkStore`、`DefinitionStore`；方法 `Task<WorkflowDefinition> PublishAsync(WorkflowDefinition)`（返回已发布的定义）、`ReloadAsync(string)`
 
 **参考来源（动手前先读）：**
 - `framework/test/XiHan.Framework.Workflow.Tests/WorkflowTestHost.cs`（测试替身照抄）
@@ -1610,15 +1662,23 @@ namespace XiHan.Framework.Workflow.SqlSugar.Tests;
 /// </summary>
 internal sealed class WorkflowEngineTestHost : IDisposable
 {
-    private readonly WorkflowTestDatabase _database = WorkflowTestDatabase.CreateSqlite();
+    private readonly WorkflowTestDatabase _database;
     private readonly ServiceProvider _provider;
     private readonly IServiceScope _scope;
 
     /// <summary>
     /// 构造函数
     /// </summary>
-    public WorkflowEngineTestHost()
+    /// <param name="database">测试库，为空时新建临时 SQLite 库；主机负责释放</param>
+    /// <param name="configureServices">在本包注册之后追加的服务注册</param>
+    /// <param name="workerId">雪花标识的工作节点号，多个主机共用一个库时各取不同值</param>
+    public WorkflowEngineTestHost(
+        WorkflowTestDatabase? database = null,
+        Action<IServiceCollection>? configureServices = null,
+        ushort workerId = 1)
     {
+        _database = database ?? WorkflowTestDatabase.CreateSqlite();
+
         var services = new ServiceCollection();
         var configuration = new ConfigurationBuilder().Build();
 
@@ -1630,7 +1690,7 @@ internal sealed class WorkflowEngineTestHost : IDisposable
         services.AddSingleton<IClock>(Clock);
         services.AddSingleton<ICurrentTenant>(new TestCurrentTenant());
         services.AddSingleton<IDistributedLock>(new InProcessTestLock());
-        services.AddSingleton(IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload());
+        services.AddSingleton(IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload(workerId));
 
         services.AddXiHanWorkflow(configuration);
         services.Replace(ServiceDescriptor.Singleton<IWorkflowEventPublisher, NullWorkflowEventPublisher>());
@@ -1638,6 +1698,7 @@ internal sealed class WorkflowEngineTestHost : IDisposable
         services.AddSingleton<ISqlSugarClientResolver>(_database.Resolver);
         services.AddSingleton(_database.UnitOfWorkManager);
         services.AddXiHanWorkflowSqlSugar(configuration);
+        configureServices?.Invoke(services);
 
         _provider = services.BuildServiceProvider();
         _scope = _provider.CreateScope();
@@ -1674,14 +1735,19 @@ internal sealed class WorkflowEngineTestHost : IDisposable
     public IWorkflowBookmarkStore BookmarkStore => _scope.ServiceProvider.GetRequiredService<IWorkflowBookmarkStore>();
 
     /// <summary>
+    /// 定义存储
+    /// </summary>
+    public IWorkflowDefinitionStore DefinitionStore => _scope.ServiceProvider.GetRequiredService<IWorkflowDefinitionStore>();
+
+    /// <summary>
     /// 创建并发布定义
     /// </summary>
     /// <param name="definition">定义内容</param>
-    /// <returns>任务</returns>
-    public async Task PublishAsync(WorkflowDefinition definition)
+    /// <returns>已发布的定义</returns>
+    public async Task<WorkflowDefinition> PublishAsync(WorkflowDefinition definition)
     {
         var created = await DefinitionManager.CreateAsync(definition);
-        await DefinitionManager.PublishAsync(created.Id);
+        return await DefinitionManager.PublishAsync(created.Id);
     }
 
     /// <summary>
@@ -1960,7 +2026,628 @@ git commit -m "test(workflow-sqlsugar): 新增以 SqlSugar 存储运行真实引
 
 ---
 
-### Task 7: 包 README
+### Task 7: 双节点竞争同一到期书签（MySQL）
+
+**Files:**
+- Create: `framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/RendezvousBookmarkStore.cs`
+- Create: `framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowBookmarkRaceMySqlTests.cs`
+
+**Interfaces:**
+- Consumes: Task 3 的 `SqlSugarWorkflowBookmarkStore`（`DeleteAsync` 的 0 行抛出）；Task 6 的 `WorkflowEngineTestHost(WorkflowTestDatabase?, Action<IServiceCollection>?, ushort)`、`PublishAsync` 返回定义、`DefinitionStore`；第 1 份的 `WorkflowTestDatabase.CreateMySql`
+- Produces: 测试辅助 `DeleteRendezvous`（构造 `(int parties)`，属性 `string? BookmarkId`，方法 `Task ArriveAsync(string id)`）、`RendezvousBookmarkStore : IWorkflowBookmarkStore`（构造 `(IWorkflowBookmarkStore inner, DeleteRendezvous rendezvous)`）
+
+**参考来源（动手前先读）：**
+- spec §4.7（调用点与守卫机制）、§6 第二层第二个用例
+- `framework/src/XiHan.Framework.Workflow/Engine/WorkflowEngine.cs:370-400`（`ResumeBookmarkCoreAsync` 的锁内二次查找）与 `:490-520`（消费删除）
+
+**本任务禁止事项：** 两个主机不得共用同一个 `WorkflowTestDatabase` 或同一把锁——各自一套才是「两个进程、没有 Redis」。雪花工作节点号必须不同。不为让用例变绿而放宽断言。
+
+- [ ] **Step 1: 创建汇合装饰器**
+
+`framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/RendezvousBookmarkStore.cs`：
+
+```csharp
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using XiHan.Framework.Workflow.Abstractions.Runtime;
+using XiHan.Framework.Workflow.Abstractions.Stores;
+
+namespace XiHan.Framework.Workflow.SqlSugar.Tests;
+
+/// <summary>
+/// 让多个调用方对同一书签的删除在同一时刻放行的汇合点
+/// </summary>
+internal sealed class DeleteRendezvous
+{
+    private readonly int _parties;
+    private readonly TaskCompletionSource _allArrived = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _arrived;
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="parties">需要汇合的调用方数量</param>
+    public DeleteRendezvous(int parties)
+    {
+        _parties = parties;
+    }
+
+    /// <summary>
+    /// 需要汇合的书签标识，为空时不拦截任何删除
+    /// </summary>
+    public string? BookmarkId { get; set; }
+
+    /// <summary>
+    /// 到达汇合点，目标书签的删除要等全部调用方到达后才放行
+    /// </summary>
+    /// <param name="id">正在删除的书签标识</param>
+    /// <returns>任务</returns>
+    public async Task ArriveAsync(string id)
+    {
+        if (!string.Equals(id, BookmarkId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (Interlocked.Increment(ref _arrived) >= _parties)
+        {
+            _allArrived.TrySetResult();
+        }
+
+        await _allArrived.Task.WaitAsync(TimeSpan.FromSeconds(30));
+    }
+}
+
+/// <summary>
+/// 在删除前经过汇合点的书签存储装饰器
+/// </summary>
+internal sealed class RendezvousBookmarkStore : IWorkflowBookmarkStore
+{
+    private readonly IWorkflowBookmarkStore _inner;
+    private readonly DeleteRendezvous _rendezvous;
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="inner">被装饰的书签存储</param>
+    /// <param name="rendezvous">删除汇合点</param>
+    public RendezvousBookmarkStore(IWorkflowBookmarkStore inner, DeleteRendezvous rendezvous)
+    {
+        _inner = inner;
+        _rendezvous = rendezvous;
+    }
+
+    /// <summary>
+    /// 按标识查找书签
+    /// </summary>
+    /// <param name="id">书签标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>书签</returns>
+    public Task<WorkflowBookmark?> FindAsync(string id, CancellationToken cancellationToken = default)
+    {
+        return _inner.FindAsync(id, cancellationToken);
+    }
+
+    /// <summary>
+    /// 获取实例的全部书签
+    /// </summary>
+    /// <param name="instanceId">实例标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>书签列表</returns>
+    public Task<List<WorkflowBookmark>> GetByInstanceAsync(string instanceId, CancellationToken cancellationToken = default)
+    {
+        return _inner.GetByInstanceAsync(instanceId, cancellationToken);
+    }
+
+    /// <summary>
+    /// 获取节点实例的全部书签
+    /// </summary>
+    /// <param name="nodeInstanceId">节点实例标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>书签列表</returns>
+    public Task<List<WorkflowBookmark>> GetByNodeInstanceAsync(string nodeInstanceId, CancellationToken cancellationToken = default)
+    {
+        return _inner.GetByNodeInstanceAsync(nodeInstanceId, cancellationToken);
+    }
+
+    /// <summary>
+    /// 获取到期的定时类书签
+    /// </summary>
+    /// <param name="now">当前时间</param>
+    /// <param name="maxResultCount">最大返回条数</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>到期书签列表</returns>
+    public Task<List<WorkflowBookmark>> GetDueAsync(DateTime now, int maxResultCount, CancellationToken cancellationToken = default)
+    {
+        return _inner.GetDueAsync(now, maxResultCount, cancellationToken);
+    }
+
+    /// <summary>
+    /// 按种类和索引键查询书签
+    /// </summary>
+    /// <param name="kind">书签种类</param>
+    /// <param name="key">索引键</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>书签列表</returns>
+    public Task<List<WorkflowBookmark>> GetByKindAndKeyAsync(string kind, string key, CancellationToken cancellationToken = default)
+    {
+        return _inner.GetByKindAndKeyAsync(kind, key, cancellationToken);
+    }
+
+    /// <summary>
+    /// 查询匹配信号的书签
+    /// </summary>
+    /// <param name="signalName">信号名称</param>
+    /// <param name="correlationId">业务相关性标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>书签列表</returns>
+    public Task<List<WorkflowBookmark>> GetBySignalAsync(string signalName, string? correlationId, CancellationToken cancellationToken = default)
+    {
+        return _inner.GetBySignalAsync(signalName, correlationId, cancellationToken);
+    }
+
+    /// <summary>
+    /// 插入书签
+    /// </summary>
+    /// <param name="bookmark">书签</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>任务</returns>
+    public Task InsertAsync(WorkflowBookmark bookmark, CancellationToken cancellationToken = default)
+    {
+        return _inner.InsertAsync(bookmark, cancellationToken);
+    }
+
+    /// <summary>
+    /// 更新书签
+    /// </summary>
+    /// <param name="bookmark">书签</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>任务</returns>
+    public Task UpdateAsync(WorkflowBookmark bookmark, CancellationToken cancellationToken = default)
+    {
+        return _inner.UpdateAsync(bookmark, cancellationToken);
+    }
+
+    /// <summary>
+    /// 经过汇合点后删除书签
+    /// </summary>
+    /// <param name="id">书签标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>任务</returns>
+    public async Task DeleteAsync(string id, CancellationToken cancellationToken = default)
+    {
+        await _rendezvous.ArriveAsync(id);
+        await _inner.DeleteAsync(id, cancellationToken);
+    }
+
+    /// <summary>
+    /// 删除实例的全部书签
+    /// </summary>
+    /// <param name="instanceId">实例标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>任务</returns>
+    public Task DeleteByInstanceAsync(string instanceId, CancellationToken cancellationToken = default)
+    {
+        return _inner.DeleteByInstanceAsync(instanceId, cancellationToken);
+    }
+}
+```
+
+- [ ] **Step 2: 写双节点竞争用例**
+
+`framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowBookmarkRaceMySqlTests.cs`：
+
+```csharp
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using XiHan.Framework.Workflow.Abstractions.Definitions;
+using XiHan.Framework.Workflow.Abstractions.Exceptions;
+using XiHan.Framework.Workflow.Abstractions.Runtime;
+using XiHan.Framework.Workflow.Abstractions.Stores;
+using XiHan.Framework.Workflow.Builders;
+using XiHan.Framework.Workflow.SqlSugar.Stores;
+
+namespace XiHan.Framework.Workflow.SqlSugar.Tests;
+
+/// <summary>
+/// 两个节点在没有跨进程锁时竞争同一书签的真实数据库测试
+/// </summary>
+/// <remarks>
+/// 地址取环境变量 <c>XIHAN_TEST_MYSQL</c>，未设置时跳过。
+/// 两个主机各自一套连接与进程内锁，共用同一个库。
+/// </remarks>
+public class WorkflowBookmarkRaceMySqlTests
+{
+    private const string SkipReason = "未设置 XIHAN_TEST_MYSQL，跳过真实数据库测试。";
+
+    private static readonly string? ConnectionString =
+        Environment.GetEnvironmentVariable("XIHAN_TEST_MYSQL");
+
+    /// <summary>
+    /// 两个节点竞争同一到期书签时只有一个执行批次运行
+    /// </summary>
+    [Fact]
+    public async Task 两个节点竞争同一到期书签时只有一个执行批次运行()
+    {
+        Assert.SkipWhen(string.IsNullOrWhiteSpace(ConnectionString), SkipReason);
+
+        var rendezvous = new DeleteRendezvous(parties: 2);
+        using var nodeA = new WorkflowEngineTestHost(
+            WorkflowTestDatabase.CreateMySql(ConnectionString!), services => UseRendezvous(services, rendezvous), workerId: 11);
+        using var nodeB = new WorkflowEngineTestHost(
+            WorkflowTestDatabase.CreateMySql(ConnectionString!), services => UseRendezvous(services, rendezvous), workerId: 12);
+
+        var code = "race-" + Guid.NewGuid().ToString("N");
+        WorkflowDefinition? definition = null;
+        WorkflowInstance? instance = null;
+
+        try
+        {
+            definition = await nodeA.PublishAsync(BuildDelayDefinition(code));
+            instance = await nodeA.Engine.StartAsync(new WorkflowStartRequest { DefinitionCode = code });
+
+            var timer = Assert.Single(await nodeA.BookmarkStore.GetByInstanceAsync(instance.Id));
+            rendezvous.BookmarkId = timer.Id;
+            nodeA.Clock.Advance(TimeSpan.FromSeconds(301));
+            nodeB.Clock.Advance(TimeSpan.FromSeconds(301));
+
+            var outcomes = await Task.WhenAll(
+                TryResumeAsync(nodeA, timer.Id),
+                TryResumeAsync(nodeB, timer.Id));
+
+            Assert.Equal(1, outcomes.Count(resumed => resumed));
+            Assert.Equal(WorkflowInstanceStatus.Completed, (await nodeA.ReloadAsync(instance.Id)).Status);
+
+            var history = await nodeA.InstanceStore.GetNodeInstancesAsync(instance.Id);
+            Assert.Single(history, item => item.NodeId == "end");
+        }
+        finally
+        {
+            rendezvous.BookmarkId = null;
+
+            if (instance is not null)
+            {
+                await nodeA.BookmarkStore.DeleteByInstanceAsync(instance.Id);
+                await nodeA.InstanceStore.DeleteAsync(instance.Id);
+            }
+
+            if (definition is not null)
+            {
+                await nodeA.DefinitionStore.DeleteAsync(definition.Id);
+            }
+            else
+            {
+                var drafts = await nodeA.DefinitionStore.GetListAsync(code: code);
+                foreach (var draft in drafts)
+                {
+                    await nodeA.DefinitionStore.DeleteAsync(draft.Id);
+                }
+            }
+        }
+    }
+
+    private static void UseRendezvous(IServiceCollection services, DeleteRendezvous rendezvous)
+    {
+        services.Replace(ServiceDescriptor.Scoped<IWorkflowBookmarkStore>(provider => new RendezvousBookmarkStore(
+            new SqlSugarWorkflowBookmarkStore(provider.GetRequiredService<WorkflowSqlSugarExecutor>()),
+            rendezvous)));
+    }
+
+    private static async Task<bool> TryResumeAsync(WorkflowEngineTestHost node, string bookmarkId)
+    {
+        try
+        {
+            await node.Engine.ResumeBookmarkAsync(bookmarkId);
+            return true;
+        }
+        catch (WorkflowException)
+        {
+            return false;
+        }
+    }
+
+    private static WorkflowDefinition BuildDelayDefinition(string code)
+    {
+        return WorkflowDefinitionBuilder.Create(code, "竞争流程")
+            .AddStart()
+            .AddDelay("wait", 300)
+            .AddEnd()
+            .AddTransition("start", "wait")
+            .AddTransition("wait", "end")
+            .Build();
+    }
+}
+```
+
+汇合点只拦截目标书签的删除：两个节点都已在各自的实例锁内 `FindAsync` 到该书签、都走到 `WorkflowEngine.cs:518` 才会放行，竞争必然发生。没有汇合点，两个调用的先后取决于调度，用例可能碰巧只跑一个批次而掩盖守卫缺失。
+
+- [ ] **Step 3: 无环境变量时确认跳过**
+
+```bash
+dotnet test --project framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/XiHan.Framework.Workflow.SqlSugar.Tests.csproj -c Release
+```
+
+预期：该用例 skipped，其余 PASS。
+
+- [ ] **Step 4: 本机真库运行**
+
+```bash
+export XIHAN_TEST_MYSQL="Server=localhost;Port=3306;Database=xihan_test;Uid=root;Pwd=your_password;AllowPublicKeyRetrieval=true;SslMode=None;"
+dotnet test --project framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/XiHan.Framework.Workflow.SqlSugar.Tests.csproj -c Release
+```
+
+预期：`两个节点竞争同一到期书签时只有一个执行批次运行` PASS。
+
+**若抛 `TimeoutException`**：只有一个节点走到了删除——另一个节点在锁内 `FindAsync` 时已找不到书签。检查 `rendezvous.BookmarkId` 是否在两次 `TryResumeAsync` 之前设置，以及装饰器是否替换进了容器（`configureServices` 必须在 `AddXiHanWorkflowSqlSugar` 之后执行）。
+
+- [ ] **Step 5: 反向验证：拿掉守卫后必须变红**
+
+临时把 `SqlSugarWorkflowBookmarkStore.DeleteAsync` 里的
+
+```csharp
+        if (affected == 0)
+        {
+            throw new WorkflowException($"书签 {id} 不存在或已被处理");
+        }
+```
+
+整段删掉，重跑 Step 4。
+
+预期：本用例 **FAIL** 于 `Assert.Equal(1, outcomes.Count(...))`（两个调用都成功；若继续执行，`end` 节点出现两条）。同时 Task 3 的 `删除不存在或已被删除的书签抛出工作流异常` 也 FAIL。
+
+确认后恢复，重跑确认全绿，`git diff` 确认存储无残留改动。
+
+- [ ] **Step 6: 提交**
+
+```bash
+git add framework/test/XiHan.Framework.Workflow.SqlSugar.Tests
+git commit -m "test(workflow-sqlsugar): 新增两个节点竞争同一书签只推进一次的真实数据库用例"
+```
+
+---
+
+### Task 8: 进程内锁的启动警告
+
+**Files:**
+- Create: `framework/src/XiHan.Framework.Workflow.SqlSugar/Extensions/DependencyInjection/XiHanWorkflowSqlSugarServiceProviderExtensions.cs`
+- Modify: `framework/src/XiHan.Framework.Workflow.SqlSugar/XiHanWorkflowSqlSugarModule.cs`
+- Create: `framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/DistributedLockWarningTests.cs`
+
+**Interfaces:**
+- Consumes: `XiHan.Framework.Caching.Distributed.Abstracts.IDistributedLock`、`XiHan.Framework.Caching.Distributed.DefaultDistributedLock`、`XiHan.Framework.Core.Application.ApplicationInitializationContext`
+- Produces: `public static bool WarnIfWorkflowLockIsProcessLocal(this IServiceProvider serviceProvider)`（记录了警告返回 `true`）；模块重写 `OnApplicationInitialization`
+
+**参考来源（动手前先读）：**
+- `framework/src/XiHan.Framework.Caching/Distributed/DefaultDistributedLock.cs`（类注释：只在当前进程内互斥）
+- `framework/src/XiHan.Framework.Caching/Extensions/DependencyInjection/XiHanCachingServiceCollectionExtensions.cs:43`、`:94`
+- `framework/src/XiHan.Framework.Core/Modularity/XiHanModule.cs:137`
+- spec §4.8
+
+**本任务禁止事项：** 不新增托管服务；不抛异常、不阻止启动；模块类里只有一行调用，判断与日志写在扩展方法里。
+
+- [ ] **Step 1: 写失败的测试**
+
+`framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/DistributedLockWarningTests.cs`：
+
+```csharp
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using XiHan.Framework.Caching.Distributed;
+using XiHan.Framework.Caching.Distributed.Abstracts;
+using XiHan.Framework.Workflow.SqlSugar.Extensions.DependencyInjection;
+
+namespace XiHan.Framework.Workflow.SqlSugar.Tests;
+
+/// <summary>
+/// 进程内分布式锁的启动警告测试
+/// </summary>
+public class DistributedLockWarningTests
+{
+    /// <summary>
+    /// 默认进程内锁记录一条警告
+    /// </summary>
+    [Fact]
+    public void 默认进程内锁记录一条警告()
+    {
+        var logs = new CapturingLoggerProvider();
+        using var provider = BuildProvider(logs, services => services.AddSingleton<IDistributedLock>(new DefaultDistributedLock()));
+
+        Assert.True(provider.WarnIfWorkflowLockIsProcessLocal());
+
+        var entry = Assert.Single(logs.Entries);
+        Assert.Equal(LogLevel.Warning, entry.Level);
+        Assert.Contains(nameof(DefaultDistributedLock), entry.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 其他锁实现不记录警告
+    /// </summary>
+    [Fact]
+    public void 其他锁实现不记录警告()
+    {
+        var logs = new CapturingLoggerProvider();
+        using var provider = BuildProvider(logs, services => services.AddSingleton<IDistributedLock>(new InProcessTestLock()));
+
+        Assert.False(provider.WarnIfWorkflowLockIsProcessLocal());
+        Assert.Empty(logs.Entries);
+    }
+
+    /// <summary>
+    /// 未注册锁时不记录警告
+    /// </summary>
+    [Fact]
+    public void 未注册锁时不记录警告()
+    {
+        var logs = new CapturingLoggerProvider();
+        using var provider = BuildProvider(logs, _ => { });
+
+        Assert.False(provider.WarnIfWorkflowLockIsProcessLocal());
+        Assert.Empty(logs.Entries);
+    }
+
+    private static ServiceProvider BuildProvider(CapturingLoggerProvider logs, Action<IServiceCollection> configure)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging(builder => builder.AddProvider(logs));
+        configure(services);
+        return services.BuildServiceProvider();
+    }
+
+    /// <summary>
+    /// 记录全部日志条目的日志提供程序
+    /// </summary>
+    private sealed class CapturingLoggerProvider : ILoggerProvider
+    {
+        private readonly ConcurrentQueue<(LogLevel Level, string Message)> _entries = new();
+
+        /// <summary>
+        /// 已记录的日志条目
+        /// </summary>
+        public IReadOnlyList<(LogLevel Level, string Message)> Entries => [.. _entries];
+
+        public ILogger CreateLogger(string categoryName)
+        {
+            return new CapturingLogger(_entries);
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private sealed class CapturingLogger : ILogger
+    {
+        private readonly ConcurrentQueue<(LogLevel Level, string Message)> _entries;
+
+        public CapturingLogger(ConcurrentQueue<(LogLevel Level, string Message)> entries)
+        {
+            _entries = entries;
+        }
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+        {
+            return null;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return true;
+        }
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            _entries.Enqueue((logLevel, formatter(state, exception)));
+        }
+    }
+}
+```
+
+- [ ] **Step 2: 运行测试确认失败**
+
+```bash
+dotnet test --project framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/XiHan.Framework.Workflow.SqlSugar.Tests.csproj -c Release
+```
+
+预期：编译失败，`WarnIfWorkflowLockIsProcessLocal` 不存在。
+
+实现后做一次反向验证：临时删掉扩展方法里的 `LogWarning` 调用，`默认进程内锁记录一条警告` 必须失败于 `Assert.Single(logs.Entries)`；确认后恢复。
+
+- [ ] **Step 3: 创建扩展方法**
+
+`framework/src/XiHan.Framework.Workflow.SqlSugar/Extensions/DependencyInjection/XiHanWorkflowSqlSugarServiceProviderExtensions.cs`：
+
+```csharp
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using XiHan.Framework.Caching.Distributed;
+using XiHan.Framework.Caching.Distributed.Abstracts;
+
+namespace XiHan.Framework.Workflow.SqlSugar.Extensions.DependencyInjection;
+
+/// <summary>
+/// 工作流 SqlSugar 存储的服务提供者扩展
+/// </summary>
+public static class XiHanWorkflowSqlSugarServiceProviderExtensions
+{
+    /// <summary>
+    /// 解析出的分布式锁只在进程内互斥时记录一条警告
+    /// </summary>
+    /// <param name="serviceProvider">服务提供者</param>
+    /// <returns>记录了警告返回 true</returns>
+    public static bool WarnIfWorkflowLockIsProcessLocal(this IServiceProvider serviceProvider)
+    {
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+
+        if (serviceProvider.GetService<IDistributedLock>() is not DefaultDistributedLock)
+        {
+            return false;
+        }
+
+        serviceProvider.GetService<ILoggerFactory>()?
+            .CreateLogger(typeof(XiHanWorkflowSqlSugarModule))
+            .LogWarning(
+                "当前分布式锁为 {LockType}，只在进程内互斥。工作流以多实例部署时请配置 Redis 分布式锁：" +
+                "同一书签的重复恢复已由书签存储拦截，但同一实例的不同书签被多个节点同时恢复时仍会相互覆盖。",
+                nameof(DefaultDistributedLock));
+
+        return true;
+    }
+}
+```
+
+- [ ] **Step 4: 模块调用**
+
+修改 `framework/src/XiHan.Framework.Workflow.SqlSugar/XiHanWorkflowSqlSugarModule.cs`。using 区追加：
+
+```csharp
+using XiHan.Framework.Core.Application;
+```
+
+在 `ConfigureServices` 方法之后追加：
+
+```csharp
+    /// <summary>
+    /// 应用初始化
+    /// </summary>
+    /// <param name="context">应用初始化上下文</param>
+    public override void OnApplicationInitialization(ApplicationInitializationContext context)
+    {
+        context.ServiceProvider.WarnIfWorkflowLockIsProcessLocal();
+    }
+```
+
+- [ ] **Step 5: 运行测试确认通过**
+
+```bash
+dotnet test --project framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/XiHan.Framework.Workflow.SqlSugar.Tests.csproj -c Release
+```
+
+预期：全部 PASS。
+
+- [ ] **Step 6: 验证构建并提交**
+
+```bash
+dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false
+git add framework/src/XiHan.Framework.Workflow.SqlSugar framework/test/XiHan.Framework.Workflow.SqlSugar.Tests
+git commit -m "feat(workflow-sqlsugar): 分布式锁只在进程内互斥时在启动时记录警告"
+```
+
+预期：**0 Warning(s) 0 Error(s)**。
+
+---
+
+### Task 9: 包 README
 
 **Files:**
 - Create: `framework/src/XiHan.Framework.Workflow.SqlSugar/README.md`
@@ -2003,7 +2690,9 @@ git commit -m "test(workflow-sqlsugar): 新增以 SqlSugar 存储运行真实引
 
 未开启建表初始化又没有手工建表时，首次写入即抛「表不存在」。自行维护表结构时按本包实体的列与索引定义建表。
 
-**多实例部署必须启用 Redis 分布式锁。** 引擎靠实例级分布式锁串行化同一实例的推进，定时器 Worker 靠分布式锁保证集群单活。默认的 `DefaultDistributedLock` 只在进程内互斥：多个节点会同时推进同一实例、同时恢复同一批到期书签。配置 `XiHan:Caching` 的 Redis 连接后框架自动替换为 Redis 锁。本包不检测锁的实现。
+**多实例部署应启用 Redis 分布式锁。** 引擎靠实例级分布式锁串行化同一实例的推进，定时器 Worker 靠分布式锁保证集群单活。默认的 `DefaultDistributedLock` 只在进程内互斥。本包的书签存储在按标识删除未删到任何行时抛 `WorkflowException`，因此即使没有 Redis 锁，同一个书签也只会被一个节点推进；但同一实例的**不同**书签（并行分支、会签的多个受理人、超时与办理）被多个节点同时恢复时，仍会并发推进、后写覆盖先写。配置 `XiHan:Caching` 的 Redis 连接后框架自动替换为 Redis 锁；使用默认锁时本包在应用初始化时记录一条警告。
+
+**书签删除比内存实现严格。** `IWorkflowBookmarkStore.DeleteAsync` 删除不存在或已被删除的书签会抛 `WorkflowException`（内存默认实现静默成功）；`DeleteByInstanceAsync` 不受影响。
 
 **工作流写入不随业务回滚。** 存储的每次操作独立提交，在业务事务里启动流程后业务回滚，流程实例仍在。需要「业务失败则不启动」时，在业务提交之后再启动流程。
 
@@ -2013,7 +2702,7 @@ git commit -m "test(workflow-sqlsugar): 新增以 SqlSugar 存储运行真实引
 
 **删除实例前先删书签。** `IWorkflowInstanceStore.DeleteAsync` 只级联删除节点实例；应先调 `IWorkflowBookmarkStore.DeleteByInstanceAsync`，否则人工任务书签成为孤儿。
 
-**取消与终止不是原子的。** 引擎按「删书签 → 取消节点实例 → 更新实例」三次独立提交，中途进程退出会留下无书签的运行中实例。
+**推进过程不是原子的。** 每次恢复书签先删除书签并提交，再逐个节点提交执行结果，最后提交实例状态；启动先插入实例再执行；取消、终止、重试同理。在这些提交之间进程崩溃或重新部署，会留下状态为运行中、却没有任何书签的实例，它不会再被推进，也不报错。内存实现崩溃时什么都不留下，这是持久化带来的新情况。建议定期查询 `sys_workflow_instance` 中 `Status = 1` 且在 `sys_workflow_bookmark` 中没有书签的实例，人工判断后取消或终止。
 
 **已完成实例永久保留。** 本包不自动清理，保留策略由应用决定。
 
@@ -2077,7 +2766,7 @@ git commit -m "docs(workflow-sqlsugar): 新增包 README"
 
 ---
 
-### Task 8: 文档站页面、侧边栏与模块清单
+### Task 10: 文档站页面、侧边栏与模块清单
 
 **Files:**
 - Create: `docs/packages/workflow-sqlsugar.md`
@@ -2085,6 +2774,12 @@ git commit -m "docs(workflow-sqlsugar): 新增包 README"
 - Modify: `docs/packages/index.md`
 - Modify: `framework/README.md`
 - Modify: `framework/README_cn.md`
+- Modify: `README.md`（只改模块计数，含徽章）
+- Modify: `README_cn.md`（只改模块计数，含徽章）
+- Modify: `docs/index.md`（模块计数）
+- Modify: `docs/introduction.md`（模块计数）
+- Modify: `docs/why.md`（模块计数，含「包参考 N 页」）
+- 以及 Step 5 的 grep 在 `docs/**/*.md` 中找到的其他模块计数
 
 **Interfaces:** 无
 
@@ -2150,8 +2845,8 @@ public class YourAppModule : XiHanModule
 }
 ```
 
-::: warning 多实例必须启用 Redis 分布式锁
-引擎靠实例级分布式锁串行化同一实例的推进，定时器 Worker 靠分布式锁保证集群单活。默认的进程内锁不跨实例：多个节点会同时推进同一实例、同时恢复同一批到期书签。配置 [Caching](./caching) 的 Redis 连接后框架自动换成 Redis 锁。
+::: warning 多实例应启用 Redis 分布式锁
+引擎靠实例级分布式锁串行化同一实例的推进，定时器 Worker 靠分布式锁保证集群单活。默认的进程内锁不跨实例。本包的书签删除守卫保证同一书签只被一个节点推进，但同一实例的不同书签被多个节点同时恢复时仍会相互覆盖。配置 [Caching](./caching) 的 Redis 连接后框架自动换成 Redis 锁；使用默认锁时本包在启动时记录警告。
 :::
 
 ## 表结构
@@ -2176,6 +2871,10 @@ public class YourAppModule : XiHanModule
 原因是引擎的锁协议：同一实例的推进在实例锁内完成，锁一释放，下一个持锁者必须能读到上一个持锁者的全部写入。若存储加入请求的工作单元，写入要等请求结束才提交，另一节点在锁释放之后、提交之前拿到锁，会读到旧状态并重复推进。读同样走独立事务，保证读到最新提交、且在配置了从库时走主库。
 
 代价是：在业务事务里启动流程后业务回滚，流程实例仍在。
+
+### 书签消费守卫
+
+引擎消费书签时先删除书签、再开始执行批次。本包的 `DeleteAsync` 在未删到任何行时抛 `WorkflowException`：两个节点竞争同一书签时，后到者在批次开始之前放弃，定时器 Worker 与信号投递把它当作「已被并发处理」跳过，人工办理的调用方得到「书签不存在或已被处理」。
 
 ### 书签匹配
 
@@ -2215,7 +2914,8 @@ public class YourAppModule : XiHanModule
 
 - **变量必须可 JSON 序列化**。读回后整数与小数都是 `decimal`、嵌套对象是 `JsonElement`，经 `WorkflowVariables` / `WorkflowValueConverter` 取值。
 - **删除实例前先删书签**：先 `IWorkflowBookmarkStore.DeleteByInstanceAsync`，再 `IWorkflowInstanceStore.DeleteAsync`。
-- **取消与终止不是原子的**：引擎分三次提交，进程在中途退出会留下无书签的运行中实例。
+- **推进过程不是原子的**：恢复、启动、取消、重试都由多次独立提交组成，进程在中途崩溃或重新部署会留下运行中却没有书签的实例；定期查询这类实例并人工处理。
+- **书签删除比内存实现严格**：`DeleteAsync` 删除不存在的书签抛 `WorkflowException`。
 - **已完成实例永久保留**，清理策略由应用实现。
 - **定义编码与实例过滤条件随数据库排序规则比较**，MySQL 默认不区分大小写；编码保持大小写一致。
 - **SQLite 不适合与外层事务共用**：外层已写同一个库时，存储的独立连接会撞 `database is locked`。
@@ -2336,7 +3036,7 @@ git commit -m "docs(workflow-sqlsugar): 新增文档站页面并登记侧边栏�
 
 ---
 
-### Task 9: 全量验收
+### Task 11: 全量验收
 
 **Files:** 无新增
 
@@ -2351,14 +3051,14 @@ dotnet test --solution framework/XiHan.Framework.slnx -c Release
 
 - [ ] **Step 2: 本机真库全部跑一遍**
 
-设置 `XIHAN_TEST_MYSQL` 后运行测试项目，确认两个 MySQL 用例都通过。
+设置 `XIHAN_TEST_MYSQL` 后运行测试项目，确认三个 MySQL 用例都通过。
 
-- [ ] **Step 3: 六处登记核对**
+- [ ] **Step 3: 七处登记核对**
 
 逐项确认：
 
 1. `framework/src/XiHan.Framework.Workflow.SqlSugar/XiHan.Framework.Workflow.SqlSugar.csproj` 按序 Import `netcore` / `common` / `version` / `nuget`
-2. `XiHanWorkflowSqlSugarModule.cs` 只调 `AddXiHanWorkflowSqlSugar`；注册扩展含执行器与三行 `Replace`
+2. `XiHanWorkflowSqlSugarModule.cs` 的 `ConfigureServices` 只调 `AddXiHanWorkflowSqlSugar`、`OnApplicationInitialization` 只调 `WarnIfWorkflowLockIsProcessLocal`；注册扩展含执行器与三行 `Replace`
 3. `README.md` 七段齐全，写明两个建表开关默认 `false`
 4. `framework/XiHan.Framework.slnx` 的 `/1.src/6.Infrastructure/` 与 `/2.tests/1.UnitTests/` 各有一个新项目
 5. `docs/packages/workflow-sqlsugar.md`、`docs/.vitepress/config.ts` 侧边栏、`docs/packages/index.md`
@@ -2386,16 +3086,19 @@ git diff --stat dev...HEAD
 - 信号匹配三种相关性语义正确；书签匹配区分大小写（MySQL 用例证明）
 - `GetDueAsync` 排除无到期时间与未到期、按到期时间升序、遵守上限
 - 六个引擎端到端流程在 SQLite 上通过
-- 两个 MySQL 用例本机通过，且各自做过「拿掉关键条件变红」的验证
+- 三个 MySQL 用例本机通过（第 2 份隔离可见性、本份大小写与双节点竞争），且各自做过「拿掉关键条件变红」的验证
+- `DeleteAsync` 删不存在的书签抛 `WorkflowException`；`DeleteByInstanceAsync` 不抛
+- 解析出 `DefaultDistributedLock` 时启动记录一条警告
 - 七处登记齐全（含 `docs/packages/index.md`），模块计数全部加一
 
 ## 已知边界（写入 PR 描述，不写进代码注释）
 
-- **多实例必须上 Redis 锁**：默认进程内锁下，多节点会同时推进同一实例、同时恢复同一批到期书签
+- **多实例应上 Redis 锁**：书签删除守卫保证同一书签只推进一次；同一实例不同书签的并发恢复仍会相互覆盖，最好情况下实例进入 `Faulted`；启动时有警告
+- **书签删除比内存实现严格**：`DeleteAsync` 删不存在的书签抛 `WorkflowException`，这是有意的差异
 - **工作流写入不随业务回滚**
 - **SQLite + 外层事务会锁库**
 - **变量必须可 JSON 序列化**；读回类型归一化为 `decimal` / `JsonElement`
-- **删除实例不删书签**；取消与终止不是原子的
+- **删除实例不删书签**；**推进过程非原子**：恢复、启动、取消、重试在提交之间崩溃会留下运行中且无书签的实例（持久化带来的新情况）
 - **已完成实例永久保留**，无自动清理
 - **定义编码与实例过滤条件随数据库排序规则**；书签匹配不受影响
 - **MySQL 时间精度到秒**；定时书签最多晚不到一秒被取到

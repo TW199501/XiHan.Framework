@@ -1546,7 +1546,7 @@ git commit -m "feat(workflow-sqlsugar): 新增 SqlSugar 流程实例存储"
 - Consumes: Task 3 的 `SqlSugarWorkflowInstanceStore`；第 1 份 `ServiceRegistrationTests.CreateServices(bool)`
 - Produces: `services.Replace(ServiceDescriptor.Scoped<IWorkflowInstanceStore, SqlSugarWorkflowInstanceStore>())`
 
-**参考来源（动手前先读）：** `framework/src/XiHan.Framework.Workflow/Extensions/DependencyInjection/XiHanWorkflowServiceCollectionExtensions.cs:48-50`。
+**参考来源（动手前先读）：** `framework/src/XiHan.Framework.Workflow/Extensions/DependencyInjection/XiHanWorkflowServiceCollectionExtensions.cs:51-53`。
 
 **本任务禁止事项：** 不用 `TryAdd`；不改生命周期为 Singleton。
 
@@ -1798,7 +1798,7 @@ dotnet test --solution framework/XiHan.Framework.slnx -c Release
 
 ## 已知边界（写入 PR 描述，不写进代码注释）
 
-- **取消/终止非原子**：删书签、取消节点实例、更新实例是三次独立提交
+- **推进过程非原子（持久化带来的新问题）**：每次恢复先删书签并提交、再逐步提交批次；启动先插入实例再跑批次；取消与重试同理。在这些提交之间崩溃或重新部署，会留下 `Running` 且没有任何书签的实例，永远不会再被推进、不报错。内存实现崩溃时什么都不留下，所以以前没有这个问题。对策：定期查询「运行中且无书签」的实例并人工处理
 - **变量必须可 JSON 序列化**：否则批次中途抛出，实例停在运行中且书签已消费
 - **变量类型会归一化**：整数与小数读回为 `decimal`，嵌套对象为 `JsonElement`
 - **删除实例不删书签**：删除前应先调 `IWorkflowBookmarkStore.DeleteByInstanceAsync`

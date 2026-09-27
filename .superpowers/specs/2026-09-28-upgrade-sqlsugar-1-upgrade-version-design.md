@@ -143,13 +143,14 @@ E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
 - **不实现分布式锁**。`IUpgradeLockProvider` 是另一个契约，不在本包范围。
 - **不做多库路由**。升级版本记录是全局基础设施数据，不涉及 `[ModuleDataSource]`。
 - **不做分表**。`sys_upgrade_version` 每租户一行，条数有界；`sys_upgrade_migration_history` 按脚本数量增长，量级是"脚本数 × 租户数"，不是无界日志。
-- **不保证 `GetOrCreateAsync` 首次插入在数据库层面绝对无重复**（不引入 `[SugarIndex(isUnique: true)]`，理由见 §5 与 §7）。应用级的"先查后插、插入失败再查一次"策略把重复窗口降到最低，但不是数据库约束级别的强保证。
+- **不给迁移历史表建唯一索引**。`sys_upgrade_migration_history` 是追加型日志，同一 `(Tenant_Key, Version, Script_Name)` 允许出现失败重试的多条记录（`Success` 字段区分），不能唯一约束。（`sys_upgrade_version` 的 `Tenant_Key` 唯一索引见 4.1 节，两张表的约束策略不同。）
 
 ## 4. 设计
 
 ### 4.1 实体：`SysUpgradeVersion`
 
 ```csharp
+[SugarIndex("uq_sys_upgrade_version_tenant_key", nameof(TenantKey), OrderByType.Asc, isUnique: true)]
 [SugarTable("sys_upgrade_version")]
 public class SysUpgradeVersion : SugarEntity<long>
 ```
@@ -158,7 +159,7 @@ public class SysUpgradeVersion : SugarEntity<long>
 | --- | --- | --- | --- |
 | `BasicId`（继承） | `Basic_Id` | `long` | 主键，雪花 ID |
 | `TenantId` | `Tenant_Id` | `long?` | 租户标识，`null` 表示宿主 |
-| `TenantKey` | `Tenant_Key` | `string`，`NOT NULL` | `BuildUpgradeTenantKey(TenantId)` 的结果，`"host"` 或 `"tenant:{id}"`，用于替代对可空 `TenantId` 做唯一性判断 |
+| `TenantKey` | `Tenant_Key` | `string`，`NOT NULL`，**唯一索引** | `BuildUpgradeTenantKey(TenantId)` 的结果，`"host"` 或 `"tenant:{id}"`，用于替代对可空 `TenantId` 做唯一性判断 |
 | `AppVersion` | `App_Version` | `string` | 应用版本 |
 | `DbVersion` | `Db_Version` | `string` | 数据库版本 |
 | `MinSupportVersion` | `Min_Support_Version` | `string?` | 最小支持版本 |
@@ -166,7 +167,9 @@ public class SysUpgradeVersion : SugarEntity<long>
 | `UpgradeNode` | `Upgrade_Node` | `string?` | 升级节点 |
 | `UpgradeStartTime` | `Upgrade_Start_Time` | `DateTimeOffset?` | 升级开始时间 |
 
-**为什么加一个 `TenantKey` 列而不是直接对 `TenantId` 做唯一索引**：`TenantId` 是可空的，"host" 场景下为 `null`；不同数据库对唯一索引里多个 `NULL` 是否算重复的处理不一致，把这个判断丢给数据库层面的约束会带来跨方言的不确定性。用一个非空字符串列表达"host"或"tenant:{id}"，把"哪一行代表宿主/哪个租户"这件事从"NULL 语义"降级为普通字符串相等比较，查询与去重都更简单可控。
+**为什么加一个 `TenantKey` 列而不是直接对 `TenantId` 做唯一索引**：`TenantId` 是可空的，"host" 场景下为 `null`；不同数据库对唯一索引里多个 `NULL` 是否算重复的处理不一致，把这个判断丢给数据库层面的约束会带来跨方言的不确定性。用一个非空字符串列表达"host"或"tenant:{id}"，把"哪一行代表宿主/哪个租户"这件事从"NULL 语义"降级为普通字符串相等比较，查询与去重都更简单可控——**在这个非空字符串列上建唯一索引，就完全不用再考虑 NULL 语义的跨方言差异**。
+
+**`[SugarIndex]` 的字段参数是 C# 属性名，不是数据库列名**：已核对 `E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/Abstract/CodeFirstProvider/CodeFirstProvider.cs:377`——`CreateIndex` 内部按 `entityInfo.Columns.FirstOrDefault(z => z.PropertyName == it.Key)` 解析 `IndexFields` 的键，传 `"Tenant_Key"`（列名）会解析不到列、直接抛 `Check.ExceptionEasy`。构造函数签名已核对 `Entities/Mapping/SugarMappingAttribute.cs:346`：`SugarIndexAttribute(string indexName, string fieldName, OrderByType sortType, bool isUnique = false)`。索引是否真的在 `CodeFirst.InitTables()` 时于 SQLite 上生效，由 Task 3 的"竞态测试变红"反向验证，见计划。
 
 ### 4.2 实体：`SysUpgradeMigrationHistory`
 
@@ -189,7 +192,7 @@ public class SysUpgradeMigrationHistory : SugarEntity<long>
 
 不分表——迁移历史随脚本数量增长，不是无界日志。
 
-### 4.3 `GetOrCreateAsync`：查询优先、插入失败退回重查
+### 4.3 `GetOrCreateAsync`：查询优先、唯一索引兜底、插入失败退回重查
 
 ```
 tenantId = _currentTenant?.Id
@@ -215,7 +218,9 @@ existing = 按 TenantKey == tenantKey 查询单行
 
 `NormalizeVersion` 与 `BuildUpgradeTenantKey` 是私有静态方法，逻辑与 `DefaultUpgradeVersionStore` 对应方法字面一致（`NormalizeVersion`：空白则 `"0.0.0"`，否则 `Trim()`；`BuildUpgradeTenantKey`：`tenantId.HasValue ? $"tenant:{tenantId.Value}" : "host"`）。
 
-**为什么不用数据库唯一索引 + 显式捕获"违反唯一约束"异常类型**：SqlSugar 对不同数据库提供方抛出的具体异常类型不统一（SQLite 是 `Microsoft.Data.Sqlite.SqliteException`，MySQL/PostgreSQL 各有各的驱动异常类型），本包要跨这些方言工作，逐一识别"哪个是唯一约束冲突"的成本高于收益。退回策略是"插入失败就再查一次，查到就用查到的、查不到就把原始异常抛出去"——不区分失败原因，只要失败就假设"可能是并发建行"，这个假设在极端情况下（真的是其他原因导致插入失败，比如连接断开）会多做一次无谓的查询，但不会掩盖真正的错误（重查也查不到时原始异常仍会抛出）。
+**为什么用"任何插入失败都退回重查"而不是识别具体的唯一约束冲突异常**：SqlSugar 对不同数据库提供方抛出的具体异常类型不统一（SQLite 是 `Microsoft.Data.Sqlite.SqliteException`，MySQL/PostgreSQL 各有各的驱动异常类型），逐一识别"哪个是唯一约束冲突"的成本高于收益。策略是"插入失败就再查一次，查到就用查到的、查不到就把原始异常抛出去"——不需要识别失败原因，只要失败就假设"可能是并发建行"；这个假设在极端情况下（真的是其他原因导致插入失败，比如连接断开）会多做一次无谓的查询，但不会掩盖真正的错误（重查也查不到时原始异常仍会抛出）。**这套策略本身与是否存在唯一索引无关**——唯一索引的作用是把"两个实例同时判定为'不存在'"这个竞态**从"两次插入都可能成功"变成"至少一次插入必然失败"**，从而保证重查分支一定会被触发；没有索引时重查分支只是"锦上添花"（大多数时候用不上，极端时序下起不了作用），有索引后重查分支是竞态发生时的**唯一**保障。二者组合起来，"任一原因的插入失败都退回重查"这条策略才是对索引冲突本身生效的完整闭环，不需要额外识别异常类型。
+
+测试如何在不依赖真实并发的前提下验证这条路径：`SqlSugarUpgradeVersionStore` 留了一个 `protected virtual` 钩子 `OnBeforeInsertAsync(string tenantKey, CancellationToken)`，在"确认不存在"与"执行插入"之间调用，生产环境是空操作；测试用子类重写它，在这个精确的时间点抢先插入一行同租户键的记录，从而确定性地触发唯一索引冲突，不依赖真实的多线程时序（见计划 Task 3）。
 
 ### 4.4 `Set*`/`Update*` 四个方法：更新数据库后原地回写调用方对象
 
@@ -290,7 +295,7 @@ services.Replace(ServiceDescriptor.Scoped<IUpgradeVersionStore, SqlSugarUpgradeV
 
 **② `GetOrCreateAsync` 的插入竞态被简化成"先查后插"而漏掉插入失败后的重查。**
 
-如果实现只写"查不到就插入"、不写"插入失败后再查一次"，两个实例在极短时间内同时首次调用 `GetOrCreateAsync`（例如集群同时启动）会都判定为"不存在"，都尝试插入，其中一个必然失败（若数据库层面有唯一约束）或者两个都成功、产生两行同租户键的数据（若没有约束）。本设计选择"不建唯一约束，靠应用层重查兜底"（见 4.3 节），若实现时漏掉"插入失败后重查"这一步，退化成两行重复数据也不会有任何异常抛出，只有在后续查询"这个租户的版本状态"命中多行时才会暴露（取决于查询是否显式限定"最多一行"）。
+`Tenant_Key` 上有唯一索引（见 4.1 节），所以两个实例在极短时间内同时首次调用 `GetOrCreateAsync`（例如集群同时启动）都判定为"不存在"、都尝试插入时，数据库**保证**其中一个插入会因唯一约束冲突而失败——这一步不会静默产生两行数据。但"数据库会挡住第二次插入"和"代码正确处理了这次失败"是两件事：如果实现只写"查不到就插入"、不写"插入失败后再查一次"，败者的插入异常会不经处理直接向上抛出，业务侧看到的是一次不该出现的启动期异常，而不是拿到赢家已经创建的那一行版本记录。这个疏漏在**单实例**场景下完全不会被触发（永远不会撞上竞态），只有两个调用方同时首次探测同一个空表时才会现形——第一层的桩测试用"插入前抢先写入一行"模拟这个时序（见计划 Task 3 的 `OnBeforeInsertAsync` 钩子），不写这段重查逻辑，该测试会直接看到未处理的异常冒出来。
 
 **③ `Set*`/`Update*` 对不存在的 `Id` 静默无操作。**
 
@@ -306,7 +311,7 @@ services.Replace(ServiceDescriptor.Scoped<IUpgradeVersionStore, SqlSugarUpgradeV
 - 回填空白字段：先插入一行 `AppVersion` 为空字符串的记录（模拟历史脏数据），`GetOrCreateAsync` 应回填并持久化
 - **原地回写（对应陷阱①）**：调用 `SetUpgradingAsync(version, "node-1", now)` 后，直接断言传入的 `version.IsUpgrading == true`、`version.UpgradeNode == "node-1"`，不重新查询
 - 同理为 `SetUpgradeCompletedAsync`、`SetUpgradeFailedAsync`、`UpdateDbVersionAsync` 各写一个"回写断言"用例
-- 插入竞态：模拟两次"查不到就插入"竞争（第二次插入前先手工插入一行相同 `Tenant_Key` 的记录，验证 `GetOrCreateAsync` 捕获插入异常后重查、返回已存在的行而不是抛异常或产生第二行）
+- 插入竞态：借 `OnBeforeInsertAsync` 钩子在"确认不存在"与"执行插入"之间确定性地插入一行相同 `Tenant_Key` 的记录，验证 `GetOrCreateAsync` 自身的插入因唯一索引冲突失败后能捕获异常并重查、返回竞争者已插入的那一行，而不是把异常抛给调用方或产生第二行；同一测试还要求"临时删掉重查分支后该用例必须变红"，证明它不是摆设（见计划 Task 3 的反向验证步骤）
 - `HasMigrationHistoryAsync`：只有 `Success == true` 的记录视为已执行；`Success == false` 的同名记录不算
 - `GetLatestHistoryAsync`：多条记录时返回 `ExecutedTime` 最新的一条；空表返回 `null`
 - `AddMigrationHistoryAsync`：写入后能被 `GetLatestHistoryAsync`/`HasMigrationHistoryAsync` 读到
@@ -323,17 +328,18 @@ SQLite 临时库连接串必须带 `Pooling=False`。
 
 | 项 | 说明 |
 | --- | --- |
-| 插入竞态不是数据库级强保证 | `GetOrCreateAsync` 靠"插入失败重查"兜底，不建唯一约束。真正同时到达数据库、两个插入都成功的极端时序下会产生同租户键的两行数据，需要运维手工清理；这是接受的权衡，见 4.3 节 |
+| 唯一索引冲突时机取决于数据库 | `Tenant_Key` 唯一索引由 `CodeFirst.InitTables()` 在建表时创建（`CodeFirstProvider.CreateIndex`），前提是目标数据库的 `DbMaintenance` 实现支持该操作；本包只在 SQLite（第一层测试）上验证过，MySQL/PostgreSQL/SQL Server 等生产数据库首次接入时应确认索引确实被创建（`SHOW INDEX` / `\d`），而不是假设与 SQLite 行为一致 |
 | 孤儿 `Id` 静默无操作 | `Set*`/`Update*` 传入未经 `GetOrCreateAsync` 创建的 `Id` 时不抛异常也不生效，见陷阱③ |
 | `HasMigrationHistoryAsync` 的大小写敏感性 | 与 `DefaultUpgradeVersionStore` 的 `OrdinalIgnoreCase` 比较不完全一致，具体大小写敏感性由目标数据库的排序规则决定，见 4.5 节 |
 | 互斥依赖另一个契约 | `IUpgradeLockProvider` 目前仍是进程内实现（`DefaultUpgradeLockProvider`），跨进程/跨机器部署时锁本身不是分布式的；这不是本包的范围，但会影响"多实例并发升级安全"这一整体属性 |
+| PostgreSQL 上事务内的唯一索引冲突会中止整个事务 | 若 `GetOrCreateAsync` 在一个已开启的事务里执行，插入因 `Tenant_Key` 唯一索引冲突失败后，PostgreSQL 会把当前事务整体标记为出错状态，同一连接、同一事务内紧接着的重查也会失败，4.3 节的重查分支形同虚设，异常会一路抛给调用方。SQLite、MySQL（InnoDB）不存在这个限制，单条语句失败不影响同一事务里后续语句执行。`GetOrCreateAsync` 应在事务外调用；若调用方确实需要在事务内调用，需接受"该数据库上的竞态会以异常形式暴露，而不是被重查吸收"这一后果 |
 
 ## 9. 验收标准
 
 - `dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false` **0 警告 0 错误**
 - `dotnet test --solution framework/XiHan.Framework.slnx -c Release` 全绿
 - `Set*`/`Update*` 四个方法均有"回写调用方 `version` 对象"的测试断言
-- `GetOrCreateAsync` 的插入竞态有测试覆盖
+- `GetOrCreateAsync` 的插入竞态有测试覆盖，且该测试在临时删除重查分支后能变红（证明测试确实在验证这条分支，不是摆设）
 - 注册用 `services.Replace`，有测试断言顶替生效
 - 每个 `.cs` 文件带两行版权声明
 - 注释与 XML 文档注释为简体中文，且只说明代码做什么

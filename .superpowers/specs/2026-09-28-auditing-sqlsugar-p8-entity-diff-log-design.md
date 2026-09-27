@@ -95,6 +95,7 @@ framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/
 
 - `docs/guide/auditing.md` 128-283 行：实体变更审计的完整行为规格，包括事务契约、脱敏时机、多租户配合
 - `docs/packages/auditing-sqlsugar.md`：本包现有文档，**94-101 行与 171 行已经预告了本份要做的事**（「实体变更日志仍为空实现」「这与 `IEntityDiffLogWriter`『必须与业务同事务』的契约方向相反」），本份落地后这几处需要改写而不是继续留空
+- `docs/packages/index.md:99`：包一览表里本包的一句话描述仍写「5 类日志实体……与写入器」，本份落地后是 6 类，需要同步改成「6」
 - `/e/source/platfrom-admin/docs/SqlSugar-docs/插入數據.md`、`自動分表.md`（P1/P2 已读过，行为未变）
 
 ### 2.3 禁止事项：EF Core 惯用法

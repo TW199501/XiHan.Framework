@@ -19,6 +19,8 @@
 > 技术栈是 **SqlSugar，不是 Entity Framework Core**。
 >
 > **本份最容易静默出错的地方是书签匹配的字符串比较**。MySQL 默认排序规则 `utf8mb4_0900_ai_ci` 不区分大小写，`WHERE Bookmark_Key = 'alice'` 会命中受理人 `Alice` 的待办——`GetPendingAsync("alice")` 把别人的审批任务列给当前用户，信号 `order-paid` 恢复了等待 `Order-Paid` 的实例。SQLite 的 `=` 区分大小写，**单元测试全绿**。本份在数据库查询之后再按序数比较过滤一遍，并用 MySQL 用例钉住。
+>
+> **第二处是书签消费守卫（§4.7）**：`DeleteAsync` 删到 0 行必须抛 `WorkflowException`，否则没有 Redis 锁时同一书签会被两个节点各推进一次。单元测试只证明存储会抛出；只有双节点竞争用例能证明引擎路径被拦住（端到端用例都是单节点，去掉守卫照样全绿）。
 
 ---
 
@@ -61,7 +63,8 @@
 
 ### 1.3 本份交付
 
-1. `sys_workflow_bookmark` 实体与映射、`SqlSugarWorkflowBookmarkStore` 的 10 个方法，以 `Replace` 顶替默认书签存储
+1. `sys_workflow_bookmark` 实体与映射、`SqlSugarWorkflowBookmarkStore` 的 10 个方法，以 `Replace` 顶替默认书签存储；`DeleteAsync` 带书签消费守卫（§4.7）
+   模块初始化时对进程内分布式锁记录警告（§4.8）
 2. **引擎端到端测试**：三个存储齐备后，用真实 `WorkflowEngine` 跑延时、信号、会签、并行汇聚、取消、挂起回退六个流程
 3. MySQL 上的书签匹配大小写用例
 4. 收尾：包 README（七段）、`docs/packages/workflow-sqlsugar.md`、文档站侧边栏、`docs/packages/index.md`、`framework/README.md` 与 `framework/README_cn.md` 的模块清单，以及 4 个 README 与文档站各页的**模块计数加一**（D11）
@@ -73,7 +76,7 @@
 3. 信号匹配：`corr` 为 `null` 时广播；为 `"A"` 时命中 `null` 与 `"A"`、不命中 `"B"`；为 `""` 时命中 `null` 与 `""`、不命中 `"A"`
 4. 书签匹配区分大小写，在 MySQL 默认排序规则下也成立
 5. 引擎端到端六个流程在 SQLite 上全部通过
-6. 文档站 `pnpm build` 不因新页面失败（若本机装有 pnpm）；六处登记齐全
+6. 文档站 `pnpm build` 不因新页面失败（若本机装有 pnpm）；七处登记齐全（含 `docs/packages/index.md`）
 7. `dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false` 0 警告 0 错误
 
 ## 2. 参考来源与禁止事项（强制）
@@ -145,7 +148,7 @@ framework/README.md:93-94、framework/README_cn.md:93-94     模块清单
 
 - **所有读写经 `WorkflowSqlSugarExecutor`**。
 - **`GetDueAsync` 不做原子领取**：不加状态列、不条件 `UPDATE`、不 `FOR UPDATE SKIP LOCKED`。契约明文说 Worker 已单活，领取也没有对应的「释放」契约方法。
-- **书签的删除不做「删到 0 行则抛异常」**。`DeleteAsync` 被 `DeleteNodeBookmarksAsync` 在批次中途调用，抛出会让引擎把实例判为故障。
+- **`DeleteAsync` 删到 0 行必须抛 `WorkflowException`**（书签消费守卫，§4.7）。**`DeleteByInstanceAsync` 删到 0 行不抛**——取消/终止时实例本就可能没有书签。
 - **`UpdateAsync` 不做 upsert**：已被消费（删除）的书签在锁失效窗口里被「更新」时必须保持删除状态。
 - **不改 `docs/packages/workflow.md`；根目录 `README.md` / `README_cn.md` 只改模块计数，不在「常用包」表格加行**（见 D8、D9）。
 - **不改 `XiHan.Framework.Workflow` 与 `Workflow.Abstractions`**。
@@ -205,7 +208,7 @@ MySQL `utf8mb4` 下 `idx_kind_key` 的键长：`64×4 + 256×4 + 5 = 1285` 字�
 | `GetBySignalAsync(name, corr)` | `WHERE Kind = 'Signal' AND Bookmark_Key = @name [AND (Correlation_Id IS NULL OR Correlation_Id = @corr)] ORDER BY Creation_Time, Basic_Id` | `idx_kind_key` | `Kind`、`Key`、`CorrelationId` |
 | `InsertAsync` | `INSERT` | | |
 | `UpdateAsync` | `UPDATE ... WHERE Basic_Id = @id`（全部列） | 主键 | |
-| `DeleteAsync(id)` | `DELETE WHERE Basic_Id = @id` | 主键 | |
+| `DeleteAsync(id)` | `DELETE WHERE Basic_Id = @id`；受影响行数为 0 时抛 `WorkflowException`（§4.7） | 主键 | |
 | `DeleteByInstanceAsync(id)` | `DELETE WHERE Instance_Id = @id` | `idx_instance` | |
 
 `GetBySignalAsync` 的相关性条件只在 `corr` **不为 `null`** 时追加（`WhereIF(correlationId is not null, ...)`）。`""` 不是「广播」，是「定向匹配空串或未限定相关性的书签」——与默认实现 `correlationId is null || ...` 完全一致。表达式 `item.CorrelationId == null` 由 SqlSugar 翻译为 `IS NULL`。
@@ -226,15 +229,15 @@ services.Replace(ServiceDescriptor.Scoped<IWorkflowBookmarkStore, SqlSugarWorkfl
 
 至此三个存储全部替换。
 
-### 4.5 并发：为什么不做原子领取
+### 4.5 并发：到期书签不原子领取，书签消费有守卫
 
 | 场景 | 互斥来源 | 存储要做什么 |
 | --- | --- | --- |
 | 两个节点的定时器 Worker 同时轮询 | `WorkflowTimerWorker.PollOnceAsync:103` 每轮先 `TryAcquireAsync(DistributedLockName)`，拿不到就跳过本轮 | 无 |
-| 同一书签被信号、Worker、人工办理同时恢复 | `ResumeBookmarkCoreAsync` 在实例锁内二次 `FindAsync(bookmarkId)`，找不到即「已被处理」 | 锁内的读必须看到已提交的删除——第 1 份的执行器保证 |
+| 同一书签被信号、Worker、人工办理同时恢复 | 有 Redis 锁时：`ResumeBookmarkCoreAsync` 在实例锁内二次 `FindAsync(bookmarkId)`，找不到即「已被处理」。没有 Redis 锁时：**书签删除守卫**（§4.7） | 锁内的读必须看到已提交的删除（第 1 份执行器保证）；`DeleteAsync` 删到 0 行抛 `WorkflowException` |
 | 转办与办理并发 | `CompleteAsync` 把 `expectedBookmarkKey` 带进锁内校验，`TransferAsync` 在锁内改 `Key` | `UpdateAsync` 必须真的写回 `Key` |
 
-三处互斥都来自分布式锁。多实例部署使用 Redis 锁时，存储只需保证「提交即可见」；使用进程内默认锁时，两节点的 Worker 会同时取到同一批到期书签并各自恢复——这是部署约束，不是存储能修的（契约没有领取/释放的方法可供实现）。
+多实例部署使用 Redis 锁时，存储只需保证「提交即可见」。使用进程内默认锁时，两节点的 Worker 会同时取到同一批到期书签、同时尝试恢复同一个书签——**书签删除守卫让其中恰好一个批次运行**，另一个在批次开始前以 `WorkflowException` 放弃，Worker 把它记为「已被并发处理」跳过。守卫覆盖不到的是**同一实例的不同书签**被两个节点同时恢复（§4.7 末段），这仍需要 Redis 锁；本包在启动时对此给出警告（§4.8）。
 
 ### 4.6 引擎端到端测试
 
@@ -253,6 +256,34 @@ services.Replace(ServiceDescriptor.Scoped<IWorkflowBookmarkStore, SqlSugarWorkfl
 
 这组测试的价值在于：默认内存实现返回共享引用，引擎里任何「改了对象但漏调 `Update`」的路径在内存实现下都被掩盖；数据库实现每次返回新对象，漏掉的写回会直接让这些流程失败。
 
+### 4.7 书签消费守卫：`DeleteAsync` 删到 0 行抛异常
+
+**机制**。引擎消费书签的删除（`WorkflowEngine.cs:518`，`TryConsumeBookmarkAsync`）以 `CancellationToken.None` 执行，位置在 `RunBurstAsync` **之前**，在它之前没有任何写入。书签存储的 `DeleteAsync` 在受影响行数为 0 时抛 `WorkflowException("书签 {id} 不存在或已被处理")`。执行器让每次删除独立提交，因此两个节点竞争同一书签时，先删者的删除在后删者执行前已提交，后删者确定性地删到 0 行，批次不开始、不留半写状态。这是**有意比内存默认实现更严格**的差异（`DefaultWorkflowBookmarkStore.DeleteAsync` 删不存在的键静默成功）。
+
+**全部调用点**（`IWorkflowBookmarkStore.DeleteAsync` 在框架内只有这三处；`WorkflowUserTaskService` 与 `WorkflowTimerWorker` 不调用它；取消/终止走的是 `DeleteByInstanceAsync`，不受守卫影响）：
+
+| 调用点 | 场景 | 删到 0 行会不会合法发生（非竞争） | 抛出的后果 |
+| --- | --- | --- | --- |
+| `WorkflowEngine.cs:393` | `ResumeBookmarkCoreAsync` 锁内发现书签所属实例已不存在，清理孤儿书签 | 不会：书签刚在锁内 `FindAsync` 到。只有两个节点同时清理同一孤儿时才会 0 行 | 无害：紧接着的下一行本就抛 `WorkflowException`（「所属实例不存在，书签已清理」），只是换成守卫的消息 |
+| `WorkflowEngine.cs:518` | `TryConsumeBookmarkAsync` 消费书签，调用方为 `ResumeBookmarkAsync`（人工办理、Worker、外部恢复）、`PublishSignalAsync`、`NotifyParentOnceAsync`（子流程回调） | 不会：书签刚在锁内 `FindAsync`（或 `GetByKindAndKeyAsync`）到，其间只有读。0 行只可能是另一节点已消费 | **这是守卫的目的**。批次未开始、无写入。`ResumeBookmarkAsync` 把异常抛给调用方（人工办理得到「书签不存在或已被处理」）；`PublishSignalAsync:235` 捕获 `WorkflowException` 跳过该书签；`WorkflowTimerWorker:140` 捕获并记为「已被并发处理」；`NotifyParentAsync` 不捕获，异常由 `RunPostActionsAsync` 记录错误日志——父实例已被赢家推进，无需重试 |
+| `WorkflowEngine.cs:1389` | `DeleteNodeBookmarksAsync`：节点离开挂起态时清兄弟书签，调用方为 `ExecuteNodeAsync` 的重试分支、`HandleCompletedAsync`、`HandleFaultedAsync` 的失败续行分支 | 不会：列表由 `GetByNodeInstanceAsync` 刚读出，逐条删除，列表内标识互不相同，且在同一把实例锁内没有别的删除者。消费删除（`:518`）在列表读取之前已提交，被消费的书签不会出现在列表里 | 见下 |
+
+**`:1389` 的结论**。守卫住 `:518` 之后，**同一书签的落败者到不了 `:1389`**：它在 `:518` 就放弃了，批次从未开始。`:1389` 只剩一种方式删到 0 行：**两个节点在没有 Redis 锁时同时推进同一实例、且各自赢得的是不同的书签**——例如会签节点的 `u1`、`u2` 同时办理，人工办理与同节点的超时书签同时到来，定时重试与人工 `RetryAsync` 同时发生，或取消（`DeleteByInstanceAsync`）与恢复同时进行。此时节点 A 读出的兄弟书签已被节点 B 消费，A 在 `:1389` 删到 0 行。
+
+处理方式：**同样抛出，不做特殊处理**。理由：
+
+1. 存储无法区分调用点——`:518` 与 `:1389` 调的是同一个契约方法，要让 `:1389` 宽松就得给契约加方法，属于上游改动
+2. 在 `:1389` 删到 0 行本身就是「有另一个写者正在推进本实例」的证据，此时已经是双推进；继续执行只会让下游节点再执行一次
+3. 抛出发生在 `ExecuteNodeAsync` 内，被 `RunBurstAsync` 的引擎级 `catch` 捕获，走 `FaultInstanceAsync`：实例进入 `Faulted`、带故障信息、可经 `RetryAsync` 人工恢复——可见、可恢复，而不是静默的重复执行
+
+代价：另一个节点的批次仍在跑，它的最后写入可能覆盖 `Faulted`。所以守卫**不能**替代 Redis 锁，只保证「同一书签只推进一次」，对不同书签的并发推进只能尽量把它暴露出来。
+
+### 4.8 启动警告
+
+`XiHanWorkflowSqlSugarModule.OnApplicationInitialization` 调一个扩展方法：若 `IServiceProvider` 解析出的 `IDistributedLock` 是 `XiHan.Framework.Caching.Distributed.DefaultDistributedLock`，记录一条 Warning——多实例部署需要跨进程的分布式锁（Redis），当前锁只在进程内互斥。不新增托管服务，不阻止启动。
+
+有了 §4.7 的守卫，这条警告是提示而非唯一防线：它针对的是守卫覆盖不到的「同一实例不同书签的并发推进」。
+
 ## 五个共同问题
 
 | 问题 | 答案 | 依据 |
@@ -267,17 +298,18 @@ services.Replace(ServiceDescriptor.Scoped<IWorkflowBookmarkStore, SqlSugarWorkfl
 
 | # | 决策 | 默认值 | 理由 | 若改会影响什么 |
 | --- | --- | --- | --- | --- |
-| D1 | 到期书签的领取方式 | **普通查询，不原子领取** | 契约明文 Worker 单活；无领取/释放的契约方法 | 若要支持无 Redis 的多实例：需给契约加领取语义并改 Worker，上游改动 |
+| D1 | 到期书签的领取方式 | **普通查询，不原子领取**；重复恢复由书签消费守卫拦截（§4.7） | 契约明文 Worker 单活；无领取/释放的契约方法；守卫已让同一书签只推进一次 | 若要原子领取：需给契约加领取语义并改 Worker，上游改动 |
 | D2 | 书签匹配的大小写 | **区分大小写**：数据库条件 + 序数后过滤 | 与内存实现一致；不区分会把他人的待办列给当前用户 | 改为依赖排序规则：MySQL 上受理人与信号名不区分大小写 |
 | D3 | 书签列名 | `Bookmark_Key` | `KEY` 是 MySQL 保留字 | 无功能影响 |
 | D4 | 书签二级排序 | `Basic_Id`，不加 `Sequence` | 书签顺序不影响补偿；同一父节点实例只有一个子流程书签 | 若日后有依赖书签顺序的逻辑，需补 `Sequence` |
-| D5 | `DeleteAsync` 删到 0 行 | **不报错** | 批次中途调用，抛出会把实例判为故障 | 改为抛出：并发下正常的重复清理会故障实例 |
+| D5 | `DeleteAsync` 删到 0 行 | **抛 `WorkflowException`**（书签消费守卫）；`DeleteByInstanceAsync` 不抛 | 消费删除在批次开始前，抛出让落败节点放弃；`:1389` 删到 0 行只可能是不同书签的并发推进，抛出让实例进入可恢复的 `Faulted`（§4.7）。这让存储比内存默认实现更严格，是有意的差异 | 改回不抛：没有 Redis 锁时同一书签被两个节点各推进一次 |
 | D6 | 索引集合 | 四个：实例、节点实例、到期、种类+键+创建时间 | 覆盖 §1.2 全部查询；相关性不单独建索引（信号查询已被种类+键收窄） | 去掉 `idx_due`：Worker 每轮全表扫描 |
 | D7 | 端到端测试的位置 | 本包测试项目内，复制 `Workflow.Tests` 的四个测试替身 | 测试项目不引用别的测试项目 | 无 |
 | D8 | 根目录 `README.md` / `README_cn.md` | **只把模块计数加一，不在「常用包」表格加行** | 常用包是精选清单，`EventBus.SqlSugar`、`Auditing.SqlSugar` 也未列入；逐包表格在 `framework/README*.md` | 若要列入常用包：需在 PR 描述说明 |
-| D11 | 模块计数的更新方式 | **实现时读取当前值 N 再全局加一**，不写死数字与行号 | 8 个 SqlSugar 包先后合入，计数与行号都会漂移；计数分布在 4 个 README 与 `docs/**/*.md` 共约 20 处，含 shields.io 徽章 `Modules-N-1f6feb` 与「包参考 N 页」；`framework/README*.md` 里「N 个单测工程」数的是测试项目，本包新增测试项目，同样加一 | 写死 `68 → 69` 只对第一个合入的包正确 |
 | D9 | `docs/packages/workflow.md` 的「示例 6：换成持久化存储」 | **不改** | 一个 PR 只做一件事 | 若要改成指向本包：属于对另一页的改动 |
 | D10 | 文档站页面放在侧边栏的哪一组 | 「存储 · 模板 · 任务 · 治理」，紧跟 `Workflow 工作流` | 与 `EventBus.SqlSugar` 紧跟 `EventBus` 的做法一致 | 无 |
+| D11 | 模块计数的更新方式 | **实现时读取当前值 N 再全局加一**，不写死数字与行号 | 8 个 SqlSugar 包先后合入，计数与行号都会漂移；计数分布在 4 个 README 与 `docs/**/*.md` 共约 20 处，含 shields.io 徽章 `Modules-N-1f6feb` 与「包参考 N 页」；`framework/README*.md` 里「N 个单测工程」数的是测试项目，本包新增测试项目，同样加一 | 写死 `68 → 69` 只对第一个合入的包正确 |
+| D12 | 进程内锁的启动提示 | 模块 `OnApplicationInitialization` 发现 `DefaultDistributedLock` 时记录一条 Warning，不阻止启动（§4.8） | 单实例不上 Redis 是合法部署；守卫之外仍有不同书签并发推进的风险需要提示 | 改为拒绝启动：单实例被迫引入 Redis |
 
 ## 5. 会静默失效的陷阱
 
@@ -303,7 +335,11 @@ services.Replace(ServiceDescriptor.Scoped<IWorkflowBookmarkStore, SqlSugarWorkfl
 
 实例锁因续期失败而丢失时（`WorkflowInstanceLocker.cs:95`），旧持锁者可能在书签已被新持锁者消费（删除）之后，再对它 `UpdateAsync`（例如挂起实例的到期回退）。upsert 会把书签复活，它随后被再次恢复。纯更新只是更新 0 行。
 
-**⑤ 端到端测试的主机从根容器解析引擎。**
+**⑤ 守卫被「宽容化」，或守卫加到了错误的方法上。**
+
+把 `DeleteAsync` 的 0 行抛出去掉（例如认为「删不存在的东西不算错」），存储单元测试会变红，但端到端用例全部照常通过。单元测试只证明存储会抛出；只有双节点竞争用例能证明引擎路径被拦住，因此要求对双节点用例做「去掉抛出后变红」的验证；只改单元测试的断言去迁就实现，守卫就会无声消失。反过来，把同样的抛出加到 `DeleteByInstanceAsync` 上，取消一个本就没有书签的实例（例如已故障、书签全部消费完）会抛异常而取消失败。
+
+**⑥ 端到端测试的主机从根容器解析引擎。**
 
 存储是 Scoped。从根容器解析 `IWorkflowEngine` 在未开启作用域校验时能跑通，存储随根作用域成为事实上的单例，用例全绿但没有测到真实的作用域用法。主机必须 `CreateScope()` 后从作用域解析。
 
@@ -313,13 +349,16 @@ services.Replace(ServiceDescriptor.Scoped<IWorkflowBookmarkStore, SqlSugarWorkfl
 
 - **实体**：表名、四个索引、种类+键索引的字段顺序
 - **映射**：`Payload` 往返；`Key` ↔ `BookmarkKey`；`CorrelationId` 的 `""` 与 `null` 各自保留
-- **存储**：§4.3 表格逐行；`GetDueAsync` 排除 `null` 与未到期、包含恰好到期、按到期时间升序、`max` 截断与 `max <= 0`；信号三种相关性语义；非信号种类同键不命中；`UpdateAsync` 改 `Key` 与 `DueTime`、不新建行；`DeleteByInstanceAsync` 只删该实例
+- **存储**：§4.3 表格逐行；`DeleteAsync` 删不存在的标识抛 `WorkflowException`、`DeleteByInstanceAsync` 对没有书签的实例不抛；`GetDueAsync` 排除 `null` 与未到期、包含恰好到期、按到期时间升序、`max` 截断与 `max <= 0`；信号三种相关性语义；非信号种类同键不命中；`UpdateAsync` 改 `Key` 与 `DueTime`、不新建行；`DeleteByInstanceAsync` 只删该实例
 - **注册**：替换生效、Scoped、单条；三个存储全部替换
 - **引擎端到端**：§4.6 六个流程
+- **启动警告**：`DefaultDistributedLock` 时判定为进程内锁并记录警告，其他实现不警告
 
 **第二层 —— 真实 MySQL，本机执行，CI 自动跳过**
 
 读 `XIHAN_TEST_MYSQL`，`Assert.SkipWhen(...)`。一个用例：插入受理人 `Alice` 的人工任务书签与信号 `Order-Paid` 的信号书签；`GetByKindAndKeyAsync(UserTask, "alice")` 与 `GetBySignalAsync("order-paid", null)` 都必须返回空；`finally` 删除本用例写入的书签。实现者须验证：去掉序数后过滤，本用例在默认排序规则的 MySQL 上变红。
+
+第二个用例：**双节点竞争同一到期书签**。两个测试主机各自一套 `SqlSugarScope` 与各自的进程内锁（模拟没有 Redis 的两个进程），共用同一个 MySQL 库。节点 A 发布延时流程并启动实例；两个节点同时对同一个定时书签调 `ResumeBookmarkAsync`。测试在书签存储外包一层装饰器，让两个节点对该书签的 `DeleteAsync` 在同一时刻汇合后再执行，使竞争确定发生。断言：恰好一个调用成功、另一个抛 `WorkflowException`；实例 `Completed`；执行历史中 `end` 节点恰好一条。实现者须做反向验证：临时去掉 `DeleteAsync` 的 0 行抛出，本用例变红（两个调用都成功、`end` 出现两条）。
 
 第 2 份的 MySQL 用例在本份结束时再跑一遍：夹具的 `InitTables` 此时包含书签表，顺带验证四张表的全部索引能在 MySQL 上建出。
 
@@ -331,17 +370,18 @@ services.Replace(ServiceDescriptor.Scoped<IWorkflowBookmarkStore, SqlSugarWorkfl
 
 | 项 | 说明 |
 | --- | --- |
-| 多实例必须上 Redis 锁 | 默认进程内锁下，多个节点的定时器 Worker 会同时取到同一批到期书签并各自恢复 |
+| 多实例应上 Redis 锁 | 默认进程内锁下，同一书签的重复恢复由删除守卫拦住、只推进一次；但同一实例的**不同**书签被两个节点同时恢复时仍会并发推进，后写覆盖先写，最好情况下实例进入 `Faulted`。启动时有警告 |
+| 书签删除比内存实现严格 | `DeleteAsync` 删不存在的标识抛 `WorkflowException`；内存默认实现静默成功。直接调用存储的应用代码需注意 |
 | 书签表规模 | 等于当前等待中的点；被挂起实例的到期书签每轮回退、长期保留 |
 | 信号名与受理人长度 | `Bookmark_Key` 256 字符；超长在 MySQL 严格模式下报错 |
 | 定时精度 | MySQL `datetime` 无小数秒，到期时间写入时四舍五入到秒，定时书签最多晚不到一秒被取到 |
-| 其余 | 第 1、2 份已知边界全部适用（工作流写入不随业务回滚、SQLite 外层事务锁库、变量须可序列化、删除实例不删书签、取消非原子、编码比较随排序规则、无自动清理） |
+| 其余 | 第 1、2 份已知边界全部适用（工作流写入不随业务回滚、SQLite 外层事务锁库、变量须可序列化、删除实例不删书签、推进过程非原子（崩溃后留下无书签的运行中实例）、编码比较随排序规则、无自动清理） |
 
 ## 8. 验收标准
 
 - `dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false` **0 警告 0 错误**
 - `dotnet test --solution framework/XiHan.Framework.slnx -c Release` 全绿（已知抖动 `MemoryUsageTests.Complete_ConvertsGcCountsIntoDeltas` 除外）
-- 本机 MySQL：本份与第 2 份的真实库用例都通过；去掉序数后过滤时本份用例变红
+- 本机 MySQL：本份与第 2 份的真实库用例都通过；去掉序数后过滤时大小写用例变红；去掉 `DeleteAsync` 的 0 行抛出时双节点竞争用例变红
 - 新包七处登记齐全：csproj 与四个 props、模块类与注册扩展、README 七段、slnx 两个项目、`docs/packages/workflow-sqlsugar.md` + 侧边栏 + `docs/packages/index.md`、`framework/README.md` 与 `framework/README_cn.md` 模块清单；模块计数在全部出现处加一（根 README 按 D8 只改计数）
 - README 写明 `EnableDbInitialization` 与 `EnableTableInitialization` 默认 `false`
 - 每个 `.cs` 带两行版权声明；注释只写做什么；file-scoped namespace；表达式体方法/构造函数关闭

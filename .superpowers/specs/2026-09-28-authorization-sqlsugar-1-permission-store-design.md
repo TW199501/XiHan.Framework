@@ -175,7 +175,7 @@ E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
 
 - **不改 `XiHan.Framework.Authorization` 主包的任何文件**。契约、默认实现、注册代码一律不动。
 - **不调 `GetClientForEntity<T>()`**。本包所有表必须落在同一个库里才能联表，统一用 `GetCurrentClient()`。
-- **不手动给 `TenantId` 赋值**。插入时由 `SqlSugarDataExecutingHandler` 按当前租户上下文填写（`XiHanDataServiceCollectionExtensions` 挂的 AOP）。
+- **不依赖全局租户过滤器做隔离**。授予表的每条读写都显式带 `TenantId == ICurrentTenant.Id ?? 0`，插入时显式赋同一个值，见 §4.4。
 - **不截断权限名称、用户标识、角色标识**。`Auditing.SqlSugar` 的映射器会把超长文本截到列宽，本包**不能照抄**：截断后的名称是另一个权限。
 - **不做软删除**。授予行撤销即物理删除。
 - **不加缓存**。见 §4.7 与「待确认的决策」。
@@ -239,7 +239,7 @@ E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
 | `ux_authz_up_tenant_user_perm` | user_permission | `TenantId, UserId, PermissionName` | 是 | 按用户读直接授予；幂等授予 |
 | `ux_authz_rp_tenant_role_perm` | role_permission | `TenantId, RoleId, PermissionName` | 是 | 按角色读授予；热路径联表；删角色时级联 |
 
-复合索引首列是 `TenantId`：租户过滤器给每条查询都加 `Tenant_Id = ?`，首列等值才能用上索引。
+复合索引首列是 `TenantId`：每条查询都显式带 `Tenant_Id = ?`，首列等值才能用上索引。
 
 ### 4.4 租户
 
@@ -255,9 +255,16 @@ E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
 
 权限定义选全局：权限名由代码里的 `[PermissionAuthorize("...")]` 引用，是全应用一份的目录，不随租户变化。
 
-**TenantId 的写入**：插入时由 AOP 按当前上下文填（租户态填租户标识、平台态保留 0）；实体上预置了与上下文不符的值会被 `EntityAuditExtensions.SetTenantIdValue` 拒绝。本包**不手动赋值**。
+**显式的当前租户条件（不依赖过滤器）**：实体实现 `IStrictMultiTenantEntity` 只是第一道防线。全局过滤器可以被 `EnableTenantFilter = false` 整体关掉，那时只按 `User_Id` / `Role_Id` 查询，租户 A 的用户 `"1001"` 会读到租户 B 同名用户的授予——跨租户授权。因此授予表的**每一条**查询、更新、删除都显式带 `TenantId == tenantId`，插入时显式把 `TenantId` 赋成同一个值：
 
-**更新与删除**：`EnableAutoUpdateQueryFilter` / `EnableAutoDeleteQueryFilter` 默认 `true`，按条件的 `Updateable` / `Deleteable` 同样被租户过滤器收紧。
+- `tenantId = ICurrentTenant.Id ?? 0`。`ICurrentTenant`（`XiHan.Framework.MultiTenancy.Abstractions`）的实现 `CurrentTenant` 读 `ICurrentTenantAccessor.Current?.TenantId`，无租户上下文时为 `null`
+- **平台态（宿主）取 0**：与数据层 AOP 在平台态插入时保留的 0（`EntityAuditExtensions.SetTenantIdValue`：上下文为空时不改预置值）一致，也与严格过滤器平台态的口径 `Current?.TenantId ?? 0`（`XiHanDataServiceCollectionExtensions.cs:481-484` 的 `ResolveStrictTenantScopeId`）一致。平台态读写的是平台自己的授予，看不到任何业务租户的授予——这是合法的宿主路径，不会被显式条件打断
+- 插入时显式赋值不与 AOP 冲突：租户态预置值等于上下文时 AOP 放行；平台态 AOP 不改预置值
+- 与同一轮的 `Authentication.SqlSugar` 做法一致（每条 SQL 显式 `Tenant_Id` 等值）
+
+权限定义表全局，不带租户条件。
+
+**更新与删除**：`EnableAutoUpdateQueryFilter` / `EnableAutoDeleteQueryFilter` 默认 `true`，过滤器开着时与显式条件叠加，结果相同；关掉时显式条件仍然生效。
 
 ### 4.5 客户端与事务
 
@@ -272,14 +279,14 @@ private ISqlSugarClient Client => _clientResolver.GetCurrentClient();
 
 ### 4.6 `SqlSugarPermissionStore`
 
-构造函数：`(ISqlSugarClientResolver clientResolver, IDistributedIdGenerator<long> idGenerator)`。主键在插入前由 `idGenerator.NextId()` 取，写法与 `SqlSugarLoginLogWriter` 一致。
+构造函数：`(ISqlSugarClientResolver clientResolver, ICurrentTenant currentTenant, IDistributedIdGenerator<long> idGenerator)`。主键在插入前由 `idGenerator.NextId()` 取，写法与 `SqlSugarLoginLogWriter` 一致。私有属性 `CurrentTenantId => _currentTenant.Id ?? 0`，各方法先取到局部变量再写进表达式。
 
 | 方法 | SQL 形状 | 走的索引 |
 | --- | --- | --- |
-| `GetUserPermissionsAsync(userId)` | `user_permission INNER JOIN permission ON Permission_Name`，`WHERE User_Id = ?`，选 permission 整行 | `ux_authz_up_*` → `ux_authz_perm_name` |
-| `GetRolePermissionsAsync(roleId)` | `role_permission INNER JOIN permission ON Permission_Name`，`WHERE Role_Id = ?` | `ux_authz_rp_*` → `ux_authz_perm_name` |
-| `GrantPermissionToUserAsync` | `AnyAsync` 查重 → 无则 `Insertable` | `ux_authz_up_*` |
-| `RevokePermissionFromUserAsync` | `Deleteable ... WHERE User_Id AND Permission_Name` | 同上 |
+| `GetUserPermissionsAsync(userId)` | `user_permission INNER JOIN permission ON Permission_Name`，`WHERE Tenant_Id = @当前租户 AND User_Id = ?`，选 permission 整行 | `ux_authz_up_*` → `ux_authz_perm_name` |
+| `GetRolePermissionsAsync(roleId)` | `role_permission INNER JOIN permission ON Permission_Name`，`WHERE Tenant_Id = @当前租户 AND Role_Id = ?` | `ux_authz_rp_*` → `ux_authz_perm_name` |
+| `GrantPermissionToUserAsync` | `AnyAsync(Tenant_Id, User_Id, Permission_Name)` 查重 → 无则 `Insertable`，`TenantId` 显式赋当前租户 | `ux_authz_up_*` |
+| `RevokePermissionFromUserAsync` | `Deleteable ... WHERE Tenant_Id AND User_Id AND Permission_Name` | 同上 |
 | `GrantPermissionToRoleAsync` / `RevokePermissionFromRoleAsync` | 同上，换 role_permission | `ux_authz_rp_*` |
 | `GetAllPermissionsAsync` | 全表，内存按 `SortOrder`、`PermissionName`（序数）排序 | — |
 | `GetPermissionByNameAsync` | `FirstAsync(PermissionName == ?)` | `ux_authz_perm_name` |
@@ -333,6 +340,10 @@ public static IServiceCollection AddXiHanAuthorizationSqlSugar(this IServiceColl
 
 读共享口径下，平台态授予的行在每个租户里都可见。SQLite 测试客户端没有注册任何过滤器，**全部测试照样绿**。用反射测试钉死：两个授予实体必须可赋值给 `IStrictMultiTenantEntity`，权限定义实体必须**不**可赋值给 `IMultiTenantEntity`。
 
+**①′ 只靠过滤器做隔离，查询里不带当前租户条件。**
+
+过滤器开着时一切正常；`EnableTenantFilter = false` 时跨租户读到同名用户的授予。SQLite 测试客户端本就没有过滤器，所以测试**能**抓到它：夹具带一个可写的 `StubCurrentTenant`，用例在租户 1 授予、切到租户 2 与平台态读，断言读不到。
+
 **② 用 `sys_role` / `sys_permission` 这类通用表名。**
 
 下游 `XiHan.BasicApp` 已有 `Sys_Role`、`Sys_Permission`、`Sys_Role_Data_Scope` 等表。MySQL、SQL Server 的默认排序规则对表名大小写不敏感，CodeFirst 看到「表已存在」就走改表分支，往那张业务表里加本包的列。**不报错**，损坏在下游下一次读那张表时才暴露。用反射测试钉死所有实体表名以 `sys_authz_` 开头。
@@ -365,6 +376,7 @@ public static IServiceCollection AddXiHanAuthorizationSqlSugar(this IServiceColl
 - **唯一索引生效**：同名权限定义插第二次抛异常；同一租户重复授予抛异常，不同租户可重复（直接 `Insertable` 带不同 `TenantId`，SQLite 下无 AOP）
 - **映射**：逐字段对应；`Properties` 以 JSON 往返，值读回为 `JsonElement`
 - **1.2 表的每一条语义**：直接授予、按角色标识、定义缺失跳过、定义补回后生效、不过滤启用、幂等、空参数
+- **当前租户**：夹具的 `StubCurrentTenant`（`Id` 可写，默认 `null` 即平台态）；租户 1 授予的行，租户 2 与平台态都读不到、撤销不掉；落库行的 `TenantId` 为 1
 - **定义维护**：新增、同名更新而不新增、空名称不写、批量写入排序、删除返回值
 - **注册**：`Replace` 后只剩一个描述符；具体类型以作用域注册；模块依赖授权模块与数据模块
 
@@ -387,6 +399,7 @@ public static IServiceCollection AddXiHanAuthorizationSqlSugar(this IServiceColl
 | 权限定义全局可写 | 权限定义表不分租户，租户态调用 `AddOrUpdatePermissionAsync` / `RemovePermissionAsync` 会改到所有租户共用的定义。应用层应只在平台态暴露这些操作 |
 | `Properties` 的值类型 | 以 System.Text.Json 存取，读回的字典值是 `JsonElement`，不是写入时的原始类型 |
 | 超长名称 | 权限名超过 256、用户或角色标识超过 128 时，严格模式的数据库直接报错，MySQL 非严格模式会静默截断——后者是数据库配置问题，本包不兜底 |
+| 租户隔离的边界 | 授予表按 `ICurrentTenant.Id ?? 0` 显式过滤，与过滤器开关无关；平台态读写租户 0 的授予，看不到业务租户的授予。权限定义表全局共享，不受此约束 |
 | 取消令牌的残留 | SqlSugar 的 `*Async(CancellationToken)` 把令牌写进 `Context.Ado.CancellationToken` 且执行后不清除。同一作用域内后续不带令牌的调用会继承它；授权调用与业务调用通常共用请求的令牌，行为不变 |
 
 ## 8. 验收标准
@@ -421,7 +434,7 @@ public static IServiceCollection AddXiHanAuthorizationSqlSugar(this IServiceColl
 | 2 | 实体类名前缀 | `SysAuthz`（如 `SysAuthzRole`） | 与表名一一对应 | 纯命名，改了只影响可读性 |
 | 3 | 主键 | 雪花 `long` + 业务键唯一索引 | 契约标识是租户内唯一的字符串 | 改成以业务键作主键则无法在不同租户复用同一角色标识 |
 | 4 | 权限定义不分租户 | 全局 | 权限目录由代码定义，全应用一份 | 若要租户自定义权限，定义表要改成读共享（`IMultiTenantEntity`），唯一索引加 `TenantId` |
-| 5 | 授予行严格隔离 | `IStrictMultiTenantEntity` | 平台态授予不应泄漏到租户 | 改成读共享则平台授予对所有租户可见 |
+| 5 | 授予行严格隔离 | `IStrictMultiTenantEntity` + 每条 SQL 显式 `TenantId == ICurrentTenant.Id ?? 0` | 平台态授予不应泄漏到租户；过滤器可被关掉，显式条件不依赖它；与 `Authentication.SqlSugar` 一致 | 去掉显式条件则关闭过滤器时可跨租户读到同名用户的授予 |
 | 6 | 客户端 | 一律 `GetCurrentClient()` | 联表要求同库 | 改成按实体路由后，给任一实体加 `[ModuleDataSource]` 就会让联表跨库 |
 | 7 | 定义维护方法 | 提供 `AddOrUpdatePermissionAsync` 等 3 个，并注册具体类型 | 契约没有新增定义的入口，与默认实现同名便于迁移 | 去掉则应用只能手写 `Insertable` 灌定义 |
 | 8 | 删除定义不级联 | 不级联 | 与默认实现一致 | 改成级联则「临时删除再补回」会丢掉全部授予 |

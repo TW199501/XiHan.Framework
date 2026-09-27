@@ -2376,7 +2376,7 @@ dotnet test --project framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/XiH
 
 ## 已知边界（写入 PR 描述，不写进代码注释）
 
-- **多实例必须上 Redis 锁**：默认 `DefaultDistributedLock` 只在进程内互斥，本包不检测
+- **多实例应上 Redis 锁**：默认 `DefaultDistributedLock` 只在进程内互斥；第 3 份的书签删除守卫保证同一书签只推进一次，但不同书签的并发恢复仍会最后写入覆盖；第 3 份在启动时记录警告
 - **工作流写入不随业务回滚**：业务事务里启动流程后业务回滚，流程实例仍在
 - **SQLite + 外层事务**：外层工作单元已写过同一个 SQLite 库时，存储的独立连接会撞 `database is locked`
 - **并发创建同编码定义**：唯一索引让后到者抛数据库异常，调用方需重试

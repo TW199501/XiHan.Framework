@@ -386,12 +386,13 @@ public class EntityMappingTests
     }
 
     /// <summary>
-    /// 往返映射保留全部字段
+    /// 往返映射保留全部字段，含四个时间字段
     /// </summary>
     [Fact]
     public void 往返映射保留全部字段()
     {
         var effectiveTime = new DateTime(2026, 9, 28, 0, 0, 0, DateTimeKind.Utc);
+        var expiryTime = effectiveTime.AddDays(7);
         var model = new GrayRule
         {
             RuleId = "rule-1",
@@ -403,7 +404,7 @@ public class EntityMappingTests
             TargetServiceId = "order-service",
             Configuration = "{\"percentage\":10}",
             EffectiveTime = effectiveTime,
-            ExpiryTime = effectiveTime.AddDays(7),
+            ExpiryTime = expiryTime,
             CreatedTime = effectiveTime,
             UpdatedTime = effectiveTime,
             Remark = "备注"
@@ -421,6 +422,43 @@ public class EntityMappingTests
         Assert.Equal(model.TargetServiceId, roundTrip.TargetServiceId);
         Assert.Equal(model.Configuration, roundTrip.Configuration);
         Assert.Equal(model.Remark, roundTrip.Remark);
+        Assert.Equal(effectiveTime, roundTrip.EffectiveTime);
+        Assert.Equal(expiryTime, roundTrip.ExpiryTime);
+        Assert.Equal(effectiveTime, roundTrip.CreatedTime);
+        Assert.Equal(effectiveTime, roundTrip.UpdatedTime);
+    }
+
+    /// <summary>
+    /// 未标注时区的时间按 UTC 解释，往返后保持不变
+    /// </summary>
+    /// <remarks>
+    /// 断言 <see cref="DateTimeKind.Unspecified"/> 输入按 UTC 解释后往返，期望值固定为
+    /// <see cref="DateTime.SpecifyKind(DateTime, DateTimeKind)"/> 转换后的结果。
+    /// </remarks>
+    [Fact]
+    public void 未标注时区的时间按UTC解释往返后保持不变()
+    {
+        var unspecified = new DateTime(2026, 9, 28, 10, 30, 0, DateTimeKind.Unspecified);
+        var model = new GrayRule
+        {
+            RuleId = "rule-2",
+            RuleName = "未标注时区",
+            CreatedTime = unspecified,
+            UpdatedTime = unspecified,
+            EffectiveTime = unspecified,
+            ExpiryTime = unspecified
+        };
+
+        var entity = GrayRuleMapper.ToEntity(model);
+        var roundTrip = GrayRuleMapper.ToModel(entity);
+
+        var expectedUtc = DateTime.SpecifyKind(unspecified, DateTimeKind.Utc);
+
+        Assert.Equal(expectedUtc, roundTrip.CreatedTime);
+        Assert.Equal(expectedUtc, roundTrip.UpdatedTime);
+        Assert.Equal(expectedUtc, roundTrip.EffectiveTime);
+        Assert.Equal(expectedUtc, roundTrip.ExpiryTime);
+        Assert.Equal(DateTimeKind.Utc, roundTrip.CreatedTime.Kind);
     }
 }
 ```
@@ -605,12 +643,36 @@ public static class GrayRuleMapper
             TargetVersion = model.TargetVersion,
             TargetServiceId = model.TargetServiceId,
             Configuration = model.Configuration,
-            EffectiveTime = model.EffectiveTime,
-            ExpiryTime = model.ExpiryTime,
-            CreatedTime = model.CreatedTime,
-            UpdatedTime = model.UpdatedTime,
+            EffectiveTime = ToUtcOffset(model.EffectiveTime),
+            ExpiryTime = ToUtcOffset(model.ExpiryTime),
+            CreatedTime = ToUtcOffset(model.CreatedTime),
+            UpdatedTime = ToUtcOffset(model.UpdatedTime),
             Remark = model.Remark
         };
+    }
+
+    /// <summary>
+    /// 把未标注时区的时间按 UTC 解释后转换为 DateTimeOffset
+    /// </summary>
+    /// <remarks>
+    /// 把 <paramref name="value"/> 的 <see cref="DateTime.Kind"/> 统一视为 <see cref="DateTimeKind.Utc"/>
+    /// 后再转换为 <see cref="DateTimeOffset"/>，忽略原有的 <see cref="DateTime.Kind"/> 标注。
+    /// </remarks>
+    /// <param name="value">原始时间</param>
+    /// <returns>按 UTC 解释后的时间</returns>
+    private static DateTimeOffset ToUtcOffset(DateTime value)
+    {
+        return new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc));
+    }
+
+    /// <summary>
+    /// 把可空的未标注时区时间按 UTC 解释后转换为 DateTimeOffset
+    /// </summary>
+    /// <param name="value">原始时间</param>
+    /// <returns>按 UTC 解释后的时间，输入为空时返回空</returns>
+    private static DateTimeOffset? ToUtcOffset(DateTime? value)
+    {
+        return value.HasValue ? ToUtcOffset(value.Value) : null;
     }
 }
 ```
@@ -693,6 +755,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SqlSugar;
 using XiHan.Framework.Data.SqlSugar.Clients;
+using XiHan.Framework.Traffic.Extensions.DependencyInjection;
 using XiHan.Framework.Traffic.GrayRouting.Abstractions;
 using XiHan.Framework.Traffic.GrayRouting.Enums;
 using XiHan.Framework.Traffic.GrayRouting.Implementations;
@@ -1228,9 +1291,10 @@ git commit -m "feat(traffic-sqlsugar): 新增灰度规则缓存仓储并替换�
 - Modify: `framework/src/XiHan.Framework.Traffic.SqlSugar/README.md`
 - Create: `docs/packages/traffic-sqlsugar.md`
 - Modify: `docs/.vitepress/config.ts`
-- Modify: `docs/packages/index.md`（包索引表）
+- Modify: `docs/packages/index.md`（包索引表与计数）
 - Modify: `README.md`、`README_cn.md`（模块计数）
 - Modify: `framework/README.md`、`framework/README_cn.md`（模块清单与计数）
+- Modify: `docs/index.md`、`docs/introduction.md`、`docs/why.md`（文档站计数）
 
 **Interfaces:**
 - Consumes: 前三个任务的全部产出
@@ -1268,29 +1332,50 @@ git commit -m "feat(traffic-sqlsugar): 新增灰度规则缓存仓储并替换�
 
 行号是撰写时的快照，实现时用 `grep -n "\[Traffic\](\./traffic)"` 现场核对插入位置，不要凭行号硬改。
 
-同文件开头第 3 行「XiHan.Framework 由 **N 个 NuGet 包**组成」的计数，与 Step 4（下一步）的模块计数是同一个数字，一并 +1，不要漏改这一处——它和 `README.md`/`framework/README.md` 里的计数字符串是分开维护的，改了那些不会连带改这里。
+本文件开头第 3 行「XiHan.Framework 由 **N 个 NuGet 包**组成」的计数不在本步处理，随 Step 4 的站内计数扫描一并 +1。
 
 - [ ] **Step 4: 更新模块计数与模块清单**
 
-模块总数字符串**不要假设是某个具体数字**——先探测当前值：
+模块总数字符串**不要假设是某个具体数字**——先从 `README.md` 的 shields.io 徽章读出当前计数 `N`（`Modules-N-1f6feb`）。
+
+**不要**用 `[0-9]\+ 个`/`[0-9]\+ 页` 这类正则模糊匹配——在当前仓库上能打出约 70 条命中，绝大多数是版本号、章节数等无关数字，且不排除 `node_modules`。改用精确的单词匹配：
 
 ```bash
-grep -n "Modules-[0-9]\+-1f6feb" README.md README_cn.md
-grep -n "[0-9]\+ 个" README.md README_cn.md framework/README.md framework/README_cn.md
+N=$(grep -o "Modules-[0-9]\+-1f6feb" README.md | grep -o "[0-9]\+")
+echo "当前计数：$N"
+
+grep -rn --include=*.md -w "$N" README.md README_cn.md framework/README.md framework/README_cn.md docs --exclude-dir=node_modules
 ```
 
-确认当前计数 `N` 后，把下列 **12 处**全部改成 `N+1`（`framework/README.md`、`framework/README_cn.md` 里"模块数"与"测试项目数"是两个独立计数，本包新增了 1 个源码项目、也新增了 1 个测试项目，两者都要 +1）：
+把命中里"确实是模块计数"的那些改成 `N+1`。下表列出撰写时已知的 8 个文件、20 处命中（含英文文案——`[0-9]\+ 个`/`[0-9]\+ 页` 的正则会漏掉这些，`-w` 精确匹配不会）：
 
 | 文件 | 内容 |
 | --- | --- |
-| `README.md` | 正文里的模块计数（1 处）、shields.io 徽章 URL 里的 `Modules-N-1f6feb`（1 处）、README 顶部/摘要处的计数（1 处） |
+| `README.md` | 正文里的模块计数（1 处，中文）、shields.io 徽章 URL 里的 `Modules-N-1f6feb`（1 处）、英文 tagline/badge 附近的计数（1 处） |
 | `README_cn.md` | 同上 3 处 |
-| `framework/README.md` | 正文计数（1 处）、模块目录小计（1 处）、测试项目计数（1 处） |
+| `framework/README.md` | 正文计数（1 处）、模块目录小计（1 处）、测试项目计数（1 处，本包新增了 1 个测试项目，一并 +1） |
 | `framework/README_cn.md` | 同上 3 处 |
+| `docs/index.md` | 标语行「N 个可独立引用的 NuGet 包」（1 处）、卡片说明「N 个包按七层组织」（1 处） |
+| `docs/introduction.md` | 模块总览表格行「参考手册（N 页）」（1 处） |
+| `docs/why.md` | 「拆成 N 个可独立引用的 NuGet 包」「N 个包可以单独引用」「包参考 N 页」「N 个包逐一查阅」共 4 处 |
+| `docs/packages/index.md` | 开头「由 N 个 NuGet 包组成」（1 处，与 Step 3 提到的同一处） |
 
-用 `grep -n "N"` 逐个文件核对一遍具体行号再改，不要凭经验猜行号——前面已合并的包会让行号漂移。
+行号是撰写时的快照，会随前面已合并的包漂移，以本步 grep 的实际输出为准，不要按下表行号直接改。**每一处命中都要人工确认它确实是模块计数**，不要把版本号、章节数（如「开发指南 38 章」）、无关统计数字一并改掉——上表已列出全部需要改的位置，命中但不在表里的数字保持原样。
 
-`README.md`、`README_cn.md` 只改计数，**不加表格行**。
+改完后跑两次验证：
+
+```bash
+grep -rn --include=*.md -w "$((N + 1))" README.md README_cn.md framework/README.md framework/README_cn.md docs --exclude-dir=node_modules | wc -l
+# 属于模块计数的命中应为 20；数字可能与无关文字巧合（如 N+1=69 时 docs/guide/distributed-ids.md 的「约 69 年」），逐条看输出，巧合命中不计入
+
+grep -rn --include=*.md -w "$((N + 1))" README.md README_cn.md framework/README.md framework/README_cn.md docs --exclude-dir=node_modules | cut -d: -f1 | sort -u | wc -l
+# 扣除巧合命中所在的文件后应为 8（8 个文件各至少 1 处命中）
+
+grep -rn --include=*.md -w "$N" README.md README_cn.md framework/README.md framework/README_cn.md docs --exclude-dir=node_modules
+# 不应再出现任何属于模块计数的命中；若还有命中，人工确认是巧合数字还是漏改
+```
+
+`README.md`、`README_cn.md`、`docs/index.md`、`docs/introduction.md`、`docs/why.md`、`docs/packages/index.md` 只改计数，**不加表格行**——这些是概览/首页文案，不是逐包穷举表（`docs/packages/index.md` 的表格行已在 Step 3 单独处理）。
 
 `framework/README.md` 与 `framework/README_cn.md` 除了计数，还要在模块清单表格中紧随 `XiHan.Framework.Traffic` 之后加入 `XiHan.Framework.Traffic.SqlSugar` 一行，描述用"灰度规则 SqlSugar 持久化"。
 

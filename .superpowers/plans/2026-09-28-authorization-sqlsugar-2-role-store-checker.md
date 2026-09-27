@@ -4,7 +4,7 @@
 
 **Goal:** 交付角色与用户角色关联两个实体、`IRoleStore` 的 SqlSugar 实现（删除角色同事务级联），以及顶替 `IPermissionChecker` 的 `SqlSugarPermissionChecker`，把一次权限判定从 `2 + 角色数` 条 SQL 降到至多 2 条。
 
-**Architecture:** 用户角色关联存角色**标识**，所有联表条件同时带 `TenantId` 相等。删除角色先删两张关联表、后删角色行，已在事务里就直接执行，不在就用 `Ado.UseTranAsync` 自开并检查返回值。检查器用两条 SQL：先查直接授予（候选全部命中即返回），再用四表联表查经启用角色授予的启用权限。
+**Architecture:** 用户角色关联存角色**标识**。角色表与两张驱动表（`user_role`、`user_permission`）的每条 SQL 显式带 `Tenant_Id = ICurrentTenant.Id ?? 0`（平台态为 0），所有联表条件另带 `TenantId` 相等，不依赖全局租户过滤器。删除角色先删两张关联表、后删角色行，已在事务里就直接执行，不在就用 `Ado.UseTranAsync` 自开并检查返回值。检查器用两条 SQL：先查直接授予（候选全部命中即返回），再用四表联表查经启用角色授予的启用权限。
 
 **Tech Stack:** .NET 10、SqlSugarCore 5.1.4.221、xunit.v3 + Microsoft.Testing.Platform
 
@@ -87,6 +87,7 @@ SugarIndexAttribute(string indexName, string fieldName1, OrderByType sortType1, 
 // 框架
 ISqlSugarClient ISqlSugarClientResolver.GetCurrentClient()
 long IDistributedIdGenerator<long>.NextId()
+long? ICurrentTenant.Id { get; }   // XiHan.Framework.MultiTenancy.Abstractions；无租户上下文（平台态）时为 null
 ```
 
 **编码约定**：
@@ -130,13 +131,13 @@ long IDistributedIdGenerator<long>.NextId()
 
 它吞异常；已有事务时它会提交外层事务。
 
-**④ 所有联表条件带 `TenantId` 相等。**
+**④ 驱动表与角色表带当前租户条件，所有联表条件带 `TenantId` 相等。**
 
-`member.TenantId == role.TenantId && member.RoleId == role.RoleId`，role → role_permission 同理。**权限定义表是全局的，与它联表只按 `PermissionName`。**
+当前租户 = `ICurrentTenant.Id ?? 0`，平台态为 0（与数据层 AOP 在平台态插入时保留的 0、严格过滤器平台态的口径一致，宿主路径不受影响）。`user_role`、`user_permission`、`role` 的每条查询、更新、删除都带 `TenantId == tenantId`，插入时显式赋值；联表另写 `member.TenantId == role.TenantId && member.RoleId == role.RoleId`，role → role_permission 同理。**权限定义表是全局的，与它联表只按 `PermissionName`。** 只靠全局过滤器的写法，在 `EnableTenantFilter = false` 时会让租户 A 的用户拿到租户 B 同名用户的授权。表达式里用局部变量 `tenantId`。
 
 **⑤ 用户角色关联存角色标识，不存名称。**
 
-**⑥ 只用 `GetCurrentClient()`，不手动赋 `TenantId`，不改主包任何文件。**
+**⑥ 只用 `GetCurrentClient()`，不改主包任何文件。**
 
 ---
 
@@ -704,7 +705,7 @@ git commit -m "feat(authorization-sqlsugar): 新增角色映射器"
 **Interfaces:**
 - Consumes: Task 1 的两个实体、Task 2 的 `RoleMapper`、① 的 `SysAuthzRolePermission` 与 `SqlSugarPermissionStore`（测试造数用）
 - Produces:
-  - `public class SqlSugarRoleStore : IRoleStore`，构造函数 `(ISqlSugarClientResolver clientResolver, IDistributedIdGenerator<long> idGenerator)`，契约的 11 个方法
+  - `public class SqlSugarRoleStore : IRoleStore`，构造函数 `(ISqlSugarClientResolver clientResolver, ICurrentTenant currentTenant, IDistributedIdGenerator<long> idGenerator)`，契约的 11 个方法
   - 夹具新增 `SqlSugarRoleStore CreateRoleStore()`
 
 **参考来源（动手前先读）：**
@@ -734,7 +735,7 @@ using XiHan.Framework.Authorization.SqlSugar.Roles;
     /// <returns>角色存储</returns>
     public SqlSugarRoleStore CreateRoleStore()
     {
-        return new SqlSugarRoleStore(Resolver, IdGenerator);
+        return new SqlSugarRoleStore(Resolver, CurrentTenant, IdGenerator);
     }
 ```
 
@@ -935,6 +936,35 @@ public class RoleStoreTests
     }
 
     /// <summary>
+    /// 同一角色标识与名称可在不同租户各建一个且互不可见
+    /// </summary>
+    [Fact]
+    public async Task 同一角色标识与名称可在不同租户各建一个()
+    {
+        using var context = new AuthorizationTestContext();
+        var roles = context.CreateRoleStore();
+
+        context.CurrentTenant.Id = 1;
+        await roles.CreateRoleAsync(new RoleDefinition("r1", "editor", "编辑"));
+
+        context.CurrentTenant.Id = 2;
+        Assert.Null(await roles.GetRoleByIdAsync("r1"));
+        Assert.Null(await roles.GetRoleByNameAsync("editor"));
+
+        await roles.CreateRoleAsync(new RoleDefinition("r1", "editor", "编辑"));
+        await roles.AddUserToRoleAsync("u1", "editor");
+
+        Assert.Single(await roles.GetAllRolesAsync());
+
+        context.CurrentTenant.Id = null;
+        Assert.Empty(await roles.GetAllRolesAsync());
+        Assert.False(await roles.IsInRoleAsync("u1", "editor"));
+
+        context.CurrentTenant.Id = 1;
+        Assert.False(await roles.IsInRoleAsync("u1", "editor"));
+    }
+
+    /// <summary>
     /// 空参数读取返回空值
     /// </summary>
     [Fact]
@@ -1120,6 +1150,8 @@ public class UserRoleTests
             RoleId = "r9"
         }).ExecuteCommandAsync();
 
+        context.CurrentTenant.Id = 1;
+
         Assert.Empty(await roles.GetUserRolesAsync("u9"));
         Assert.False(await roles.IsInRoleAsync("u9", "admin"));
         Assert.Empty(await roles.GetUsersInRoleAsync("admin"));
@@ -1291,27 +1323,35 @@ using XiHan.Framework.Authorization.SqlSugar.Entities;
 using XiHan.Framework.Authorization.SqlSugar.Mapping;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.DistributedIds;
+using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.Framework.Authorization.SqlSugar.Roles;
 
 /// <summary>
 /// 角色存储的 SqlSugar 实现
 /// </summary>
+/// <remarks>
+/// 角色与用户角色关联按当前租户读写，平台态对应租户标识 0。
+/// </remarks>
 public class SqlSugarRoleStore : IRoleStore
 {
     private readonly ISqlSugarClientResolver _clientResolver;
+    private readonly ICurrentTenant _currentTenant;
     private readonly IDistributedIdGenerator<long> _idGenerator;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="clientResolver">客户端解析器</param>
+    /// <param name="currentTenant">当前租户</param>
     /// <param name="idGenerator">主键生成器</param>
     public SqlSugarRoleStore(
         ISqlSugarClientResolver clientResolver,
+        ICurrentTenant currentTenant,
         IDistributedIdGenerator<long> idGenerator)
     {
         _clientResolver = clientResolver;
+        _currentTenant = currentTenant;
         _idGenerator = idGenerator;
     }
 
@@ -1319,6 +1359,11 @@ public class SqlSugarRoleStore : IRoleStore
     /// 当前租户主库的客户端
     /// </summary>
     private ISqlSugarClient Client => _clientResolver.GetCurrentClient();
+
+    /// <summary>
+    /// 当前租户标识，平台态为 0
+    /// </summary>
+    private long CurrentTenantId => _currentTenant.Id ?? 0;
 
     /// <summary>
     /// 获取用户的角色列表
@@ -1336,9 +1381,10 @@ public class SqlSugarRoleStore : IRoleStore
             return [];
         }
 
+        var tenantId = CurrentTenantId;
         var entities = await Client.Queryable<SysAuthzUserRole>()
             .InnerJoin<SysAuthzRole>((member, role) => member.TenantId == role.TenantId && member.RoleId == role.RoleId)
-            .Where((member, role) => member.UserId == userId)
+            .Where((member, role) => member.TenantId == tenantId && member.UserId == userId)
             .Select((member, role) => role)
             .ToListAsync(cancellationToken);
 
@@ -1362,9 +1408,11 @@ public class SqlSugarRoleStore : IRoleStore
             return false;
         }
 
+        var tenantId = CurrentTenantId;
+
         return await Client.Queryable<SysAuthzUserRole>()
             .InnerJoin<SysAuthzRole>((member, role) => member.TenantId == role.TenantId && member.RoleId == role.RoleId)
-            .Where((member, role) => member.UserId == userId && role.RoleName == roleName)
+            .Where((member, role) => member.TenantId == tenantId && member.UserId == userId && role.RoleName == roleName)
             .AnyAsync(cancellationToken);
     }
 
@@ -1386,12 +1434,13 @@ public class SqlSugarRoleStore : IRoleStore
         }
 
         var client = Client;
+        var tenantId = CurrentTenantId;
         var role = await client.Queryable<SysAuthzRole>()
-            .FirstAsync(item => item.RoleName == roleName, cancellationToken)
+            .FirstAsync(item => item.TenantId == tenantId && item.RoleName == roleName, cancellationToken)
             ?? throw new InvalidOperationException($"角色 '{roleName}' 不存在");
 
         var joined = await client.Queryable<SysAuthzUserRole>()
-            .AnyAsync(member => member.UserId == userId && member.RoleId == role.RoleId, cancellationToken);
+            .AnyAsync(member => member.TenantId == tenantId && member.UserId == userId && member.RoleId == role.RoleId, cancellationToken);
 
         if (joined)
         {
@@ -1400,6 +1449,7 @@ public class SqlSugarRoleStore : IRoleStore
 
         var entity = new SysAuthzUserRole(_idGenerator.NextId())
         {
+            TenantId = tenantId,
             UserId = userId,
             RoleId = role.RoleId
         };
@@ -1421,8 +1471,9 @@ public class SqlSugarRoleStore : IRoleStore
         }
 
         var client = Client;
+        var tenantId = CurrentTenantId;
         var role = await client.Queryable<SysAuthzRole>()
-            .FirstAsync(item => item.RoleName == roleName, cancellationToken);
+            .FirstAsync(item => item.TenantId == tenantId && item.RoleName == roleName, cancellationToken);
 
         if (role is null)
         {
@@ -1430,12 +1481,12 @@ public class SqlSugarRoleStore : IRoleStore
         }
 
         await client.Deleteable<SysAuthzUserRole>()
-            .Where(member => member.UserId == userId && member.RoleId == role.RoleId)
+            .Where(member => member.TenantId == tenantId && member.UserId == userId && member.RoleId == role.RoleId)
             .ExecuteCommandAsync(cancellationToken);
     }
 
     /// <summary>
-    /// 获取所有角色
+    /// 获取当前租户的所有角色
     /// </summary>
     /// <remarks>
     /// 按排序值升序、同排序值按名称序数升序返回。
@@ -1444,7 +1495,10 @@ public class SqlSugarRoleStore : IRoleStore
     /// <returns>角色列表</returns>
     public async Task<List<RoleDefinition>> GetAllRolesAsync(CancellationToken cancellationToken = default)
     {
-        var entities = await Client.Queryable<SysAuthzRole>().ToListAsync(cancellationToken);
+        var tenantId = CurrentTenantId;
+        var entities = await Client.Queryable<SysAuthzRole>()
+            .Where(item => item.TenantId == tenantId)
+            .ToListAsync(cancellationToken);
 
         return ToOrderedDefinitions(entities);
     }
@@ -1462,8 +1516,9 @@ public class SqlSugarRoleStore : IRoleStore
             return null;
         }
 
+        var tenantId = CurrentTenantId;
         var entity = await Client.Queryable<SysAuthzRole>()
-            .FirstAsync(item => item.RoleName == roleName, cancellationToken);
+            .FirstAsync(item => item.TenantId == tenantId && item.RoleName == roleName, cancellationToken);
 
         return entity is null ? null : RoleMapper.ToDefinition(entity);
     }
@@ -1481,8 +1536,9 @@ public class SqlSugarRoleStore : IRoleStore
             return null;
         }
 
+        var tenantId = CurrentTenantId;
         var entity = await Client.Queryable<SysAuthzRole>()
-            .FirstAsync(item => item.RoleId == roleId, cancellationToken);
+            .FirstAsync(item => item.TenantId == tenantId && item.RoleId == roleId, cancellationToken);
 
         return entity is null ? null : RoleMapper.ToDefinition(entity);
     }
@@ -1510,18 +1566,22 @@ public class SqlSugarRoleStore : IRoleStore
         }
 
         var client = Client;
+        var tenantId = CurrentTenantId;
 
-        if (await client.Queryable<SysAuthzRole>().AnyAsync(item => item.RoleId == role.Id, cancellationToken))
+        if (await client.Queryable<SysAuthzRole>().AnyAsync(item => item.TenantId == tenantId && item.RoleId == role.Id, cancellationToken))
         {
             throw new InvalidOperationException($"角色ID '{role.Id}' 已存在");
         }
 
-        if (await client.Queryable<SysAuthzRole>().AnyAsync(item => item.RoleName == role.Name, cancellationToken))
+        if (await client.Queryable<SysAuthzRole>().AnyAsync(item => item.TenantId == tenantId && item.RoleName == role.Name, cancellationToken))
         {
             throw new InvalidOperationException($"角色名称 '{role.Name}' 已存在");
         }
 
-        await client.Insertable(RoleMapper.ToEntity(role, _idGenerator.NextId())).ExecuteCommandAsync(cancellationToken);
+        var entity = RoleMapper.ToEntity(role, _idGenerator.NextId());
+        entity.TenantId = tenantId;
+
+        await client.Insertable(entity).ExecuteCommandAsync(cancellationToken);
     }
 
     /// <summary>
@@ -1545,14 +1605,15 @@ public class SqlSugarRoleStore : IRoleStore
         }
 
         var client = Client;
+        var tenantId = CurrentTenantId;
         var existing = await client.Queryable<SysAuthzRole>()
-            .FirstAsync(item => item.RoleId == role.Id, cancellationToken)
+            .FirstAsync(item => item.TenantId == tenantId && item.RoleId == role.Id, cancellationToken)
             ?? throw new InvalidOperationException($"角色ID '{role.Id}' 不存在");
 
         if (!string.Equals(existing.RoleName, role.Name, StringComparison.Ordinal))
         {
             var taken = await client.Queryable<SysAuthzRole>()
-                .AnyAsync(item => item.RoleName == role.Name && item.BasicId != existing.BasicId, cancellationToken);
+                .AnyAsync(item => item.TenantId == tenantId && item.RoleName == role.Name && item.BasicId != existing.BasicId, cancellationToken);
 
             if (taken)
             {
@@ -1576,7 +1637,7 @@ public class SqlSugarRoleStore : IRoleStore
                 LastModifiedTime = updated.LastModifiedTime,
                 Properties = updated.Properties
             })
-            .Where(item => item.BasicId == existing.BasicId)
+            .Where(item => item.TenantId == tenantId && item.BasicId == existing.BasicId)
             .ExecuteCommandAsync(cancellationToken);
     }
 
@@ -1596,8 +1657,9 @@ public class SqlSugarRoleStore : IRoleStore
         }
 
         var client = Client;
+        var tenantId = CurrentTenantId;
         var role = await client.Queryable<SysAuthzRole>()
-            .FirstAsync(item => item.RoleId == roleId, cancellationToken);
+            .FirstAsync(item => item.TenantId == tenantId && item.RoleId == roleId, cancellationToken);
 
         if (role is null)
         {
@@ -1615,7 +1677,7 @@ public class SqlSugarRoleStore : IRoleStore
                 .ExecuteCommandAsync(cancellationToken);
 
             await client.Deleteable<SysAuthzRole>()
-                .Where(item => item.BasicId == role.BasicId)
+                .Where(item => item.TenantId == tenantId && item.BasicId == role.BasicId)
                 .ExecuteCommandAsync(cancellationToken);
         });
     }
@@ -1633,9 +1695,10 @@ public class SqlSugarRoleStore : IRoleStore
             return [];
         }
 
+        var tenantId = CurrentTenantId;
         var userIds = await Client.Queryable<SysAuthzRole>()
             .InnerJoin<SysAuthzUserRole>((role, member) => member.TenantId == role.TenantId && member.RoleId == role.RoleId)
-            .Where((role, member) => role.RoleName == roleName)
+            .Where((role, member) => role.TenantId == tenantId && role.RoleName == roleName)
             .Select((role, member) => member.UserId)
             .ToListAsync(cancellationToken);
 
@@ -1714,7 +1777,7 @@ git commit -m "feat(authorization-sqlsugar): 实现角色存储，删除角色�
 **Interfaces:**
 - Consumes: ① ② 的五个实体；主包 `IPermissionChecker`、`DefaultPermissionChecker`（测试对照用）
 - Produces:
-  - `public class SqlSugarPermissionChecker : IPermissionChecker`，构造函数 `(ISqlSugarClientResolver clientResolver)`，契约的 5 个方法
+  - `public class SqlSugarPermissionChecker : IPermissionChecker`，构造函数 `(ISqlSugarClientResolver clientResolver, ICurrentTenant currentTenant)`，契约的 5 个方法
   - 夹具新增 `SqlSugarPermissionChecker CreatePermissionChecker()`
 
 **参考来源（动手前先读）：**
@@ -1735,7 +1798,7 @@ git commit -m "feat(authorization-sqlsugar): 实现角色存储，删除角色�
     /// <returns>权限检查器</returns>
     public SqlSugarPermissionChecker CreatePermissionChecker()
     {
-        return new SqlSugarPermissionChecker(Resolver);
+        return new SqlSugarPermissionChecker(Resolver, CurrentTenant);
     }
 ```
 
@@ -1946,6 +2009,8 @@ public class PermissionCheckerTests
         await InsertRolePermissionAsync(context, 2, "r8", "T1");
         await InsertRolePermissionAsync(context, 1, "r8", "T2");
 
+        context.CurrentTenant.Id = 1;
+
         Assert.False(await checker.IsGrantedAsync("u9", "T1"));
         Assert.False(await checker.IsGrantedAsync("u8", "T1"));
         Assert.True(await checker.IsGrantedAsync("u8", "T2"));
@@ -2040,19 +2105,79 @@ using XiHan.Framework.Domain.Entities.Abstracts;
 namespace XiHan.Framework.Authorization.SqlSugar.Tests;
 
 /// <summary>
-/// 严格租户过滤器下的隔离测试
+/// 租户隔离测试
 /// </summary>
+/// <remarks>
+/// 造数：租户 5 与租户 6 各有标识 r1、名称 admin 的角色与用户 u1 的关联；
+/// 租户 5 的角色授予 P1、直接授予 P3，租户 6 的角色授予 P2、直接授予 P4；平台租户 0 给 u1 直接授予 P5。
+/// </remarks>
 public class TenantFilterTests
 {
     /// <summary>
-    /// 开启严格租户过滤时只见本租户的角色与授权
+    /// 只见当前租户的角色与授权，与是否注册租户过滤器无关
     /// </summary>
-    [Fact]
-    public async Task 开启严格租户过滤时只见本租户的角色与授权()
+    /// <param name="registerStrictFilter">是否在客户端上注册严格租户过滤器</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task 只见当前租户的角色与授权(bool registerStrictFilter)
     {
         using var context = new AuthorizationTestContext();
+        await SeedAsync(context);
 
-        foreach (var name in new[] { "P1", "P2" })
+        if (registerStrictFilter)
+        {
+            context.Client.QueryFilter.AddTableFilter<IStrictMultiTenantEntity>(entity => entity.TenantId == 5);
+        }
+
+        context.CurrentTenant.Id = 5;
+
+        var roles = context.CreateRoleStore();
+        var permissions = context.CreatePermissionStore();
+        var checker = context.CreatePermissionChecker();
+
+        Assert.Single(await roles.GetAllRolesAsync());
+        Assert.NotNull(await roles.GetRoleByNameAsync("admin"));
+        Assert.Single(await roles.GetUserRolesAsync("u1"));
+        Assert.True(await roles.IsInRoleAsync("u1", "admin"));
+        Assert.Equal(new[] { "u1" }, await roles.GetUsersInRoleAsync("admin"));
+        Assert.Equal("P3", Assert.Single(await permissions.GetUserPermissionsAsync("u1")).Name);
+        Assert.Equal("P1", Assert.Single(await permissions.GetRolePermissionsAsync("r1")).Name);
+
+        Assert.Equal(
+            new[] { "P1", "P3" },
+            (await checker.GetGrantedPermissionsAsync("u1")).Order(StringComparer.Ordinal));
+        Assert.False(await checker.IsGrantedAsync("u1", "P2"));
+        Assert.False(await checker.IsGrantedAsync("u1", "P4"));
+        Assert.False(await checker.IsGrantedAsync("u1", "P5"));
+    }
+
+    /// <summary>
+    /// 平台态只见租户 0 的数据
+    /// </summary>
+    [Fact]
+    public async Task 平台态只见租户0的数据()
+    {
+        using var context = new AuthorizationTestContext();
+        await SeedAsync(context);
+
+        context.CurrentTenant.Id = null;
+
+        var roles = context.CreateRoleStore();
+        var checker = context.CreatePermissionChecker();
+
+        Assert.Empty(await roles.GetAllRolesAsync());
+        Assert.False(await roles.IsInRoleAsync("u1", "admin"));
+        Assert.Equal(new[] { "P5" }, await checker.GetGrantedPermissionsAsync("u1"));
+    }
+
+    /// <summary>
+    /// 造数
+    /// </summary>
+    /// <param name="context">测试夹具</param>
+    private static async Task SeedAsync(AuthorizationTestContext context)
+    {
+        foreach (var name in new[] { "P1", "P2", "P3", "P4", "P5" })
         {
             await context.Client.Insertable(new SysAuthzPermission(context.IdGenerator.NextId())
             {
@@ -2062,7 +2187,7 @@ public class TenantFilterTests
             }).ExecuteCommandAsync();
         }
 
-        foreach (var (tenantId, permissionName) in new[] { (5L, "P1"), (6L, "P2") })
+        foreach (var (tenantId, rolePermission, userPermission) in new[] { (5L, "P1", "P3"), (6L, "P2", "P4") })
         {
             await context.Client.Insertable(new SysAuthzRole(context.IdGenerator.NextId())
             {
@@ -2085,21 +2210,23 @@ public class TenantFilterTests
             {
                 TenantId = tenantId,
                 RoleId = "r1",
-                PermissionName = permissionName
+                PermissionName = rolePermission
+            }).ExecuteCommandAsync();
+
+            await context.Client.Insertable(new SysAuthzUserPermission(context.IdGenerator.NextId())
+            {
+                TenantId = tenantId,
+                UserId = "u1",
+                PermissionName = userPermission
             }).ExecuteCommandAsync();
         }
 
-        context.Client.QueryFilter.AddTableFilter<IStrictMultiTenantEntity>(entity => entity.TenantId == 5);
-
-        var roles = context.CreateRoleStore();
-        var checker = context.CreatePermissionChecker();
-
-        Assert.Single(await roles.GetAllRolesAsync());
-        Assert.NotNull(await roles.GetRoleByNameAsync("admin"));
-        Assert.Single(await roles.GetUserRolesAsync("u1"));
-        Assert.Equal(new[] { "u1" }, await roles.GetUsersInRoleAsync("admin"));
-        Assert.True(await checker.IsGrantedAsync("u1", "P1"));
-        Assert.False(await checker.IsGrantedAsync("u1", "P2"));
+        await context.Client.Insertable(new SysAuthzUserPermission(context.IdGenerator.NextId())
+        {
+            TenantId = 0,
+            UserId = "u1",
+            PermissionName = "P5"
+        }).ExecuteCommandAsync();
     }
 }
 ```
@@ -2124,6 +2251,7 @@ using SqlSugar;
 using XiHan.Framework.Authorization.Permissions;
 using XiHan.Framework.Authorization.SqlSugar.Entities;
 using XiHan.Framework.Data.SqlSugar.Clients;
+using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.Framework.Authorization.SqlSugar.Permissions;
 
@@ -2131,25 +2259,34 @@ namespace XiHan.Framework.Authorization.SqlSugar.Permissions;
 /// 权限检查器的 SqlSugar 实现
 /// </summary>
 /// <remarks>
-/// 直接查询授权表：一次判定先查用户直接授予的启用权限，未全部命中时再查经启用角色授予的启用权限。
+/// 直接查询授权表：一次判定先查用户在当前租户直接授予的启用权限，未全部命中时再查经启用角色授予的启用权限。
+/// 平台态对应租户标识 0。
 /// </remarks>
 public class SqlSugarPermissionChecker : IPermissionChecker
 {
     private readonly ISqlSugarClientResolver _clientResolver;
+    private readonly ICurrentTenant _currentTenant;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="clientResolver">客户端解析器</param>
-    public SqlSugarPermissionChecker(ISqlSugarClientResolver clientResolver)
+    /// <param name="currentTenant">当前租户</param>
+    public SqlSugarPermissionChecker(ISqlSugarClientResolver clientResolver, ICurrentTenant currentTenant)
     {
         _clientResolver = clientResolver;
+        _currentTenant = currentTenant;
     }
 
     /// <summary>
     /// 当前租户主库的客户端
     /// </summary>
     private ISqlSugarClient Client => _clientResolver.GetCurrentClient();
+
+    /// <summary>
+    /// 当前租户标识，平台态为 0
+    /// </summary>
+    private long CurrentTenantId => _currentTenant.Id ?? 0;
 
     /// <summary>
     /// 检查是否有指定权限
@@ -2283,16 +2420,17 @@ public class SqlSugarPermissionChecker : IPermissionChecker
     private async Task<HashSet<string>> GetGrantedNamesAsync(string userId, List<string>? candidates, CancellationToken cancellationToken)
     {
         var client = Client;
+        var tenantId = CurrentTenantId;
 
         var directQuery = client.Queryable<SysAuthzUserPermission>()
             .InnerJoin<SysAuthzPermission>((grant, permission) => permission.PermissionName == grant.PermissionName)
-            .Where((grant, permission) => grant.UserId == userId && permission.IsEnabled);
+            .Where((grant, permission) => grant.TenantId == tenantId && grant.UserId == userId && permission.IsEnabled);
 
         var roleQuery = client.Queryable<SysAuthzUserRole>()
             .InnerJoin<SysAuthzRole>((member, role) => role.TenantId == member.TenantId && role.RoleId == member.RoleId)
             .InnerJoin<SysAuthzRolePermission>((member, role, grant) => grant.TenantId == role.TenantId && grant.RoleId == role.RoleId)
             .InnerJoin<SysAuthzPermission>((member, role, grant, permission) => permission.PermissionName == grant.PermissionName)
-            .Where((member, role, grant, permission) => member.UserId == userId && role.IsEnabled && permission.IsEnabled);
+            .Where((member, role, grant, permission) => member.TenantId == tenantId && member.UserId == userId && role.IsEnabled && permission.IsEnabled);
 
         if (candidates is not null)
         {
@@ -2486,7 +2624,8 @@ git commit -m "style(authorization-sqlsugar): 注释只保留代码行为说明"
 - `SqlSugarPermissionChecker` 与 `DefaultPermissionChecker` 在同一份数据上判定一致
 - 直接授予命中 1 条 SQL，否则 2 条；多权限判定与获取全部权限至多 2 条，与角色数无关
 - 关联行与角色行 `TenantId` 不一致时不配对、不授予
-- 挂上严格租户过滤器后只见本租户的角色与授权
+- 当前租户为 5 时只见租户 5 的角色、关联与授予（含直接授予），挂不挂严格过滤器结果相同；平台态只见租户 0
+- 同一角色标识与名称可在不同租户各建一个
 - `IRoleStore`、`IPermissionChecker` 各只有一个描述符，实现为 SqlSugar 类型、`Scoped`
 
 ## 已知边界（写入 PR 描述，不写进代码注释）
@@ -2495,7 +2634,9 @@ git commit -m "style(authorization-sqlsugar): 注释只保留代码行为说明"
 - **检查器被应用替换**：应用自己 `Replace` 的 `IPermissionChecker` 优先，热路径次数由应用决定
 - **与默认实现的一处差异**：用户角色关联存角色标识，改名后成员关系保持
 - **静态角色可删**、**`IsInRoleAsync` 不看启用**：均与默认实现一致
-- **需要租户过滤器**：单表读写依赖 `EnableTenantFilter`（默认 `true`）；联表已带 `TenantId`，不会跨租户配对
+- **租户隔离的保证范围**：角色表与两张驱动表显式带 `Tenant_Id = ICurrentTenant.Id ?? 0`，联表另带 `Tenant_Id` 相等，结果只来自当前租户，与 `EnableTenantFilter` 开关无关；平台态读写租户 0，管理某个租户的授权须先 `ICurrentTenant.Change`
+- **名称比较口径不一**：按名称的查询在 MySQL / SQL Server 上不区分大小写并忽略尾随空格（PAD SPACE），检查器取回后按序数核对；唯一索引保证同租户内不会有只差大小写的两个名称，不构成越权
+- **预先授予不存在的角色**：`GrantPermissionToRoleAsync` 不校验角色存在，孤儿授予会被之后以该标识创建的角色继承（与默认实现一致）
 - **并发创建同名角色**：后到者撞唯一索引抛数据库异常而非 `InvalidOperationException`
 - **名称大小写**：由数据库排序规则决定
 - **取消令牌的残留**：SqlSugar 把令牌写进 `Context.Ado.CancellationToken` 且不清除

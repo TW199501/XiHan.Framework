@@ -131,6 +131,8 @@ void ArgumentOutOfRangeException.ThrowIfNegativeOrZero<T>(T value, string? param
 
 **⑧ 测试里 `Options.Create` 一律写全名 `Microsoft.Extensions.Options.Options.Create`。** 本份新增的命名空间 `XiHan.Framework.Authentication.SqlSugar.Options` 会遮蔽简名。
 
+**⑨ `Remove` 必须用条件更新的受影响行数：为 0 且该令牌已撤销时抛 `InvalidOperationException`。** 两个并发刷新都会走到 `Remove(旧令牌)`，只有一方的条件更新命中；另一方抛出后被 `JwtTokenService.RefreshAccessToken` 吞成 `null`。丢弃返回值时所有单线程用例照样全绿，只有 Task 4 的竞态用例会红。`Save` 在过期时间已过时走私有的 `Revoke`，不抛。
+
 ---
 
 ## File Structure
@@ -154,6 +156,7 @@ framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/
   RefreshTokenStoreTests.cs                                             新建（Task 2）
   RefreshTokenReuseTests.cs                                             新建（Task 3）
   RefreshTokenRotationTests.cs                                          新建（Task 4）
+  Fakes/RacingRefreshTokenStore.cs                                      新建（Task 4）
   ExternalLoginStoreTests.cs                                            新建（Task 5）
   RegistrationTests.cs                                                  修改（Task 6）
 
@@ -693,6 +696,37 @@ public class RefreshTokenStoreTests
     }
 
     /// <summary>
+    /// 重复移除同一令牌抛出
+    /// </summary>
+    [Fact]
+    public void 重复移除同一令牌抛出()
+    {
+        using var context = NewContext();
+        var store = context.CreateRefreshTokenStore();
+        store.Save("token-1", Subject, InOneDay(context));
+        store.Remove("token-1");
+
+        Assert.Throws<InvalidOperationException>(() => store.Remove("token-1"));
+    }
+
+    /// <summary>
+    /// 过期时间已过的保存遇到已撤销令牌不抛出
+    /// </summary>
+    [Fact]
+    public void 过期时间已过的保存遇到已撤销令牌不抛出()
+    {
+        using var context = NewContext();
+        var store = context.CreateRefreshTokenStore();
+        store.Save("token-1", Subject, InOneDay(context));
+        store.Remove("token-1");
+
+        var error = Record.Exception(
+            () => store.Save("token-1", Subject, context.Clock.GetUtcNow().UtcDateTime.AddMinutes(-1)));
+
+        Assert.Null(error);
+    }
+
+    /// <summary>
     /// 移除未知令牌不抛出
     /// </summary>
     [Fact]
@@ -857,7 +891,7 @@ public class SqlSugarRefreshTokenStore : IRefreshTokenStore
     /// 保存刷新令牌
     /// </summary>
     /// <remarks>
-    /// 过期时间不晚于当前时间时等同于移除该令牌。
+    /// 过期时间不晚于当前时间时只把该令牌标记为已撤销，不插入、不抛出。
     /// </remarks>
     /// <param name="refreshToken">刷新令牌</param>
     /// <param name="subject">主体标识</param>
@@ -871,15 +905,17 @@ public class SqlSugarRefreshTokenStore : IRefreshTokenStore
 
         var now = GetUtcNow();
         var expiresAtUtc = StorageTime.ToUtc(expiresAt);
+
+        using var scope = _scopeFactory.CreateScope();
+        var client = GetClient(scope);
+
         if (expiresAtUtc <= now)
         {
-            Remove(refreshToken);
+            Revoke(client, RefreshTokenHasher.Hash(refreshToken), now);
             return;
         }
 
-        using var scope = _scopeFactory.CreateScope();
-
-        GetClient(scope).Insertable(new SysAuthRefreshToken(_idGenerator.NextId())
+        client.Insertable(new SysAuthRefreshToken(_idGenerator.NextId())
         {
             TenantId = GetTenantId(scope),
             TokenHash = RefreshTokenHasher.Hash(refreshToken),
@@ -922,7 +958,11 @@ public class SqlSugarRefreshTokenStore : IRefreshTokenStore
     /// <summary>
     /// 移除刷新令牌，标记为已撤销
     /// </summary>
+    /// <remarks>
+    /// 令牌不存在时不做任何事；令牌已被撤销时抛出异常。
+    /// </remarks>
     /// <param name="refreshToken">刷新令牌</param>
+    /// <exception cref="InvalidOperationException">该令牌已被撤销</exception>
     public void Remove(string refreshToken)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
@@ -931,11 +971,35 @@ public class SqlSugarRefreshTokenStore : IRefreshTokenStore
         }
 
         var tokenHash = RefreshTokenHasher.Hash(refreshToken);
-        var now = GetUtcNow();
 
         using var scope = _scopeFactory.CreateScope();
+        var client = GetClient(scope);
 
-        GetClient(scope).Updateable<SysAuthRefreshToken>()
+        if (Revoke(client, tokenHash, GetUtcNow()) > 0)
+        {
+            return;
+        }
+
+        var alreadyRevoked = client.Queryable<SysAuthRefreshToken>()
+            .Where(item => item.TokenHash == tokenHash && item.RevokedTime != null)
+            .Any();
+
+        if (alreadyRevoked)
+        {
+            throw new InvalidOperationException("刷新令牌已被撤销。");
+        }
+    }
+
+    /// <summary>
+    /// 把未撤销的令牌标记为已撤销
+    /// </summary>
+    /// <param name="client">当前客户端</param>
+    /// <param name="tokenHash">令牌哈希</param>
+    /// <param name="now">当前 UTC 时间</param>
+    /// <returns>受影响的行数</returns>
+    private static int Revoke(ISqlSugarClient client, string tokenHash, DateTime now)
+    {
+        return client.Updateable<SysAuthRefreshToken>()
             .SetColumns(item => new SysAuthRefreshToken { RevokedTime = now })
             .Where(item => item.TokenHash == tokenHash && item.RevokedTime == null)
             .ExecuteCommand();
@@ -966,7 +1030,7 @@ dotnet test --project framework/test/XiHan.Framework.Authentication.SqlSugar.Tes
 
 预期：全部 PASS。
 
-若 `移除是标记而非删除` 失败于 `Assert.Single` 找不到行，说明 `Remove` 写成了删除（硬约束 ④）。
+若 `移除是标记而非删除` 失败于 `Assert.Single` 找不到行，说明 `Remove` 写成了删除（硬约束 ④）。若 `重复移除同一令牌抛出` 失败，说明 `Remove` 丢弃了条件更新的受影响行数（硬约束 ⑨）。
 
 - [ ] **Step 6: 验证构建并提交**
 
@@ -1038,6 +1102,21 @@ public class RefreshTokenReuseTests
         Assert.False(store.Validate("token-1", Subject));
 
         Assert.False(store.Validate("token-2", Subject));
+    }
+
+    /// <summary>
+    /// 校验未知令牌不撤销任何令牌
+    /// </summary>
+    [Fact]
+    public void 校验未知令牌不撤销任何令牌()
+    {
+        using var context = NewContext();
+        var store = context.CreateRefreshTokenStore();
+        store.Save("token-1", Subject, InOneDay(context));
+
+        Assert.False(store.Validate("unknown", Subject));
+
+        Assert.True(store.Validate("token-1", Subject));
     }
 
     /// <summary>
@@ -1378,7 +1457,7 @@ public class SqlSugarRefreshTokenStore : IRefreshTokenStore
     /// 保存刷新令牌
     /// </summary>
     /// <remarks>
-    /// 过期时间不晚于当前时间时等同于移除该令牌。每保存若干次先在独立连接上删除已过期的记录。
+    /// 过期时间不晚于当前时间时只把该令牌标记为已撤销，不插入、不抛出。每保存若干次先在独立连接上删除已过期的记录。
     /// </remarks>
     /// <param name="refreshToken">刷新令牌</param>
     /// <param name="subject">主体标识</param>
@@ -1392,14 +1471,15 @@ public class SqlSugarRefreshTokenStore : IRefreshTokenStore
 
         var now = GetUtcNow();
         var expiresAtUtc = StorageTime.ToUtc(expiresAt);
-        if (expiresAtUtc <= now)
-        {
-            Remove(refreshToken);
-            return;
-        }
 
         using var scope = _scopeFactory.CreateScope();
         var client = GetClient(scope);
+
+        if (expiresAtUtc <= now)
+        {
+            Revoke(client, RefreshTokenHasher.Hash(refreshToken), now);
+            return;
+        }
 
         CleanupIfDue(client, now);
 
@@ -1457,7 +1537,11 @@ public class SqlSugarRefreshTokenStore : IRefreshTokenStore
     /// <summary>
     /// 移除刷新令牌，标记为已撤销
     /// </summary>
+    /// <remarks>
+    /// 令牌不存在时不做任何事；令牌已被撤销时抛出异常。
+    /// </remarks>
     /// <param name="refreshToken">刷新令牌</param>
+    /// <exception cref="InvalidOperationException">该令牌已被撤销</exception>
     public void Remove(string refreshToken)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
@@ -1466,11 +1550,35 @@ public class SqlSugarRefreshTokenStore : IRefreshTokenStore
         }
 
         var tokenHash = RefreshTokenHasher.Hash(refreshToken);
-        var now = GetUtcNow();
 
         using var scope = _scopeFactory.CreateScope();
+        var client = GetClient(scope);
 
-        GetClient(scope).Updateable<SysAuthRefreshToken>()
+        if (Revoke(client, tokenHash, GetUtcNow()) > 0)
+        {
+            return;
+        }
+
+        var alreadyRevoked = client.Queryable<SysAuthRefreshToken>()
+            .Where(item => item.TokenHash == tokenHash && item.RevokedTime != null)
+            .Any();
+
+        if (alreadyRevoked)
+        {
+            throw new InvalidOperationException("刷新令牌已被撤销。");
+        }
+    }
+
+    /// <summary>
+    /// 把未撤销的令牌标记为已撤销
+    /// </summary>
+    /// <param name="client">当前客户端</param>
+    /// <param name="tokenHash">令牌哈希</param>
+    /// <param name="now">当前 UTC 时间</param>
+    /// <returns>受影响的行数</returns>
+    private static int Revoke(ISqlSugarClient client, string tokenHash, DateTime now)
+    {
+        return client.Updateable<SysAuthRefreshToken>()
             .SetColumns(item => new SysAuthRefreshToken { RevokedTime = now })
             .Where(item => item.TokenHash == tokenHash && item.RevokedTime == null)
             .ExecuteCommand();
@@ -1601,6 +1709,7 @@ git commit -m "feat(authentication-sqlsugar): 刷新令牌重用检测、级联�
 ### Task 4: 与 JwtTokenService 的集成
 
 **Files:**
+- Create: `framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/Fakes/RacingRefreshTokenStore.cs`
 - Create: `framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/RefreshTokenRotationTests.cs`
 
 **Interfaces:**
@@ -1614,7 +1723,79 @@ git commit -m "feat(authentication-sqlsugar): 刷新令牌重用检测、级联�
 
 本任务只新增用例，Task 3 正确时**直接通过**；失败回 Task 3 修，不改用例。
 
-- [ ] **Step 1: 写集成测试**
+- [ ] **Step 1: 创建竞态替身**
+
+`framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/Fakes/RacingRefreshTokenStore.cs`：
+
+```csharp
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using XiHan.Framework.Authentication.Jwt;
+
+namespace XiHan.Framework.Authentication.SqlSugar.Tests.Fakes;
+
+/// <summary>
+/// 在下一次保存前插入一段操作的刷新令牌存储装饰器，用于确定性地复现并发刷新
+/// </summary>
+internal sealed class RacingRefreshTokenStore : IRefreshTokenStore
+{
+    private readonly IRefreshTokenStore _inner;
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="inner">被装饰的存储</param>
+    public RacingRefreshTokenStore(IRefreshTokenStore inner)
+    {
+        _inner = inner;
+    }
+
+    /// <summary>
+    /// 下一次保存前执行的操作，执行一次后清空
+    /// </summary>
+    public Action? BeforeNextSave { get; set; }
+
+    /// <summary>
+    /// 保存刷新令牌
+    /// </summary>
+    /// <param name="refreshToken">刷新令牌</param>
+    /// <param name="subject">主体标识</param>
+    /// <param name="expiresAt">过期时间</param>
+    public void Save(string refreshToken, string? subject, DateTime expiresAt)
+    {
+        var hook = BeforeNextSave;
+        BeforeNextSave = null;
+        hook?.Invoke();
+
+        _inner.Save(refreshToken, subject, expiresAt);
+    }
+
+    /// <summary>
+    /// 校验刷新令牌
+    /// </summary>
+    /// <param name="refreshToken">刷新令牌</param>
+    /// <param name="subject">主体标识</param>
+    /// <returns>是否有效</returns>
+    public bool Validate(string refreshToken, string? subject = null)
+    {
+        return _inner.Validate(refreshToken, subject);
+    }
+
+    /// <summary>
+    /// 移除刷新令牌
+    /// </summary>
+    /// <param name="refreshToken">刷新令牌</param>
+    public void Remove(string refreshToken)
+    {
+        _inner.Remove(refreshToken);
+    }
+}
+```
+
+它让「请求 B 的完整刷新」恰好发生在请求 A 已校验旧令牌、尚未移除旧令牌的时刻，即 `JwtTokenService.RefreshAccessToken` 里 `Validate` 与 `Remove` 之间。
+
+- [ ] **Step 2: 写集成测试**
 
 `framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/RefreshTokenRotationTests.cs`：
 
@@ -1627,6 +1808,7 @@ using XiHan.Framework.Authentication.Jwt;
 using XiHan.Framework.Authentication.SqlSugar.Entities;
 using XiHan.Framework.Authentication.SqlSugar.Options;
 using XiHan.Framework.Authentication.SqlSugar.RefreshTokens;
+using XiHan.Framework.Authentication.SqlSugar.Tests.Fakes;
 
 namespace XiHan.Framework.Authentication.SqlSugar.Tests;
 
@@ -1695,6 +1877,26 @@ public class RefreshTokenRotationTests
     }
 
     /// <summary>
+    /// 并发刷新同一令牌只有一方成功
+    /// </summary>
+    [Fact]
+    public void 并发刷新同一令牌只有一方成功()
+    {
+        using var context = NewContext();
+        var racing = new RacingRefreshTokenStore(context.CreateRefreshTokenStore());
+        var jwtTokenService = CreateJwtTokenService(racing);
+        var issued = jwtTokenService.GenerateAccessToken(CreateClaims("1001"));
+        JwtTokenResult? competitor = null;
+        racing.BeforeNextSave = () => competitor = jwtTokenService.RefreshAccessToken(issued.AccessToken, issued.RefreshToken);
+
+        var first = jwtTokenService.RefreshAccessToken(issued.AccessToken, issued.RefreshToken);
+
+        Assert.NotNull(competitor);
+        Assert.Null(first);
+        Assert.True(racing.Validate(competitor.RefreshToken, "1001"));
+    }
+
+    /// <summary>
     /// 数据库中没有令牌明文
     /// </summary>
     [Fact]
@@ -1756,7 +1958,7 @@ public class RefreshTokenRotationTests
 }
 ```
 
-- [ ] **Step 2: 运行测试**
+- [ ] **Step 3: 运行测试**
 
 ```bash
 dotnet test --project framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/XiHan.Framework.Authentication.SqlSugar.Tests.csproj -c Release
@@ -1764,12 +1966,18 @@ dotnet test --project framework/test/XiHan.Framework.Authentication.SqlSugar.Tes
 
 预期：全部 PASS。
 
+- [ ] **Step 4: 反向核对竞态用例**
+
+临时把 `SqlSugarRefreshTokenStore.Remove` 里的 `throw new InvalidOperationException("刷新令牌已被撤销。");` 注释掉，重跑测试项目。
+
+预期：`并发刷新同一令牌只有一方成功` 失败于 `Assert.Null(first)`（两方都拿到了新令牌），同时 Task 2 的 `重复移除同一令牌抛出` 失败。确认后**恢复该行**，重跑确认全绿。这一步证明竞态用例确实依赖那一行，而不是碰巧通过。
+
 若 `刷新后旧令牌失效` 的第一次刷新就得到 `null`：`JwtTokenService.RefreshAccessToken` 吞掉了异常，在该方法 `catch` 处临时打断点或把用例改成直接调 `store.Validate(issued.RefreshToken, "1001")` 定位是签名校验还是存储的问题；定位后恢复用例原样。
 
-- [ ] **Step 3: 提交**
+- [ ] **Step 5: 提交**
 
 ```bash
-git add framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/RefreshTokenRotationTests.cs
+git add framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/RefreshTokenRotationTests.cs framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/Fakes/RacingRefreshTokenStore.cs
 git commit -m "test(authentication-sqlsugar): 刷新令牌存储与 JwtTokenService 的轮换集成"
 ```
 
@@ -2637,9 +2845,9 @@ git commit -m "feat(authentication-sqlsugar): 以 Replace 顶替刷新令牌与�
 | `RefreshTokenReuseGracePeriod` | `00:00:00` | 令牌撤销后在此时长内再次出现只拒绝、不级联；为 0 时任何重复使用都级联 |
 | `RefreshTokenCleanupFrequency` | `256` | 每保存多少次刷新令牌清理一次已过期记录；小于等于 0 时不清理 |
 
-**用户**：`UserInfo.UserId` 是 `Basic_Id` 的十进制字符串，非正整数的标识视为不存在。用户名另存 `Normalized_User_Name`（`ToUpperInvariant()`），`Alice` 与 `alice` 是同一个用户——与主包大小写敏感的默认实现不同。所有读写都带当前租户条件（无租户为 0），租户与平台之间互不可见。存储层对密码哈希、恢复码、双因素密钥原样存取；**双因素密钥以明文落库**。`UpdateUserAsync` **不写密码哈希**，改密码只能经 `UpdatePasswordAsync`。同一请求作用域内对同一用户的多次读取返回同一个 `UserInfo` 实例。
+**用户**：`UserInfo.UserId` 是 `Basic_Id` 的十进制字符串，非正整数的标识视为不存在。用户名另存 `Normalized_User_Name`（`ToUpperInvariant()`），`Alice` 与 `alice` 是同一个用户——与主包大小写敏感的默认实现不同。所有读写都带当前租户条件（无租户为 0），租户与平台之间互不可见。存储层对密码哈希、恢复码、双因素密钥原样存取；**双因素密钥以明文落库**。`UpdateUserAsync` **不写密码哈希、失败计数与锁定状态**，它们只能经各自的专用方法修改。同一请求作用域内对同一用户的多次读取返回同一个 `UserInfo` 实例。
 
-**刷新令牌**：数据库与日志里都没有令牌原文。`JwtTokenService` 每次刷新签发新令牌、撤销旧令牌；旧令牌若再次出现，视为被盗用，同一租户下同一主体的全部令牌被撤销，用户**所有设备**都需要重新登录。契约没有令牌家族的概念，这是以主体近似家族的代价：持有该用户任一已撤销令牌的人，在该令牌过期前可以反复触发这一撤销。单页应用多标签页同时刷新也会触发，前端应对刷新请求加互斥，或调大 `RefreshTokenReuseGracePeriod`。级联撤销与过期清理在独立连接上执行、自动提交，**不随业务事务回滚**。同一令牌的并发刷新可能各得一个新令牌（契约没有原子的「校验并消费」）；持续刷新的会话没有绝对上限。三个方法同步访问数据库。重复保存同一令牌抛唯一约束异常，不覆盖。使用租户独立库时，刷新请求必须解析到与登录时相同的租户。
+**刷新令牌**：数据库与日志里都没有令牌原文。`JwtTokenService` 每次刷新签发新令牌、撤销旧令牌；旧令牌若再次出现，视为被盗用，同一租户下同一主体的全部令牌被撤销，用户**所有设备**都需要重新登录。契约没有令牌家族的概念，这是以主体近似家族的代价：持有该用户任一已撤销令牌的人，在该令牌过期前可以反复触发这一撤销。单页应用多标签页同时刷新也会触发，前端应对刷新请求加互斥，或调大 `RefreshTokenReuseGracePeriod`。级联撤销与过期清理在独立连接上执行、自动提交，**不随业务事务回滚**。同一令牌的并发刷新只有一方成功：`Remove` 是条件更新，落败方的 `Remove` 抛出、`JwtTokenService` 返回 `null`；因此对同一令牌第二次调用 `Remove` 会抛 `InvalidOperationException`。不在事务里时，落败方已插入的新令牌留在库里但从未返回给任何人，按过期清理。持续刷新的会话没有绝对上限。三个方法同步访问数据库。重复保存同一令牌抛唯一约束异常，不覆盖。使用租户独立库时，刷新请求必须解析到与登录时相同的租户。
 
 **第三方登录**：`tenantId` 为空时使用当前租户，而不是主包默认实现的 0。同一第三方账号已绑定其他用户时 `CreateAsync` 抛 `InvalidOperationException`，改绑须先 `RemoveAsync`。提供商名称统一小写、不区分大小写；提供商用户标识区分大小写。`RemoveAsync` 不看租户。显示名称、邮箱、头像地址超长时截断。无论是否启用 OAuth，本包都会注册第三方登录存储。
 
@@ -2832,7 +3040,7 @@ public class MyModule : XiHanModule { }
 
 每条 SQL 都带 `Tenant_Id = 当前租户（无租户为 0）`，不依赖全局租户过滤器——全局过滤器对多租户实体放行 `TenantId = 0` 的平台行，用它做隔离会让租户入口能登录平台账号。
 
-`DefaultAuthenticationService` 的几条流程是「先读出用户对象，中途调其他存储方法改库，最后把最初读出的对象交给 `UpdateUserAsync`」。为了让这样写回的对象是最新的，存储在同一个实例（同一请求作用域）内对同一用户返回同一个 `UserInfo` 实例，并在 `UpdatePasswordAsync`、失败计数、锁定方法里同步修改它。`UpdateUserAsync` 不写密码列。
+`DefaultAuthenticationService` 的几条流程是「先读出用户对象，中途调其他存储方法改库，最后把最初读出的对象交给 `UpdateUserAsync`」。为了让这样写回的对象是最新的，存储在同一个实例（同一请求作用域）内对同一用户返回同一个 `UserInfo` 实例，并在 `UpdatePasswordAsync`、失败计数、锁定方法里同步修改它。`UpdateUserAsync` 不写密码、失败计数与锁定三列，跨请求的并发写回因此不会解除另一个请求加上的锁定。
 
 失败计数以 `SET Failed_Login_Attempts = Failed_Login_Attempts + 1` 在数据库侧累加，并发的失败登录不会丢失计数。
 
@@ -2937,11 +3145,11 @@ services.Replace(ServiceDescriptor.Singleton<IRefreshTokenStore, SqlSugarRefresh
 
 - **`TryAdd` 不生效**。主包已占位，覆盖必须用 `Replace`
 - **双因素密钥明文落库**。契约与框架没有字段级加密抽象，数据库泄漏即泄漏全部 TOTP 密钥
-- **`UpdateUserAsync` 不写密码**。改密码只能经 `UpdatePasswordAsync`
+- **`UpdateUserAsync` 不写密码、失败计数与锁定**。它们只能经各自的专用方法修改；解锁用户须调 `SetLockoutEndAsync(username, null)` 与 `ResetFailedLoginAttemptsAsync`
 - **用户名不区分大小写**。从大小写敏感的旧数据迁入时，仅大小写不同的重名会让唯一索引建不起来
 - **重用检测会让用户所有设备下线**。契约没有令牌家族，以主体近似；持有任一已撤销令牌者可在其过期前反复触发
 - **多标签页同时刷新**会触发重用检测，前端应对刷新请求加互斥，或设置宽限期
-- **同一令牌的并发刷新**可能各得一个新令牌，契约没有原子的「校验并消费」
+- **同一令牌的并发刷新只有一方成功**：落败方得到 `null`；对同一令牌第二次调用 `Remove` 会抛 `InvalidOperationException`
 - **会话没有绝对上限**，持续刷新即不过期
 - **刷新令牌存储同步访问数据库**，契约是同步的
 - **第三方登录的 `tenantId` 为空时用当前租户**，与默认实现的 0 不同；已绑定其他用户时拒绝改绑
@@ -3109,7 +3317,8 @@ git commit -m "docs(authentication-sqlsugar): 补写包文档与模块清单"
 ## 已知边界（写入 PR 描述，不写进代码注释）
 
 - **无令牌家族（契约缺口）**：重用检测以「同一租户、同一主体」近似，用户所有设备一并下线；持有任一已撤销令牌者可在其过期前反复触发
-- **无原子消费（契约缺口）**：同一令牌的并发刷新可能各得一个新令牌
+- **并发刷新以 `Remove` 的条件更新收窄**：落败方抛出、被 `JwtTokenService` 吞成 `null`；对同一令牌第二次 `Remove` 会抛出（框架与 BasicApp 中 `Remove` 的唯一调用方是 `RefreshAccessToken`）；不在事务里时，落败方新插入的令牌成为无人持有的孤行，按过期清理
+- **刷新后租户归属漂移**：令牌在租户 A 签发、在租户 B 的上下文里刷新时，新令牌记在 B 名下，此后级联撤销的范围按 B 计
 - **会话无绝对上限**：持续刷新即不过期
 - **多标签页**：宽限期为 0 时同时刷新会触发级联；前端加互斥或调大宽限期
 - **同步数据库访问**：刷新令牌三个方法同步访问数据库
@@ -3118,7 +3327,7 @@ git commit -m "docs(authentication-sqlsugar): 补写包文档与模块清单"
 - **独立库租户**：刷新请求必须解析到与登录时相同的租户
 - **重复保存**：抛唯一约束异常，不覆盖（与默认实现不同）
 - **第三方登录**：`tenantId` 为空用当前租户、拒绝静默改绑（均与默认实现不同）；`RemoveAsync` 不看租户；无论 OAuth 是否启用都注册
-- **双因素密钥明文、`UpdateUserAsync` 不写密码、用户名大小写不敏感**：见第 ① 份
+- **双因素密钥明文、`UpdateUserAsync` 不写密码与锁定三列、用户名大小写不敏感**：见第 ① 份
 - **自动建表默认关闭**；`OptIn` 模式下本包的表不会自动创建
 - **破坏性变更**：无。本包是新增的可选包，不引用它的应用行为不变。**逃生口**：不依赖 `XiHanAuthenticationSqlSugarModule`，改为在自己的模块里只 `Replace` 需要的那一个存储；或在更靠后的模块里再 `Replace` 回自己的实现；重用检测可经 `XiHan:Authentication:SqlSugar:RefreshTokenReuseDetection = false` 关闭
 

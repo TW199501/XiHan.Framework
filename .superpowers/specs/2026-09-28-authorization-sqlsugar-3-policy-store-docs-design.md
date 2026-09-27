@@ -51,7 +51,7 @@ DeletePolicyAsync(policyName)
 | `IsEnabled` | `bool` | 是 |
 | `Properties` | `Dictionary<string, object>?` | 是，JSON（读回为 `JsonElement`） |
 
-唯一调用方是 `DefaultPolicyEvaluator.EvaluateAsync`（`Policies/DefaultPolicyEvaluator.cs:252-257`）：每次评估一条 `GetPolicyByNameAsync`。它自己判断 `IsEnabled`（`:259-262`），存储不过滤。
+唯一调用方是 `DefaultPolicyEvaluator.EvaluateAsync`（`Policies/DefaultPolicyEvaluator.cs:63-68`）：每次评估一条 `GetPolicyByNameAsync`。它自己判断 `IsEnabled`（`:70-73`），存储不过滤。
 
 ① ② 已交付五张表（`sys_authz_permission`、`sys_authz_user_permission`、`sys_authz_role_permission`、`sys_authz_role`、`sys_authz_user_role`）、三个存储中的两个、权限检查器、注册扩展与模块类。
 
@@ -67,6 +67,7 @@ DeletePolicyAsync(policyName)
 | `DeletePolicyAsync`：空名称直接返回；不存在不抛 | `:109-118` |
 | `GetPolicyByNameAsync`：空名称返回 `null` | `:43-52` |
 | 读取不过滤 `IsEnabled` | 全部 |
+| 要求集合为 `null` 时**原样保存**；评估器随后访问 `.Count` 抛异常，判定失败（fail-closed） | 不校验集合 |
 
 ### 1.3 要交付什么
 
@@ -81,8 +82,9 @@ DeletePolicyAsync(policyName)
 2. `RequiredRoles`、`RequiredPermissions`、`RequiredClaims` 往返后逐项相等；列为空时读回空集合而不是 `null`
 3. `CustomRequirements` 非空的策略，创建与更新都抛 `NotSupportedException`，库里的数据不变
 4. `IPolicyStore` 只有一个描述符，实现为 `SqlSugarPolicyStore`、`Scoped`
-5. 六处文档齐全；新文档页能在侧边栏「安全 · 认证 · 授权」分组里点到
-6. `dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false` 0 警告 0 错误；全量测试全绿
+5. `RequiredRoles`、`RequiredPermissions`、`RequiredClaims`、`CustomRequirements` 任一为 `null` 的策略，创建与更新都抛 `ArgumentException`，库里的数据不变
+6. 六处文档齐全；新文档页能在侧边栏「安全 · 认证 · 授权」分组里点到
+7. `dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false` 0 警告 0 错误；全量测试全绿
 
 ## 2. 参考来源与禁止事项（强制）
 
@@ -96,7 +98,7 @@ framework/src/XiHan.Framework.Authorization/
   Policies/DefaultPolicyStore.cs               语义基准，见 1.2
   Policies/PolicyDefinition.cs                 字段来源
   Policies/IAuthorizationRequirement.cs        自定义要求的接口（带行为）
-  Policies/DefaultPolicyEvaluator.cs:252-346   唯一调用方；自定义要求在 :317-346 评估
+  Policies/DefaultPolicyEvaluator.cs:63-157   唯一调用方；自定义要求在 :128-157 评估
 ```
 
 **② ① ② 的产出**
@@ -198,9 +200,9 @@ E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
 
 ```
 ToEntity(PolicyDefinition definition, long basicId) → SysAuthzPolicy
-  RequiredRoles       = JsonColumn.SerializeOrNull(definition.RequiredRoles)       ?? "[]"
-  RequiredPermissions = JsonColumn.SerializeOrNull(definition.RequiredPermissions) ?? "[]"
-  RequiredClaims      = JsonColumn.SerializeOrNull(definition.RequiredClaims)      ?? "{}"
+  RequiredRoles       = JsonColumn.SerializeOrNull(definition.RequiredRoles)       ?? throw ArgumentException
+  RequiredPermissions = JsonColumn.SerializeOrNull(definition.RequiredPermissions) ?? throw ArgumentException
+  RequiredClaims      = JsonColumn.SerializeOrNull(definition.RequiredClaims)      ?? throw ArgumentException
   Properties          = JsonColumn.SerializeOrNull(definition.Properties)
   （不读 CustomRequirements）
 
@@ -221,11 +223,13 @@ ToDefinition(SysAuthzPolicy entity) → PolicyDefinition
 | --- | --- |
 | `GetAllPoliciesAsync` | 全表；内存按 `PolicyName` 序数排序 |
 | `GetPolicyByNameAsync` | 空名称返回 `null`；`FirstAsync(Policy_Name = ?)` |
-| `CreatePolicyAsync` | `policy` 为空或名称为空 → `ArgumentException`；含自定义要求 → `NotSupportedException`；同名存在 → `InvalidOperationException`；`Insertable` |
-| `UpdatePolicyAsync` | 同样的参数与自定义要求校验；不存在 → `InvalidOperationException`；`SetColumns` 改写名称以外的全部字段 |
+| `CreatePolicyAsync` | `policy` 为空或名称为空 → `ArgumentException`；任一要求集合（含 `CustomRequirements`）为 `null` → `ArgumentException`；含自定义要求 → `NotSupportedException`；同名存在 → `InvalidOperationException`；`Insertable` |
+| `UpdatePolicyAsync` | 同样的参数、空集合与自定义要求校验；不存在 → `InvalidOperationException`；`SetColumns` 改写名称以外的全部字段 |
 | `DeletePolicyAsync` | 空名称直接返回；`Deleteable ... WHERE Policy_Name = ?` |
 
-**校验顺序**：参数 → 自定义要求 → 查库。自定义要求的检查不碰数据库，失败时库里什么都没发生。
+**校验顺序**：参数 → 要求集合非空引用 → 自定义要求 → 查库。前三步都不碰数据库，失败时库里什么都没发生。
+
+**要求集合为 `null` 必须拒绝，不能兜底成空集合**。这是与默认实现在行为上的差异，但方向是更严：默认存储原样保存 `null`，评估器访问 `.Count` 抛异常，这次评估判为失败——fail-closed。落库实现若把 `null` 写成 `"[]"`，读回来就是「没有要求」，评估直接通过——fail-open。管理接口的 JSON 里出现 `"requiredPermissions": null` 就会触发。映射器 `ToEntity` 同样对三个集合的 `null` 抛 `ArgumentException`，防止绕开存储直接调用映射器时退化。
 
 `NotSupportedException` 的消息要写出策略名，并指出出路：含自定义要求的策略由应用自行实现的 `IPolicyStore` 提供（启用本包后主包的内存策略存储已被顶替，「留在代码里注册」这条路不存在）。
 
@@ -271,11 +275,15 @@ services.Replace(ServiceDescriptor.Scoped<IPolicyStore, SqlSugarPolicyStore>());
 
 **① 静默丢弃 `CustomRequirements`。**
 
-`DefaultPolicyEvaluator` 只在 `policy.CustomRequirements.Count > 0` 时评估自定义要求（`:317`）。存储若只存其余字段，读回的策略 `CustomRequirements` 为空，这一整段直接跳过——**原本会拒绝的请求被放行**，无报错、无日志。测试断言创建与更新都抛 `NotSupportedException`，且库里没有该策略 / 该策略未被改写。
+`DefaultPolicyEvaluator` 只在 `policy.CustomRequirements.Count > 0` 时评估自定义要求（`:128`）。存储若只存其余字段，读回的策略 `CustomRequirements` 为空，这一整段直接跳过——**原本会拒绝的请求被放行**，无报错、无日志。测试断言创建与更新都抛 `NotSupportedException`，且库里没有该策略 / 该策略未被改写。
+
+**②′ 写入时把 `null` 要求集合兜底成空集合。**
+
+写成 `SerializeOrNull(...) ?? "[]"` 看上去只是防空，实际把「要求未知」变成了「没有要求」：策略读回来 `RequiredPermissions` 为空，`DefaultPolicyEvaluator` 跳过权限检查，任何人都通过，而且不报错、不记日志。测试断言四个集合任一为 `null` 时创建与更新都抛 `ArgumentException`，且库里没有该策略 / 已有策略未被改写。
 
 **② JSON 列为空时读回 `null`。**
 
-`DefaultPolicyEvaluator` 直接访问 `policy.RequiredRoles.Count`（`:267`）。反序列化得到 `null` 而没兜底，评估时抛 `NullReferenceException`——这条会报错，但只在策略被评估时才报，存储自己的测试发现不了。映射器对三个集合一律 `?? []`，测试覆盖「列是空串时读回空集合」。
+`DefaultPolicyEvaluator` 直接访问 `policy.RequiredRoles.Count`（`:78`）。反序列化得到 `null` 而没兜底，评估时抛 `NullReferenceException`——这条会报错，但只在策略被评估时才报，存储自己的测试发现不了。映射器对三个集合一律 `?? []`，测试覆盖「列是空串时读回空集合」。
 
 **③ `TryAdd` 顶替。**
 
@@ -292,7 +300,8 @@ services.Replace(ServiceDescriptor.Scoped<IPolicyStore, SqlSugarPolicyStore>());
 必测：
 
 - **实体约定**：`SysAuthzPolicy` 进入 ① 的约定测试（前缀、分组），且**不**可赋值给 `IMultiTenantEntity`；策略名唯一
-- **映射**：三个集合与 `Properties` 往返；列为空串时读回空集合；映射器不读 `CustomRequirements`
+- **映射**：三个集合与 `Properties` 往返；列为空串时读回空集合；三个集合为 `null` 时 `ToEntity` 抛 `ArgumentException`；映射器不读 `CustomRequirements`
+- **空引用集合**：四个集合任一为 `null` 时创建抛 `ArgumentException` 且不写库；更新抛异常且原策略不变
 - **存储**：1.2 表的每一条；读取不过滤 `IsEnabled`；全部策略按名称排序
 - **自定义要求**：创建抛 `NotSupportedException` 且库里没有该策略；更新抛且原策略不变
 - **注册**：`IPolicyStore` 只剩一个描述符
@@ -307,13 +316,14 @@ services.Replace(ServiceDescriptor.Scoped<IPolicyStore, SqlSugarPolicyStore>());
 
 | 项 | 说明 |
 | --- | --- |
+| 要求集合不能为 `null` | 四个集合任一为 `null` 写入即抛 `ArgumentException`；没有要求请传空集合。默认存储会原样保存 `null` 并在评估时失败，本包在写入时就拒绝 |
 | 自定义要求不能落库 | 含 `CustomRequirements` 的策略写入即抛 `NotSupportedException`。需要自定义要求的策略只能在代码里评估，或由应用自行替换 `IPolicyStore` 做「代码注册 + 库」的合并 |
 | 策略全局可写 | 策略表不分租户，租户态调用写方法会改到所有租户共用的策略；应用层应只在平台态暴露 |
 | 并发创建同名策略 | 后到者撞唯一索引抛数据库异常而非 `InvalidOperationException` |
 | 声明值区分大小写 | `RequiredClaims` 以 JSON 存取，键值原样保留；比较规则由 `DefaultPolicyEvaluator` 决定（键不区分大小写、值区分） |
 | `Properties` 的值类型 | 读回为 `JsonElement` |
 
-① ② 的边界（名称大小写、并发重复授予、删除定义不级联、权限定义全局可写、策略评估逐权限查询、检查器被应用替换、用户角色关联存标识、静态角色可删、`IsInRoleAsync` 不看启用、需要租户过滤器、取消令牌残留）一并写进 README 的「配置与约定」与 PR 描述。
+① ② 的边界（名称大小写、并发重复授予、删除定义不级联、权限定义全局可写、策略评估逐权限查询、检查器被应用替换、用户角色关联存标识、静态角色可删、`IsInRoleAsync` 不看启用、租户隔离的保证范围（显式 `Tenant_Id = ICurrentTenant.Id ?? 0`，与过滤器开关无关，平台态为租户 0）、名称比较口径不一（MySQL / SQL Server 不区分大小写与 PAD SPACE，检查器按序数核对）、预先授予不存在的角色留下的孤儿授予会被继承、取消令牌残留）一并写进 README 的「配置与约定」与 PR 描述。
 
 ## 8. 验收标准
 
@@ -349,6 +359,7 @@ services.Replace(ServiceDescriptor.Scoped<IPolicyStore, SqlSugarPolicyStore>());
 | 6 | 文档站分组 | 「安全 · 认证 · 授权」，紧跟 `Authorization` | 与 `Auditing.SqlSugar` 紧跟 `Auditing`、`EventBus.SqlSugar` 在事件分组的做法一致 | 纯导航位置 |
 | 7 | 根 README「常用包」表是否加行 | 不加，只改模块数 | 沿用 `Auditing.SqlSugar`、`EventBus.SqlSugar` 的惯例；该表是精选列表 | 若要加，在两份根 README 各加一行 |
 | 8 | 不写 `docs/guide/` 指南 | 不写 | 包页面已覆盖使用方式 | 需要时另起文档 PR |
+| 9 | 要求集合为 `null` | 写入即抛 `ArgumentException` | 兜底成空集合会把 fail-closed 变成 fail-open | 若改为原样允许 `null`，需要给列加可空并让读回也保持 `null`，评估时报错——比拒绝写入更晚暴露 |
 
 ## 9. 下一份
 

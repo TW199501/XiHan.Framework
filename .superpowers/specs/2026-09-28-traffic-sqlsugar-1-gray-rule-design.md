@@ -256,12 +256,17 @@ services.ReplaceGrayRuleRepository<SqlSugarGrayRuleRepository>();
 
 如果"判断是否需要刷新"与"执行刷新"共用同一把锁、且锁的粒度覆盖了整个读路径，会让所有并发的路由决策请求在缓存到期的瞬间排队等一次数据库查询，路由热路径出现毛刺。本设计里"判断"不加锁、"刷新执行"内部加锁做去重，是刻意的取舍（见 4.3 节），实现时不要把锁的范围扩大到覆盖 `GetEnabledRulesAsync`/`GetRuleByIdAsync` 的整个方法体。
 
+**④ `GrayRule` 的 `DateTime` 字段用隐式转换传给 `DateTimeOffset`，时区随运行机器漂移。**
+
+`GrayRule.EffectiveTime`/`ExpiryTime`/`CreatedTime`/`UpdatedTime` 是 `DateTime`（不是 `DateTimeOffset`），`SysGrayRule` 对应列是 `DateTimeOffset`。`DateTime` 到 `DateTimeOffset` 的隐式转换把 `DateTimeKind.Unspecified` 当作**本地时间**处理（不是 UTC）——若映射器直接 `EffectiveTime = model.EffectiveTime` 赋值，同一个 `Unspecified` 输入在 UTC+8 机器上和 UTC+0 机器上会转换出两个相差 8 小时的 `DateTimeOffset`，往返映射（写入再读出）得到的值会跟着运行机器的时区漂移。`DefaultGrayRuleEngine.IsRuleEffective` 拿 `DateTime.UtcNow` 直接和 `EffectiveTime`/`ExpiryTime` 比较（没有做任何时区转换），说明这两个字段的既有约定就是"数值本身即 UTC"，`Kind` 标没标只是调用方是否严谨的问题。映射器必须在转换前显式 `DateTime.SpecifyKind(value, DateTimeKind.Utc)`，不能依赖隐式转换替你做决定。**这个错误在 CI（多为 UTC 时区容器）上很可能不会暴露**，只有在本地时区非 UTC 的开发机上跑测试、且测试恰好断言了具体时间值时才会发现，往返映射测试如果不断言时间字段就更发现不了。
+
 ## 7. 测试策略
 
 **第一层——SQLite，CI 强门禁执行**
 
 - 建表：`SysGrayRule` 能在 SQLite 上建出 `sys_gray_rule` 表
-- 映射往返：`GrayRuleMapper.ToEntity(GrayRuleMapper.ToModel(entity))` 各字段与原始 `entity` 一致（不含时间戳的毫秒级精度断言，避免 SQLite `DateTimeOffset` 折叠问题）
+- 映射往返（纯内存，不经 SQLite）：`GrayRuleMapper.ToModel(GrayRuleMapper.ToEntity(model))` 各字段与原始 `model` 一致，**含四个时间字段的显式断言**（`EffectiveTime`/`ExpiryTime`/`CreatedTime`/`UpdatedTime`）
+- **时区断言（对应陷阱④）**：用 `DateTimeKind.Unspecified` 构造的时间往返后，断言结果等于 `DateTime.SpecifyKind(原值, DateTimeKind.Utc)` 且 `.Kind == DateTimeKind.Utc`，不依赖运行机器的本地时区
 - **具体类型断言（对应陷阱①）**：向表中插入一条启用规则，`RefreshAsync()` 后 `GetEnabledRulesAsync()` 返回的元素 `is GrayRule`，且 `((GrayRule)item).TargetVersion` 等于插入时的值
 - 只返回启用规则：插入一条禁用规则与一条启用规则，`GetEnabledRulesAsync()` 只包含启用的那条
 - `GetRuleByIdAsync` 能查到禁用规则（契约未限定只查启用规则，`DefaultGrayRuleRepository.GetRuleByIdAsync` 同样不过滤 `IsEnabled`）

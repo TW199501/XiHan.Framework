@@ -110,6 +110,10 @@ interface IAuthorizationRequirement { string Name { get; } Task<bool> EvaluateAs
 
 `DefaultPolicyEvaluator` 直接访问 `policy.RequiredRoles.Count`。
 
+**②′ 写入时要求集合为 `null` 一律拒绝，绝不兜底成空集合。**
+
+`RequiredRoles`、`RequiredPermissions`、`RequiredClaims`、`CustomRequirements` 任一为 `null`（例如管理接口收到 `"requiredPermissions": null` 的 JSON）都抛 `ArgumentException`，存储与映射器都不许把它写成 `"[]"` / `"{}"`。默认存储会原样保存 `null`，评估器访问 `.Count` 抛异常、判定失败（fail-closed）；落库时若兜底成空集合，读回来就是「没有要求」，**任何人都通过**（fail-open）。
+
 **③ 不用 SqlSugar 的 `IsJson`，统一 `JsonColumn`。**
 
 **④ 顶替用 `Replace`。**
@@ -334,7 +338,7 @@ git commit -m "feat(authorization-sqlsugar): 新增授权策略实体"
 
 **参考来源（动手前先读）：** ① 的 `Mapping/PermissionMapper.cs`；spec §4.3
 
-**本任务禁止事项：** 映射器**不**校验、**不**读 `CustomRequirements`（校验在 Task 3 的存储里）。硬约束 ②③。
+**本任务禁止事项：** 映射器**不**读 `CustomRequirements`（它的校验在 Task 3 的存储里）。硬约束 ②②′③：三个要求集合为 `null` 时映射器抛 `ArgumentException`，不兜底。
 
 - [ ] **Step 1: 写失败的测试**
 
@@ -399,6 +403,17 @@ public class PolicyMapperTests
         Assert.Equal("[]", entity.RequiredRoles);
         Assert.Equal("[]", entity.RequiredPermissions);
         Assert.Equal("{}", entity.RequiredClaims);
+    }
+
+    /// <summary>
+    /// 要求集合为空引用时映射抛异常，不兜底为空集合
+    /// </summary>
+    [Fact]
+    public void 要求集合为空引用时映射抛异常()
+    {
+        Assert.Throws<ArgumentException>(() => PolicyMapper.ToEntity(new PolicyDefinition("P", "策略") { RequiredRoles = null! }, 1L));
+        Assert.Throws<ArgumentException>(() => PolicyMapper.ToEntity(new PolicyDefinition("P", "策略") { RequiredPermissions = null! }, 1L));
+        Assert.Throws<ArgumentException>(() => PolicyMapper.ToEntity(new PolicyDefinition("P", "策略") { RequiredClaims = null! }, 1L));
     }
 
     /// <summary>
@@ -500,6 +515,7 @@ public static class PolicyMapper
     /// <param name="definition">策略定义</param>
     /// <param name="basicId">主键</param>
     /// <returns>策略实体</returns>
+    /// <exception cref="ArgumentException">要求集合为空引用</exception>
     public static SysAuthzPolicy ToEntity(PolicyDefinition definition, long basicId)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -509,9 +525,12 @@ public static class PolicyMapper
             PolicyName = definition.Name,
             DisplayName = definition.DisplayName,
             Description = definition.Description,
-            RequiredRoles = JsonColumn.SerializeOrNull(definition.RequiredRoles) ?? "[]",
-            RequiredPermissions = JsonColumn.SerializeOrNull(definition.RequiredPermissions) ?? "[]",
-            RequiredClaims = JsonColumn.SerializeOrNull(definition.RequiredClaims) ?? "{}",
+            RequiredRoles = JsonColumn.SerializeOrNull(definition.RequiredRoles)
+                ?? throw new ArgumentException("策略的 RequiredRoles 不能为空引用", nameof(definition)),
+            RequiredPermissions = JsonColumn.SerializeOrNull(definition.RequiredPermissions)
+                ?? throw new ArgumentException("策略的 RequiredPermissions 不能为空引用", nameof(definition)),
+            RequiredClaims = JsonColumn.SerializeOrNull(definition.RequiredClaims)
+                ?? throw new ArgumentException("策略的 RequiredClaims 不能为空引用", nameof(definition)),
             IsEnabled = definition.IsEnabled,
             Properties = JsonColumn.SerializeOrNull(definition.Properties)
         };
@@ -576,10 +595,10 @@ git commit -m "feat(authorization-sqlsugar): 新增策略映射器"
 
 **参考来源（动手前先读）：**
 - 语义基准：`framework/src/XiHan.Framework.Authorization/Policies/DefaultPolicyStore.cs`（spec §1.2）
-- 调用方：`framework/src/XiHan.Framework.Authorization/Policies/DefaultPolicyEvaluator.cs:252-346`
+- 调用方：`framework/src/XiHan.Framework.Authorization/Policies/DefaultPolicyEvaluator.cs:63-157`
 - ① 的 `Permissions/SqlSugarPermissionStore.cs`（`Client` 属性、`SetColumns` 写法）
 
-**本任务禁止事项：** 硬约束 ①④。读取不过滤 `IsEnabled`。`null` 策略抛的是 `ArgumentException`（与默认实现一致），**不是** `ArgumentNullException`。
+**本任务禁止事项：** 硬约束 ①②′④。读取不过滤 `IsEnabled`。`null` 策略抛的是 `ArgumentException`（与默认实现一致），**不是** `ArgumentNullException`。
 
 - [ ] **Step 1: 夹具加工厂方法**
 
@@ -679,6 +698,32 @@ public class PolicyStoreTests
         await Assert.ThrowsAsync<ArgumentException>(() => store.CreatePolicyAsync(new PolicyDefinition()));
         await Assert.ThrowsAsync<ArgumentException>(() => store.UpdatePolicyAsync(null!));
         await Assert.ThrowsAsync<ArgumentException>(() => store.UpdatePolicyAsync(new PolicyDefinition()));
+    }
+
+    /// <summary>
+    /// 要求集合为空引用的策略拒绝写入，已有策略不被改写
+    /// </summary>
+    [Fact]
+    public async Task 要求集合为空引用的策略拒绝写入()
+    {
+        using var context = new AuthorizationTestContext();
+        var store = context.CreatePolicyStore();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => store.CreatePolicyAsync(new PolicyDefinition("P1", "甲") { RequiredRoles = null! }));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.CreatePolicyAsync(new PolicyDefinition("P1", "甲") { RequiredPermissions = null! }));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.CreatePolicyAsync(new PolicyDefinition("P1", "甲") { RequiredClaims = null! }));
+        await Assert.ThrowsAsync<ArgumentException>(() => store.CreatePolicyAsync(new PolicyDefinition("P1", "甲") { CustomRequirements = null! }));
+
+        Assert.Equal(0, await context.Client.Queryable<SysAuthzPolicy>().CountAsync());
+
+        await store.CreatePolicyAsync(new PolicyDefinition("P2", "乙") { RequiredPermissions = ["User.Create"] });
+
+        await Assert.ThrowsAsync<ArgumentException>(() => store.UpdatePolicyAsync(new PolicyDefinition("P2", "乙") { RequiredPermissions = null! }));
+
+        var policy = await store.GetPolicyByNameAsync("P2");
+
+        Assert.NotNull(policy);
+        Assert.Equal(new[] { "User.Create" }, policy.RequiredPermissions);
     }
 
     /// <summary>
@@ -939,7 +984,7 @@ public class SqlSugarPolicyStore : IPolicyStore
     /// </summary>
     /// <param name="policy">策略定义</param>
     /// <param name="cancellationToken">取消令牌</param>
-    /// <exception cref="ArgumentException">策略或策略名称为空</exception>
+    /// <exception cref="ArgumentException">策略或策略名称为空，或任一要求集合为空引用</exception>
     /// <exception cref="NotSupportedException">策略含自定义要求</exception>
     /// <exception cref="InvalidOperationException">同名策略已存在</exception>
     public async Task CreatePolicyAsync(PolicyDefinition policy, CancellationToken cancellationToken = default)
@@ -964,7 +1009,7 @@ public class SqlSugarPolicyStore : IPolicyStore
     /// </remarks>
     /// <param name="policy">策略定义</param>
     /// <param name="cancellationToken">取消令牌</param>
-    /// <exception cref="ArgumentException">策略或策略名称为空</exception>
+    /// <exception cref="ArgumentException">策略或策略名称为空，或任一要求集合为空引用</exception>
     /// <exception cref="NotSupportedException">策略含自定义要求</exception>
     /// <exception cref="InvalidOperationException">策略不存在</exception>
     public async Task UpdatePolicyAsync(PolicyDefinition policy, CancellationToken cancellationToken = default)
@@ -1014,7 +1059,7 @@ public class SqlSugarPolicyStore : IPolicyStore
     /// 校验策略可以写入
     /// </summary>
     /// <param name="policy">策略定义</param>
-    /// <exception cref="ArgumentException">策略或策略名称为空</exception>
+    /// <exception cref="ArgumentException">策略或策略名称为空，或任一要求集合为空引用</exception>
     /// <exception cref="NotSupportedException">策略含自定义要求</exception>
     private static void EnsurePersistable(PolicyDefinition policy)
     {
@@ -1023,7 +1068,15 @@ public class SqlSugarPolicyStore : IPolicyStore
             throw new ArgumentException("策略或策略名称不能为空", nameof(policy));
         }
 
-        if (policy.CustomRequirements is { Count: > 0 })
+        if (policy.RequiredRoles is null ||
+            policy.RequiredPermissions is null ||
+            policy.RequiredClaims is null ||
+            policy.CustomRequirements is null)
+        {
+            throw new ArgumentException($"策略 '{policy.Name}' 的要求集合不能为空引用，没有要求时请传空集合", nameof(policy));
+        }
+
+        if (policy.CustomRequirements.Count > 0)
         {
             throw new NotSupportedException(
                 $"策略 '{policy.Name}' 含自定义要求，SqlSugar 策略存储无法持久化自定义要求。" +
@@ -1197,7 +1250,7 @@ git commit -m "feat(authorization-sqlsugar): 以 Replace 顶替策略存储"
 
 未开启上述两个建表开关时不会建表，首次调用任何一个存储或检查器即报「表不存在」。实体标注了 `[TableInitialization(Group = "Authorization")]`：`TableInitialization.Mode` 为 `OptIn` 时同样会建这六张表；`All` 模式下可用 `ExcludedGroups: ["Authorization"]` 跳过它们。
 
-角色、用户角色关联、用户权限、角色权限四张表实现 `IStrictMultiTenantEntity`：租户态只看本租户的行，平台态只看 `TenantId = 0` 的行。多租户应用须保持 `XiHan:Data:SqlSugarCore:EnableTenantFilter` 为 `true`（默认值）。`TenantId` 由数据层在插入时按当前租户上下文填写，调用方无需传入。权限定义与策略不分租户，租户态调用它们的写方法会改到所有租户共用的数据，应只在平台态开放。
+角色、用户角色关联、用户权限、角色权限四张表按租户隔离：每条读写都显式带 `Tenant_Id = ICurrentTenant.Id ?? 0`，插入时写入同一个值，结果只来自当前租户，与 `EnableTenantFilter` 开关无关；四个实体同时实现 `IStrictMultiTenantEntity`，全局过滤器开着时与显式条件结果相同。平台态（无租户上下文）读写租户 0 的数据，看不到业务租户的角色与授予；要管理某个租户的授权，先用 `ICurrentTenant.Change` 切到该租户。权限定义与策略不分租户，租户态调用它们的写方法会改到所有租户共用的数据，应只在平台态开放。
 
 所有读写经 `ISqlSugarClientResolver.GetCurrentClient()`，存在事务型工作单元时自动并入。
 
@@ -1211,7 +1264,9 @@ git commit -m "feat(authorization-sqlsugar): 以 Replace 顶替策略存储"
 
 - `DefaultPolicyEvaluator` 对策略的 `RequiredPermissions` 仍逐个判定，每个权限 1 至 2 条 SQL
 - 应用自己 `Replace` 的 `IPermissionChecker` 优先于本包的实现，此时判定次数由应用的实现决定
-- 名称比较由数据库排序规则决定：MySQL、SQL Server 默认不区分大小写，PostgreSQL、SQLite 区分
+- 名称比较由数据库排序规则决定：MySQL、SQL Server 默认不区分大小写并忽略尾随空格，PostgreSQL、SQLite 区分；检查器取回权限名后按序数再核对一次，因此 `IsInRoleAsync` 等按名称的查询与权限判定口径不完全一致（唯一索引保证不构成越权）
+- `GrantPermissionToRoleAsync` 不校验角色是否存在，给尚未创建的角色标识授权会留下孤儿授予，之后以该标识创建的角色直接继承它（与默认实现一致）
+- 策略的任一要求集合为 `null` 时写入抛 `ArgumentException`：没有要求请传空集合
 - 查重与插入之间不加锁，并发写入同一条授权或同名角色 / 策略时，后到者撞唯一索引抛出数据库异常
 - 删除权限定义不删除已有的授予行，定义补回后授予立即重新生效
 - 静态角色（`IsStatic`）可以删除，`IsInRoleAsync` 不检查角色是否启用，均与默认实现一致
@@ -1418,7 +1473,7 @@ public class MyModule : XiHanModule { }
 | 集合字段 | 策略的 `RequiredRoles`、`RequiredPermissions`、`RequiredClaims` 与各定义的 `Properties` 存为 JSON 文本 |
 | 建表分组 | `[TableInitialization(Group = "Authorization")]`，`OptIn` 模式也会建；`All` 模式可用 `ExcludedGroups` 排除 |
 
-「严格隔离」即实体实现 `IStrictMultiTenantEntity`：租户态只看本租户的行，平台态只看 `TenantId = 0` 的行。
+「严格隔离」指每条读写都显式带 `Tenant_Id = ICurrentTenant.Id ?? 0`（平台态为 0），不依赖全局过滤器；实体另外实现 `IStrictMultiTenantEntity`，过滤器开着时结果相同。
 
 ## 工作原理
 
@@ -1509,12 +1564,14 @@ var granted = await permissionChecker.IsGrantedAsync(userId, "User.Create");
 ## 注意事项与最佳实践
 
 - **建表开关默认关闭**。`EnableDbInitialization` 与 `EnableTableInitialization` 都要打开
-- **保持租户过滤器开启**。单表读写依赖 `EnableTenantFilter`（默认 `true`）收紧到当前租户；关闭后 `GetRoleByNameAsync` 等会看到别的租户的同名角色。联表条件已带 `Tenant_Id`，不会跨租户配对
+- **租户隔离不依赖过滤器**。角色、用户角色关联与两张授予表的每条 SQL 显式带当前租户条件，联表另带 `Tenant_Id` 相等；`EnableTenantFilter` 关掉时结果也只来自当前租户。平台态读写租户 0，管理某个租户的授权须先切换到该租户
 - **权限定义与策略全局可写**。这两张表不分租户，租户态调用写方法会改到所有租户共用的数据，应只在平台态开放
 - **含自定义要求的策略写入即抛 `NotSupportedException`**。这是为了不让一条要求在落库时悄悄消失
 - **策略评估仍逐权限判定**。`DefaultPolicyEvaluator` 对 `RequiredPermissions` 逐个调 `IsGrantedAsync`，p 个权限约 2p 条 SQL
 - **应用自己的检查器优先**。应用 `Replace` 了 `IPermissionChecker` 时，本包的检查器不生效
-- **名称比较交给数据库**。MySQL、SQL Server 默认不区分大小写，PostgreSQL、SQLite 区分
+- **名称比较交给数据库**。MySQL、SQL Server 默认不区分大小写并忽略尾随空格，PostgreSQL、SQLite 区分；检查器按序数核对权限名，与按名称查角色的口径不完全一致
+- **预先授予不存在的角色**会留下孤儿授予，之后以该标识创建的角色直接继承它
+- **策略的要求集合不能为 `null`**。写入时抛 `ArgumentException`，没有要求请传空集合
 - **并发重复写入**。查重与插入之间不加锁，后到者撞唯一索引抛数据库异常
 - **删除权限定义不删授予**。定义补回后授予立即重新生效
 - **与默认实现的差异**：用户角色关联存角色标识，改名后成员关系保持；删除角色会删除其角色权限
@@ -1638,7 +1695,7 @@ grep -n "Modules-[0-9]*-1f6feb" README.md
 grep -n "N" README.md README_cn.md framework/README.md framework/README_cn.md docs/index.md docs/introduction.md docs/packages/index.md docs/why.md
 ```
 
-（把 `N` 换成实际数字。）逐条人工判断，**只改表示模块 / 包 / 单测工程数量的那些命中**，改成 N+1。编写本计划时的位置如下，行号会随先合入的包漂移，以 grep 结果为准：
+（把 `N` 换成实际数字。）逐条人工判断，**只改表示模块 / 包 / 单测工程数量的那些命中**，改成 N+1。编写本计划时共 20 处，位置如下，行号会随先合入的包漂移，以 grep 结果为准：
 
 | 文件 | 编写时的行 | 内容 |
 | --- | --- | --- |
@@ -1652,7 +1709,7 @@ grep -n "N" README.md README_cn.md framework/README.md framework/README_cn.md do
 | `docs/index.md` | 9 / 41 | `68 个可独立引用的 NuGet 包` / `68 个包按七层组织` |
 | `docs/introduction.md` | 57 | `（68 页）` |
 | `docs/packages/index.md` | 3 | `**68 个 NuGet 包**` |
-| `docs/why.md` | 86 / 123 / 160 | 三处 `68 个包` |
+| `docs/why.md` | 86 / 123 / 142 / 160 | 四处：三处 `68 个包`，一处 `包参考 68 页` |
 
 同一数字在这些文件里若表示别的东西（版本号、端口、行号引用等），**不要改**。单测工程数若在实现时已与模块数不同，也按「当前值 + 1」各自处理。
 
@@ -1740,6 +1797,7 @@ git commit -m "style(authorization-sqlsugar): 注释只保留代码行为说明"
 - 策略的三个集合往返逐项相等；列为空时读回空集合
 - 含 `CustomRequirements` 的策略，创建与更新都抛 `NotSupportedException`，库里数据不变
 - `CreatePolicyAsync(null)` 抛 `ArgumentException`（与默认实现一致）
+- 任一要求集合（含 `CustomRequirements`）为 `null` 的策略，创建与更新都抛 `ArgumentException`，不会以「无要求」落库
 - `IPermissionStore`、`IRoleStore`、`IPolicyStore`、`IPermissionChecker` 各只有一个描述符，均为本包的 SqlSugar 实现、`Scoped`
 - 新包的六处文档齐全
 
@@ -1753,7 +1811,10 @@ PR 描述汇总三份的边界：
 - **应用自己的检查器优先**
 - **与默认实现的差异**：用户角色关联存角色标识，改名后成员关系保持；删除角色级联删除角色权限
 - **与默认实现一致的行为**：静态角色可删；`IsInRoleAsync` 不看启用；删除权限定义不删授予
-- **需要租户过滤器**：`EnableTenantFilter` 须为 `true`
+- **租户隔离的保证范围**：显式带 `Tenant_Id = ICurrentTenant.Id ?? 0`，与 `EnableTenantFilter` 无关；平台态读写租户 0
+- **策略要求集合为 `null`**：写入抛 `ArgumentException`，不以「无要求」落库
+- **名称比较口径不一**：按名称的查询随数据库排序规则（MySQL / SQL Server 不区分大小写、PAD SPACE），检查器按序数核对
+- **预先授予不存在的角色**：孤儿授予会被之后以该标识创建的角色继承
 - **名称大小写**：由数据库排序规则决定
 - **并发重复写入**：后到者撞唯一索引抛数据库异常
 - **`Properties` 读回为 `JsonElement`**

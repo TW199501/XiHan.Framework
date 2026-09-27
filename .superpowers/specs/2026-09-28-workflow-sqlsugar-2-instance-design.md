@@ -267,16 +267,31 @@ public class SysWorkflowNodeInstance : SugarEntity<string>
 | **故障** | 书签**有意保留**：重试书签等待到期，定时书签到期回退（`TryConsumeBookmarkAsync:473-478`） | 否 |
 | **取消 / 终止** | `CleanupNonFinalWorkAsync` 先 `DeleteByInstanceAsync`，再逐个取消节点实例，最后 `UpdateAsync(instance)` | 这三步是三次独立的存储调用 |
 
-取消/终止的三步各自提交，**不在一个事务里**。进程在第一步之后崩溃，会留下「书签已删、实例仍是运行中」的实例，它不会再被任何东西推进。要让三步同事务，需要引擎把它们包进一个工作单元并让存储加入——与本包「每次操作独立事务」的前提冲突，也是引擎改动，不在本包范围（写入已知边界）。
+取消/终止的三步各自提交，**不在一个事务里**。但这只是一个更普遍问题的特例，见 §4.6「崩溃窗口」。
 
 `IWorkflowInstanceStore.DeleteAsync` 不删书签。被删实例遗留的书签：定时类会在到期时被 Worker 取到，`ResumeBookmarkCoreAsync:389-394` 发现实例不存在后删除该书签（孤儿自清理）；信号类在下次信号投递时同样自清理；**人工任务类不会自清理**——`WorkflowUserTaskService.BuildTasksAsync` 只是跳过它们。应用删除实例前应先调 `IWorkflowBookmarkStore.DeleteByInstanceAsync`（写入 README）。
 
-### 4.6 数据保留
+### 4.6 崩溃窗口：推进过程不是原子的
+
+引擎的每一次推进都是「一串各自提交的存储调用」，中间没有事务把它们包起来：
+
+| 入口 | 提交顺序 | 在中途崩溃或重新部署的后果 |
+| --- | --- | --- |
+| 恢复书签（定时、信号、人工办理、子流程回调） | `TryConsumeBookmarkAsync:518` 先删书签并提交 → `RunBurstAsync` 逐节点插入/更新节点实例、插入新书签 → `FinalizeBurstAsync` 更新实例 | 书签已删，但新书签尚未插入、实例状态尚未写回：实例停在 `Running`，**没有任何书签**，再也不会被推进 |
+| 启动 | `StartAsync:145` 先插入实例并提交（锁外）→ 取锁 → `RunBurstAsync` | 实例已在 `Running`，起始节点可能尚未执行、也没有书签：同样永远不会被推进 |
+| 取消/终止 | `DeleteByInstanceAsync` → 逐个取消节点实例 → `UpdateAsync(instance)` | 书签已删、实例仍是 `Running` |
+| 重试 | `UpdateAsync(instance)` 置回 `Running` → `RunBurstAsync` | 实例 `Running`、故障节点尚未重跑、没有重试书签 |
+
+这是**持久化带来的新问题**：内存实现在进程崩溃时什么都不留下（实例连同书签一起消失）；数据库实现会留下这些「运行中但无人推进」的实例，且不报错。
+
+本包不修复它：要让一次推进原子化，引擎必须把整个批次包进一个工作单元并让存储加入——与本包「每次操作独立提交」（第 1 份 D3，引擎锁协议所需）正面冲突，且是引擎改动。可行的运维对策写进 README：定期查询 `Status = Running` 且在 `sys_workflow_bookmark` 中没有任何书签的实例，人工判断后取消或终止（写入已知边界）。
+
+### 4.7 数据保留
 
 - 实例、节点实例永久保留，直到应用调 `DeleteAsync`
 - 大字段：`Variables_Json` 与节点实例的三个 JSON 列都是 `CodeFirst_BigString`（MySQL 上为 `longtext`，SQL Server 上为 `nvarchar(max)`）。单行大小的实际上限是 MySQL 的 `max_allowed_packet`（8.0 默认 64MB）
 
-### 4.7 注册
+### 4.8 注册
 
 在第 1 份的注册扩展里追加：
 
@@ -298,10 +313,10 @@ services.Replace(ServiceDescriptor.Scoped<IWorkflowInstanceStore, SqlSugarWorkfl
 
 | # | 决策 | 默认值 | 理由 | 若改会影响什么 |
 | --- | --- | --- | --- | --- |
-| D1 | 并发控制 | **不做**，依赖引擎实例锁 + 最后写入 | 契约注释明文；`WorkflowInstance` 无版本字段；乐观并发冲突会在批次中途抛出，违反「批次必收尾」（`WorkflowEngine` 的 `ExecutionSession` 注释） | 改为乐观并发需改契约与引擎 |
+| D1 | 并发控制 | 实例存储**不做**乐观并发，依赖引擎实例锁 + 最后写入；同一书签的重复恢复由第 3 份的书签删除守卫拦在批次开始之前 | 契约注释明文；`WorkflowInstance` 无版本字段；乐观并发冲突会在批次中途抛出，违反「批次必收尾」（`WorkflowEngine` 的 `ExecutionSession` 注释） | 改为乐观并发需改契约与引擎 |
 | D2 | 执行历史顺序 | 新增 `Sequence` 列，`ORDER BY Start_Time, Sequence, Basic_Id` | MySQL `datetime` 无小数秒，同秒节点必须有稳定的二级键；补偿依赖该顺序 | 去掉 `Sequence`：MySQL 上同秒节点补偿顺序任意 |
 | D3 | `DeleteAsync` 是否连带删书签 | **否** | 契约只说级联节点实例；跨存储删除会让实例存储依赖书签表 | 改为连带删除：两张表同事务更一致，但偏离契约，且与书签存储的职责重叠 |
-| D4 | 取消/终止三步的原子性 | **不处理**，写入已知边界 | 需要引擎改动 | 若要处理：引擎把 `CleanupNonFinalWorkAsync` 与收尾更新包进工作单元，存储改为加入该工作单元——与 D3（第 1 份）冲突，需整体重新设计 |
+| D4 | 推进过程的原子性（恢复、启动、取消、重试，§4.6） | **不处理**，写入已知边界并给出运维查询 | 需要引擎改动，且与独立提交冲突 | 若要处理：引擎把 `CleanupNonFinalWorkAsync` 与收尾更新包进工作单元，存储改为加入该工作单元——与 D3（第 1 份）冲突，需整体重新设计 |
 | D5 | 已完成实例的保留 | **永久保留**，无自动清理 | 框架无调用方；保留策略是业务决定 | 若要自动清理：新增后台作业与保留期选项，建议另开议题 |
 | D6 | 实例列表的二级排序 | `Basic_Id DESC` | 默认实现同刻顺序不确定；数据库需要确定顺序才能分页稳定 | 无 |
 | D7 | 标识引用列长度 | 255 | 与主键默认长度一致 | 缩短会让超长的自定义 `InstanceId` 在子实例上插入失败 |
@@ -369,7 +384,7 @@ SQLite 把 `DateTime` 存成带小数秒的文本，同一秒内的节点也能�
 
 | 项 | 说明 |
 | --- | --- |
-| 取消/终止非原子 | 删书签、取消节点实例、更新实例是三次独立提交；中途崩溃会留下无书签的运行中实例 |
+| 推进过程非原子（持久化带来的新问题） | 每次恢复先删书签并提交，再逐步提交批次；启动先插入实例再跑批次；取消与重试同理（§4.6）。在这些提交之间崩溃或重新部署，会留下 `Running` 且没有任何书签的实例，它永远不会再被推进，也不报错。内存实现崩溃时什么都不留下，所以以前没有这个问题。对策：定期查询「运行中且无书签」的实例并人工处理 |
 | 变量必须可 JSON 序列化 | 不可序列化的变量会让批次中途抛出、实例停在运行中且书签已消费 |
 | 变量类型会归一化 | 读回后整数、小数都是 `decimal`，嵌套对象是 `JsonElement`；业务代码应经 `WorkflowVariables` / `WorkflowValueConverter` 取值 |
 | 删除实例不删书签 | 删除前应先调 `IWorkflowBookmarkStore.DeleteByInstanceAsync`，否则人工任务书签成为孤儿 |

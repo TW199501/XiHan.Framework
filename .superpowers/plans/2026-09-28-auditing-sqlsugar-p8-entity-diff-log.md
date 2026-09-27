@@ -797,6 +797,7 @@ git commit -m "feat(auditing-sqlsugar): 新增实体差异日志写入器并替�
 **Files:**
 - Modify: `framework/src/XiHan.Framework.Auditing.SqlSugar/README.md`
 - Modify: `docs/packages/auditing-sqlsugar.md`
+- Modify: `docs/packages/index.md`
 
 **Interfaces:**
 - Consumes: Task 1、Task 2 的全部产出
@@ -805,6 +806,7 @@ git commit -m "feat(auditing-sqlsugar): 新增实体差异日志写入器并替�
 **参考来源（动手前先读）：**
 - 现有 README 的「核心能力」「目录结构」两节（本任务只改这两处相关内容）
 - `docs/packages/auditing-sqlsugar.md` 第 16 行「实体变更日志（`IEntityDiffLogWriter`）不在本包范围内，仍是空实现」、第 94-101 行「写入器自身不开事务……」「这与 `IEntityDiffLogWriter`『必须与业务同事务』的契约方向相反」、第 103-111 行「主要 API / 类型」表格、第 171 行「实体变更日志仍为空实现」——这几处都需要改写为「已实现」
+- `docs/packages/index.md:99`：包一览表里本包的一句话描述，仍写「5 类日志实体（按月分表）与写入器」
 
 **本任务禁止事项：** 不要顺手重写与本 PR 无关的文档段落——只改与「实体差异日志从空实现变为已实现」直接相关的文字。不要在文档里声称仓库有 `.codegraph/` 目录。不要碰 `docs/.vitepress/config.ts` 或根 `README.md`——`auditing-sqlsugar` 这个包本身在 P1 已经注册过侧边栏与模块清单，本次只是包内新增内容，不是新包，侧边栏与根 README 都不需要改动。
 
@@ -905,7 +907,21 @@ sys_exception_log   sys_login_log   sys_operation_log
 - **实体差异日志固定落主库**。`SqlSugarEntityDiffLogWriter` 经 `GetCurrentClient()` 取客户端，不支持 `[ModuleDataSource]` 路由；业务实体声明了模块数据源时，该实体的差异日志仍落在当前布局主库。
 ```
 
-- [ ] **Step 3: 全量验收**
+- [ ] **Step 3: 更新包一览表**
+
+把 `docs/packages/index.md` 第 99 行：
+
+```markdown
+| [Auditing.SqlSugar](./auditing-sqlsugar) | 审计日志 SqlSugar 提供程序：5 类日志实体（按月分表）与写入器，替换空实现后日志落库 |
+```
+
+改为：
+
+```markdown
+| [Auditing.SqlSugar](./auditing-sqlsugar) | 审计日志 SqlSugar 提供程序：6 类日志实体（按月分表）与写入器，替换空实现后日志落库 |
+```
+
+- [ ] **Step 4: 全量验收**
 
 ```bash
 dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false
@@ -914,14 +930,14 @@ dotnet test --solution framework/XiHan.Framework.slnx -c Release
 
 预期：构建 0 Warning(s) 0 Error(s)；测试全部 PASS（已知的 `Script.Tests` GC 时序随机失败与本计划无关，出现时不算阻塞）。
 
-- [ ] **Step 4: 复查注释是否混入论证**
+- [ ] **Step 5: 复查注释是否混入论证**
 
 逐个通读本计划新增/修改的 `.cs` 文件的注释与 XML 文档注释。判定标准不是比对字面词，而是判断是否在讲论证、权衡、叙事——前后对比的故事、设计理由、反事实推理都算。发现即移出到提交信息，不留在代码里。
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 6: 提交**
 
 ```bash
-git add framework/src/XiHan.Framework.Auditing.SqlSugar/README.md docs/packages/auditing-sqlsugar.md
+git add framework/src/XiHan.Framework.Auditing.SqlSugar/README.md docs/packages/auditing-sqlsugar.md docs/packages/index.md
 git commit -m "docs(auditing-sqlsugar): 补写实体差异日志的包文档与文档站页面"
 ```
 

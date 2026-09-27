@@ -67,16 +67,16 @@ GetUsersInRoleAsync(roleName)
 
 | 行为 | 位置 |
 | --- | --- |
-| 用户或权限名为空 → `false` | `:196-201` |
-| 先看直接授予（且权限 `IsEnabled`），命中即返回 `true` | `:203-208` |
-| 再看**启用的**角色所授予的、**启用的**权限 | `:210-219` |
-| `IsAnyGrantedAsync` / `IsAllGrantedAsync`：列表为空 → `false`（`IsAll` 对空列表也是 `false`） | `:231-274` |
-| `GetGrantedPermissionsAsync`：直接授予 ∪ 启用角色授予，只含启用的权限，去重 | `:282-305` |
-| `PermissionExistsAsync`：有定义即 `true`，**不看**启用状态 | `:313-317` |
+| 用户或权限名为空 → `false` | `:34-39` |
+| 先看直接授予（且权限 `IsEnabled`），命中即返回 `true` | `:41-46` |
+| 再看**启用的**角色所授予的、**启用的**权限 | `:48-57` |
+| `IsAnyGrantedAsync` / `IsAllGrantedAsync`：列表为空 → `false`（`IsAll` 对空列表也是 `false`） | `:69-112` |
+| `GetGrantedPermissionsAsync`：直接授予 ∪ 启用角色授予，只含启用的权限，去重 | `:120-143` |
+| `PermissionExistsAsync`：有定义即 `true`，**不看**启用状态 | `:151-155` |
 
 ### 1.3 与默认实现唯一的不同：用户角色关联存角色标识
 
-默认实现的用户角色关联存的是**角色名称**（`_userRoles: 用户 → 角色名集合`，`:25`），而角色权限关联存的是**角色标识**（`DefaultPermissionStore._rolePermissions: 角色ID → 权限名集合`）。`UpdateRoleAsync` 改名时只更新了名称映射，没更新 `_userRoles`，于是**改名后用户静默失去该角色**。
+默认实现的用户角色关联存的是**角色名称**（`_userRoles: 用户 → 角色名集合`，`:30`），而角色权限关联存的是**角色标识**（`DefaultPermissionStore._rolePermissions: 角色ID → 权限名集合`）。`UpdateRoleAsync` 改名时只更新了名称映射，没更新 `_userRoles`，于是**改名后用户静默失去该角色**。
 
 落库实现的用户角色关联表存**角色标识**，`AddUserToRoleAsync` / `RemoveUserFromRoleAsync` 按名称查到角色后写标识。改名后成员关系保持不变。这是对默认实现的一处**修正**，契约签名不变。
 
@@ -97,7 +97,8 @@ GetUsersInRoleAsync(roleName)
 5. `SqlSugarPermissionChecker` 在 7 类用例（直接 / 经角色 / 禁用角色 / 禁用权限 / 未授予 / 空参数 / 多权限）上与 `DefaultPermissionChecker`（喂同样的 SqlSugar 存储）**判定完全一致**
 6. `IsGrantedAsync` 直接授予命中时执行 **1** 条 SQL，否则 **2** 条；`IsAllGrantedAsync` 与 `GetGrantedPermissionsAsync` 至多 **2** 条——与角色数、权限数无关
 7. 关联行与角色行 `TenantId` 不一致时不配对
-8. `dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false` 0 警告 0 错误
+8. 驱动表（`user_role`、`user_permission`）与角色表的每条查询都显式带 `Tenant_Id = 当前租户`：未注册任何租户过滤器时，租户 A 的用户读不到租户 B 同名用户的角色与授予；平台态只见租户 0 的数据
+9. `dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false` 0 警告 0 错误
 
 ## 2. 参考来源与禁止事项（强制）
 
@@ -112,9 +113,9 @@ framework/src/XiHan.Framework.Authorization/
   Roles/RoleDefinition.cs                      字段来源；CreatedTime 是 DateTime（UTC）
   Permissions/IPermissionChecker.cs            要实现的 5 个方法
   Permissions/DefaultPermissionChecker.cs      判定语义基准，见 1.2
-  Policies/DefaultPolicyEvaluator.cs:252-346   调用方：IsInRoleAsync / IsGrantedAsync / GetUserRolesAsync / GetGrantedPermissionsAsync
+  Policies/DefaultPolicyEvaluator.cs:63-157   调用方：IsInRoleAsync / IsGrantedAsync / GetUserRolesAsync / GetGrantedPermissionsAsync
   DefaultAuthorizationService.cs               调用方：AuthorizeRoleAsync / GrantPermissionAsync / AddUserToRoleAsync
-  AspNetCore/HybridPermissionAuthorizationHandler.cs:486-494   调用方：每个带权限码的请求一次 IsGrantedAsync
+  AspNetCore/HybridPermissionAuthorizationHandler.cs:49-57   调用方：每个带权限码的请求一次 IsGrantedAsync
   Extensions/DependencyInjection/XiHanAuthorizationServiceCollectionExtensions.cs:30-34   TryAddScoped
 ```
 
@@ -184,7 +185,7 @@ E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
 
 - **不改 `XiHan.Framework.Authorization` 主包的任何文件**，包括 `DefaultPermissionChecker` 与 `DefaultPolicyEvaluator`
 - **不调 `GetClientForEntity<T>()` / `GetClient()`**，统一 `GetCurrentClient()`
-- **不手动给 `TenantId` 赋值**，由数据层 AOP 填写
+- **不依赖全局租户过滤器做隔离**：角色表与两张驱动表的每条读写显式带 `TenantId == ICurrentTenant.Id ?? 0`，插入时显式赋同一个值（见 4.4）
 - **不无条件调用 `Ado.UseTranAsync`**，只在 `Ado.IsNoTran()` 为真时用，且必须检查 `IsSuccess` 并重新抛出
 - **联表条件里必须带 `TenantId` 相等**，不能只靠租户过滤器
 - **检查器不做任何缓存或请求内记忆化**
@@ -215,7 +216,7 @@ E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
 
 「每次鉴权打三次库」的说法低估了：单权限是 `2 + N`，多权限是 `k(2 + N)`。
 
-**只改存储解决不了**：`DefaultPermissionChecker.IsGrantedAsync` 在循环里对每个启用角色调一次 `GetRolePermissionsAsync(role.Id)`（`:212-219`），契约就是按单个角色取权限。存储层能做的最多是请求内记忆化，但这要求两个独立的作用域实例（权限存储、角色存储）互相通知作废，得不偿失。
+**只改存储解决不了**：`DefaultPermissionChecker.IsGrantedAsync` 在循环里对每个启用角色调一次 `GetRolePermissionsAsync(role.Id)`（`:50-57`），契约就是按单个角色取权限。存储层能做的最多是请求内记忆化，但这要求两个独立的作用域实例（权限存储、角色存储）互相通知作废，得不偿失。
 
 **因此本份顶替 `IPermissionChecker`**：`SqlSugarPermissionChecker` 直接查 ① ② 的五张表，一次判定两条 SQL。
 
@@ -256,20 +257,22 @@ E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
 
 ### 4.4 `SqlSugarRoleStore`
 
-构造函数：`(ISqlSugarClientResolver clientResolver, IDistributedIdGenerator<long> idGenerator)`。客户端一律 `GetCurrentClient()`。
+构造函数：`(ISqlSugarClientResolver clientResolver, ICurrentTenant currentTenant, IDistributedIdGenerator<long> idGenerator)`。客户端一律 `GetCurrentClient()`。
+
+**当前租户**：私有属性 `CurrentTenantId => _currentTenant.Id ?? 0`。`ICurrentTenant`（`XiHan.Framework.MultiTenancy.Abstractions`）的实现 `CurrentTenant` 读 `ICurrentTenantAccessor.Current?.TenantId`，无租户上下文时为 `null`，**平台态（宿主）因此取 0**——与数据层 AOP 在平台态插入时保留的 0、严格过滤器平台态的口径（`XiHanDataServiceCollectionExtensions.cs:481-484`）一致，平台管理员读写的是租户 0 的角色，宿主路径不受影响。角色表与 `user_role` 的每条查询、更新、删除都带 `Tenant_Id = @当前租户`，插入时显式赋值（AOP 见到与上下文一致的预置值放行）。与同一轮的 `Authentication.SqlSugar` 做法一致。
 
 | 方法 | SQL 形状 |
 | --- | --- |
-| `GetUserRolesAsync(userId)` | `user_role INNER JOIN role ON Tenant_Id = Tenant_Id AND Role_Id = Role_Id WHERE User_Id = ?`，选 role 整行；内存按 `SortOrder`、`RoleName` 排序 |
-| `IsInRoleAsync(userId, roleName)` | 同样联表，`WHERE User_Id = ? AND Role_Name = ?`，`AnyAsync` |
-| `AddUserToRoleAsync(userId, roleName)` | ① `FirstAsync(Role_Name = ?)`，无则抛；② `AnyAsync(User_Id, Role_Id)` 查重；③ `Insertable` |
-| `RemoveUserFromRoleAsync(userId, roleName)` | ① 按名称取角色，无则返回；② `Deleteable WHERE User_Id AND Role_Id` |
-| `GetAllRolesAsync()` | 全表；内存按 `SortOrder`、`RoleName`（序数）排序 |
-| `GetRoleByNameAsync` / `GetRoleByIdAsync` | `FirstAsync` |
-| `CreateRoleAsync(role)` | 参数校验 → `AnyAsync(Role_Id)` → `AnyAsync(Role_Name)` → `Insertable` |
-| `UpdateRoleAsync(role)` | 参数校验 → 按 `Role_Id` 取 → 改名时 `AnyAsync(Role_Name = 新名 AND Basic_Id <> 本行)` → `role.LastModifiedTime = UtcNow` → `SetColumns` 改写除 `RoleId`、`CreatedTime` 外的全部字段 |
+| `GetUserRolesAsync(userId)` | `user_role INNER JOIN role ON Tenant_Id = Tenant_Id AND Role_Id = Role_Id WHERE user_role.Tenant_Id = @当前租户 AND User_Id = ?`，选 role 整行；内存按 `SortOrder`、`RoleName` 排序 |
+| `IsInRoleAsync(userId, roleName)` | 同样联表，`WHERE user_role.Tenant_Id = @当前租户 AND User_Id = ? AND Role_Name = ?`，`AnyAsync` |
+| `AddUserToRoleAsync(userId, roleName)` | ① `FirstAsync(Tenant_Id = @当前租户 AND Role_Name = ?)`，无则抛；② `AnyAsync(Tenant_Id, User_Id, Role_Id)` 查重；③ `Insertable`，`TenantId` 显式赋值 |
+| `RemoveUserFromRoleAsync(userId, roleName)` | ① 按当前租户与名称取角色，无则返回；② `Deleteable WHERE Tenant_Id AND User_Id AND Role_Id` |
+| `GetAllRolesAsync()` | `WHERE Tenant_Id = @当前租户`；内存按 `SortOrder`、`RoleName`（序数）排序 |
+| `GetRoleByNameAsync` / `GetRoleByIdAsync` | `FirstAsync(Tenant_Id = @当前租户 AND …)` |
+| `CreateRoleAsync(role)` | 参数校验 → `AnyAsync(Tenant_Id, Role_Id)` → `AnyAsync(Tenant_Id, Role_Name)` → `Insertable`，`TenantId` 显式赋值 |
+| `UpdateRoleAsync(role)` | 参数校验 → 按 `Tenant_Id, Role_Id` 取 → 改名时 `AnyAsync(Tenant_Id AND Role_Name = 新名 AND Basic_Id <> 本行)` → `role.LastModifiedTime = UtcNow` → `SetColumns` 改写除 `RoleId`、`CreatedTime` 外的全部字段 |
 | `DeleteRoleAsync(roleId)` | 见 4.5 |
-| `GetUsersInRoleAsync(roleName)` | `role INNER JOIN user_role ON Tenant_Id AND Role_Id WHERE Role_Name = ?`，选 `User_Id`，内存去重 |
+| `GetUsersInRoleAsync(roleName)` | `role INNER JOIN user_role ON Tenant_Id AND Role_Id WHERE role.Tenant_Id = @当前租户 AND Role_Name = ?`，选 `User_Id`，内存去重 |
 
 **不改 `CreatedTime`**：`UpdateRoleAsync` 传入的对象可能是新 `new RoleDefinition(...)` 出来的，它的 `CreatedTime` 是「刚才」，写回去会抹掉真实创建时间。
 
@@ -278,7 +281,7 @@ E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
 ### 4.5 删除角色：级联与事务
 
 ```
-role = FirstAsync(Role_Id == roleId)          // 受租户过滤器约束
+role = FirstAsync(Tenant_Id == 当前租户 && Role_Id == roleId)
 若 role 为空：返回
 
 在事务内依次：
@@ -289,7 +292,7 @@ role = FirstAsync(Role_Id == roleId)          // 受租户过滤器约束
 
 **为什么要级联 role_permission**：默认实现里角色权限在另一个存储，删角色不动它；两者各自是内存、每请求清空，这个缺口从未暴露。落库后若不级联，以同一标识重建的角色会**原样继承**被删角色的全部权限——调用方给的标识往往是可预测的（`"admin"`、`"editor"`）。
 
-**为什么用删除前读到的 `TenantId` 写条件**：租户过滤器在更新 / 删除上默认生效（`EnableAutoDeleteQueryFilter`），但应用可以关掉它；按行上真实的 `TenantId` 写条件，与过滤器开不开无关。
+**为什么用删除前读到的 `TenantId` 写条件**：角色行已按当前租户显式读出，级联删除沿用行上的 `TenantId`，与过滤器开不开无关。
 
 **先关联、后主表**：即使事务不成立（见下），中途失败也只会留下「角色还在、部分关联没了」，重试即可；不会出现「角色没了、授权还在」。
 
@@ -317,7 +320,7 @@ private static async Task ExecuteInTransactionAsync(ISqlSugarClient client, Func
 
 ### 4.6 `SqlSugarPermissionChecker`
 
-构造函数：`(ISqlSugarClientResolver clientResolver)`。
+构造函数：`(ISqlSugarClientResolver clientResolver, ICurrentTenant currentTenant)`。当前租户取法同 4.4（`ICurrentTenant.Id ?? 0`，平台态为 0）。
 
 核心是一个私有方法：
 
@@ -326,7 +329,7 @@ GetGrantedNamesAsync(userId, candidates?)   // candidates 为空表示不限
   ① 直接授予：
      user_permission up
        INNER JOIN permission p ON p.Permission_Name = up.Permission_Name
-     WHERE up.User_Id = ? AND p.Is_Enabled = 1 [AND p.Permission_Name IN (candidates)]
+     WHERE up.Tenant_Id = @当前租户 AND up.User_Id = ? AND p.Is_Enabled = 1 [AND p.Permission_Name IN (candidates)]
      SELECT p.Permission_Name
   若 candidates 非空且已全部命中：返回
   ② 经角色：
@@ -334,7 +337,7 @@ GetGrantedNamesAsync(userId, candidates?)   // candidates 为空表示不限
        INNER JOIN role r             ON r.Tenant_Id = ur.Tenant_Id AND r.Role_Id = ur.Role_Id
        INNER JOIN role_permission rp ON rp.Tenant_Id = r.Tenant_Id AND rp.Role_Id = r.Role_Id
        INNER JOIN permission p       ON p.Permission_Name = rp.Permission_Name
-     WHERE ur.User_Id = ? AND r.Is_Enabled = 1 AND p.Is_Enabled = 1 [AND p.Permission_Name IN (candidates)]
+     WHERE ur.Tenant_Id = @当前租户 AND ur.User_Id = ? AND r.Is_Enabled = 1 AND p.Is_Enabled = 1 [AND p.Permission_Name IN (candidates)]
      SELECT p.Permission_Name
   返回 ① ∪ ②（序数比较的 HashSet）
 ```
@@ -349,7 +352,14 @@ GetGrantedNamesAsync(userId, candidates?)   // candidates 为空表示不限
 
 **为什么两条 SQL 而不是一条 `UNION`**：直接授予命中时（管理员常见）第二条可以省掉；两条都是等值索引查找，第二条的四表联表每一跳都有首列等值的索引（4.3 与 ① 的索引）。`UNION ALL` 能压成一次往返，但 SqlSugar 的 `UnionAll` 对带联表与 `Select` 投影的子查询要额外核对生成的 SQL，收益是省一次往返，不值得在本份引入。
 
-**为什么联表条件带 `TenantId` 相等**：租户过滤器以 `FilterJoinPosition.On` 挂在每张表上，正常情况下已经让所有表都只剩当前租户的行；但过滤器可以被应用关掉（`EnableTenantFilter = false`），或在平台态放行。那时只按 `Role_Id` 联表，租户 A 用户的关联行会和租户 B 同名标识的角色配上——跨租户提权。
+**两层租户条件各管什么**：
+
+- **驱动表上的当前租户条件**（`ur.Tenant_Id = @当前租户`、`up.Tenant_Id = @当前租户`）决定查的是**哪个**租户。没有它，结果是不是当前租户的完全取决于全局过滤器：`EnableTenantFilter = false` 时，租户 A 的用户 `"1001"` 会拿到租户 B 同名用户 `"1001"` 的角色与授予——跨租户授权
+- **联表上的 `Tenant_Id` 相等**保证一条联表链不跨租户：关联行只和同租户的角色、同租户的角色授予配对
+
+两者合起来才保证「结果全部属于当前租户」；单有联表相等只保证「属于某一个租户」。
+
+**关于过滤器在平台态的口径**：本包的四张表实现 `IStrictMultiTenantEntity`，平台态下严格过滤器收紧为 `TenantId == 0`（`XiHanDataServiceCollectionExtensions.cs:254-255`、`:481-484`），**不是**放行全部；读共享过滤器的平台态哨兵放行（`:246-249`）与严格过滤器 AND 之后同样只剩 0。显式条件在过滤器开着时与它结果相同，关掉时仍然成立。
 
 ### 4.7 缓存：不加
 
@@ -383,9 +393,9 @@ services.Replace(ServiceDescriptor.Scoped<IPermissionChecker, SqlSugarPermission
 
 两条都有测试：删除中途失败（测试里先 `DropTable` 掉 `sys_authz_role_permission`）必须抛出且用户关联被回滚；外层 `BeginTran` → 删除 → `RollbackTran` 后角色必须还在。
 
-**④ 联表只按 `Role_Id`，不按 `Tenant_Id`。**
+**④ 只靠过滤器决定租户，或联表只按 `Role_Id`。**
 
-租户过滤器开着时看不出区别。过滤器关掉或平台态放行时，跨租户同名标识的行会配对。测试直接往库里插 `TenantId` 不一致的关联行，断言不配对。
+租户过滤器开着时两者都看不出区别。过滤器关掉时：驱动表没有当前租户条件，就会读到别的租户同名用户的角色与授予；联表只按 `Role_Id`，就会让关联行与别的租户同标识的角色配对。SQLite 测试客户端本就没有过滤器，两条都能直接测：夹具的 `StubCurrentTenant` 设为租户 5，库里同时放租户 5、6 与平台租户 0 的同名数据，断言只见租户 5；另插 `TenantId` 不一致的关联行，断言不配对。
 
 **⑤ 用户角色关联存角色名称。**
 
@@ -401,7 +411,7 @@ services.Replace(ServiceDescriptor.Scoped<IPermissionChecker, SqlSugarPermission
 
 ## 6. 测试策略
 
-**只有 SQLite 一层，CI 强门禁执行。** 本份没有并发协议；租户过滤器在 SQLite 客户端上**手工挂**一个与框架同形的过滤器来覆盖。
+**只有 SQLite 一层，CI 强门禁执行。** 本份没有并发协议。租户隔离靠显式条件，测试客户端不挂过滤器即可覆盖「过滤器关闭」的情形；另有一组用例手工挂上与框架同形的严格过滤器，确认两者叠加结果不变。
 
 沿用 ① 的 `AuthorizationTestContext`（按反射建出程序集里全部实体的表，② 新增实体不用改夹具的建表逻辑），新增 `CreateRoleStore()`、`CreatePermissionChecker()` 两个工厂方法。
 
@@ -415,7 +425,8 @@ services.Replace(ServiceDescriptor.Scoped<IPermissionChecker, SqlSugarPermission
 - **检查器语义**：7 类判定 + 与 `DefaultPermissionChecker` 的对照
 - **检查器查询次数**：`Client.Aop.OnLogExecuting` 计数
 - **检查器跨租户**：关联行与角色行、角色行与角色权限行 `TenantId` 不一致时不授予
-- **租户过滤器**：在测试客户端上挂 `AddTableFilter<IStrictMultiTenantEntity>(e => e.TenantId == 5)`，两个租户各有同名角色与授权，只见本租户
+- **当前租户**：租户 5、6 与平台租户 0 各有同名用户 `u1` 的角色关联、角色授予与**直接授予**（`user_permission`）；当前租户为 5 时，存储与检查器只见租户 5 的数据——不挂过滤器、挂严格过滤器两种情形各跑一遍；当前租户为空（平台态）时只见租户 0
+- **角色按租户隔离**：同一角色标识与名称可在不同租户各建一个，互相不可见
 - **注册**：`IRoleStore`、`IPermissionChecker` 各只剩一个描述符
 
 写用例时的约束：
@@ -437,7 +448,9 @@ services.Replace(ServiceDescriptor.Scoped<IPermissionChecker, SqlSugarPermission
 | 与默认实现的一处差异 | 用户角色关联存角色标识，改名后成员关系保持；默认实现改名后会丢失 |
 | 静态角色可删 | `IsStatic` 只存不拦，与默认实现一致；拦截应在应用服务层做 |
 | `IsInRoleAsync` 不看启用 | 与默认实现一致；禁用角色的成员在 `IsInRoleAsync` 与策略的 `RequiredRoles` 上仍然通过，但不会从该角色得到权限 |
-| 需要租户过滤器 | 单表读写依赖 `EnableTenantFilter`（默认 `true`）收紧到当前租户；多租户应用关掉它，`GetRoleByNameAsync` 等会看到别的租户的同名角色。联表条件已带 `TenantId`，不会跨租户配对 |
+| 租户隔离的保证范围 | 角色表与两张驱动表的每条 SQL 显式带 `Tenant_Id = ICurrentTenant.Id ?? 0`，联表另带 `Tenant_Id` 相等，因此结果只来自当前租户，**与 `EnableTenantFilter` 开关无关**。平台态读写租户 0 的数据，看不到业务租户的角色与授予；平台态要管理某个租户的授权，须先 `ICurrentTenant.Change(租户标识)`。权限定义表全局共享，不在此列 |
+| 名称比较口径不一 | `IsInRoleAsync`、`GetRoleByNameAsync` 等按名称的查询在数据库里比较：MySQL / SQL Server 默认排序规则不区分大小写，且按 PAD SPACE 忽略尾随空格，`Admin` 与 `admin `都能命中 `admin`。检查器取回权限名后在内存里用序数比较再核对一次，大小写不同的名称判为未授予。唯一索引保证同一租户内不会同时存在两个只差大小写的名称，因此不构成越权，只是两条路径口径不一致 |
+| 预先授予不存在的角色 | `GrantPermissionToRoleAsync` 不校验角色是否存在（与默认实现一致）。给一个尚未创建的角色标识授权会留下孤儿授予，之后以该标识创建的角色直接继承它 |
 | 并发创建同名角色 | 查重与插入之间无锁，后到者撞唯一索引抛数据库异常而非 `InvalidOperationException` |
 | 无外层事务时的级联 | 自开事务；数据库不支持事务时（不在本框架支持范围）退化为「先关联、后主表」的顺序删除 |
 | 名称大小写 | 由数据库排序规则决定；MySQL / SQL Server 默认不敏感 |
@@ -477,6 +490,7 @@ services.Replace(ServiceDescriptor.Scoped<IPermissionChecker, SqlSugarPermission
 | 8 | `UpdateRoleAsync` 是否改 `CreatedTime` | 不改 | 创建时间不应随更新变化 | 改为写回则与默认实现一致，但会丢真实创建时间 |
 | 9 | `GetUserRolesAsync` / `GetAllRolesAsync` 排序 | 按 `SortOrder`、`RoleName` 序数 | 默认实现无序；给出稳定顺序 | 纯展示顺序 |
 | 10 | 联表带 `TenantId` 相等 | 带 | 不依赖过滤器开关 | 去掉则过滤器关闭时可跨租户配对 |
+| 11 | 驱动表与角色表带当前租户条件 | 带，`ICurrentTenant.Id ?? 0`，平台态为 0 | 过滤器可被关掉；与 `Authentication.SqlSugar` 一致 | 去掉则过滤器关闭时跨租户读到同名用户的授权 |
 
 ## 9. 下一份
 

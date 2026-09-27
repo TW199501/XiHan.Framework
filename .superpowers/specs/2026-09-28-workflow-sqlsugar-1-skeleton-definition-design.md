@@ -26,7 +26,7 @@
 
 ### 1.1 现状
 
-`XiHan.Framework.Workflow` 的三个存储端口只有进程内实现，注册在 `framework/src/XiHan.Framework.Workflow/Extensions/DependencyInjection/XiHanWorkflowServiceCollectionExtensions.cs:48-50`：
+`XiHan.Framework.Workflow` 的三个存储端口只有进程内实现，注册在 `framework/src/XiHan.Framework.Workflow/Extensions/DependencyInjection/XiHanWorkflowServiceCollectionExtensions.cs:51-53`：
 
 ```csharp
 services.TryAddSingleton<IWorkflowDefinitionStore, DefaultWorkflowDefinitionStore>();
@@ -82,7 +82,7 @@ framework/src/XiHan.Framework.Workflow/
   Definitions/WorkflowDefinitionManager.cs   定义存储的全部调用方：版本号、仅草稿可改/可删
   Engine/WorkflowEngine.cs:1326-1356         引擎按 Id / 编码+版本 / 最新已发布 取定义
   Engine/WorkflowInstanceLocker.cs           实例锁协议；第 95 行注释「后续冲突由存储层最后写入语义兜底」
-  Extensions/DependencyInjection/XiHanWorkflowServiceCollectionExtensions.cs:48-50   TryAddSingleton
+  Extensions/DependencyInjection/XiHanWorkflowServiceCollectionExtensions.cs:51-53   TryAddSingleton
 ```
 
 **② 已完成的兄弟子包——骨架形状照抄**
@@ -237,13 +237,13 @@ public sealed class WorkflowSqlSugarExecutor
 
 **代价**：每次存储调用一个 `BEGIN`/`COMMIT`；有外层工作单元时每次调用另开一条物理连接（连接池内）。一个执行批次通常十几次到几十次存储调用。
 
-**不能用条件 UPDATE 抢占或 `Row_Version` 乐观并发替代锁**：
+**并发控制的分工：引擎锁为主，书签删除守卫兜底，实例不做乐观并发**：
 
-- 书签消费点是 `IWorkflowBookmarkStore.DeleteAsync(string)`，契约返回 `Task`、没有「是否删到」的出口，引擎也不会据此中止批次——存储无从表达「已被别人消费」
-- 实例的 POCO（`WorkflowInstance`）没有版本字段，存储拿不到「读时版本」；若在作用域里自建身份映射记录版本，版本冲突会在批次中途抛出——而引擎规定批次一旦开始必须收尾（`WorkflowEngine.cs` 的 `ExecutionSession` 注释），中途抛出正是它要避免的「状态半落盘」
-- 引擎作者已明确选择「锁 + 最后写入」，见上文两处注释
+- **书签消费做守卫（第 3 份实现）**：引擎消费书签的删除（`WorkflowEngine.cs:518`）在 `RunBurstAsync` 之前、以 `CancellationToken.None` 执行。书签存储的 `DeleteAsync` 删到 0 行时抛 `WorkflowException`，落败节点的批次根本不会开始、不留半写状态；定时器 Worker、信号投递已把 `WorkflowException` 当作「已被并发处理」跳过。执行器的独立提交保证先删者的删除在后删者执行前已提交，后删者确定性地看到 0 行。这让「同一书签被两个节点同时恢复」在没有 Redis 锁时也只推进一次。调用点逐一分析见第 3 份 §4.7
+- **实例不做乐观并发**：实例的 POCO（`WorkflowInstance`）没有版本字段，存储拿不到「读时版本」；若在作用域里自建身份映射记录版本，版本冲突会在批次中途抛出——而引擎规定批次一旦开始必须收尾（`WorkflowEngine.cs` 的 `ExecutionSession` 注释），中途抛出正是它要避免的「状态半落盘」
+- 引擎作者选择「锁 + 最后写入」，见上文两处注释；书签守卫是在这一选择之内、只作用于批次开始之前的补强
 
-这意味着**多实例部署必须把 `IDistributedLock` 换成 Redis 实现**（配置 `XiHan:Caching` 的 Redis 连接后框架自动 `Replace`，`XiHanCachingServiceCollectionExtensions.cs:94`）。默认的 `DefaultDistributedLock` 只在进程内互斥。这是部署约束，写进 README，不在代码里检测（D2）。
+**守卫覆盖不到的场景，仍需要 Redis 锁**：两个节点**同时恢复同一实例的不同书签**（并行分支各自的等待点、会签的两个受理人同时办理、超时书签与人工办理同时到来）。两边各自删到 1 行、各自开跑批次，写回按最后写入覆盖。因此多实例部署仍应把 `IDistributedLock` 换成 Redis 实现（配置 `XiHan:Caching` 的 Redis 连接后框架自动 `Replace`，`XiHanCachingServiceCollectionExtensions.cs:94`）。默认的 `DefaultDistributedLock` 只在进程内互斥；本包在应用初始化时检测到它会记录一条警告（第 3 份 D12），警告是提示，不是唯一防线。
 
 **为什么固定连接、不随租户切库**：
 
@@ -355,14 +355,14 @@ public static IServiceCollection AddXiHanWorkflowSqlSugar(this IServiceCollectio
 | **2. 主键类型** | **`string`**（`SugarEntity<string>`） | 契约四个模型的 `Id` 全是 `string`。引擎用 `IDistributedIdGenerator<long>.NextIdString()` 生成，但 `WorkflowStartRequest.InstanceId` 允许调用方传任意字符串，不能假定可解析为 `long` |
 | **3. 是否参与工作单元事务** | **不参与，且必须主动隔离**：每次操作独立事务、立即提交 | §4.2。与发件箱相反：发件箱要「业务回滚则事件消失」，工作流要「锁释放则写入可见」 |
 | **4. 是否需要多库** | **单库**，固定在 `ConfigId`（默认 `DefaultConfigId`），不随租户切库，不遍历模块库 | §4.2 最后一段 |
-| **5. 顶替方式** | **`Replace`** | 主包 `XiHanWorkflowServiceCollectionExtensions.cs:48-50` 是 `TryAddSingleton` |
+| **5. 顶替方式** | **`Replace`** | 主包 `XiHanWorkflowServiceCollectionExtensions.cs:51-53` 是 `TryAddSingleton` |
 
 ## 待确认的决策
 
 | # | 决策 | 默认值 | 理由 | 若改会影响什么 |
 | --- | --- | --- | --- | --- |
-| D1 | 并发控制方式 | **不做存储层并发控制**，依赖引擎实例锁 + 最后写入 | 契约与引擎注释明确要求；书签删除契约无返回值、实例 POCO 无版本字段；乐观并发在批次中途抛出违反「批次必收尾」 | 若要存储层兜底，须先改契约（例如 `Task<bool> TryDeleteAsync`）与引擎，是上游改动，不在本包 |
-| D2 | 多实例未配 Redis 锁时的处理 | **只写进 README 与文档站**，不在启动时检测或告警 | 单实例用数据库持久化而不上 Redis 是合法部署；运行时检测需要额外的托管服务，超出「模块只做装配」 | 若要启动告警，需新增一个检查 `IDistributedLock` 实现类型的托管服务 |
+| D1 | 并发控制方式 | **引擎实例锁 + 书签删除守卫**：书签 `DeleteAsync` 删到 0 行抛 `WorkflowException`（第 3 份）；实例不做乐观并发、最后写入 | 消费删除发生在批次开始之前，抛出只让落败节点放弃、不留半写状态；实例 POCO 无版本字段，乐观并发在批次中途抛出违反「批次必收尾」 | 去掉守卫：没有 Redis 锁时同一书签可被两个节点各推进一次。守卫让书签 `DeleteAsync` 比内存默认实现更严格（后者删不存在的键静默成功），这是有意的差异 |
+| D2 | 多实例未配 Redis 锁时的处理 | **启动时记录一条警告**：模块 `OnApplicationInitialization` 发现解析出的 `IDistributedLock` 是 `DefaultDistributedLock` 时记录 Warning（第 3 份实现，见第 3 份 D12 与 §4.8），不新增托管服务，不阻止启动 | 单实例用数据库持久化而不上 Redis 是合法部署，不能拒绝启动；有书签守卫兜底后，警告针对的是守卫覆盖不到的「不同书签并发恢复」 | 改为拒绝启动：单实例部署被迫引入 Redis |
 | D3 | 事务参与 | **每次操作独立事务型工作单元**（`requiresNew: true`） | §4.2 | 改为加入调用方工作单元：启动流程可与业务同事务回滚，但多实例下出现重复推进；SQLite 下外层已写同库时独立连接会撞 `database is locked`（已知边界） |
 | D4 | 表落在哪个连接 | **`DefaultConfigId`，可由 `XiHan:Workflow:SqlSugar:ConfigId` 覆盖** | §4.2 | 若要随租户切库：定时器 Worker 与平台级定义都会失效 |
 | D5 | 主键 | `string`，SqlSugar 默认长度 255 | 契约标识是字符串 | 改 `long` 会让自定义 `InstanceId` 插入失败 |
@@ -439,7 +439,7 @@ public static IServiceCollection AddXiHanWorkflowSqlSugar(this IServiceCollectio
 
 | 项 | 说明 |
 | --- | --- |
-| 多实例必须上 Redis 锁 | 默认 `DefaultDistributedLock` 只在进程内互斥。多实例 + 数据库存储 + 进程内锁：同一书签可被两个节点同时恢复。本包不检测 |
+| 多实例应上 Redis 锁 | 默认 `DefaultDistributedLock` 只在进程内互斥。书签删除守卫保证同一书签只被推进一次，但两个节点同时恢复同一实例的**不同**书签时仍会并发推进、最后写入覆盖。启动时有警告，不阻止启动 |
 | 工作流写入不随业务回滚 | 业务事务里启动流程后业务回滚，流程实例仍在。需要「业务失败则不启动」时，应在业务提交之后再启动流程 |
 | SQLite + 外层事务 | 外层工作单元已写过同一个 SQLite 库时，存储的独立连接会撞 `database is locked`。SQLite 只适合无外层事务的场景 |
 | 并发创建同编码定义 | 唯一索引让后到者抛数据库异常，异常类型随驱动而定，调用方需重试 |

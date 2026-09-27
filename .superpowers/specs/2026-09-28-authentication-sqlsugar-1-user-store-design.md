@@ -164,7 +164,7 @@ E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
 - **不用读-改-写实现失败计数累加**。必须是数据库侧 `SET x = x + 1`
 - **不以受影响行数单独判定「用户不存在」**
 - **不用 `DateTimeOffset` 做时间列**，也不在比较前把读回的时间当作本地时间
-- **不在 `UpdateUserAsync` 里写 `Password_Hash` 列**
+- **不在 `UpdateUserAsync` 里写 `Password_Hash`、`Failed_Login_Attempts`、`Is_Locked`、`Lockout_End` 四列**
 - **不把 `IUserStore` 注册为 Singleton**
 - **不做刷新令牌与第三方登录**（第 ② 份），**不动 `docs/` 与模块清单**（第 ② 份）
 
@@ -194,7 +194,7 @@ E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/
 | --- | --- | --- | --- | --- |
 | S1 | `TwoFactorSecret` 如何落库 | **原样明文**存入 `Two_Factor_Secret`（长 256） | TOTP 校验需要密钥明文，无法哈希；契约与框架都没有字段级加密的抽象。可用的 ASP.NET Data Protection 在密钥环未持久化时，进程重启即令全部已存密钥无法解密——全员双因素失效，比明文更糟。**这是一个缺口，不是安全的选择**：数据库泄漏即泄漏全部 TOTP 密钥 | 改为加密需新增一个加解密抽象（例如 `ITwoFactorSecretProtector`）并规定密钥环持久化，属于独立议题；本包届时只需在映射层调用它 |
 | S2 | 存储层是否对 `PasswordHash` / `RecoveryCodes` 做任何计算 | **不做**，原样存取 | 服务层已哈希（`DefaultAuthenticationService.cs:96、260、301、421`）。存储层再算一次就是双重哈希，所有登录永远失败 | 无。这一条不应改 |
-| S3 | `UpdateUserAsync` 是否写 `Password_Hash` | **不写**，密码只经 `UpdatePasswordAsync` 修改 | 与 S4 共同防旧快照回写；也防止调用方构造一个 `PasswordHash` 为空的新 `UserInfo` 去更新资料时把密码清空。框架自身所有改密码路径都走 `UpdatePasswordAsync` | 与 `DefaultUserStore` 不同：直接改 `user.PasswordHash` 再 `UpdateUserAsync` 的下游代码，改动会被**静默忽略**。已写入 README |
+| S3 | `UpdateUserAsync` 是否写 `Password_Hash` 与失败计数、锁定三列 | **都不写**：密码只经 `UpdatePasswordAsync`；`Failed_Login_Attempts` / `Is_Locked` / `Lockout_End` 只经计数与锁定的专用方法 | 与 S4 共同防旧快照回写；也防止调用方构造一个 `PasswordHash` 为空的新 `UserInfo` 去更新资料时把密码清空。框架自身所有改密码路径都走 `UpdatePasswordAsync`。锁定三列：身份映射只保证单个请求内一致；跨请求时，请求 A（改密码、启停双因素、核销恢复码）读出用户，并发的请求 B 累加失败次数或加锁，A 最后整份写回就会**解除锁定**——与 S5 要防的丢失更新是同一个问题。`DefaultAuthenticationService` 只经专用方法（469-494 行）改这三列 | 与 `DefaultUserStore` 不同：直接改 `user.PasswordHash` / `user.IsLocked` 等再 `UpdateUserAsync` 的下游代码，改动会被**静默忽略**（管理后台「解锁用户」须调 `SetLockoutEndAsync(username, null)` 与 `ResetFailedLoginAttemptsAsync`）。已写入 README |
 | S4 | 作用域内身份映射 | **开启**：同一个存储实例内，同一用户的各次读取返回同一个 `UserInfo` 实例；`UpdatePasswordAsync`、失败计数、锁定四个写入方法同时更新该实例 | 这是让 `DefaultAuthenticationService` 四条「写回旧快照」流程在数据库上仍正确的唯一办法（见 4.4、5 ①）。存储是 Scoped，映射随请求作用域结束而丢弃 | 关掉则：修改密码后旧密码仍然有效、启用双因素后恢复码为空、登录成功后失败计数复原 |
 | S5 | 失败计数如何累加 | **数据库侧原子累加** `SET Failed_Login_Attempts = Failed_Login_Attempts + 1` | 读-改-写在并发失败登录下丢失累加，攻击者并行猜密码可绕过锁定阈值 | 无。这一条不应改 |
 | S6 | 用户名的大小写与唯一性 | **大小写不敏感**：另存 `Normalized_User_Name`（`ToUpperInvariant()`），查找与唯一索引 `(Tenant_Id, Normalized_User_Name)` 都用它 | 大小写敏感的唯一约束允许 `Admin` 与 `admin` 并存，而 MySQL / SQL Server 的默认排序规则下 `=` 又不区分大小写——查找会命中任意一个，身份混淆。规范化列让行为与数据库排序规则无关 | 与 `DefaultUserStore`（`ConcurrentDictionary` 默认序数比较，大小写敏感）不同。从大小写敏感的旧数据迁入时，仅大小写不同的重名会让唯一索引建不起来 |
@@ -304,7 +304,7 @@ public class SysAuthUser : SugarEntity<long>
 | --- | --- | --- |
 | `GetUserByUsernameAsync` | `WHERE Tenant_Id = @t AND Normalized_User_Name = @n` | 空白 → `null` |
 | `GetUserByIdAsync` | `WHERE Basic_Id = @id AND Tenant_Id = @t` | 非正整数 → `null` |
-| `UpdateUserAsync` | `UPDATE SET`（除 `Password_Hash`、`Tenant_Id`、`Basic_Id` 外的 14 列，含 `Normalized_User_Name`）`WHERE Basic_Id AND Tenant_Id` | `user` 为 `null`、`UserId` 非正整数或 `Username` 空白 → `ArgumentException`；不存在 → `InvalidOperationException` |
+| `UpdateUserAsync` | `UPDATE SET` 11 列：`User_Name`、`Normalized_User_Name`、`Email`、`Phone_Number`、`Two_Factor_Enabled`、`Two_Factor_Secret`、`Recovery_Codes`、`Last_Login_Time`、`Password_Changed_Time`、`Is_Active`、`Additional_Data`；**不写** `Password_Hash`、`Failed_Login_Attempts`、`Is_Locked`、`Lockout_End`；`WHERE Basic_Id AND Tenant_Id` | `user` 为 `null`、`UserId` 非正整数或 `Username` 空白 → `ArgumentException`；不存在 → `InvalidOperationException` |
 | `UpdatePasswordAsync` | `UPDATE SET Password_Hash = @h WHERE Basic_Id AND Tenant_Id` | 空白参数 → `ArgumentException`；非正整数或不存在 → `InvalidOperationException` |
 | `GetFailedLoginAttemptsAsync` | 读行 | 不存在 → 0 |
 | `IncrementFailedLoginAttemptsAsync` | `UPDATE SET Failed_Login_Attempts = Failed_Login_Attempts + 1 WHERE Tenant_Id AND Normalized_User_Name` | 不存在静默忽略 |
@@ -349,11 +349,11 @@ public static IServiceCollection AddXiHanAuthenticationSqlSugar(this IServiceCol
 
 **逐方法的单元测试全部是绿的**，对 `DefaultUserStore` 跑同样的流程也是绿的（它靠引用共享碰巧正确）。只有用真实的 `DefaultAuthenticationService`、在每步之后用**新的存储实例**读库，才会暴露。本份的流程测试就是这么写的，**不要为了省事把流程测试改成共用一个存储实例读结果**——那样读到的是映射里的对象，库里写错了也看不出来。
 
-S3（不写密码列）只挡住第一条；第二、三条只能靠身份映射挡。
+S3（不写密码列）只挡住第一条；第二、三条只能靠身份映射挡。跨请求的同类问题——另一个请求刚写入的失败计数或锁定被整份写回抹掉——身份映射挡不住，靠 S3 把锁定三列也排除在 `UpdateUserAsync` 之外；用例「更新用户信息不改写其他请求写入的失败次数与锁定」覆盖。
 
 **② 失败计数写成读-改-写。**
 
-`var u = Get(); u.Failed++; Update(u)`：串行测试完全正确。并发下 N 个失败请求可能只累加 1 次，锁定阈值形同虚设。SQLite 单测不起并发，发现不了——本份用「两个存储实例交替累加」的用例逼出读-改-写（第一个实例手里的对象停在旧值），但它依然证明不了真实并发下的原子性，原子性以 `SET x = x + 1` 这条 SQL 为准，**不要以用例变绿为准**。
+`var u = Get(); u.Failed++; Update(u)`：串行测试完全正确。并发下 N 个失败请求可能只累加 1 次，锁定阈值形同虚设。SQLite 单测不起并发，发现不了——本份「两个存储实例交替累加」的用例只抓得住一种读-改-写：从身份映射里的旧对象取值再写回。「每次重新查库、加一、写回」的读-改-写串行时结果正确，这条用例照样放过。原子性以 `SET x = x + 1` 这条 SQL 为准，**不要以用例变绿为准**。
 
 **③ 靠全局租户过滤器做隔离。**
 
@@ -394,7 +394,7 @@ MySQL / SQL Server 默认不区分大小写，PostgreSQL 与 SQLite 区分——
 | `AuthUserEntityTests` | 表名、唯一索引字段、密码列长度与非空、同租户重复规范化用户名被索引拒绝、跨租户同名允许 |
 | `AuthUserMapperTests` | 规范化、全字段往返、`Local` / `Unspecified` 的换算、读回标记 `Utc`、恢复码空列表、附加数据往返为 `JsonElement` |
 | `UserStoreReadTests` | 大小写不敏感查找、按标识查找、非数字标识、空白用户名、跨租户与平台隔离、同作用域同实例、`AddUserAsync` 的标识与重复检查、密码哈希原样保存 |
-| `UserStoreWriteTests` | `UpdateUserAsync` 不改写密码、其余字段写入、不存在与非法参数、`UpdatePasswordAsync` 原样写入、数据库侧累加、写入同步到已加载实例、锁定标志、计数不跨租户、不存在用户的计数静默忽略 |
+| `UserStoreWriteTests` | `UpdateUserAsync` 不改写密码、不改写其他请求写入的失败计数与锁定、可写入空值、其余字段写入、不存在与非法参数、`UpdatePasswordAsync` 原样写入、数据库侧累加、写入同步到已加载实例、锁定标志、计数不跨租户、不存在用户的计数静默忽略 |
 | `AuthenticationFlowTests` | 第 1.4 节成功标准第 1 条的六条流程，使用真实的 `DefaultAuthenticationService`、`PasswordHasher`（迭代次数调低到 1000）、`OtpService`、`JwtTokenService` + `DefaultRefreshTokenStore` |
 | `RegistrationTests` | `Replace` 后唯一、实现类型、Scoped、`TimeProvider` 注册且不覆盖已有 |
 
@@ -414,7 +414,7 @@ SQLite 临时库的连接串必须带 `Pooling=False`，否则用例结束后驱
 | 项 | 说明 |
 | --- | --- |
 | 双因素密钥明文落库 | 见 S1。数据库泄漏即泄漏全部 TOTP 密钥 |
-| `UpdateUserAsync` 不写密码 | 与 `DefaultUserStore` 不同。改密码只能经 `UpdatePasswordAsync` |
+| `UpdateUserAsync` 不写密码、失败计数与锁定 | 与 `DefaultUserStore` 不同。这四列只能经各自的专用方法修改 |
 | 用户名大小写不敏感 | 与 `DefaultUserStore` 不同。旧数据若有仅大小写不同的重名，唯一索引建不起来 |
 | 身份映射不刷新 | 同一请求作用域内，除失败计数与锁定三个字段外，已读出的用户对象不会反映其他请求在此期间对库的修改 |
 | 非数字 `UserId` | 视为不存在。下游若以非数字字符串作用户标识，不能用本包 |

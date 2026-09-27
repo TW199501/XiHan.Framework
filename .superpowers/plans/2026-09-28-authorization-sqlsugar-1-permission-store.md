@@ -4,7 +4,7 @@
 
 **Goal:** 新建 `XiHan.Framework.Authorization.SqlSugar` 包，交付权限定义与两张授予表的实体、`IPermissionStore` 的 SqlSugar 实现，并以 `Replace` 顶替主包的内存实现。
 
-**Architecture:** 三个实体（`SysAuthzPermission` 全局、`SysAuthzUserPermission` 与 `SysAuthzRolePermission` 严格按租户隔离），表名统一 `sys_authz_` 前缀，主键雪花 `long`，业务键做成首列为 `TenantId` 的唯一索引。存储经 `ISqlSugarClientResolver.GetCurrentClient()` 取客户端，读用户 / 角色权限时授予表 INNER JOIN 定义表。字段搬运放在静态映射器里，可脱离数据库单测。
+**Architecture:** 三个实体（`SysAuthzPermission` 全局、`SysAuthzUserPermission` 与 `SysAuthzRolePermission` 严格按租户隔离），表名统一 `sys_authz_` 前缀，主键雪花 `long`，业务键做成首列为 `TenantId` 的唯一索引。存储经 `ISqlSugarClientResolver.GetCurrentClient()` 取客户端，读用户 / 角色权限时授予表 INNER JOIN 定义表。授予表的每条读写都显式带 `Tenant_Id = 当前租户`（`ICurrentTenant.Id ?? 0`），插入时显式赋值，不依赖全局租户过滤器。字段搬运放在静态映射器里，可脱离数据库单测。
 
 **Tech Stack:** .NET 10、SqlSugarCore 5.1.4.221、System.Text.Json、xunit.v3 + Microsoft.Testing.Platform
 
@@ -86,6 +86,13 @@ IReadOnlyList<string> GetCurrentLayoutConfigIds()
 IEnumerable<ISqlSugarClient> GetAllClients()
 ITenant AsTenant()
 
+// 框架 —— XiHan.Framework.MultiTenancy.Abstractions.ICurrentTenant
+// （实现 CurrentTenant 是 ITransientDependency，经 XiHanDataModule → XiHanMultiTenancyModule 注册）
+long? Id { get; }                                   // 无租户上下文（平台态）时为 null
+bool IsAvailable { get; }
+string? Name { get; }
+IDisposable Change(long? id, string? name = null)
+
 // 框架 —— XiHan.Framework.DistributedIds
 long IDistributedIdGenerator<long>.NextId()
 IDistributedIdGenerator<long> IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload(ushort workerId = 1)
@@ -146,9 +153,13 @@ bool Enabled { get; set; } = true;  string? Group { get; set; }  bool IncludeMod
 
 主包以 `TryAddScoped` 注册了 `IPermissionStore`，`TryAdd` 是空操作。
 
-**⑤ 不截断、不过滤、不手动赋 `TenantId`。**
+**⑤ 不截断、不过滤。**
 
-名称超长交给数据库报错；读取不过滤 `IsEnabled`；`TenantId` 由数据层 AOP 填写。
+名称超长交给数据库报错；读取不过滤 `IsEnabled`。
+
+**⑥ 授予表的每条读写都显式带当前租户条件。**
+
+当前租户 = `ICurrentTenant.Id ?? 0`（平台态为 0，与数据层 AOP 在平台态插入时保留的 0、严格过滤器在平台态的口径一致）。查询、更新、删除的 `Where` 都含 `TenantId == tenantId`，插入时显式给 `TenantId` 赋同一个值（AOP 见到与上下文一致的预置值会放行）。**不依赖全局租户过滤器**：它可以被 `EnableTenantFilter = false` 整体关掉，那时只靠过滤器的写法会让租户 A 的用户 `"1001"` 读到租户 B 同名用户的授予。表达式里用局部变量 `tenantId`，不要直接写 `_currentTenant.Id`。
 
 ---
 
@@ -198,7 +209,7 @@ framework/XiHan.Framework.slnx                                         修改：
   - `SysAuthzUserPermission`（`UserId`、`PermissionName`，继承 `TenantId`）
   - `SysAuthzRolePermission`（`RoleId`、`PermissionName`，继承 `TenantId`）
   - 三者均有 `public Xxx()` 与 `public Xxx(long basicId)` 两个构造函数
-  - 测试夹具 `AuthorizationTestContext`：`static Type[] EntityTypes`、`SqlSugarClient Client`、`StubClientResolver Resolver`、`IDistributedIdGenerator<long> IdGenerator`
+  - 测试夹具 `AuthorizationTestContext`：`static Type[] EntityTypes`、`SqlSugarClient Client`、`StubClientResolver Resolver`、`StubCurrentTenant CurrentTenant`（`Id` 可写，默认 `null` 即平台态）、`IDistributedIdGenerator<long> IdGenerator`
   - 测试桩 `StubClientResolver(ISqlSugarClient client)`：`GetCurrentClient()` 返回该客户端，`GetClientForEntity` / `GetClient` 抛 `NotSupportedException`
 
 **参考来源（动手前先读）：**
@@ -268,6 +279,7 @@ using SqlSugar;
 using XiHan.Framework.Authorization.SqlSugar.Entities;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.DistributedIds;
+using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.Framework.Authorization.SqlSugar.Tests;
 
@@ -319,6 +331,11 @@ internal sealed class AuthorizationTestContext : IDisposable
     public IDistributedIdGenerator<long> IdGenerator { get; } = IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload();
 
     /// <summary>
+    /// 可写的当前租户，默认无租户上下文
+    /// </summary>
+    public StubCurrentTenant CurrentTenant { get; } = new();
+
+    /// <summary>
     /// 释放客户端并删除临时库文件
     /// </summary>
     public void Dispose()
@@ -328,6 +345,68 @@ internal sealed class AuthorizationTestContext : IDisposable
         if (File.Exists(_databaseFile))
         {
             File.Delete(_databaseFile);
+        }
+    }
+}
+
+/// <summary>
+/// 测试用当前租户，租户标识可直接赋值
+/// </summary>
+internal sealed class StubCurrentTenant : ICurrentTenant
+{
+    /// <summary>
+    /// 是否有租户上下文
+    /// </summary>
+    public bool IsAvailable => Id.HasValue;
+
+    /// <summary>
+    /// 租户标识，为空表示平台态
+    /// </summary>
+    public long? Id { get; set; }
+
+    /// <summary>
+    /// 租户名称
+    /// </summary>
+    public string? Name => null;
+
+    /// <summary>
+    /// 切换租户，释放时恢复原值
+    /// </summary>
+    /// <param name="id">租户标识</param>
+    /// <param name="name">租户名称</param>
+    /// <returns>恢复原租户的释放对象</returns>
+    public IDisposable Change(long? id, string? name = null)
+    {
+        var previous = Id;
+        Id = id;
+        return new RestoreTenant(this, previous);
+    }
+
+    /// <summary>
+    /// 释放时恢复原租户
+    /// </summary>
+    private sealed class RestoreTenant : IDisposable
+    {
+        private readonly StubCurrentTenant _owner;
+        private readonly long? _previous;
+
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        /// <param name="owner">当前租户桩</param>
+        /// <param name="previous">原租户标识</param>
+        public RestoreTenant(StubCurrentTenant owner, long? previous)
+        {
+            _owner = owner;
+            _previous = previous;
+        }
+
+        /// <summary>
+        /// 恢复原租户
+        /// </summary>
+        public void Dispose()
+        {
+            _owner.Id = _previous;
         }
     }
 }
@@ -1101,7 +1180,7 @@ git commit -m "feat(authorization-sqlsugar): 新增权限定义映射器与 JSON
 **Interfaces:**
 - Consumes: Task 1 的三个实体、Task 2 的 `PermissionMapper` 与 `JsonColumn`；`ISqlSugarClientResolver`、`IDistributedIdGenerator<long>`
 - Produces:
-  - `public class SqlSugarPermissionStore : IPermissionStore`，构造函数 `(ISqlSugarClientResolver clientResolver, IDistributedIdGenerator<long> idGenerator)`
+  - `public class SqlSugarPermissionStore : IPermissionStore`，构造函数 `(ISqlSugarClientResolver clientResolver, ICurrentTenant currentTenant, IDistributedIdGenerator<long> idGenerator)`
   - 契约的 8 个方法
   - `Task<bool> AddOrUpdatePermissionAsync(PermissionDefinition permission, CancellationToken cancellationToken = default)`
   - `Task AddPermissionsAsync(List<PermissionDefinition> permissions, CancellationToken cancellationToken = default)`
@@ -1115,7 +1194,7 @@ git commit -m "feat(authorization-sqlsugar): 新增权限定义映射器与 JSON
 - 条件更新写法：`framework/src/XiHan.Framework.EventBus.SqlSugar/Outbox/SqlSugarEventOutbox.cs` 中的 `SetColumns`
 - 联表只取一张表：`E:/source/platfrom-admin/docs/SqlSugar-docs/Select用法.md` 4.5 节
 
-**本任务禁止事项：** 硬约束 ③⑤。读取**不过滤** `IsEnabled`。授予**不校验**定义是否存在。删除定义**不级联**删除授予。不要调 `GetClientForEntity`——测试桩会抛异常。
+**本任务禁止事项：** 硬约束 ③⑤⑥。读取**不过滤** `IsEnabled`。授予**不校验**定义是否存在。删除定义**不级联**删除授予。不要调 `GetClientForEntity`——测试桩会抛异常。
 
 - [ ] **Step 1: 夹具加工厂方法**
 
@@ -1136,7 +1215,7 @@ using XiHan.Framework.Authorization.SqlSugar.Permissions;
     /// <returns>权限存储</returns>
     public SqlSugarPermissionStore CreatePermissionStore()
     {
-        return new SqlSugarPermissionStore(Resolver, IdGenerator);
+        return new SqlSugarPermissionStore(Resolver, CurrentTenant, IdGenerator);
     }
 ```
 
@@ -1394,6 +1473,38 @@ public class PermissionStoreTests
     }
 
     /// <summary>
+    /// 授予与撤销只作用于当前租户，平台态对应租户 0
+    /// </summary>
+    [Fact]
+    public async Task 授予与撤销只作用于当前租户()
+    {
+        using var context = new AuthorizationTestContext();
+        var store = context.CreatePermissionStore();
+
+        await store.AddOrUpdatePermissionAsync(new PermissionDefinition("A", "甲"));
+
+        context.CurrentTenant.Id = 1;
+        await store.GrantPermissionToUserAsync("u1", "A");
+        await store.GrantPermissionToRoleAsync("r1", "A");
+
+        context.CurrentTenant.Id = 2;
+        Assert.Empty(await store.GetUserPermissionsAsync("u1"));
+        Assert.Empty(await store.GetRolePermissionsAsync("r1"));
+        await store.RevokePermissionFromUserAsync("u1", "A");
+        await store.RevokePermissionFromRoleAsync("r1", "A");
+
+        context.CurrentTenant.Id = null;
+        Assert.Empty(await store.GetUserPermissionsAsync("u1"));
+
+        context.CurrentTenant.Id = 1;
+        Assert.Single(await store.GetUserPermissionsAsync("u1"));
+        Assert.Single(await store.GetRolePermissionsAsync("r1"));
+
+        var rows = await context.Client.Queryable<SysAuthzUserPermission>().ToListAsync();
+        Assert.Equal(1L, Assert.Single(rows).TenantId);
+    }
+
+    /// <summary>
     /// 空参数时不写库也不抛异常
     /// </summary>
     [Fact]
@@ -1441,27 +1552,35 @@ using XiHan.Framework.Authorization.SqlSugar.Entities;
 using XiHan.Framework.Authorization.SqlSugar.Mapping;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.DistributedIds;
+using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.Framework.Authorization.SqlSugar.Permissions;
 
 /// <summary>
 /// 权限存储的 SqlSugar 实现
 /// </summary>
+/// <remarks>
+/// 授予记录按当前租户读写，平台态对应租户标识 0；权限定义全局共享。
+/// </remarks>
 public class SqlSugarPermissionStore : IPermissionStore
 {
     private readonly ISqlSugarClientResolver _clientResolver;
+    private readonly ICurrentTenant _currentTenant;
     private readonly IDistributedIdGenerator<long> _idGenerator;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="clientResolver">客户端解析器</param>
+    /// <param name="currentTenant">当前租户</param>
     /// <param name="idGenerator">主键生成器</param>
     public SqlSugarPermissionStore(
         ISqlSugarClientResolver clientResolver,
+        ICurrentTenant currentTenant,
         IDistributedIdGenerator<long> idGenerator)
     {
         _clientResolver = clientResolver;
+        _currentTenant = currentTenant;
         _idGenerator = idGenerator;
     }
 
@@ -1469,6 +1588,11 @@ public class SqlSugarPermissionStore : IPermissionStore
     /// 当前租户主库的客户端
     /// </summary>
     private ISqlSugarClient Client => _clientResolver.GetCurrentClient();
+
+    /// <summary>
+    /// 当前租户标识，平台态为 0
+    /// </summary>
+    private long CurrentTenantId => _currentTenant.Id ?? 0;
 
     /// <summary>
     /// 获取用户直接拥有的权限列表
@@ -1486,9 +1610,10 @@ public class SqlSugarPermissionStore : IPermissionStore
             return [];
         }
 
+        var tenantId = CurrentTenantId;
         var entities = await Client.Queryable<SysAuthzUserPermission>()
             .InnerJoin<SysAuthzPermission>((grant, permission) => grant.PermissionName == permission.PermissionName)
-            .Where((grant, permission) => grant.UserId == userId)
+            .Where((grant, permission) => grant.TenantId == tenantId && grant.UserId == userId)
             .Select((grant, permission) => permission)
             .ToListAsync(cancellationToken);
 
@@ -1511,9 +1636,10 @@ public class SqlSugarPermissionStore : IPermissionStore
             return [];
         }
 
+        var tenantId = CurrentTenantId;
         var entities = await Client.Queryable<SysAuthzRolePermission>()
             .InnerJoin<SysAuthzPermission>((grant, permission) => grant.PermissionName == permission.PermissionName)
-            .Where((grant, permission) => grant.RoleId == roleId)
+            .Where((grant, permission) => grant.TenantId == tenantId && grant.RoleId == roleId)
             .Select((grant, permission) => permission)
             .ToListAsync(cancellationToken);
 
@@ -1537,8 +1663,9 @@ public class SqlSugarPermissionStore : IPermissionStore
         }
 
         var client = Client;
+        var tenantId = CurrentTenantId;
         var granted = await client.Queryable<SysAuthzUserPermission>()
-            .AnyAsync(grant => grant.UserId == userId && grant.PermissionName == permissionName, cancellationToken);
+            .AnyAsync(grant => grant.TenantId == tenantId && grant.UserId == userId && grant.PermissionName == permissionName, cancellationToken);
 
         if (granted)
         {
@@ -1547,6 +1674,7 @@ public class SqlSugarPermissionStore : IPermissionStore
 
         var entity = new SysAuthzUserPermission(_idGenerator.NextId())
         {
+            TenantId = tenantId,
             UserId = userId,
             PermissionName = permissionName
         };
@@ -1567,8 +1695,9 @@ public class SqlSugarPermissionStore : IPermissionStore
             return;
         }
 
+        var tenantId = CurrentTenantId;
         await Client.Deleteable<SysAuthzUserPermission>()
-            .Where(grant => grant.UserId == userId && grant.PermissionName == permissionName)
+            .Where(grant => grant.TenantId == tenantId && grant.UserId == userId && grant.PermissionName == permissionName)
             .ExecuteCommandAsync(cancellationToken);
     }
 
@@ -1589,8 +1718,9 @@ public class SqlSugarPermissionStore : IPermissionStore
         }
 
         var client = Client;
+        var tenantId = CurrentTenantId;
         var granted = await client.Queryable<SysAuthzRolePermission>()
-            .AnyAsync(grant => grant.RoleId == roleId && grant.PermissionName == permissionName, cancellationToken);
+            .AnyAsync(grant => grant.TenantId == tenantId && grant.RoleId == roleId && grant.PermissionName == permissionName, cancellationToken);
 
         if (granted)
         {
@@ -1599,6 +1729,7 @@ public class SqlSugarPermissionStore : IPermissionStore
 
         var entity = new SysAuthzRolePermission(_idGenerator.NextId())
         {
+            TenantId = tenantId,
             RoleId = roleId,
             PermissionName = permissionName
         };
@@ -1619,8 +1750,9 @@ public class SqlSugarPermissionStore : IPermissionStore
             return;
         }
 
+        var tenantId = CurrentTenantId;
         await Client.Deleteable<SysAuthzRolePermission>()
-            .Where(grant => grant.RoleId == roleId && grant.PermissionName == permissionName)
+            .Where(grant => grant.TenantId == tenantId && grant.RoleId == roleId && grant.PermissionName == permissionName)
             .ExecuteCommandAsync(cancellationToken);
     }
 
@@ -2041,6 +2173,7 @@ git commit -m "style(authorization-sqlsugar): 注释只保留代码行为说明"
 - 定义缺失的授予不返回，补回定义后立即返回
 - 删除权限定义不删除授予行
 - 空参数不写库、不抛异常
+- 授予的读写只作用于当前租户（`ICurrentTenant.Id ?? 0`），插入的行带当前租户标识，不依赖全局租户过滤器
 - `IPermissionStore` 只有一个描述符，实现为 `SqlSugarPermissionStore`、`Scoped`；具体类型另以 `Scoped` 注册
 - 解决方案里注册了包与测试项目
 
@@ -2052,6 +2185,7 @@ git commit -m "style(authorization-sqlsugar): 注释只保留代码行为说明"
 - **权限定义全局可写**：定义表不分租户，租户态调用定义维护方法会改到所有租户共用的定义
 - **`Properties` 的值类型**：读回为 `JsonElement`
 - **超长名称**：严格模式的数据库报错，MySQL 非严格模式静默截断，本包不兜底
+- **租户隔离的边界**：授予表按 `ICurrentTenant.Id ?? 0` 显式过滤，与全局过滤器开关无关；平台态（无租户上下文）读写的是租户 0 的授予，看不到业务租户的授予。权限定义表全局共享，不受此约束
 
 ## 下一份计划
 

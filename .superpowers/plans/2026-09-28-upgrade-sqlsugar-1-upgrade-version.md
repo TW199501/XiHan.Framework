@@ -60,6 +60,9 @@ ISugarQueryable<T>.ToListAsync(CancellationToken token = default)
 ISugarQueryable<T>.Single(Expression<Func<T, bool>> expression)   // Abstract/QueryableProvider/QueryableExecuteSql.cs:49，测试用的同步断言辅助方法
 ISugarQueryable<T>.Count(Expression<Func<T, bool>> expression)    // Abstract/QueryableProvider/QueryableExecuteSql.cs:157，测试用的同步断言辅助方法
 ICodeFirst.InitTables(params Type[] types)                        // Abstract/CodeFirstProvider/CodeFirstProvider.cs:133
+SugarIndexAttribute(string indexName, string fieldName, OrderByType sortType, bool isUnique = false)
+    // Entities/Mapping/SugarMappingAttribute.cs:346；字段参数是 C# 属性名，不是数据库列名——
+    // CodeFirstProvider.cs:377 按 entityInfo.Columns.FirstOrDefault(z => z.PropertyName == it.Key) 解析
 
 // 框架（XiHan.Framework.Data.SqlSugar.Clients.ISqlSugarClientResolver，Scoped 注册）
 ISqlSugarClient GetClientForEntity<TEntity>()
@@ -112,7 +115,7 @@ dotnet test --project framework/test/XiHan.Framework.Upgrade.SqlSugar.Tests/XiHa
 
 **② `GetOrCreateAsync` 的插入必须在失败后重查，不能只写"查不到就插入"。**
 
-不建数据库唯一约束，靠"插入抛异常就按租户键重新查一次，查到就用查到的、查不到就把原始异常抛出去"应对并发建行。Task 3 的测试必须覆盖这条路径（手工预插入一行模拟竞态）。
+`Tenant_Key` 上建了唯一索引（Task 2），两个调用同时判定"不存在"时，数据库保证其中一个插入必然失败——但这只是保证了"失败会发生"，不保证"失败被正确处理"。实现必须"插入抛异常就按租户键重新查一次，查到就用查到的、查不到就把原始异常抛出去"，不需要识别异常类型。Task 3 的测试必须覆盖这条路径，且**不能**靠"调用前手工预插入一行"来模拟——那样第一次查询就会命中该行、直接从 `existing.Count > 0` 分支返回，插入与重查分支根本不会被执行到，测试就是摆设。必须用 `OnBeforeInsertAsync` 钩子在"确认不存在"与"执行插入"之间插入竞争行，确定性地触发本方法自身的插入失败。
 
 **③ `HasMigrationHistoryAsync`/`GetLatestHistoryAsync`/`AddMigrationHistoryAsync` 都要按 `Tenant_Key` 过滤，不能只按 `Tenant_Id` 过滤。**
 
@@ -308,14 +311,15 @@ git commit -m "feat(upgrade-sqlsugar): 新增包骨架与模块装配"
 **Interfaces:**
 - Consumes: `XiHan.Framework.Upgrade.Models.UpgradeVersionState`、`UpgradeMigrationHistory`
 - Produces:
-  - `SysUpgradeVersion`、`SysUpgradeMigrationHistory`（均继承 `SugarEntity<long>`），各自两个构造函数
+  - `SysUpgradeVersion`、`SysUpgradeMigrationHistory`（均继承 `SugarEntity<long>`），各自两个构造函数；`SysUpgradeVersion` 在 `Tenant_Key` 上带 `[SugarIndex(..., isUnique: true)]`
   - `public static class UpgradeMapper`：`BuildTenantKey(long?)`、`NormalizeVersion(string?)`、`ToState(SysUpgradeVersion)`、`ToHistory(SysUpgradeMigrationHistory)`
 
 **参考来源（动手前先读）：**
 - 基类：`framework/src/XiHan.Framework.Data/SqlSugar/Entities/SugarEntity.cs`
 - 模型字段与既有租户键逻辑：`framework/src/XiHan.Framework.Upgrade/Models/UpgradeVersionState.cs`、`UpgradeMigrationHistory.cs`、`Services/DefaultUpgradeVersionStore.cs`（`BuildTenantKey`、`NormalizeVersion` 两个私有静态方法，本包对应方法逻辑与之字面一致）
+- `[SugarIndex]` 的构造函数与字段解析方式：`E:/source/external/SqlSugar/Src/Asp.NetCore2/SqlSugar/Entities/Mapping/SugarMappingAttribute.cs:346`、`Abstract/CodeFirstProvider/CodeFirstProvider.cs:377`（字段参数按 C# 属性名解析，不是列名）
 
-**本任务禁止事项：** 不要加 `[SplitTable]`。不要把 `BasicId` 设为自增。`Tenant_Key` 列不能为空（`IsNullable = false`）。
+**本任务禁止事项：** 不要加 `[SplitTable]`。不要把 `BasicId` 设为自增。`Tenant_Key` 列不能为空（`IsNullable = false`）。`SysUpgradeVersion` 的 `[SugarIndex]` 字段参数**必须**写 `nameof(TenantKey)`（属性名 `TenantKey`），**不要**写 `"Tenant_Key"`（列名）——写列名会在 `CodeFirst.InitTables()` 时解析不到列直接抛异常。`SysUpgradeMigrationHistory` **不要**加任何唯一索引——它是追加型日志，允许同一 `(Tenant_Key, Version, Script_Name)` 出现多条失败重试记录。
 
 - [ ] **Step 1: 创建测试项目**
 
@@ -383,6 +387,30 @@ public class EntityMappingTests
 
         Assert.NotNull(table);
         Assert.Equal("sys_upgrade_migration_history", table.TableName);
+    }
+
+    /// <summary>
+    /// 版本状态表在租户键上建唯一索引
+    /// </summary>
+    [Fact]
+    public void 版本状态表在租户键上建唯一索引()
+    {
+        var index = typeof(SysUpgradeVersion).GetCustomAttribute<SugarIndexAttribute>();
+
+        Assert.NotNull(index);
+        Assert.True(index.IsUnique);
+        Assert.True(index.IndexFields.ContainsKey(nameof(SysUpgradeVersion.TenantKey)));
+    }
+
+    /// <summary>
+    /// 迁移历史表不带唯一索引
+    /// </summary>
+    [Fact]
+    public void 迁移历史表不带唯一索引()
+    {
+        var index = typeof(SysUpgradeMigrationHistory).GetCustomAttribute<SugarIndexAttribute>();
+
+        Assert.Null(index);
     }
 
     /// <summary>
@@ -491,6 +519,7 @@ namespace XiHan.Framework.Upgrade.SqlSugar.Entities;
 /// <summary>
 /// 升级版本状态实体，每个租户（或宿主）一行
 /// </summary>
+[SugarIndex("uq_sys_upgrade_version_tenant_key", nameof(TenantKey), OrderByType.Asc, isUnique: true)]
 [SugarTable("sys_upgrade_version")]
 public class SysUpgradeVersion : SugarEntity<long>
 {
@@ -748,14 +777,14 @@ git commit -m "feat(upgrade-sqlsugar): 新增升级实体与映射"
 
 **Interfaces:**
 - Consumes: Task 2 的实体与 `UpgradeMapper`；框架的 `ISqlSugarClientResolver`、`IDistributedIdGenerator<long>`、`ICurrentTenant?`
-- Produces: `public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore`，构造函数 `(ISqlSugarClientResolver clientResolver, IDistributedIdGenerator<long> idGenerator, ICurrentTenant? currentTenant = null)`；本任务实现 `EnsureTablesAsync`、`GetOrCreateAsync`、`GetLatestHistoryAsync`、`AddMigrationHistoryAsync`、`HasMigrationHistoryAsync` 五个方法，其余四个（`SetUpgradingAsync` 等）留给 Task 4，本任务先给出**抛 `NotImplementedException` 的占位实现**以保证类型完整可编译
+- Produces: `public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore`，构造函数 `(ISqlSugarClientResolver clientResolver, IDistributedIdGenerator<long> idGenerator, ICurrentTenant? currentTenant = null)`；本任务实现 `EnsureTablesAsync`、`GetOrCreateAsync`、`GetLatestHistoryAsync`、`AddMigrationHistoryAsync`、`HasMigrationHistoryAsync` 五个方法，其余四个（`SetUpgradingAsync` 等）留给 Task 4，本任务先给出**抛 `NotImplementedException` 的占位实现**以保证类型完整可编译；`GetOrCreateAsync` 内新增 `protected virtual Task OnBeforeInsertAsync(string tenantKey, CancellationToken cancellationToken)` 钩子（生产环境空操作，供测试确定性触发插入竞态）
 
 **参考来源（动手前先读）：**
 - 契约与内存实现：`framework/src/XiHan.Framework.Upgrade/Abstractions/IUpgradeVersionStore.cs`、`Services/DefaultUpgradeVersionStore.cs`
 - 插入竞态与回填语义：spec 第 4.3 节
 - `ICurrentTenant`：`framework/src/XiHan.Framework.MultiTenancy.Abstractions/ICurrentTenant.cs`（经 `XiHan.Framework.Upgrade` 传递引入）
 
-**本任务禁止事项：** 硬约束 ②③。另外**不要**引入任何唯一索引或分布式锁——插入竞态只用"失败后重查"应对，见 spec 4.3 节。
+**本任务禁止事项：** 硬约束 ②③。另外**不要**引入分布式锁——互斥已由 `IUpgradeLockProvider`（另一个契约）负责，本包只做数据存取；`Tenant_Key` 唯一索引已在 Task 2 加上，本任务只负责正确处理它带来的插入失败。**不要**用"调用前手工预插入一行"的方式测试插入竞态——那样第一次查询直接命中、插入分支根本不会被执行，测试等于没测（见硬约束②）。
 
 - [ ] **Step 1: 写失败的测试**
 
@@ -843,26 +872,25 @@ public class UpgradeVersionStoreTests
     /// <summary>
     /// 插入竞态时退回重查而不是抛异常或产生第二行
     /// </summary>
+    /// <remarks>
+    /// 用 <see cref="RacingUpgradeVersionStore"/> 在"确认不存在"与"执行插入"之间插入一行竞争数据，
+    /// 使被测实例自己的插入因 <c>Tenant_Key</c> 唯一索引冲突而失败，触发重查分支。
+    /// </remarks>
     [Fact]
     public async Task 插入竞态时退回重查而不是抛异常或产生第二行()
     {
         using var context = new UpgradeStoreTestContext();
         await context.Store.EnsureTablesAsync();
 
-        // 模拟另一个实例已抢先插入同一租户键的行
-        context.Client.Insertable(new SysUpgradeVersion(555L)
-        {
-            TenantKey = "host",
-            AppVersion = "1.0.0",
-            DbVersion = "0.0.0",
-            MinSupportVersion = "0.9.0",
-            IsUpgrading = false
-        }).ExecuteCommand();
+        var racingStore = new RacingUpgradeVersionStore(
+            new StubClientResolver(context.Client),
+            IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload(),
+            context.Client);
 
-        var state = await context.Store.GetOrCreateAsync("1.0.0", "0.9.0");
+        var state = await racingStore.GetOrCreateAsync("1.0.0", "0.9.0");
         var count = context.Client.Queryable<SysUpgradeVersion>().Count(item => item.TenantKey == "host");
 
-        Assert.Equal(555L, state.Id);
+        Assert.Equal("competitor-app-version", state.AppVersion);
         Assert.Equal(1, count);
     }
 
@@ -988,6 +1016,52 @@ internal sealed class UpgradeStoreTestContext : IDisposable
         {
             File.Delete(_databaseFile);
         }
+    }
+}
+
+/// <summary>
+/// 测试用子类，在插入前抢先写入一行同租户键的记录，确定性地模拟并发建行
+/// </summary>
+/// <remarks>
+/// 借 <see cref="SqlSugarUpgradeVersionStore.OnBeforeInsertAsync"/> 钩子在"确认不存在"与"执行插入"之间插队，
+/// 让基类自己的插入撞上 <c>Tenant_Key</c> 唯一索引而失败。
+/// </remarks>
+internal sealed class RacingUpgradeVersionStore : SqlSugarUpgradeVersionStore
+{
+    private readonly SqlSugarClient _client;
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="clientResolver">客户端解析器</param>
+    /// <param name="idGenerator">主键生成器</param>
+    /// <param name="client">用于抢先插入竞争行的客户端</param>
+    public RacingUpgradeVersionStore(
+        XiHan.Framework.Data.SqlSugar.Clients.ISqlSugarClientResolver clientResolver,
+        IDistributedIdGenerator<long> idGenerator,
+        SqlSugarClient client)
+        : base(clientResolver, idGenerator)
+    {
+        _client = client;
+    }
+
+    /// <summary>
+    /// 在基类确认租户键不存在后、正式插入前，抢先写入一行竞争数据
+    /// </summary>
+    /// <param name="tenantKey">即将插入的租户键</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    protected override Task OnBeforeInsertAsync(string tenantKey, CancellationToken cancellationToken)
+    {
+        _client.Insertable(new SysUpgradeVersion(555L)
+        {
+            TenantKey = tenantKey,
+            AppVersion = "competitor-app-version",
+            DbVersion = "0.0.0",
+            MinSupportVersion = "0.9.0",
+            IsUpgrading = false
+        }).ExecuteCommand();
+
+        return Task.CompletedTask;
     }
 }
 
@@ -1167,6 +1241,8 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
             return await BackfillIfNeededAsync(client, existing[0], currentAppVersion, minSupportVersion, cancellationToken);
         }
 
+        await OnBeforeInsertAsync(tenantKey, cancellationToken);
+
         var entity = new SysUpgradeVersion(_idGenerator.NextId())
         {
             TenantId = tenantId,
@@ -1197,6 +1273,19 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
         }
 
         return UpgradeMapper.ToState(entity);
+    }
+
+    /// <summary>
+    /// 在确认租户键不存在、正式插入新行之前调用的钩子
+    /// </summary>
+    /// <remarks>
+    /// 生产环境中是空操作。测试可重写它，在查询与插入之间插入一行竞争数据。
+    /// </remarks>
+    /// <param name="tenantKey">即将插入的租户键</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    protected virtual Task OnBeforeInsertAsync(string tenantKey, CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -1375,7 +1464,23 @@ dotnet test --project framework/test/XiHan.Framework.Upgrade.SqlSugar.Tests/XiHa
 
 预期：本任务新增的 7 个测试全部 PASS（`Set*`/`Update*` 相关测试要到 Task 4 才会存在，本任务不写）。
 
-- [ ] **Step 5: 验证构建并提交**
+- [ ] **Step 5: 反向验证——确认竞态测试不是摆设**
+
+临时把 `GetOrCreateAsync` 里的 `try { await client.Insertable(entity).ExecuteCommandAsync(cancellationToken); } catch (Exception) { ... }` 整段 `catch` 块删掉，只留 `await client.Insertable(entity).ExecuteCommandAsync(cancellationToken);` 这一行：
+
+```bash
+dotnet test --project framework/test/XiHan.Framework.Upgrade.SqlSugar.Tests/XiHan.Framework.Upgrade.SqlSugar.Tests.csproj -c Release
+```
+
+预期：`插入竞态时退回重查而不是抛异常或产生第二行` 变红（`RacingUpgradeVersionStore` 抢先插入的行让基类自己的插入撞上 `Tenant_Key` 唯一索引，未经处理的异常直接冒出来）。这是本测试**不是摆设**的唯一证据——若删掉 `catch` 块后测试仍然是绿的，说明测试根本没有触达插入分支，需要回头检查 `RacingUpgradeVersionStore`/`OnBeforeInsertAsync` 的接线，而不是继续往前推进。
+
+确认变红后，**撤销这次临时删除**，把 `catch` 块恢复原状，再跑一次确认恢复后全绿：
+
+```bash
+dotnet test --project framework/test/XiHan.Framework.Upgrade.SqlSugar.Tests/XiHan.Framework.Upgrade.SqlSugar.Tests.csproj -c Release
+```
+
+- [ ] **Step 6: 验证构建并提交**
 
 ```bash
 dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false
@@ -1744,9 +1849,10 @@ git commit -m "feat(upgrade-sqlsugar): 实现升级状态变更方法并替换�
 - Modify: `framework/src/XiHan.Framework.Upgrade.SqlSugar/README.md`
 - Create: `docs/packages/upgrade-sqlsugar.md`
 - Modify: `docs/.vitepress/config.ts`
-- Modify: `docs/packages/index.md`（包索引表）
+- Modify: `docs/packages/index.md`（包索引表与计数）
 - Modify: `README.md`、`README_cn.md`（模块计数）
 - Modify: `framework/README.md`、`framework/README_cn.md`（模块清单与计数）
+- Modify: `docs/index.md`、`docs/introduction.md`、`docs/why.md`（文档站计数）
 
 **Interfaces:**
 - Consumes: 前四个任务的全部产出
@@ -1784,29 +1890,50 @@ git commit -m "feat(upgrade-sqlsugar): 实现升级状态变更方法并替换�
 
 行号是撰写时的快照，实现时用 `grep -n "\[Upgrade\](\./upgrade)"` 现场核对插入位置，不要凭行号硬改。
 
-同文件开头第 3 行「XiHan.Framework 由 **N 个 NuGet 包**组成」的计数，与 Step 4（下一步）的模块计数是同一个数字，一并 +1，不要漏改这一处——它和 `README.md`/`framework/README.md` 里的计数字符串是分开维护的，改了那些不会连带改这里。
+本文件开头第 3 行「XiHan.Framework 由 **N 个 NuGet 包**组成」的计数不在本步处理，随 Step 4 的站内计数扫描一并 +1。
 
 - [ ] **Step 4: 更新模块计数与模块清单**
 
-模块总数字符串**不要假设是某个具体数字**——先探测当前值：
+模块总数字符串**不要假设是某个具体数字**——先从 `README.md` 的 shields.io 徽章读出当前计数 `N`（`Modules-N-1f6feb`）。
+
+**不要**用 `[0-9]\+ 个`/`[0-9]\+ 页` 这类正则模糊匹配——在当前仓库上能打出约 70 条命中，绝大多数是版本号、章节数等无关数字，且不排除 `node_modules`。改用精确的单词匹配：
 
 ```bash
-grep -n "Modules-[0-9]\+-1f6feb" README.md README_cn.md
-grep -n "[0-9]\+ 个" README.md README_cn.md framework/README.md framework/README_cn.md
+N=$(grep -o "Modules-[0-9]\+-1f6feb" README.md | grep -o "[0-9]\+")
+echo "当前计数：$N"
+
+grep -rn --include=*.md -w "$N" README.md README_cn.md framework/README.md framework/README_cn.md docs --exclude-dir=node_modules
 ```
 
-确认当前计数 `N` 后，把下列 **12 处**全部改成 `N+1`（`framework/README.md`、`framework/README_cn.md` 里"模块数"与"测试项目数"是两个独立计数，本包新增了 1 个源码项目、也新增了 1 个测试项目，两者都要 +1）：
+把命中里"确实是模块计数"的那些改成 `N+1`。下表列出撰写时已知的 8 个文件、20 处命中（含英文文案——`[0-9]\+ 个`/`[0-9]\+ 页` 的正则会漏掉这些，`-w` 精确匹配不会）：
 
 | 文件 | 内容 |
 | --- | --- |
-| `README.md` | 正文里的模块计数（1 处）、shields.io 徽章 URL 里的 `Modules-N-1f6feb`（1 处）、README 顶部/摘要处的计数（1 处） |
+| `README.md` | 正文里的模块计数（1 处，中文）、shields.io 徽章 URL 里的 `Modules-N-1f6feb`（1 处）、英文 tagline/badge 附近的计数（1 处） |
 | `README_cn.md` | 同上 3 处 |
-| `framework/README.md` | 正文计数（1 处）、模块目录小计（1 处）、测试项目计数（1 处） |
+| `framework/README.md` | 正文计数（1 处）、模块目录小计（1 处）、测试项目计数（1 处，本包新增了 1 个测试项目，一并 +1） |
 | `framework/README_cn.md` | 同上 3 处 |
+| `docs/index.md` | 标语行「N 个可独立引用的 NuGet 包」（1 处）、卡片说明「N 个包按七层组织」（1 处） |
+| `docs/introduction.md` | 模块总览表格行「参考手册（N 页）」（1 处） |
+| `docs/why.md` | 「拆成 N 个可独立引用的 NuGet 包」「N 个包可以单独引用」「包参考 N 页」「N 个包逐一查阅」共 4 处 |
+| `docs/packages/index.md` | 开头「由 N 个 NuGet 包组成」（1 处，与 Step 3 提到的同一处） |
 
-用 `grep -n "N"` 逐个文件核对一遍具体行号再改，不要凭经验猜行号——前面已合并的包会让行号漂移。
+行号是撰写时的快照，会随前面已合并的包漂移，以本步 grep 的实际输出为准，不要按下表行号直接改。**每一处命中都要人工确认它确实是模块计数**，不要把版本号、章节数（如「开发指南 38 章」）、无关统计数字一并改掉——上表已列出全部需要改的位置，命中但不在表里的数字保持原样。
 
-`README.md`、`README_cn.md` 只改计数，**不加表格行**。
+改完后跑两次验证：
+
+```bash
+grep -rn --include=*.md -w "$((N + 1))" README.md README_cn.md framework/README.md framework/README_cn.md docs --exclude-dir=node_modules | wc -l
+# 属于模块计数的命中应为 20；数字可能与无关文字巧合（如 N+1=69 时 docs/guide/distributed-ids.md 的「约 69 年」），逐条看输出，巧合命中不计入
+
+grep -rn --include=*.md -w "$((N + 1))" README.md README_cn.md framework/README.md framework/README_cn.md docs --exclude-dir=node_modules | cut -d: -f1 | sort -u | wc -l
+# 扣除巧合命中所在的文件后应为 8（8 个文件各至少 1 处命中）
+
+grep -rn --include=*.md -w "$N" README.md README_cn.md framework/README.md framework/README_cn.md docs --exclude-dir=node_modules
+# 不应再出现任何属于模块计数的命中；若还有命中，人工确认是巧合数字还是漏改
+```
+
+`README.md`、`README_cn.md`、`docs/index.md`、`docs/introduction.md`、`docs/why.md`、`docs/packages/index.md` 只改计数，**不加表格行**——这些是概览/首页文案，不是逐包穷举表（`docs/packages/index.md` 的表格行已在 Step 3 单独处理）。
 
 `framework/README.md` 与 `framework/README_cn.md` 除了计数，还要在模块清单表格中紧随 `XiHan.Framework.Upgrade` 之后加入 `XiHan.Framework.Upgrade.SqlSugar` 一行，描述用"升级版本记录 SqlSugar 持久化"。
 
@@ -1842,15 +1969,16 @@ git commit -m "docs(upgrade-sqlsugar): 补写包文档与模块清单"
 - `dotnet test --solution framework/XiHan.Framework.slnx -c Release` 全绿
 - `IUpgradeVersionStore` 经 `services.Replace` 顶替为 `SqlSugarUpgradeVersionStore`
 - 四个 `Set*`/`Update*` 方法均有"回写调用方对象"的测试断言
-- `GetOrCreateAsync` 的插入竞态有测试覆盖
+- `GetOrCreateAsync` 的插入竞态有测试覆盖，且该测试在临时删除重查分支后能变红（Task 3 Step 5 的反向验证）
 - 包 README、`docs/packages/upgrade-sqlsugar.md`、VitePress 侧边栏、模块清单均已更新
 
 ## 已知边界（写入 PR 描述，不写进代码注释）
 
-- **插入竞态不是数据库级强保证**：靠"插入失败重查"兜底，不建唯一约束
+- **唯一索引冲突时机取决于数据库**：`Tenant_Key` 唯一索引由 `CodeFirst.InitTables()` 建表时创建，本包只在 SQLite 上验证过；接入 MySQL/PostgreSQL/SQL Server 等生产数据库时应确认索引确实被创建，而不是假设与 SQLite 行为一致
 - **孤儿 `Id` 静默无操作**：见 spec 陷阱③（本包用 `EnsurePersisted` 拦截了 `Id <= 0` 的情况，但拦不住"传入一个不存在但为正数的 `Id`"这种更边缘的误用）
 - **`HasMigrationHistoryAsync` 的大小写敏感性**：与内存实现的 `OrdinalIgnoreCase` 比较不完全一致
 - **互斥依赖另一个契约**：`IUpgradeLockProvider` 目前仍是进程内实现，跨进程/跨机器部署时锁本身不是分布式的
+- **PostgreSQL 上事务内的唯一索引冲突会中止整个事务**：`GetOrCreateAsync` 若在已开启的事务里执行，插入冲突后同一事务内的重查也会失败，异常会直接抛给调用方；应在事务外调用，见 spec §8
 
 ## 下一份计划
 

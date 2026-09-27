@@ -115,7 +115,7 @@ IDistributedIdGenerator<long> IdGeneratorFactory.CreateSnowflakeIdGenerator_LowW
 
 **① 存储层不做任何哈希、加密、修剪或大小写变换于 `PasswordHash` / `RecoveryCodes` / `TwoFactorSecret`。** 它们原样进、原样出。用户名的规范化只写进 `Normalized_User_Name` 列。
 
-**② `UpdateUserAsync` 不写 `Password_Hash` 列；身份映射必须实现。** 两者缺一，`DefaultAuthenticationService` 的改密码 / 启用双因素 / 成功登录三条流程会把旧快照写回库里，而**逐方法的测试全部是绿的**。Task 6 的流程测试是唯一的防线——**不要**把它改成用同一个存储实例读结果。
+**② `UpdateUserAsync` 不写 `Password_Hash`、`Failed_Login_Attempts`、`Is_Locked`、`Lockout_End` 四列；身份映射必须实现。** 后三列只经失败计数与锁定的专用方法修改：身份映射只保证单个请求内一致，跨请求时整份写回会抹掉另一个请求刚写入的失败计数或锁定。 两者缺一，`DefaultAuthenticationService` 的改密码 / 启用双因素 / 成功登录三条流程会把旧快照写回库里，而**逐方法的测试全部是绿的**。Task 6 的流程测试是唯一的防线——**不要**把它改成用同一个存储实例读结果。
 
 **③ 失败计数必须是 `SetColumns(item => item.FailedLoginAttempts == item.FailedLoginAttempts + 1)`**，不得读出来加一再写回。
 
@@ -2018,7 +2018,7 @@ git commit -m "feat(authentication-sqlsugar): 用户存储支持按租户读取�
 - 字段自增写法：`E:/source/platfrom-admin/docs/SqlSugar-docs/更新數據.md` 第 2.2 节
 - 陷阱：spec 第 5 节 ①②⑤⑥
 
-**本任务禁止事项：** 硬约束 ①②③④⑤。不要用 `Updateable(entity)`（按对象更新）——统一用 `Updateable<SysAuthUser>().SetColumns(...).Where(...)`。`UpdateUserAsync` 的 `SetColumns` 里**不许出现 `PasswordHash`**。
+**本任务禁止事项：** 硬约束 ①②③④⑤。不要用 `Updateable(entity)`（按对象更新）——统一用 `Updateable<SysAuthUser>().SetColumns(...).Where(...)`。`UpdateUserAsync` 的 `SetColumns` 里**不许出现 `PasswordHash`、`FailedLoginAttempts`、`IsLocked`、`LockoutEnd`**。
 
 - [ ] **Step 1: 写失败的测试**
 
@@ -2101,6 +2101,64 @@ public class UserStoreWriteTests
         Assert.NotNull(stored.LastLoginTime);
         Assert.Equal(lastLoginTime, stored.LastLoginTime.Value);
         Assert.Equal(DateTimeKind.Utc, stored.LastLoginTime.Value.Kind);
+    }
+
+    /// <summary>
+    /// 更新用户信息不改写其他请求写入的失败次数与锁定
+    /// </summary>
+    [Fact]
+    public async Task 更新用户信息不改写其他请求写入的失败次数与锁定()
+    {
+        using var context = new AuthenticationTestContext();
+        var userId = await context.CreateUserStore().AddUserAsync(NewUser("alice"));
+
+        var editor = context.CreateUserStore();
+        var stale = await editor.GetUserByIdAsync(userId);
+        Assert.NotNull(stale);
+        var other = context.CreateUserStore();
+        await other.IncrementFailedLoginAttemptsAsync("alice");
+        await other.SetLockoutEndAsync("alice", FutureLockoutEnd);
+
+        stale.Email = "alice@example.com";
+        await editor.UpdateUserAsync(stale);
+
+        var stored = await context.CreateUserStore().GetUserByIdAsync(userId);
+        Assert.NotNull(stored);
+        Assert.Equal("alice@example.com", stored.Email);
+        Assert.Equal(1, stored.FailedLoginAttempts);
+        Assert.True(stored.IsLocked);
+        Assert.Equal(FutureLockoutEnd, stored.LockoutEnd);
+    }
+
+    /// <summary>
+    /// 更新用户信息可写入空值
+    /// </summary>
+    [Fact]
+    public async Task 更新用户信息可写入空值()
+    {
+        using var context = new AuthenticationTestContext();
+        var seed = NewUser("alice");
+        seed.Email = "alice@example.com";
+        seed.PhoneNumber = "13800000000";
+        seed.TwoFactorSecret = "JBSWY3DPEHPK3PXP";
+        seed.LastLoginTime = new DateTime(2026, 9, 28, 1, 2, 3, DateTimeKind.Utc);
+        var userId = await context.CreateUserStore().AddUserAsync(seed);
+        var store = context.CreateUserStore();
+        var user = await store.GetUserByIdAsync(userId);
+        Assert.NotNull(user);
+
+        user.Email = null;
+        user.PhoneNumber = null;
+        user.TwoFactorSecret = null;
+        user.LastLoginTime = null;
+        await store.UpdateUserAsync(user);
+
+        var stored = await context.CreateUserStore().GetUserByIdAsync(userId);
+        Assert.NotNull(stored);
+        Assert.Null(stored.Email);
+        Assert.Null(stored.PhoneNumber);
+        Assert.Null(stored.TwoFactorSecret);
+        Assert.Null(stored.LastLoginTime);
     }
 
     /// <summary>
@@ -2339,7 +2397,7 @@ public class UserStoreWriteTests
 dotnet test --project framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/XiHan.Framework.Authentication.SqlSugar.Tests.csproj -c Release
 ```
 
-预期：`UserStoreWriteTests` 的 15 个用例全部失败于 `System.NotImplementedException`；Task 2–4 的用例保持 PASS。
+预期：`UserStoreWriteTests` 的 17 个用例全部失败于 `System.NotImplementedException`；Task 2–4 的用例保持 PASS。
 
 - [ ] **Step 3: 整份替换用户存储**
 
@@ -2441,7 +2499,7 @@ public class SqlSugarUserStore : IUserStore
     /// 更新用户信息
     /// </summary>
     /// <remarks>
-    /// 写入除密码哈希外的全部字段；密码只经 <see cref="UpdatePasswordAsync"/> 修改。
+    /// 不写密码哈希、登录失败次数与锁定状态；它们只经各自的专用方法修改。
     /// </remarks>
     /// <param name="user">用户信息</param>
     /// <param name="cancellationToken">取消令牌，仅在访问数据库前检查</param>
@@ -2471,9 +2529,6 @@ public class SqlSugarUserStore : IUserStore
         var twoFactorEnabled = values.TwoFactorEnabled;
         var twoFactorSecret = values.TwoFactorSecret;
         var recoveryCodes = values.RecoveryCodes;
-        var isLocked = values.IsLocked;
-        var lockoutEnd = values.LockoutEnd;
-        var failedLoginAttempts = values.FailedLoginAttempts;
         var lastLoginTime = values.LastLoginTime;
         var passwordChangedTime = values.PasswordChangedTime;
         var isActive = values.IsActive;
@@ -2489,9 +2544,6 @@ public class SqlSugarUserStore : IUserStore
                 TwoFactorEnabled = twoFactorEnabled,
                 TwoFactorSecret = twoFactorSecret,
                 RecoveryCodes = recoveryCodes,
-                IsLocked = isLocked,
-                LockoutEnd = lockoutEnd,
-                FailedLoginAttempts = failedLoginAttempts,
                 LastLoginTime = lastLoginTime,
                 PasswordChangedTime = passwordChangedTime,
                 IsActive = isActive,
@@ -2821,10 +2873,11 @@ dotnet test --project framework/test/XiHan.Framework.Authentication.SqlSugar.Tes
 
 逐项排查：
 
-- `失败次数在数据库侧累加` 得到 1：`IncrementFailedLoginAttemptsAsync` 写成了读-改-写（硬约束 ③）
+- `失败次数在数据库侧累加` 得到 1：`IncrementFailedLoginAttemptsAsync` 读的是身份映射里的旧对象再写回。这条用例抓不住「每次重新查库、加一、写回」的读-改-写——那种写法串行时结果正确、只在并发下丢计数；是否原子以 `SetColumns(item => item.FailedLoginAttempts == item.FailedLoginAttempts + 1)` 这行代码为准（硬约束 ③）
+- `更新用户信息不改写其他请求写入的失败次数与锁定` 失败：`UpdateUserAsync` 的 `SetColumns` 里还留着 `FailedLoginAttempts` / `IsLocked` / `LockoutEnd`（硬约束 ②）
 - `更新用户信息不改写密码哈希` 得到 `"hash"`：`UpdateUserAsync` 的 `SetColumns` 里出现了 `PasswordHash`（硬约束 ②）
 - `写入方法同步更新已加载的实例` 失败：`UpdatePasswordAsync` 没改映射里的实例，或 `RefreshSecurityStateAsync` 没被调用
-- `清除锁定结束时间` 失败于 SQL 异常：检查 `SetColumns` 的 `LockoutEnd = lockoutEndUtc` 在值为 `null` 时生成的 SQL；若 SqlSugar 在 T 形式下对 `null` 生成了非法 SQL，改用两次 bool 形式 `.SetColumns(item => item.LockoutEnd == lockoutEndUtc).SetColumns(item => item.IsLocked == isLocked)`，并在提交信息里记下这一点
+- `清除锁定结束时间` 或 `更新用户信息可写入空值` 失败（SQL 异常，或空值没写进去）：SqlSugar 在 `SetColumns(item => new SysAuthUser { X = 值 })` 的 T 形式下对 `null` 处理有问题。`SetLockoutEndAsync` 与 `UpdateUserAsync` 走的是同一条路径（后者的 `Email`、`PhoneNumber`、`TwoFactorSecret`、`RecoveryCodes`、`LastLoginTime`、`PasswordChangedTime`、`AdditionalData` 都可能为空）。失败的那个方法**整个**改写为逐列的 bool 形式，例如 `.SetColumns(item => item.Email == email).SetColumns(item => item.PhoneNumber == phoneNumber)…`，不要只改出错的那一列；在提交信息里记下这一点
 
 - [ ] **Step 6: 验证构建并提交**
 
@@ -3335,7 +3388,7 @@ git commit -m "feat(authentication-sqlsugar): 以 Replace 顶替主包的内存�
 
 存储层不对密码哈希、恢复码、双因素密钥做任何计算，原样存取。**双因素密钥 `Two_Factor_Secret` 以明文落库**，数据库泄漏即泄漏全部 TOTP 密钥。
 
-`UpdateUserAsync` **不写密码哈希**，改密码只能经 `UpdatePasswordAsync`。直接改 `user.PasswordHash` 再调 `UpdateUserAsync` 的代码，改动会被忽略。
+`UpdateUserAsync` **不写密码哈希、登录失败次数与锁定状态**：改密码只能经 `UpdatePasswordAsync`，失败计数与锁定只能经对应的专用方法（解锁用户须调 `SetLockoutEndAsync(username, null)` 与 `ResetFailedLoginAttemptsAsync`）。直接改 `user.PasswordHash`、`user.IsLocked` 等再调 `UpdateUserAsync` 的代码，改动会被忽略。
 
 同一个存储实例（即同一个请求作用域）内，对同一用户的多次读取返回同一个 `UserInfo` 实例；`UpdatePasswordAsync`、失败计数与锁定方法会同步修改该实例。因此在同一作用域内，已读出的用户对象不会反映其他请求在此期间对库的修改（失败计数与锁定三个字段除外）。
 
@@ -3429,7 +3482,7 @@ git commit -m "docs(authentication-sqlsugar): 补写用户存储的使用约定�
 ## 已知边界（写入 PR 描述，不写进代码注释）
 
 - **双因素密钥明文落库**：契约与框架没有字段级加密抽象，数据库泄漏即泄漏全部 TOTP 密钥
-- **`UpdateUserAsync` 不写密码**：与 `DefaultUserStore` 不同，改密码只能经 `UpdatePasswordAsync`
+- **`UpdateUserAsync` 不写密码、失败计数与锁定**：与 `DefaultUserStore` 不同，这四列只经各自的专用方法修改
 - **用户名大小写不敏感**：与 `DefaultUserStore` 不同；旧数据中仅大小写不同的重名会让唯一索引建不起来
 - **身份映射不刷新**：同一请求作用域内，除失败计数与锁定三个字段外，已读出的用户对象不反映其他请求的修改
 - **非数字 `UserId`**：视为不存在

@@ -435,6 +435,7 @@ public SqlSugarEventInbox(
 | D13 | **索引** | 唯一索引 `ux_sys_event_inbox_dedup_key`；普通索引 `ix_sys_event_inbox_status (Status, Created_Time)` | 前者是去重保证；后者服务于领取与清理——保留一周的已处理记录会让无索引的候选查询变成每 2 秒一次全表扫描。本仓库此前没有用过 `SugarIndex`，这是第一处 | 去掉普通索引：功能不变，大表下领取变慢 |
 | D14 | **根 `README.md` / `README_cn.md`** | **不改** | 两者的表格是「常用包」而非全量清单，`Auditing.SqlSugar` 与 `EventBus.SqlSugar` 都不在其中；全量清单在 `framework/README*.md`（`:92` 已有本包条目） | 若要列入：两份各加一行，但需说明为何把一个持久化子包列为「常用」 |
 | D15 | **实现分支** | 从 `dev` 开 `feat/eventbus-sqlsugar` | 共用简报的约定 | PR2 的发件箱提交目前在 `feat/sqlsugar`；PR 如何组装由派工者决定 |
+| D16 | **依赖框架现有的「提交后发布」顺序** | 接受该依赖，并在 §7 登记 | §1.2 第 2 条「入箱时没有未完成的事务型工作单元」成立，是因为 `UnitOfWork.CompleteAsync` 先提交、置 `IsCompleted`，再发布缓冲的分布式事件（`UnitOfWork.cs:279-298`），且 `AmbientUnitOfWork.GetCurrentByChecking` 跳过已完成的工作单元（`:44-49`）。同一顺序也使默认发布路径绕过发件箱（`AddToOutboxAsync` 拿到 `null` 返回 `false`）；是否修改该顺序由用户另行决定 | 若框架改为提交前发布或让发件箱在提交前入箱：`LocalDistributedEventBus` 路径上的收件箱入箱可能落进业务事务（见 §7「在事务型工作单元内入箱」），须重新核对 D4、D5 与 §5 ⑥ |
 
 ## 5. 会静默失效的陷阱
 
@@ -532,6 +533,7 @@ public Func<string>? CurrentConfigIdSelector { get; set; }
 | 唯一冲突在事务内的回查 | 若入箱处于事务中（上一条），PostgreSQL 在唯一冲突后整个事务进入中止状态，回查查询本身会失败，抛出的是回查的异常而非「重复」判定 |
 | 消息标识长度 | `Message_Id` 与 `Dedup_Key` 长度 256。更长的消息标识在严格模式的数据库上入箱失败并抛异常（SQLite 不校验长度） |
 | 租户独立库 | 收件箱只在宿主布局主库。库隔离租户收到的事件也存在这里，处理器按事件自身携带的信息切换租户 |
+| 依赖「提交后发布」的框架顺序 | 「入箱时没有业务事务」这一前提来自 `UnitOfWork.CompleteAsync` 先提交后发布分布式事件、且已完成的工作单元不再是当前工作单元。**修改该顺序的人必须重新核对收件箱的落点与事务行为**（决策 D16）。同一顺序使默认的 `onUnitOfWorkComplete: true` 发布绕过发件箱，本包发件箱只在未完成的工作单元内以 `onUnitOfWorkComplete: false` 发布、且配置了 `Outboxes` 时才被写入（事务型工作单元时与业务同事务） |
 | 清理不节流 | 宿主每轮（默认 2 秒）每个实例都执行一次条件 `DELETE` |
 | `IEventInbox` 生命周期 | 由 Singleton 改为 Scoped。框架内无构造函数注入该接口的地方；应用若自行构造函数注入 `IEventInbox` 到单例中，会得到被捕获依赖 |
 | 升级 | 新增表 `sys_event_inbox`。未开启 `EnableDbInitialization` 与 `EnableTableInitialization`（二者默认都为 `false`）又未手工建表时，首次入箱抛「表不存在」——该异常会让 broker 消费失败并重投，而不是静默丢失 |

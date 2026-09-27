@@ -88,7 +88,7 @@ public static IServiceCollection AddXiHanTasksSqlSugar(this IServiceCollection s
 2. `SqlSugarJobStore`：`IJobStore` 的 7 个方法
 3. 运行中实例的**截止时刻**，使崩溃遗留的「运行中」记录在超时后不再阻塞调度
 4. 以 `Replace` 顶替主包的 `IJobStore`
-5. 新包的文档站收尾：包 README 补全、`docs/packages/tasks-sqlsugar.md`、`docs/.vitepress/config.ts` 侧边栏、`docs/packages/index.md` 模块清单、`framework/README.md` 与 `framework/README_cn.md` 模块清单，以及四个 README 里的模块计数与测试工程计数
+5. 新包的文档站收尾：包 README 补全、`docs/packages/tasks-sqlsugar.md`、`docs/.vitepress/config.ts` 侧边栏、`docs/packages/index.md` 模块清单、`framework/README.md` 与 `framework/README_cn.md` 模块清单，以及四个 README 与文档站里的模块计数、`framework/README*.md` 里的测试工程计数
 
 ### 1.5 成功标准
 
@@ -258,7 +258,7 @@ public TimeSpan RunningInstanceGracePeriod { get; set; } = TimeSpan.FromMinutes(
 
 | 方法 | 说明 |
 | --- | --- |
-| `SysJobInstance ToEntity(JobInstance instance, TimeSpan runningGracePeriod)` | 时间经 `ToUtc` 归一；`JobTypeName` 取 `JobInfo?.JobType?.AssemblyQualifiedName`；`RunningDeadline` 见 §4.5；`Parameters` 序列化失败时存 `null` |
+| `SysJobInstance ToEntity(JobInstance instance, TimeSpan runningGracePeriod)` | 时间经 `ToUtc` 归一；`JobTypeName` 取 `JobInfo?.JobType?.AssemblyQualifiedName`；`RunningDeadline` 见 §4.5；`Parameters` 序列化抛 `NotSupportedException` / `JsonException` 时存 `null` |
 | `JobInstance ToJobInstance(SysJobInstance entity)` | 时间经 `FromUtc` 还原为偏移 0 的 `DateTimeOffset`；`JobInfo` 只还原 `JobName`、`JobType`（能解析时）、`TriggerType`、`TenantId`；`Parameters` 反序列化为 `Dictionary<string, object?>` |
 | `SysJobHistory ToEntity(JobHistory history)` | 逐字段复制，时间归一 |
 | `JobHistory ToJobHistory(SysJobHistory entity)` | 逐字段复制，时间还原 |
@@ -267,7 +267,7 @@ public TimeSpan RunningInstanceGracePeriod { get; set; } = TimeSpan.FromMinutes(
 
 **`JobInfo` 的最小快照**：`JobInfo.JobType` 是 `Type`，无法原样落库，只存程序集限定名，读回时 `Type.GetType(name, throwOnError: false)`；解析不到就不赋值（保持 `JobInfo` 的默认值）。框架内唯一读取实例的调用方是调度器，它只看 `GetRunningInstancesAsync` 的结果「有没有」，不读 `JobInfo`。
 
-**参数的序列化**：用 `System.Text.Json`。`Parameters` 的值是 `object?`，可能含无法序列化的类型（如 `System.Type` 会抛 `NotSupportedException`，循环引用抛 `JsonException`）。这两类异常被捕获并存 `null`——否则 `JobExecutor` 在执行前的 `SaveJobInstanceAsync` 就抛异常，任务根本不会执行，而 `DefaultJobStore` 只是持有引用、从不失败。读回的值是 `JsonElement`，不是原类型。
+**参数的序列化**：用 `System.Text.Json`。`Parameters` 的值是 `object?`，可能含无法序列化的类型（如 `System.Type` 会抛 `NotSupportedException`，循环引用抛 `JsonException`）。这两类异常被捕获并存 `null`——否则 `JobExecutor` 在执行前的 `SaveJobInstanceAsync` 就抛异常，任务根本不会执行，而 `DefaultJobStore` 只是持有引用、从不失败。**只保证这两类**：参数对象的属性 getter 抛出的其他异常仍会向上传播，保存实例失败、任务不执行（§7）。读回的值是 `JsonElement`，不是原类型。
 
 ### 4.4 存储 `SqlSugarJobStore`
 
@@ -290,10 +290,13 @@ public TimeSpan RunningInstanceGracePeriod { get; set; } = TimeSpan.FromMinutes(
 `SaveJobInstanceAsync` 以 `Running` 状态保存时计算：
 
 ```
-RunningDeadline = (StartedAt ?? ScheduledAt) + max(0, JobInfo.TimeoutMilliseconds) 毫秒 + RunningInstanceGracePeriod
+TimeoutMilliseconds <= 0（不限时）: RunningDeadline = UnboundedRunningDeadline（9999-12-31 00:00:00 UTC）
+否则:                               RunningDeadline = (StartedAt ?? ScheduledAt) + TimeoutMilliseconds 毫秒 + RunningInstanceGracePeriod
 ```
 
-其他状态存 `null`。`GetRunningInstancesAsync` 只返回截止时刻**晚于当前时间**的运行中实例。
+其他状态存 `null`。
+
+**不限时的任务**：`TimeoutMiddleware` 把 `TimeoutMilliseconds <= 0` 当作「不限时」直接放行（`Pipeline/TimeoutMiddleware.cs:32-35`）。这类实例没有可推导的运行上限，截止时刻取常量 `JobStoreMapper.UnboundedRunningDeadline`，在被显式结束（`UpdateJobStatusAsync` 写入终止状态）之前一直算运行中。取 `9999-12-31 00:00:00` 而不是 `DateTime.MaxValue`：后者带 7 位小数秒，MySQL `datetime` 列按精度四舍五入后会越过 9999-12-31。代价与清除方法见 §7，取舍见「待确认的决策」第 10 条。`GetRunningInstancesAsync` 只返回截止时刻**晚于当前时间**的运行中实例。
 
 依据：`TimeoutMiddleware` 以 `JobInfo.TimeoutMilliseconds` 为整次执行（含重试）的上限（`Pipeline/TimeoutMiddleware.cs:30`；中间件注册顺序 `Logging → Timeout → Lock → Retry → Metrics`，超时在重试之外）。超过「开始 + 超时 + 宽限」仍标为运行中的实例，只可能是执行途中进程退出、或 `UpdateJobStatusAsync` 本身失败（`JobExecutor.cs:124-131` 只记日志）留下的遗留记录。
 
@@ -321,7 +324,7 @@ services.Replace(ServiceDescriptor.Singleton<IJobStore, SqlSugarJobStore>());
 | `docs/packages/index.md` | `[Tasks](./tasks)` 那一行之后插入 `Tasks.SqlSugar` 一行（`EventBus.SqlSugar`、`Auditing.SqlSugar` 都在这张清单里） |
 | `framework/README.md` | 模块清单 `` `Tasks` `` 那一行之后插入英文一行 |
 | `framework/README_cn.md` | 同上，中文 |
-| 四个 README 的计数 | `README.md`、`README_cn.md`、`framework/README.md`、`framework/README_cn.md` 里的模块计数各加一（根 README 各 3 处，含 shields.io 徽章 `Modules-NN-1f6feb`；`framework/README*.md` 各 2 处），`framework/README*.md` 目录树里的「单测工程」计数各加一。实现时先读当前值再加，不写死数字 |
+| 模块计数 | 实现时先读当前值再加一，不写死数字。写本份时共 20 处：`README.md`、`README_cn.md` 各 3 处（含 shields.io 徽章 `Modules-NN-1f6feb`）；`framework/README.md`、`framework/README_cn.md` 各 2 处模块计数 + 1 处「单测工程」计数；文档站 `docs/index.md` 2 处、`docs/introduction.md` 1 处、`docs/why.md` 4 处、`docs/packages/index.md` 1 处。查找范围覆盖四个 README 与 `docs/**/*.md`（排除 `node_modules`、`.vitepress`、`docs/changelog.md` 的历史记录） |
 
 ## 5. 会静默失效的陷阱
 
@@ -337,6 +340,8 @@ services.Replace(ServiceDescriptor.Singleton<IJobStore, SqlSugarJobStore>());
 
 另一面：截止时刻计算若漏掉了宽限期、或用了 `ScheduledAt` 而不是 `StartedAt`，一个**真正在跑**的长任务可能在超时前就被判定为「不在运行」，调度器随即再触发一次，**同一任务并发执行两份**。用例「运行中实例的截止时刻为开始时间加超时再加宽限」精确断言这个值。
 
+第三种写法同样静默失效：把不限时（`TimeoutMilliseconds <= 0`）按 `max(0, timeout)` 当成 0 毫秒。一个不限时、不允许并发的任务跑过 1 分钟宽限期后就不再算运行中，调度器随即再触发一份——**同一任务并发两份**，不报错。用例「超时关闭时截止时刻为无限远」断言映射结果，用例「超时关闭的非并发任务在宽限期后仍算运行中且调度器不再触发第二份」用真实的 `CompositeJobScheduler.TriggerJobAsync` 断言调度器返回空字符串、执行器一次都没被调用。
+
 **② 时间列用 `DateTimeOffset` 会在读回时平移瞬时。**
 
 SQLite 侧的 `DateTimeOffset` 不保存偏移：表达式参数经 `UtilMethods.ConvertFromDateTimeOffset` 折叠成 `DateTime`，列建成 `datetime` 文本，读回时偏移由 `DateTime.Kind` 反推。写入 `+08:00` 的时间在 UTC 机器上读回会被当成 UTC 的同一个墙钟时刻，**瞬时平移 8 小时**；反过来在 UTC+8 机器上写 `+00:00` 也会平移（该现象在发件箱开发时实测，见 `.superpowers/specs/2026-09-21-eventbus-sqlsugar-p6-outbox-multi-database-design.md` §6）。
@@ -349,7 +354,7 @@ SQLite 侧的 `DateTimeOffset` 不保存偏移：表达式参数经 `UtilMethods
 
 `JobExecutor` 在执行任务**之前**调 `SaveJobInstanceAsync`（`JobExecutor.cs:53`），它抛异常就直接进入 `catch`：任务被记为失败、业务代码一行都没跑。`Parameters` 是 `IDictionary<string, object?>`，调用方塞进一个 `Type` 或带循环引用的对象都会让 `JsonSerializer` 抛异常。`DefaultJobStore` 只持有引用，从不失败——换成本包后，同样的调用会让任务静默地不再执行（只留一条错误日志）。
 
-对策：捕获 `NotSupportedException` 与 `JsonException`，存 `null`。用例「参数无法序列化时存为空」兜住它。
+对策：捕获 `NotSupportedException` 与 `JsonException`，存 `null`。用例「参数无法序列化时存为空」兜住它。**本包保证的只是这两类异常不阻止任务执行**：参数对象的属性 getter 抛出的其他异常（如 `InvalidOperationException`）仍会让保存实例失败、任务不执行。不捕获 `Exception` 是为了不吞掉数据库写入以外的编程错误；这一残余风险写进 §7。
 
 **④ 写库必须处于宿主上下文。**
 
@@ -377,8 +382,8 @@ SQLite 侧的 `DateTimeOffset` 不保存偏移：表达式参数经 `UtilMethods
 | 分组 | 用例 |
 | --- | --- |
 | 选项 | 宽限期默认一分钟；从配置节绑定 |
-| 实体与映射 | 两张表与两条索引能建出；实例往返字段一致（含 `JobType` 还原、参数为 `JsonElement`、偏移归零）；运行中实例的截止时刻 = 开始 + 超时 + 宽限；非运行状态截止时刻为空；参数无法序列化时存为空；无法解析的任务类型不赋值；历史往返字段一致 |
-| 实例 | 保存后查回（`+08:00` 输入，瞬时不变）；查不存在返回空；空参数抛异常；重复保存覆盖；终止状态保存时补完成时间；更新为终止状态写完成时间且不再算运行中；更新不存在的实例不抛且不插入；只返回该任务运行中的实例；超过截止时刻不再算运行中；任务名空白抛异常；租户上下文下以宿主上下文写库 |
+| 实体与映射 | 两张表与两条索引能建出；实例往返字段一致（含 `JobType` 还原、参数为 `JsonElement`、偏移归零）；运行中实例的截止时刻 = 开始 + 超时 + 宽限；超时为 0 或负数时截止时刻为 `UnboundedRunningDeadline`；非运行状态截止时刻为空；参数无法序列化时存为空；无法解析的任务类型不赋值；历史往返字段一致 |
+| 实例 | 保存后查回（`+08:00` 输入，瞬时不变）；查不存在返回空；空参数抛异常；重复保存覆盖；终止状态保存时补完成时间；更新为终止状态写完成时间且不再算运行中；更新不存在的实例不抛且不插入；只返回该任务运行中的实例；超过截止时刻不再算运行中；超时关闭的非并发任务在宽限期后仍算运行中且调度器（真实的 `CompositeJobScheduler`）不再触发第二份；任务名空白抛异常；租户上下文下以宿主上下文写库 |
 | 历史 | 按开始时间倒序分页（三页）；历史标识为空时自动生成；页码或页大小非法抛异常；清理早于保留期的历史与已结束实例、保留运行中实例；保留天数为负抛异常 |
 | 注册 | 定时任务存储被顶替为单例；`ValidateScopes` 下从根容器可解析；第 ① 份的注册用例保持全绿 |
 
@@ -395,6 +400,9 @@ SQLite 侧的 `DateTimeOffset` 不保存偏移：表达式参数经 `UtilMethods
 | 运行中实例对所有节点可见 | 多个节点共用一个库时，某节点的运行中实例会让其他节点跳过不允许并发的任务。这是跨节点互斥，与内存存储「只看本进程」不同 |
 | 截止时刻依赖协作式超时 | 超时靠取消令牌，任务代码不响应取消时可能在截止时刻之后仍在运行，此时调度器会再触发一份 |
 | 遗留记录不改状态 | 超过截止时刻的遗留实例仍标为 `Running`，只是不再阻塞调度 |
+| 不限时任务的遗留实例会一直阻塞 | 任务超时小于等于 0 时截止时刻为 `9999-12-31`。不允许并发的这类任务在执行途中崩溃后，遗留实例会一直让该任务的后续触发被跳过（只留警告日志）。清除方法：调用 `IJobStore.UpdateJobStatusAsync(实例标识, JobStatus.Failed)`，或执行 `UPDATE sys_job_instance SET Status = 3 WHERE Basic_Id = '实例标识'`（`3` 为 `JobStatus.Failed`）；遗留实例可按 `Status = 1` 且 `Running_Deadline` 为 `9999-12-31` 查出 |
+| 改成 `Running` 不写截止时刻 | `UpdateJobStatusAsync` 只写状态与完成时间，经它把实例改成 `Running` 时截止时刻仍为空，这样的实例不算运行中。框架内的执行器只经 `SaveJobInstanceAsync` 写入 `Running`，不触发 |
+| 参数序列化只兜住两类异常 | `NotSupportedException` 与 `JsonException` 存为空；参数对象的属性 getter 抛出的其他异常仍会让保存实例失败、任务不执行 |
 | 实例状态字段有限 | `UpdateJobStatusAsync` 只写状态与完成时间；执行器在内存里补的错误信息、耗时不会回写到实例行（它们在历史行里） |
 | `JobInfo` 只还原最小快照 | 读回的 `JobInfo` 只有任务名、任务类型（能解析时）、触发类型、租户 |
 | 参数读回为 `JsonElement` | 且无法序列化的参数存为 `null` |
@@ -413,7 +421,7 @@ SQLite 侧的 `DateTimeOffset` 不保存偏移：表达式参数经 `UtilMethods
 - 包 README 七段结构；文档站条目、侧边栏、`docs/packages/index.md`、两个 `framework/README*.md` 全部更新
 - 提交信息中文 Conventional Commits，作用域 `tasks-sqlsugar`，**不加任何 AI 署名**
 - 一个 PR 只做一件事：不顺手改 `docs/packages/tasks.md`、`docs/guide/`；根 README 只改模块计数
-- 四个 README 里的模块计数与测试工程计数都已按实现时的当前值加一，含两个 shields.io 徽章
+- 四个 README 与文档站（`docs/**/*.md`）里的模块计数、`framework/README*.md` 里的测试工程计数都已按实现时的当前值加一，含两个 shields.io 徽章
 
 ## 9. 五个共同问题
 
@@ -429,7 +437,7 @@ SQLite 侧的 `DateTimeOffset` 不保存偏移：表达式参数经 `UtilMethods
 
 | # | 决策 | 默认值 | 理由 | 若改变会影响什么 |
 | --- | --- | --- | --- | --- |
-| 1 | 陈旧运行中实例的处理 | 截止时刻 = 开始 + 超时 + 宽限，超过即不算运行中 | 不处理则崩溃一次就让不允许并发的任务永久停摆（§5 ①） | 不处理：行为与内存存储「重启即清」背离；改为启动时清理：多节点下会误清别的节点正在跑的实例 |
+| 1 | 陈旧运行中实例的处理 | 截止时刻 = 开始 + 超时 + 宽限，超过即不算运行中（不限时任务除外，见第 10 条） | 不处理则崩溃一次就让不允许并发的任务永久停摆（§5 ①） | 不处理：行为与内存存储「重启即清」背离；改为启动时清理：多节点下会误清别的节点正在跑的实例 |
 | 2 | 宽限期默认值 | 1 分钟 | 覆盖保存实例到真正开始执行之间的调度延迟 | 调大：崩溃后恢复调度更慢；调小：长任务在超时边界附近更容易被重复触发 |
 | 3 | 时间存储 | UTC 的 `DateTime`，映射层归一 | 避开 `DateTimeOffset` 读回平移（§5 ②） | 用 `DateTimeOffset` 列：读回瞬时可能平移 |
 | 4 | 参数序列化失败 | 存 `null`，不抛 | 保持「保存实例从不阻止任务执行」（§5 ③） | 改为抛：带不可序列化参数的任务不再执行 |
@@ -438,9 +446,10 @@ SQLite 侧的 `DateTimeOffset` 不保存偏移：表达式参数经 `UtilMethods
 | 7 | 历史与实例的保存语义 | 插入或更新（先查后写） | 与 `DefaultJobStore` 一致 | 改为只插入：重复保存同一标识抛主键冲突 |
 | 8 | 建两条索引 | 实例（任务名 + 状态）、历史（任务名 + 开始时间降序） | 两个查询方法各自的过滤与排序列 | 不建：表大后调度器每次触发前的查询变慢 |
 | 9 | 根 `README.md` / `README_cn.md` | **只改模块计数，不往「常用包」表加行**（派工者对八个包统一的裁定） | 「常用包」是精选清单，另两个 SqlSugar 包都不在里面；逐包清单在 `framework/README*.md` | 若要加行，应同时补上另两个 SqlSugar 包，那是另一件事 |
-| 12 | 模块计数的改法 | 实现时 `grep` 当前值、每处加一，不在文档里写死「68 → 69」 | 八个 SqlSugar 包先后落地，写死的数字只对第一个包成立 | 写死则后落地的包会把计数改错 |
-| 10 | `docs/packages/index.md` | **要改** | 它是文档站的模块清单，另两个 SqlSugar 包都在里面；拆分方案与 Linear 议题列出的六处漏了它 | 不改则文档站总览里找不到本包 |
-| 11 | 测试不需要真实数据库 | 是 | 本份没有并发语义；跨节点互斥靠的是查询结果，不靠原子更新 | 无 |
+| 10 | 不限时任务（超时 `<= 0`）的运行截止时刻 | `9999-12-31`：在被显式结束之前一直算运行中（派工者裁定） | 配置为不允许并发的任务绝不能并发执行，这优先于可用性；不限时任务没有可推导的运行上限 | 改为有界截止时刻（例如开始 + 宽限期，或另设一个「不限时任务的最长运行时间」选项）：崩溃后能自动恢复调度，但不限时的长任务一旦跑过该上限，调度器会再触发一份、同一任务并发两份，且不报错 |
+| 11 | `docs/packages/index.md` | **要改** | 它是文档站的模块清单，另两个 SqlSugar 包都在里面；拆分方案与 Linear 议题列出的六处漏了它 | 不改则文档站总览里找不到本包 |
+| 12 | 测试不需要真实数据库 | 是 | 本份没有并发语义；跨节点互斥靠的是查询结果，不靠原子更新；调度器不再重复触发由 SQLite 层的真实 `CompositeJobScheduler` 用例覆盖 | 无 |
+| 13 | 模块计数的改法 | 实现时 `grep` 当前值、每处加一，不在文档里写死「68 → 69」 | 八个 SqlSugar 包先后落地，写死的数字只对第一个包成立 | 写死则后落地的包会把计数改错 |
 
 ## 11. 下一份
 
