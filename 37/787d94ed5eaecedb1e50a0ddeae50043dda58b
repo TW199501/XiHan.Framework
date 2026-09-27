@@ -1,0 +1,22 @@
+framework/src/XiHan.Framework.Auditing.SqlSugar/Extensions/DependencyInjection/XiHanAuditingSqlSugarServiceCollectionExtensions.cs
+  h_be8240d2cfaa4b 27
+framework/src/XiHan.Framework.Auditing.SqlSugar/Mapping/AuditingLogMapper.cs
+  h_be8240d2cfaa4b 180-210
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarEntityDiffLogWriter.cs
+  h_be8240d2cfaa4b 1-48
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/AuditingLogMapperTests.cs
+  h_be8240d2cfaa4b 227-301
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/LogWriterTests.cs
+  h_be8240d2cfaa4b 252-297,314,319,323,328,353-359
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "37787d94ed5eaecedb1e50a0ddeae50043dda58b",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
