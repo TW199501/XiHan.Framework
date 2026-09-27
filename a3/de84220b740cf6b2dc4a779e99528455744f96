@@ -1,0 +1,18 @@
+docs/packages/auditing-sqlsugar.md
+  h_be8240d2cfaa4b 3,12,14,33,42,46,52-53,69,91,93,95-97,104-105,107-108,132,158-159,163,169
+docs/packages/index.md
+  h_be8240d2cfaa4b 99
+framework/src/XiHan.Framework.Auditing.SqlSugar/README.md
+  h_be8240d2cfaa4b 7,11,42,54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a3de84220b740cf6b2dc4a779e99528455744f96",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
