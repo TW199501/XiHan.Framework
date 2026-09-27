@@ -4,10 +4,11 @@
 `XiHan.Framework.Auditing` 的 SqlSugar 持久化提供程序，提供审计日志的实体定义与落库实现。
 
 ## 核心能力
-- 5 类审计日志（访问 / 接口 / 异常 / 登录 / 操作）的 SqlSugar 实体与写入器
+- 6 类审计日志（访问 / 接口 / 异常 / 登录 / 操作 / 实体差异）的 SqlSugar 实体与写入器
 - 按月自动分表，表名形如 `sys_operation_log_20260901`
 - 表结构由 `DbInitializer` 在应用启动时创建，需开启 `XiHan:Data:SqlSugarCore:EnableTableInitialization`（默认 `false`）
 - 主键为雪花 ID，由 `XiHan.Framework.DistributedIds` 生成
+- 实体差异日志写入器与触发它的业务写入同一个工作单元事务，业务回滚时差异日志随之回滚；其余 5 类日志不参与业务事务
 
 ## 依赖关系
 依赖 `XiHan.Framework.Auditing`（日志记录模型与写入器契约）与 `XiHan.Framework.Data`（SqlSugar 数据访问）。
@@ -38,6 +39,7 @@ XiHan.Framework.Auditing.SqlSugar/
   Entities/
     SysAccessLog.cs
     SysApiLog.cs
+    SysDiffLog.cs
     SysExceptionLog.cs
     SysLoginLog.cs
     SysOperationLog.cs
@@ -49,6 +51,7 @@ XiHan.Framework.Auditing.SqlSugar/
   Writers/
     SqlSugarAccessLogWriter.cs
     SqlSugarApiLogWriter.cs
+    SqlSugarEntityDiffLogWriter.cs
     SqlSugarExceptionLogWriter.cs
     SqlSugarLoginLogWriter.cs
     SqlSugarOperationLogWriter.cs
