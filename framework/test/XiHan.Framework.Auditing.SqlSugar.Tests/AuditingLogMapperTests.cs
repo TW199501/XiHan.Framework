@@ -299,4 +299,24 @@ public class AuditingLogMapperTests
         Assert.Equal(longJson, entity.AfterData);
         Assert.Equal(longJson, entity.ChangedFields);
     }
+
+    [Fact]
+    public void 实体差异日志超长定长字段按列宽截断()
+    {
+        var record = new EntityDiffLogRecord
+        {
+            OperationType = new string('o', 40),
+            EntityType = new string('e', 600),
+            RequestPath = new string('p', 900)
+        };
+
+        var entity = AuditingLogMapper.ToEntity(record, 1012L, CreatedTime);
+
+        Assert.Equal(16, entity.OperationType.Length);
+        Assert.Equal(256, entity.EntityType.Length);
+        Assert.Equal(512, entity.RequestPath!.Length);
+        Assert.StartsWith("ooo", entity.OperationType);
+        Assert.StartsWith("eee", entity.EntityType);
+        Assert.StartsWith("ppp", entity.RequestPath);
+    }
 }
