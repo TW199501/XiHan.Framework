@@ -24,6 +24,7 @@ public static class XiHanAuditingSqlSugarServiceCollectionExtensions
 
         services.Replace(ServiceDescriptor.Scoped<IAccessLogWriter, SqlSugarAccessLogWriter>());
         services.Replace(ServiceDescriptor.Scoped<IApiLogWriter, SqlSugarApiLogWriter>());
+        services.Replace(ServiceDescriptor.Scoped<IEntityDiffLogWriter, SqlSugarEntityDiffLogWriter>());
         services.Replace(ServiceDescriptor.Scoped<IExceptionLogWriter, SqlSugarExceptionLogWriter>());
         services.Replace(ServiceDescriptor.Scoped<ILoginLogWriter, SqlSugarLoginLogWriter>());
         services.Replace(ServiceDescriptor.Scoped<IOperationLogWriter, SqlSugarOperationLogWriter>());

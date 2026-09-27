@@ -249,6 +249,52 @@ public class LogWriterTests
         }
     }
 
+    [Fact]
+    public async Task 实体差异日志写入器经当前工作单元客户端写入并落入当月分表()
+    {
+        var databaseFile = NewDatabasePath();
+
+        try
+        {
+            using var db = CreateClient(databaseFile);
+
+            db.CodeFirst.SplitTables().InitTables(typeof(SysDiffLog));
+
+            var resolver = new StubClientResolver(db);
+            var writer = new SqlSugarEntityDiffLogWriter(
+                resolver,
+                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload());
+
+            var before = DateTimeOffset.UtcNow;
+            await writer.WriteAsync(new EntityDiffLogRecord
+            {
+                OperationType = "Update",
+                EntityType = "Order",
+                EntityId = "1001",
+                ChangedFields = "[{\"Field\":\"Status\"}]"
+            });
+            var after = DateTimeOffset.UtcNow;
+
+            AssertUsedCurrentClient(resolver);
+
+            var range = CurrentUtcMonthRange();
+            var found = db.Queryable<SysDiffLog>()
+                .SplitTable(range[0], range[1])
+                .Where(item => item.EntityId == "1001")
+                .ToList();
+
+            var row = Assert.Single(found);
+            Assert.NotEqual(0L, row.BasicId);
+            Assert.Equal("Update", row.OperationType);
+            Assert.Equal("EntityChange", row.AuditType);
+            AssertCreatedTimeNearNow(row.CreatedTime, before, after);
+        }
+        finally
+        {
+            DeleteDatabase(databaseFile);
+        }
+    }
+
     /// <summary>
     /// 注册扩展以 SqlSugar 写入器顶替空写入器
     /// </summary>
@@ -265,19 +311,21 @@ public class LogWriterTests
     }
 
     /// <summary>
-    /// 五个写入器全部被注册扩展顶替
+    /// 六个写入器全部被注册扩展顶替
     /// </summary>
     [Theory]
     [InlineData(typeof(IAccessLogWriter), typeof(SqlSugarAccessLogWriter))]
     [InlineData(typeof(IApiLogWriter), typeof(SqlSugarApiLogWriter))]
+    [InlineData(typeof(IEntityDiffLogWriter), typeof(SqlSugarEntityDiffLogWriter))]
     [InlineData(typeof(IExceptionLogWriter), typeof(SqlSugarExceptionLogWriter))]
     [InlineData(typeof(ILoginLogWriter), typeof(SqlSugarLoginLogWriter))]
     [InlineData(typeof(IOperationLogWriter), typeof(SqlSugarOperationLogWriter))]
-    public void 五个写入器全部被顶替(Type serviceType, Type expectedImplementationType)
+    public void 六个写入器全部被顶替(Type serviceType, Type expectedImplementationType)
     {
         var services = new ServiceCollection();
         services.TryAddScoped<IAccessLogWriter, NullAccessLogWriter>();
         services.TryAddScoped<IApiLogWriter, NullApiLogWriter>();
+        services.TryAddScoped<IEntityDiffLogWriter, NullEntityDiffLogWriter>();
         services.TryAddScoped<IExceptionLogWriter, NullExceptionLogWriter>();
         services.TryAddScoped<ILoginLogWriter, NullLoginLogWriter>();
         services.TryAddScoped<IOperationLogWriter, NullOperationLogWriter>();
@@ -299,6 +347,13 @@ public class LogWriterTests
     {
         Assert.Equal(expectedEntityType, Assert.Single(resolver.RequestedEntityTypes));
         Assert.Equal(0, resolver.GetCurrentClientCalls);
+        Assert.Equal(0, resolver.GetClientCalls);
+    }
+
+    private static void AssertUsedCurrentClient(StubClientResolver resolver)
+    {
+        Assert.Empty(resolver.RequestedEntityTypes);
+        Assert.Equal(1, resolver.GetCurrentClientCalls);
         Assert.Equal(0, resolver.GetClientCalls);
     }
 

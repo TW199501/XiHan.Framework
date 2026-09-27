@@ -178,6 +178,37 @@ public static class AuditingLogMapper
     }
 
     /// <summary>
+    /// 把实体差异日志记录转换为实体
+    /// </summary>
+    /// <param name="record">实体差异日志记录</param>
+    /// <param name="basicId">主键</param>
+    /// <param name="createdTime">创建时间</param>
+    /// <returns>实体差异日志实体</returns>
+    public static SysDiffLog ToEntity(EntityDiffLogRecord record, long basicId, DateTimeOffset createdTime)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        return new SysDiffLog(basicId)
+        {
+            CreatedTime = createdTime,
+            AuditType = Clamp(record.AuditType, 32),
+            OperationType = Clamp(record.OperationType, 16),
+            EntityType = Clamp(record.EntityType, 256),
+            EntityId = Clamp(record.EntityId, 256),
+            BeforeData = record.BeforeData,
+            AfterData = record.AfterData,
+            ChangedFields = record.ChangedFields,
+            RequestPath = Clamp(record.RequestPath, 512),
+            RequestMethod = Clamp(record.RequestMethod, 16),
+            OperationIp = Clamp(record.OperationIp, 64),
+            RequestId = Clamp(record.RequestId, 64),
+            UserId = record.UserId,
+            UserName = Clamp(record.UserName, 128),
+            TenantId = record.TenantId
+        };
+    }
+
+    /// <summary>
     /// 按实体列宽截断字符串，切点落在代理对中间时再退一位
     /// </summary>
     /// <param name="value">原值</param>

@@ -224,4 +224,79 @@ public class AuditingLogMapperTests
         Assert.Equal("?a=1", entity.QueryString);
         Assert.Null(entity.UserAgent);
     }
+
+    [Fact]
+    public void 实体差异日志映射保留全部字段()
+    {
+        var record = new EntityDiffLogRecord
+        {
+            AuditType = "EntityChange",
+            OperationType = "Update",
+            EntityType = "Order",
+            EntityId = "1001",
+            BeforeData = "{\"Status\":\"Pending\"}",
+            AfterData = "{\"Status\":\"Paid\"}",
+            ChangedFields = "[{\"Field\":\"Status\",\"Before\":\"Pending\",\"After\":\"Paid\"}]",
+            RequestPath = "/api/orders/1001",
+            RequestMethod = "PUT",
+            OperationIp = "127.0.0.1",
+            RequestId = "req-1",
+            UserId = 42,
+            UserName = "tester",
+            TenantId = 7
+        };
+
+        var entity = AuditingLogMapper.ToEntity(record, 1009L, CreatedTime);
+
+        Assert.Equal(1009L, entity.BasicId);
+        Assert.Equal(CreatedTime, entity.CreatedTime);
+        Assert.Equal("EntityChange", entity.AuditType);
+        Assert.Equal("Update", entity.OperationType);
+        Assert.Equal("Order", entity.EntityType);
+        Assert.Equal("1001", entity.EntityId);
+        Assert.Equal("{\"Status\":\"Pending\"}", entity.BeforeData);
+        Assert.Equal("{\"Status\":\"Paid\"}", entity.AfterData);
+        Assert.Equal("[{\"Field\":\"Status\",\"Before\":\"Pending\",\"After\":\"Paid\"}]", entity.ChangedFields);
+        Assert.Equal("/api/orders/1001", entity.RequestPath);
+        Assert.Equal("PUT", entity.RequestMethod);
+        Assert.Equal("127.0.0.1", entity.OperationIp);
+        Assert.Equal("req-1", entity.RequestId);
+        Assert.Equal(42L, entity.UserId);
+        Assert.Equal("tester", entity.UserName);
+        Assert.Equal(7L, entity.TenantId);
+    }
+
+    [Fact]
+    public void 实体差异日志未显式设置审计类型时保留默认值()
+    {
+        var record = new EntityDiffLogRecord
+        {
+            OperationType = "Create",
+            EntityType = "Order"
+        };
+
+        var entity = AuditingLogMapper.ToEntity(record, 1010L, CreatedTime);
+
+        Assert.Equal("EntityChange", entity.AuditType);
+    }
+
+    [Fact]
+    public void 实体差异日志的大文本字段不截断()
+    {
+        var longJson = "{\"Data\":\"" + new string('x', 5000) + "\"}";
+        var record = new EntityDiffLogRecord
+        {
+            OperationType = "Update",
+            EntityType = "Order",
+            BeforeData = longJson,
+            AfterData = longJson,
+            ChangedFields = longJson
+        };
+
+        var entity = AuditingLogMapper.ToEntity(record, 1011L, CreatedTime);
+
+        Assert.Equal(longJson, entity.BeforeData);
+        Assert.Equal(longJson, entity.AfterData);
+        Assert.Equal(longJson, entity.ChangedFields);
+    }
 }
