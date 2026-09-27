@@ -1,0 +1,166 @@
+.superpowers/plans/2026-09-28-tasks-sqlsugar-1-background-jobs.md
+  s_94057b8e5cf9b6::t_031334bca5026a 46,452,485,2676,2738
+  s_94057b8e5cf9b6::t_9ba357b1c7401a 1-45,47-451,453-484,486-1845,1847-1865,1867-2675,2677-2737,2739-2803
+  s_94057b8e5cf9b6::t_e497e0b664608c 1866
+  s_94057b8e5cf9b6::t_2b642670c1b172 1846
+.superpowers/plans/2026-09-28-upgrade-sqlsugar-1-upgrade-version.md
+  s_94057b8e5cf9b6::t_d72677314b4bab 1833
+  s_94057b8e5cf9b6::t_2925dc7baa1dc6 1-45,47-59,63-1746,1750-1757,1759,1761-1769,1790,1812,1814-1825,1827-1829,1831-1832,1834-1857
+  s_94057b8e5cf9b6::t_d6b82e4afe384b 46
+  s_94057b8e5cf9b6::t_bba05115649359 1748-1749,1760,1791-1811
+  s_94057b8e5cf9b6::t_65f62434efb55a 60-62
+  s_94057b8e5cf9b6::t_f6e1e5a2847cdf 1747,1758,1770-1789
+  s_94057b8e5cf9b6::t_69743c5f1b4e97 1813,1826,1830
+.superpowers/specs/2026-09-28-tasks-sqlsugar-1-background-jobs-design.md
+  s_94057b8e5cf9b6::t_3f9cc52f891184 1-138,140-153,155-158,160-432,441-459,461-542
+  s_94057b8e5cf9b6::t_eb47fd1d27172d 460
+  s_94057b8e5cf9b6::t_63478b41f75e79 433-440
+  s_94057b8e5cf9b6::t_a9b41711d3ab48 159
+  s_94057b8e5cf9b6::t_031334bca5026a 139,154
+.superpowers/plans/2026-09-28-eventbus-sqlsugar-p7-inbox.md
+  s_94057b8e5cf9b6::t_9a7fea99bd68eb 1-1535,1537-3143
+  s_94057b8e5cf9b6::t_18bf236aa841c0 1536
+.superpowers/plans/2026-09-28-auditing-sqlsugar-p8-entity-diff-log.md
+  s_94057b8e5cf9b6::t_0be94c9263dcd9 54-66
+  s_94057b8e5cf9b6::t_239ce1d04a3397 1-53,67-201,203-207,209-215,217-952
+  s_94057b8e5cf9b6::t_f18cd1976b71fb 202,208,216
+.superpowers/specs/2026-09-28-authorization-sqlsugar-1-permission-store-design.md
+  s_94057b8e5cf9b6::t_7bc06a0f521697 137,150
+  s_94057b8e5cf9b6::t_7b734ffc081fe6 1-136,138-149,151-435
+.superpowers/specs/2026-09-28-tasks-sqlsugar-2-scheduled-jobs-design.md
+  s_94057b8e5cf9b6::t_031334bca5026a 144,155
+  s_94057b8e5cf9b6::t_4a20e45a5a583a 91,186,324,415-416,440-441
+  s_94057b8e5cf9b6::t_6dd81997630cc3 1-90,92-143,145-154,156-185,187-323,325-414,417-439,442-447
+.superpowers/specs/2026-09-28-authentication-sqlsugar-1-user-store-design.md
+  s_94057b8e5cf9b6::t_a39cae6f7f2111 1-61,64-123,125-134,136-178,180-188,190-202,204-212,214,216-230,232-263,265-284,286-320,322-339,341-385,387-407,409,411-427,429-443,445
+  s_94057b8e5cf9b6::t_549631d641173e 62-63
+  s_94057b8e5cf9b6::t_3cef9fdcdad78b 179,189,203,213,215,231,264,285,321,340,386,408,410,428,444,446
+  s_94057b8e5cf9b6::t_3007d672885a66 124,135
+.superpowers/plans/2026-09-28-workflow-sqlsugar-1-skeleton-definition.md
+  s_94057b8e5cf9b6::t_f30ebd4f14e72c 1-2390
+.superpowers/specs/2026-09-28-authorization-sqlsugar-3-policy-store-docs-design.md
+  s_94057b8e5cf9b6::t_baa61968389d7c 1-75,77-123,125-130,132-140,142-166,168-229,231-264,267,269-349,351-355
+  s_94057b8e5cf9b6::t_6b59738c090114 266
+  s_94057b8e5cf9b6::t_88abb8b250b376 230
+  s_94057b8e5cf9b6::t_01e1180e124fd4 167
+  s_94057b8e5cf9b6::t_cf027d8c1de182 76,124,265,268,350
+  s_94057b8e5cf9b6::t_7bc06a0f521697 131,141
+.superpowers/plans/2026-09-28-authorization-sqlsugar-2-role-store-checker.md
+  s_94057b8e5cf9b6::t_4d0be6ed4bf6d9 1753-1754
+  s_94057b8e5cf9b6::t_7bc06a0f521697 46,712,1723
+  s_94057b8e5cf9b6::t_bdd9858f180fb8 1-45,47-711,713-1722,1724-1752,1755-1956,1958-2505
+  s_94057b8e5cf9b6::t_e853e38240ce52 1957
+.superpowers/specs/2026-09-28-traffic-sqlsugar-1-gray-rule-design.md
+  s_94057b8e5cf9b6::t_9351edba491d5f 1-113,115-121,123-301
+  s_94057b8e5cf9b6::t_d6b82e4afe384b 114,122
+.superpowers/plans/2026-09-28-tasks-sqlsugar-2-scheduled-jobs.md
+  s_94057b8e5cf9b6::t_bbb13bcf8c574d 169-171,2142,2154,2453,2455-2464,2466,2468-2491,2493,2538,2556,2572
+  s_94057b8e5cf9b6::t_3640b4de6390cd 1-45,47-168,172-2141,2143-2153,2155-2452,2454,2465,2467,2492,2494-2537,2539-2555,2557-2571,2573-2576
+  s_94057b8e5cf9b6::t_031334bca5026a 46
+.superpowers/plans/2026-09-28-settings-sqlsugar-1-setting-store.md
+  s_94057b8e5cf9b6::t_578795308c28e5 1409
+  s_94057b8e5cf9b6::t_9e06f6044194b7 1407
+  s_94057b8e5cf9b6::t_4a7bc9d009990f 1-67,69-70,72-129,131-1208,1210-1221,1225-1360,1378-1390,1392,1398-1399,1403,1406,1408,1410-1417,1419-1421,1423-1438,1440-1453
+  s_94057b8e5cf9b6::t_a628fe67c1b9c2 1209
+  s_94057b8e5cf9b6::t_03ff39185b3554 1396
+  s_94057b8e5cf9b6::t_b28c643ec54647 71,130
+  s_94057b8e5cf9b6::t_f90e88c134b2aa 1361-1377
+  s_94057b8e5cf9b6::t_e1f640e61fd54b 1400
+  s_94057b8e5cf9b6::t_75c9149b0df288 1422
+  s_94057b8e5cf9b6::t_ee30d00c254106 68
+  s_94057b8e5cf9b6::t_abbfec9d78d6a0 1418
+  s_94057b8e5cf9b6::t_5e445840c45fc5 1391,1393-1395,1397,1401-1402,1404-1405
+  s_94057b8e5cf9b6::t_d27a41afa8a60c 1439
+  s_94057b8e5cf9b6::t_f3da88447446ce 1222-1224
+.superpowers/plans/2026-09-28-workflow-sqlsugar-2-instance.md
+  s_94057b8e5cf9b6::t_f30ebd4f14e72c 44
+  s_94057b8e5cf9b6::t_e1d8d34ffa8ea9 1808
+  s_94057b8e5cf9b6::t_99ea4afbcc872b 1-43,45-1807,1809-1812
+.superpowers/plans/2026-09-28-authorization-sqlsugar-1-permission-store.md
+  s_94057b8e5cf9b6::t_e19de192061811 1-45,47-209,211-1115,1117-2058
+  s_94057b8e5cf9b6::t_7bc06a0f521697 46,210,1116
+.superpowers/specs/2026-09-28-security-sqlsugar-1-password-history-design.md
+  s_94057b8e5cf9b6::t_d0d1c1b279a8d9 1-89,91-99,101-257
+  s_94057b8e5cf9b6::t_d6b82e4afe384b 90,100
+.superpowers/plans/2026-09-28-authentication-sqlsugar-1-user-store.md
+  s_94057b8e5cf9b6::t_3d87453469b092 1-45,47-2017,2019-3451
+  s_94057b8e5cf9b6::t_3b55481bc7a329 46,2018
+.superpowers/plans/2026-09-28-authorization-sqlsugar-3-policy-store-docs.md
+  s_94057b8e5cf9b6::t_7bc06a0f521697 44
+  s_94057b8e5cf9b6::t_c4ead28ebd73eb 1-43,45-144,148-1302,1304-1581,1583-1588,1590-1594,1596-1624,1626,1628,1661-1662,1665-1666,1668,1670-1671,1674-1728,1730-1761,1763-1766
+  s_94057b8e5cf9b6::t_6b59738c090114 147,1589
+  s_94057b8e5cf9b6::t_90f85e71469040 1303
+  s_94057b8e5cf9b6::t_cf027d8c1de182 145-146,1582,1595,1625,1627,1659,1667,1669,1729,1762
+  s_94057b8e5cf9b6::t_d4e5a8e9252cce 1629-1658,1660,1663-1664,1672-1673
+.superpowers/specs/2026-09-28-authorization-sqlsugar-2-role-store-checker-design.md
+  s_94057b8e5cf9b6::t_4261cae9362b44 1-146,148-161,163-483
+  s_94057b8e5cf9b6::t_7bc06a0f521697 147,162
+.superpowers/specs/2026-09-28-workflow-sqlsugar-1-skeleton-definition-design.md
+  s_94057b8e5cf9b6::t_f30ebd4f14e72c 123,138
+  s_94057b8e5cf9b6::t_415568eff2ecc2 450
+  s_94057b8e5cf9b6::t_6b8bb4f626aa19 1-122,124-137,139-449,451-469
+.superpowers/plans/2026-09-28-traffic-sqlsugar-1-gray-rule.md
+  s_94057b8e5cf9b6::t_90bfa4a0b9ffd9 1029
+  s_94057b8e5cf9b6::t_cc791bf7a83c30 1231,1242,1254-1273
+  s_94057b8e5cf9b6::t_5d6112422eb87a 1232-1233,1244,1275-1295
+  s_94057b8e5cf9b6::t_fbc3c65532a25e 1082
+  s_94057b8e5cf9b6::t_6d2e67f6206abe 1317
+  s_94057b8e5cf9b6::t_d6b82e4afe384b 46
+  s_94057b8e5cf9b6::t_9728e2a8165822 1297,1310,1314
+  s_94057b8e5cf9b6::t_0e3e9707e4afa9 1-45,47-1009,1011-1028,1030-1081,1083-1230,1234-1241,1243,1245-1253,1274,1296,1298-1309,1311-1313,1315-1316,1318-1340
+  s_94057b8e5cf9b6::t_82f7298883f381 1010
+.superpowers/plans/2026-09-28-authentication-sqlsugar-2-refresh-token-external-login.md
+  s_94057b8e5cf9b6::t_90870489f003be 1-43,45-3020,3022-3025,3027-3038,3040,3044,3046,3048-3049,3052-3053,3055-3105,3107-3134
+  s_94057b8e5cf9b6::t_9fe6b2b534d526 44,3021,3026,3039,3041-3043,3045,3047,3050-3051,3054,3106
+.superpowers/plans/2026-09-28-workflow-sqlsugar-3-bookmark-docs.md
+  s_94057b8e5cf9b6::t_e3ce57f327964d 1-2408
+.superpowers/specs/2026-09-28-workflow-sqlsugar-3-bookmark-docs-design.md
+  s_94057b8e5cf9b6::t_45349245f5879c 1-353
+.superpowers/specs/2026-09-28-workflow-sqlsugar-2-instance-design.md
+  s_94057b8e5cf9b6::t_d6255c299d8e8c 1-122,124-133,135-378,380-393
+  s_94057b8e5cf9b6::t_03f82bb63de0eb 379
+  s_94057b8e5cf9b6::t_f30ebd4f14e72c 123,134
+.superpowers/specs/2026-09-28-auditing-sqlsugar-p8-entity-diff-log-design.md
+  s_94057b8e5cf9b6::t_34cbd83f80cbd3 1-223,225-311
+  s_94057b8e5cf9b6::t_7ef1aada36ef78 224
+.superpowers/specs/2026-09-28-upgrade-sqlsugar-1-upgrade-version-design.md
+  s_94057b8e5cf9b6::t_7994b59cf09976 1-105,107-115,117-345
+  s_94057b8e5cf9b6::t_d6b82e4afe384b 106,116
+.superpowers/specs/2026-09-28-settings-sqlsugar-1-setting-store-design.md
+  s_94057b8e5cf9b6::t_b28c643ec54647 91,180
+  s_94057b8e5cf9b6::t_548ad07418a3ab 356
+  s_94057b8e5cf9b6::t_7093d6bcb63d5b 1-89,92-179,181-355,357-449
+  s_94057b8e5cf9b6::t_987de87f86d80c 90
+.superpowers/specs/2026-09-28-eventbus-sqlsugar-p7-inbox-design.md
+  s_94057b8e5cf9b6::t_b70411b0340e5a 1-143,145-497,499-562
+  s_94057b8e5cf9b6::t_18bf236aa841c0 144
+  s_94057b8e5cf9b6::t_c761bc6c669f3e 498
+.superpowers/plans/2026-09-28-security-sqlsugar-1-password-history.md
+  s_94057b8e5cf9b6::t_96edea8ba92b76 1-45,47-980,984-992,994,996-1004,1025,1047,1049-1062,1064-1066,1068-1069,1071-1092
+  s_94057b8e5cf9b6::t_4bec9e8ca78cc0 1070
+  s_94057b8e5cf9b6::t_4a37a3ff904720 982-983,995,1026-1046
+  s_94057b8e5cf9b6::t_b2662748b92d1d 1048,1063,1067
+  s_94057b8e5cf9b6::t_d6b82e4afe384b 46
+  s_94057b8e5cf9b6::t_9fad08f7a14655 981,993,1005-1024
+.superpowers/specs/2026-09-28-authentication-sqlsugar-2-refresh-token-external-login-design.md
+  s_94057b8e5cf9b6::t_549631d641173e 62,376-377,379
+  s_94057b8e5cf9b6::t_1f4398a6c7936f 1-61,63-85,87-130,132-143,145-366,368-375,378,380-503
+  s_94057b8e5cf9b6::t_7739aa767bf920 86,367
+  s_94057b8e5cf9b6::t_e123309dfebc0d 131,144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f5be4eeaf78e489c879292ae740537810fe94e7a",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
