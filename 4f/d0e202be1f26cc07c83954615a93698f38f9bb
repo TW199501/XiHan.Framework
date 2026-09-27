@@ -1,0 +1,21 @@
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/EntityMappingTests.cs
+  s_5c3644d3a69742::t_ef92170db4fcb6 124-195
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/TableInitializationTests.cs
+  s_5c3644d3a69742::t_8eb2b55305842e 15,29-30,47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4fd0e202be1f26cc07c83954615a93698f38f9bb",
+  "prompts": {},
+  "sessions": {
+    "s_5c3644d3a69742": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-adoc-eddie7-settings-48862cc2acaf3a8d",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
