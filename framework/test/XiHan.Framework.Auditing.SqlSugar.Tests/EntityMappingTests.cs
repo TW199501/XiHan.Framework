@@ -184,7 +184,7 @@ public class EntityMappingTests
     }
 
     /// <summary>
-    /// 审计类型默认值为EntityChange
+    /// 审计类型默认值为 EntityChange
     /// </summary>
     [Fact]
     public void SysDiffLog_审计类型默认值为EntityChange()
