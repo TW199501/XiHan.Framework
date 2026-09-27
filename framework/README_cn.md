@@ -52,7 +52,7 @@
 
 ## 模块清单
 
-共 66 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
+共 68 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
 
 ### 公共与核心
 
@@ -83,11 +83,13 @@
 | `Authorization` | 授权：RBAC、策略授权、声明授权 |
 | `Security` | 安全与加密：BouncyCastle 企业级密码学、密钥管理、密码哈希、数据保护 |
 | `Auditing` | 审计日志：操作/访问/登录/异常/接口/实体变更日志的采集管道、异步队列、脱敏与写入契约 |
+| `Auditing.SqlSugar` | 审计日志 SqlSugar 提供程序：5 类日志实体按月分表，写入器以 Replace 顶替 Auditing 的空实现 |
 | `EventBus.Abstractions` | 事件总线抽象：发布/订阅接口、事件处理管道 |
 | `EventBus` | 事件总线：本地/分布式事件、Outbox 模式、事件存储（内置实现，分布式 Broker 由以下子包提供） |
 | `EventBus.RabbitMQ` | 分布式事件总线 RabbitMQ 提供程序 |
 | `EventBus.Kafka` | 分布式事件总线 Kafka 提供程序 |
 | `EventBus.Redis` | 分布式事件总线 Redis（Streams）提供程序 |
+| `EventBus.SqlSugar` | 事件发件箱 SqlSugar 持久化提供程序：入箱与业务同事务，多实例领取互斥 |
 | `Workflow.Abstractions` | 工作流抽象：流程定义模型、活动契约、运行时实例与书签模型、存储端口、人工任务契约，不含执行实现 |
 | `Workflow` | 工作流引擎：图执行引擎、内置活动集、人工任务（审批）、表达式求值、定时器调度、内存存储默认实现 |
 | `Castle` | AOP 动态代理：Castle DynamicProxy 集成，服务拦截器注册 |
@@ -181,7 +183,7 @@ Utils (零第三方依赖)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx              # 解决方案文件
-│   ├── src/                               # 源码（66 个模块）
+│   ├── src/                               # 源码（68 个模块）
 │   │   ├── XiHan.Framework.Utils/         #   公共工具
 │   │   ├── XiHan.Framework.Metadata/      #   框架元数据
 │   │   ├── XiHan.Framework.Core/          #   模块化核心
@@ -193,7 +195,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   Web 核心
 │   │   ├── XiHan.Framework.Web.Api/       #   动态 API
 │   │   └── ...                            #   其他模块
-│   ├── test/                              # 测试（src 下每个项目一一对应，共 66 个单测工程）
+│   ├── test/                              # 测试（src 下每个项目一一对应，共 68 个单测工程）
 │   │   ├── XiHan.Framework.Utils.Tests/   #   工具测试
 │   │   ├── XiHan.Framework.Core.Tests/    #   内核测试
 │   │   └── ...                            #   其余按 <项目名>.Tests 一一对应

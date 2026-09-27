@@ -52,7 +52,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 
 ## Module Catalog
 
-66 modules, one per project under `framework/src`; package names match project names.
+68 modules, one per project under `framework/src`; package names match project names.
 
 ### Common and Core
 
@@ -83,11 +83,13 @@ The framework is organized into strict modular layers. Dependencies between modu
 | `Authorization` | Authorization: RBAC, policy-based, claims-based |
 | `Security` | Security and cryptography: BouncyCastle primitives, key management, password hashing, data protection |
 | `Auditing` | Audit logging: collection pipeline for operation / access / login / exception / API / entity-change logs, async queue, masking and write contracts |
+| `Auditing.SqlSugar` | SqlSugar persistence provider for audit logging: five month-split log entities; writers replace the empty defaults from `Auditing` |
 | `EventBus.Abstractions` | Event bus abstractions: publish/subscribe interfaces, handler pipeline |
 | `EventBus` | Event bus: local and distributed events, outbox pattern, event store (built-in implementation; brokers come from the sub-packages below) |
 | `EventBus.RabbitMQ` | RabbitMQ provider for the distributed event bus |
 | `EventBus.Kafka` | Kafka provider for the distributed event bus |
 | `EventBus.Redis` | Redis (Streams) provider for the distributed event bus |
+| `EventBus.SqlSugar` | SqlSugar persistence provider for the event outbox: enqueue joins the business transaction, claiming is mutually exclusive across instances |
 | `Workflow.Abstractions` | Workflow abstractions: definition model, activity contracts, runtime instance and bookmark models, storage ports, human-task contracts; no execution logic |
 | `Workflow` | Workflow engine: graph execution engine, built-in activity set, human tasks (approvals), expression evaluation, timer scheduling, in-memory store by default |
 | `Castle` | AOP dynamic proxy: Castle DynamicProxy integration and interceptor registration |
@@ -181,7 +183,7 @@ Utils (zero third-party deps)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx               # solution file
-│   ├── src/                               # sources (66 modules)
+│   ├── src/                               # sources (68 modules)
 │   │   ├── XiHan.Framework.Utils/         #   utilities
 │   │   ├── XiHan.Framework.Metadata/      #   framework metadata
 │   │   ├── XiHan.Framework.Core/          #   modularity core
@@ -193,7 +195,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   web core
 │   │   ├── XiHan.Framework.Web.Api/       #   dynamic APIs
 │   │   └── ...                            #   other modules
-│   ├── test/                              # tests (one per src project, 66 unit-test projects)
+│   ├── test/                              # tests (one per src project, 68 unit-test projects)
 │   │   ├── XiHan.Framework.Utils.Tests/   #   utilities tests
 │   │   ├── XiHan.Framework.Core.Tests/    #   core tests
 │   │   └── ...                            #   the rest follow <Project>.Tests

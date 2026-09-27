@@ -1,6 +1,6 @@
 # 模块总览
 
-XiHan.Framework 由 **66 个 NuGet 包**组成，按分层组织。本册是**参考手册**——每个包一页，写完整的 API 清单与配置项全表。
+XiHan.Framework 由 **68 个 NuGet 包**组成，按分层组织。本册是**参考手册**——每个包一页，写完整的 API 清单与配置项全表。
 
 ::: tip 先看指南还是先看这里
 文档分两册，解决的问题不同：
@@ -82,6 +82,7 @@ DDD 分层与应用服务契约。
 | [EventBus.RabbitMQ](./eventbus-rabbitmq) | 分布式事件总线的 RabbitMQ 提供程序：direct 交换机 + 事件名路由键、队列竞争消费 |
 | [EventBus.Kafka](./eventbus-kafka) | 分布式事件总线的 Kafka 提供程序：单主题 + 事件名作 Key、消费者组竞争消费 |
 | [EventBus.Redis](./eventbus-redis) | 分布式事件总线的 Redis Streams 提供程序：`XADD` / `XREADGROUP` 消费者组竞争消费 |
+| [EventBus.SqlSugar](./eventbus-sqlsugar) | 事件发件箱的 SqlSugar 持久化提供程序：入箱与业务同事务、条件抢占领取 |
 | [Messaging](./messaging) | 消息处理：消息代理抽象（发布/消费/路由） |
 | [Http](./http) | HTTP 客户端：Polly 韧性策略（重试/熔断）、请求管道 |
 
@@ -95,6 +96,7 @@ DDD 分层与应用服务契约。
 | [Localization](./localization) | 国际化：多语言资源文件、动态文化切换 |
 | [Logging](./logging) | 结构化日志：Serilog 集成、文件/控制台输出、异步写入 |
 | [Auditing](./auditing) | 审计日志：6 类日志记录、Channel 异步队列 + 批量消费者、脱敏器、写入器契约（默认空实现） |
+| [Auditing.SqlSugar](./auditing-sqlsugar) | 审计日志 SqlSugar 提供程序：5 类日志实体（按月分表）与写入器，替换空实现后日志落库 |
 | [Castle](./castle) | AOP 动态代理：Castle DynamicProxy 集成、服务拦截器注册 |
 | [Threading](./threading) | 并发辅助：取消令牌提供者、基于 AsyncLocal 的环境作用域 |
 | [Timing](./timing) | 时间策略：时区管理、时间抽象 |
