@@ -1,0 +1,27 @@
+docs/packages/eventbus-sqlsugar.md
+  s_94057b8e5cf9b6::t_08dd994c92cc55 3,12,14,16-17,23-24,43,50,58,62-66,80-103,107,109-128,132,134,138-142,150-160,167-170,178-181,185-191,193-194,198,202,207-208
+docs/packages/index.md
+  s_94057b8e5cf9b6::t_7499a1a2b62bfc 85
+framework/README.md
+  s_94057b8e5cf9b6::t_71d6250ce68823 92
+framework/README_cn.md
+  s_94057b8e5cf9b6::t_c9568127c28b5b 92
+framework/src/XiHan.Framework.EventBus.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_5cf4df738f4ff6 5,10,12-16,26,28-39,49,57-72,79,88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9802e25626b6c3bd61cc975e429f491cfda576df",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
