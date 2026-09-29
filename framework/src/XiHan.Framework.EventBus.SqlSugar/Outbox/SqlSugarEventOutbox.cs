@@ -62,7 +62,7 @@ public class SqlSugarEventOutbox : IEventOutbox
     /// 确认当前租户与平台使用同一套数据库布局
     /// </summary>
     /// <remarks>
-    /// 发送循环只遍历平台布局，写入租户独立布局的事件不会被投递，因此当前布局与平台布局的主库不同时拒绝入箱。
+    /// 当前租户布局的主库与平台布局不同时抛出异常。
     /// </remarks>
     /// <exception cref="InvalidOperationException">当前租户使用独立于平台的数据库布局</exception>
     private void EnsureSharedLayout()
