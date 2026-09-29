@@ -52,7 +52,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 
 ## Module Catalog
 
-68 modules, one per project under `framework/src`; package names match project names.
+69 modules, one per project under `framework/src`; package names match project names.
 
 ### Common and Core
 
@@ -101,6 +101,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 | `MultiTenancy.Abstractions` | Multi-tenancy abstractions: tenant context interfaces, resolution chain |
 | `MultiTenancy` | Multi-tenancy: tenant resolution middleware, data isolation, tenant configuration, lifecycle |
 | `Settings` | Settings management: definition-provider pattern, dynamic configuration, multiple sources (including tenant level) |
+| `Settings.SqlSugar` | Settings persistence: SqlSugar-backed `ISettingStore` implementation |
 | `Validation.Abstractions` | Validation abstractions: the `IHasValidationErrors` contract and `XiHanValidationException` |
 | `Validation` | Validation integration entry point: currently a thin placeholder, module class only |
 | `ObjectMapping` | Object mapping: Mapster integration |
@@ -183,7 +184,7 @@ Utils (zero third-party deps)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx               # solution file
-│   ├── src/                               # sources (68 modules)
+│   ├── src/                               # sources (69 modules)
 │   │   ├── XiHan.Framework.Utils/         #   utilities
 │   │   ├── XiHan.Framework.Metadata/      #   framework metadata
 │   │   ├── XiHan.Framework.Core/          #   modularity core
@@ -195,7 +196,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   web core
 │   │   ├── XiHan.Framework.Web.Api/       #   dynamic APIs
 │   │   └── ...                            #   other modules
-│   ├── test/                              # tests (one per src project, 68 unit-test projects)
+│   ├── test/                              # tests (one per src project, 69 unit-test projects)
 │   │   ├── XiHan.Framework.Utils.Tests/   #   utilities tests
 │   │   ├── XiHan.Framework.Core.Tests/    #   core tests
 │   │   └── ...                            #   the rest follow <Project>.Tests

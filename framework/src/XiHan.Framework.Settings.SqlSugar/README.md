@@ -50,9 +50,12 @@ public class YourAppModule : XiHanModule
 
 需要自定义落库行为时，实现 `ISettingStore` 并用 `services.Replace` 顶替本包的注册。
 
+存储以 `services.Replace` 顶替 `XiHan.Framework.Settings` 注册的空实现（`NullSettingStore` 用 `[Dependency(TryRegister = true)]` 登记）。应用侧若要再次替换，同样使用 `Replace`——`TryAdd` 不会生效。
+
 ## 目录结构
 
 ```
-Entities/    设置值实体
-Stores/      ISettingStore 的 SqlSugar 实现
+Entities/                        设置值实体
+Extensions/DependencyInjection/  注册扩展
+Stores/                          ISettingStore 的 SqlSugar 实现
 ```

@@ -52,7 +52,7 @@
 
 ## 模块清单
 
-共 68 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
+共 69 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
 
 ### 公共与核心
 
@@ -101,6 +101,7 @@
 | `MultiTenancy.Abstractions` | 多租户抽象：租户上下文接口、解析链 |
 | `MultiTenancy` | 多租户：租户解析中间件、数据隔离、租户配置管理、生命周期 |
 | `Settings` | 设置管理：设置定义提供者模式、动态配置、多来源（租户级别） |
+| `Settings.SqlSugar` | 设置管理持久化：`ISettingStore` 的 SqlSugar 落库实现 |
 | `Validation.Abstractions` | 校验抽象：校验错误契约 `IHasValidationErrors` 与 `XiHanValidationException` |
 | `Validation` | 数据校验集成入口：当前为薄占位，仅模块类 |
 | `ObjectMapping` | 对象映射：Mapster 集成 |
@@ -183,7 +184,7 @@ Utils (零第三方依赖)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx              # 解决方案文件
-│   ├── src/                               # 源码（68 个模块）
+│   ├── src/                               # 源码（69 个模块）
 │   │   ├── XiHan.Framework.Utils/         #   公共工具
 │   │   ├── XiHan.Framework.Metadata/      #   框架元数据
 │   │   ├── XiHan.Framework.Core/          #   模块化核心
@@ -195,7 +196,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   Web 核心
 │   │   ├── XiHan.Framework.Web.Api/       #   动态 API
 │   │   └── ...                            #   其他模块
-│   ├── test/                              # 测试（src 下每个项目一一对应，共 68 个单测工程）
+│   ├── test/                              # 测试（src 下每个项目一一对应，共 69 个单测工程）
 │   │   ├── XiHan.Framework.Utils.Tests/   #   工具测试
 │   │   ├── XiHan.Framework.Core.Tests/    #   内核测试
 │   │   └── ...                            #   其余按 <项目名>.Tests 一一对应
