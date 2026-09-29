@@ -1,13 +1,15 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 using XiHan.Framework.Authorization.Extensions.DependencyInjection;
 using XiHan.Framework.Authorization.Permissions;
+using XiHan.Framework.Authorization.Roles;
 using XiHan.Framework.Authorization.SqlSugar.Extensions.DependencyInjection;
 using XiHan.Framework.Authorization.SqlSugar.Permissions;
+using XiHan.Framework.Authorization.SqlSugar.Roles;
 using XiHan.Framework.Core.Modularity;
 using XiHan.Framework.Data;
 
@@ -25,6 +27,8 @@ public class RegistrationTests
     /// <param name="implementationType">期望的实现类型</param>
     [Theory]
     [InlineData(typeof(IPermissionStore), typeof(SqlSugarPermissionStore))]
+    [InlineData(typeof(IRoleStore), typeof(SqlSugarRoleStore))]
+    [InlineData(typeof(IPermissionChecker), typeof(SqlSugarPermissionChecker))]
     public void 契约被顶替为SqlSugar实现(Type serviceType, Type implementationType)
     {
         var services = BuildServices();

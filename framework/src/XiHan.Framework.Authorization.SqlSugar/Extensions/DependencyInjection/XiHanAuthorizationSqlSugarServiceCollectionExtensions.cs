@@ -1,10 +1,12 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.DependencyInjection;
 using XiHan.Framework.Authorization.Permissions;
+using XiHan.Framework.Authorization.Roles;
 using XiHan.Framework.Authorization.SqlSugar.Permissions;
+using XiHan.Framework.Authorization.SqlSugar.Roles;
 
 namespace XiHan.Framework.Authorization.SqlSugar.Extensions.DependencyInjection;
 
@@ -24,6 +26,9 @@ public static class XiHanAuthorizationSqlSugarServiceCollectionExtensions
 
         services.Replace(ServiceDescriptor.Scoped<IPermissionStore, SqlSugarPermissionStore>());
         services.TryAddScoped<SqlSugarPermissionStore>();
+
+        services.Replace(ServiceDescriptor.Scoped<IRoleStore, SqlSugarRoleStore>());
+        services.Replace(ServiceDescriptor.Scoped<IPermissionChecker, SqlSugarPermissionChecker>());
 
         return services;
     }
