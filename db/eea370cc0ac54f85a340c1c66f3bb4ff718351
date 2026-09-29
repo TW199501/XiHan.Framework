@@ -1,0 +1,18 @@
+framework/src/XiHan.Framework.Data/SqlSugar/Clients/ISqlSugarClientResolver.cs
+  h_be8240d2cfaa4b 63-75
+framework/src/XiHan.Framework.Data/SqlSugar/Clients/SqlSugarClientResolver.cs
+  h_be8240d2cfaa4b 206-231
+framework/test/XiHan.Framework.Data.Tests/EnlistedConfigIdsTests.cs
+  h_be8240d2cfaa4b 1-225
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "dbeea370cc0ac54f85a340c1c66f3bb4ff718351",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}

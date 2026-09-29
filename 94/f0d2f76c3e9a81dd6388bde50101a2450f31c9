@@ -1,0 +1,19 @@
+framework/test/XiHan.Framework.Data.Tests/ModuleDataSourceRoutingTests.cs
+  s_94057b8e5cf9b6::t_7d096040f85f4b 187-248,331-350
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "94f0d2f76c3e9a81dd6388bde50101a2450f31c9",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
