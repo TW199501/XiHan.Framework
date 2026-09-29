@@ -20,7 +20,7 @@ namespace XiHan.Framework.EventBus.SqlSugar.Inbox;
 /// <remarks>
 /// 所有读写都切换到无租户上下文，落在宿主布局的主库。
 /// </remarks>
-public class SqlSugarEventInbox
+public class SqlSugarEventInbox : IEventInbox
 {
     private readonly ISqlSugarClientResolver _clientResolver;
     private readonly ICurrentTenant _currentTenant;
@@ -145,6 +145,113 @@ public class SqlSugarEventInbox
             var claimed = await ClaimAsync(client, maxCount, cancellationToken);
 
             return [.. claimed.Select(EventInboxMapper.ToEventInfo)];
+        }
+    }
+
+    /// <summary>
+    /// 标记事件为已处理
+    /// </summary>
+    /// <remarks>
+    /// 记录保留在库中，保留期满后由 <see cref="DeleteOldEventsAsync"/> 清理。
+    /// </remarks>
+    /// <param name="id">事件唯一标识符</param>
+    public async Task MarkAsProcessedAsync(Guid id)
+    {
+        await MarkAsHandledAsync(id, SysEventInbox.StatusProcessed);
+    }
+
+    /// <summary>
+    /// 延迟处理事件
+    /// </summary>
+    /// <remarks>
+    /// 记录放回待处理并清空领取信息，下次重试时刻为空时立即可领取。
+    /// </remarks>
+    /// <param name="id">事件唯一标识符</param>
+    /// <param name="retryCount">重试次数</param>
+    /// <param name="nextRetryTime">下次重试时间</param>
+    public async Task RetryLaterAsync(Guid id, int retryCount, DateTime? nextRetryTime)
+    {
+        var nextRetry = nextRetryTime.HasValue
+            ? EventInboxMapper.ToOffset(nextRetryTime.Value)
+            : DateTimeOffset.UtcNow;
+
+        using (_currentTenant.Change(null))
+        {
+            var client = _clientResolver.GetCurrentClient();
+
+            await client.Updateable<SysEventInbox>()
+                .SetColumns(item => new SysEventInbox
+                {
+                    Status = SysEventInbox.StatusPending,
+                    RetryCount = retryCount,
+                    NextRetryTime = nextRetry,
+                    ClaimToken = null,
+                    ClaimTime = null
+                })
+                .Where(item => item.BasicId == id)
+                .ExecuteCommandAsync();
+        }
+    }
+
+    /// <summary>
+    /// 标记事件为已丢弃
+    /// </summary>
+    /// <remarks>
+    /// 记录保留在库中，保留期满后由 <see cref="DeleteOldEventsAsync"/> 清理。
+    /// </remarks>
+    /// <param name="id">事件唯一标识</param>
+    public async Task MarkAsDiscardAsync(Guid id)
+    {
+        await MarkAsHandledAsync(id, SysEventInbox.StatusDiscarded);
+    }
+
+    /// <summary>
+    /// 删除过期事件
+    /// </summary>
+    /// <remarks>
+    /// 只删除已处理或已丢弃、且完结时刻早于保留期的记录，保留期由
+    /// <see cref="XiHanSqlSugarEventBoxOptions.InboxRetentionPeriod"/> 配置。
+    /// </remarks>
+    public async Task DeleteOldEventsAsync()
+    {
+        var cutoff = DateTimeOffset.UtcNow - _options.InboxRetentionPeriod;
+
+        using (_currentTenant.Change(null))
+        {
+            var client = _clientResolver.GetCurrentClient();
+
+            await client.Deleteable<SysEventInbox>()
+                .Where(item => (item.Status == SysEventInbox.StatusProcessed || item.Status == SysEventInbox.StatusDiscarded)
+                    && item.HandledTime != null
+                    && item.HandledTime <= cutoff)
+                .ExecuteCommandAsync();
+        }
+    }
+
+    /// <summary>
+    /// 把记录置为完结状态并清空领取与重试信息
+    /// </summary>
+    /// <param name="id">事件唯一标识符</param>
+    /// <param name="status">完结状态</param>
+    private async Task MarkAsHandledAsync(Guid id, int status)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        using (_currentTenant.Change(null))
+        {
+            var client = _clientResolver.GetCurrentClient();
+
+            await client.Updateable<SysEventInbox>()
+                .SetColumns(item => new SysEventInbox
+                {
+                    Status = status,
+                    NextRetryTime = null,
+                    ClaimToken = null,
+                    ClaimTime = null,
+                    HandledTime = now
+                })
+                .Where(item => item.BasicId == id)
+                .ExecuteCommandAsync();
         }
     }
 
