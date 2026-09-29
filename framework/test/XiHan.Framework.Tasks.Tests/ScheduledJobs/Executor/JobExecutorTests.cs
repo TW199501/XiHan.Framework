@@ -344,6 +344,30 @@ public class JobExecutorTests
     }
 
     /// <summary>
+    /// 任务体成功时，结束后的完整实例写回存储并带有耗时与完成时间
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_WhenWorkerSucceeds_SavesFinishedInstanceToStore()
+    {
+        var store = new SnapshotJobStore();
+        var executor = new JobExecutor(
+            new ServiceCollection().BuildServiceProvider(),
+            NullLogger<JobExecutor>.Instance,
+            store,
+            []);
+        var instance = CreateInstance(typeof(SucceedingWorker));
+
+        await executor.ExecuteAsync(instance, null, TestContext.Current.CancellationToken);
+
+        var saved = store.SavedSnapshots[^1];
+        Assert.Equal(JobStatus.Succeeded, saved.Status);
+        Assert.Null(saved.ErrorMessage);
+        Assert.NotNull(saved.CompletedAt);
+        Assert.NotNull(saved.DurationMilliseconds);
+        Assert.True(saved.DurationMilliseconds >= 0);
+    }
+
+    /// <summary>
     /// 带租户的任务：实例落库、状态回写、历史落档与任务体都在该租户作用域内，结束后作用域还原
     /// </summary>
     [Fact]
