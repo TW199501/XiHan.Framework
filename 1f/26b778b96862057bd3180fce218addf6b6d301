@@ -1,0 +1,27 @@
+framework/src/XiHan.Framework.EventBus.SqlSugar/Entities/SysEventInbox.cs
+  s_94057b8e5cf9b6::t_1fdaf31a1ab46f 1-125
+framework/src/XiHan.Framework.EventBus.SqlSugar/Mapping/EventInboxMapper.cs
+  s_94057b8e5cf9b6::t_b88832b34460b4 1-105
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/EventInboxEntityTests.cs
+  s_94057b8e5cf9b6::t_3f28188cc90f4f 1-156
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/EventInboxMapperTests.cs
+  s_94057b8e5cf9b6::t_31aa29eaf34bc1 1-154
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/TableInitializationTests.cs
+  s_94057b8e5cf9b6::t_fcb2ef355f9d8b 12,82-132,151-163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1f26b778b96862057bd3180fce218addf6b6d301",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
