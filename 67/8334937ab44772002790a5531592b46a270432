@@ -1,0 +1,29 @@
+framework/src/XiHan.Framework.Authentication.SqlSugar/ExternalLogins/SqlSugarExternalLoginStore.cs
+  s_94057b8e5cf9b6::t_274182356fbd21 111,121-141
+framework/src/XiHan.Framework.Authentication.SqlSugar/RefreshTokens/SqlSugarRefreshTokenStore.cs
+  s_94057b8e5cf9b6::t_47df7f749dc140 141,162-163,166
+framework/src/XiHan.Framework.Authentication.SqlSugar/Users/SqlSugarUserStore.cs
+  s_94057b8e5cf9b6::t_2cebfec54f209d 369-381
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/ExternalLoginStoreTests.cs
+  s_94057b8e5cf9b6::t_d2d8f2b146e413 4-5,207-234
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/RefreshTokenStoreTests.cs
+  s_94057b8e5cf9b6::t_4c9d7cc7c4ac19 220-249
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/UserStoreWriteTests.cs
+  s_94057b8e5cf9b6::t_9983c2f345f203 5-6,357-384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "678334937ab44772002790a5531592b46a270432",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
