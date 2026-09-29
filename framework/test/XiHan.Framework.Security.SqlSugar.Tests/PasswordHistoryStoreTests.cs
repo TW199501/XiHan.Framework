@@ -4,6 +4,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SqlSugar;
+using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.DistributedIds;
 using XiHan.Framework.Security.Services;
 using XiHan.Framework.Security.SqlSugar.Entities;
@@ -111,7 +112,60 @@ public class PasswordHistoryStoreTests
         services.AddXiHanSecuritySqlSugar();
 
         var descriptor = Assert.Single(services, item => item.ServiceType == typeof(IPasswordHistoryStore));
-        Assert.Equal(typeof(SqlSugarPasswordHistoryStore), descriptor.ImplementationType);
+        Assert.NotNull(descriptor.ImplementationFactory);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
+    }
+
+    /// <summary>
+    /// 具体存储类型可解析，且与接口解析得到同一实例
+    /// </summary>
+    [Fact]
+    public void 具体类型可注入且与接口同实例()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ISqlSugarClientResolver>(new StubClientResolver(new SqlSugarClient(new ConnectionConfig
+        {
+            ConnectionString = "DataSource=:memory:",
+            DbType = DbType.Sqlite
+        })));
+        services.AddSingleton(IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload());
+        services.TryAddScoped<IPasswordHistoryStore, DefaultPasswordHistoryStore>();
+
+        services.AddXiHanSecuritySqlSugar();
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var concrete = scope.ServiceProvider.GetRequiredService<SqlSugarPasswordHistoryStore>();
+        var contract = scope.ServiceProvider.GetRequiredService<IPasswordHistoryStore>();
+
+        Assert.Same(concrete, contract);
+    }
+
+    /// <summary>
+    /// 记录时间相同时裁剪保留主键较大的记录
+    /// </summary>
+    [Fact]
+    public async Task 同一记录时间裁剪保留主键较大者()
+    {
+        using var context = new PasswordHistoryTestContext();
+        var time = DateTimeOffset.UtcNow;
+
+        await context.Client.Insertable(new List<SysPasswordHistory>
+        {
+            new(1001L) { UserId = 1L, PasswordHash = "small", CreatedTime = time },
+            new(1002L) { UserId = 1L, PasswordHash = "large", CreatedTime = time }
+        }).ExecuteCommandAsync();
+
+        await context.Store.RecordPasswordAsync(1L, "newest", maxHistoryCount: 2);
+
+        var remaining = await context.Client.Queryable<SysPasswordHistory>()
+            .Where(item => item.UserId == 1L)
+            .Select(item => item.PasswordHash)
+            .ToListAsync();
+
+        Assert.DoesNotContain("small", remaining);
+        Assert.Contains("large", remaining);
+        Assert.Equal(2, remaining.Count);
     }
 }
 

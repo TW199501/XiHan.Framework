@@ -22,7 +22,9 @@ public static class XiHanSecuritySqlSugarServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.Replace(ServiceDescriptor.Scoped<IPasswordHistoryStore, SqlSugarPasswordHistoryStore>());
+        services.TryAddScoped<SqlSugarPasswordHistoryStore>();
+        services.Replace(ServiceDescriptor.Scoped<IPasswordHistoryStore>(
+            sp => sp.GetRequiredService<SqlSugarPasswordHistoryStore>()));
 
         return services;
     }

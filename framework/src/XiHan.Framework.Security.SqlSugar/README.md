@@ -16,7 +16,7 @@
 
 ## 配置与约定
 
-表名 `sys_password_history`；主键 `Basic_Id` 为雪花 ID，非自增。不分表、不做多库路由。
+表名 `sys_password_history`；主键 `Basic_Id` 为雪花 ID，非自增。不分表、不做多库路由。索引 `idx_sys_password_history_user`（`User_Id` 升序、`Created_Time` 降序）。
 
 `EnableDbInitialization` 与 `EnableTableInitialization` 默认均为 `false`，不开启则不会自动建表，首次写入会报表不存在。
 

@@ -10,6 +10,9 @@ namespace XiHan.Framework.Security.SqlSugar.Entities;
 /// 密码历史记录实体
 /// </summary>
 [SugarTable("sys_password_history")]
+[SugarIndex("idx_sys_password_history_user",
+    nameof(SysPasswordHistory.UserId), OrderByType.Asc,
+    nameof(SysPasswordHistory.CreatedTime), OrderByType.Desc)]
 public class SysPasswordHistory : SugarCreationEntity<long>
 {
     /// <summary>

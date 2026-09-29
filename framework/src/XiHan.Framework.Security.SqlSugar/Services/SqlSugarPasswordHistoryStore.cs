@@ -49,6 +49,7 @@ public class SqlSugarPasswordHistoryStore : IPasswordHistoryStore
         var recent = await client.Queryable<SysPasswordHistory>()
             .Where(item => item.UserId == userId)
             .OrderBy(item => item.CreatedTime, OrderByType.Desc)
+            .OrderBy(item => item.BasicId, OrderByType.Desc)
             .Take(count)
             .Select(item => item.PasswordHash)
             .ToListAsync(ct);
@@ -82,6 +83,7 @@ public class SqlSugarPasswordHistoryStore : IPasswordHistoryStore
         var orderedIds = await client.Queryable<SysPasswordHistory>()
             .Where(item => item.UserId == userId)
             .OrderBy(item => item.CreatedTime, OrderByType.Desc)
+            .OrderBy(item => item.BasicId, OrderByType.Desc)
             .Select(item => item.BasicId)
             .ToListAsync(ct);
 

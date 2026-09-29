@@ -61,9 +61,11 @@ public class YourAppModule : XiHanModule
 | `Created_Time` | 时间，非空 | 记录时间 |
 | `Created_Id` / `Created_By` | 可空 | 创建者信息 |
 
+索引 `idx_sys_password_history_user`：`User_Id` 升序、`Created_Time` 降序，覆盖按用户取最近记录的读取与裁剪查询。
+
 ## 工作原理
 
-- **读**：`GetRecentPasswordHashesAsync(userId, count)` 按 `Created_Time` 降序取该用户最近 `count` 条，返回时按由旧到新排列，与主包内存实现的顺序一致；`count` 不大于 0 时返回空集合
+- **读**：`GetRecentPasswordHashesAsync(userId, count)` 按 `Created_Time` 降序（相同时再按 `Basic_Id` 降序）取该用户最近 `count` 条，返回时按由旧到新排列，与主包内存实现的顺序一致；`count` 不大于 0 时返回空集合
 - **写**：`RecordPasswordAsync(userId, passwordHash, maxHistoryCount = 10)` 插入一行后，按记录时间降序取回该用户的全部记录标识，删除第 `maxHistoryCount` 条之后的旧记录
 
 两个方法都经 `ISqlSugarClientResolver.GetClientForEntity` 取客户端：调用方处于事务型工作单元时，写入与裁剪随该工作单元一起提交或回滚。
