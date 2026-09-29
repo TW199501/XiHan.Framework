@@ -1,0 +1,23 @@
+docs/packages/data.md
+  s_94057b8e5cf9b6::t_8e147012e48ab6 131
+framework/src/XiHan.Framework.Data/SqlSugar/Repository/SqlSugarRepositoryBase.cs
+  s_94057b8e5cf9b6::t_b90fff68178fa2 618,620,625,631,637-641,644,658-676,678-683
+framework/test/XiHan.Framework.Data.Tests/SoftDeleteRestoreConcurrencyTests.cs
+  s_94057b8e5cf9b6::t_9b1579054334bc 101-168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "43e8f8acd4c585b68d027495a58585f024ca25ce",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
