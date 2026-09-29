@@ -1,0 +1,16 @@
+framework/src/XiHan.Framework.Authorization.SqlSugar/Mapping/PolicyMapper.cs
+  h_be8240d2cfaa4b 1-65
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/PolicyMapperTests.cs
+  h_be8240d2cfaa4b 1-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e719c6774b2c388abb4d9228265fcf377c02ed04",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
