@@ -303,5 +303,6 @@ services.Replace(ServiceDescriptor.Singleton<IWorkflowBookmarkStore, DbWorkflowB
 
 ## 相关模块
 
+- [XiHan.Framework.Workflow.SqlSugar](./workflow-sqlsugar) — 工作流定义、实例与书签的 SqlSugar 持久化存储。
 - [XiHan.Framework.Tasks](./tasks) — 定时任务与后台作业；「定时跑代码」用它，「等人审批的长流程」用工作流。
 - [XiHan.Framework.Http](./http) — HTTP 韧性能力。
