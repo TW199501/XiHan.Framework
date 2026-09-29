@@ -71,9 +71,9 @@ public class YourAppModule : XiHanModule
 
 四个方法都先经 `ISqlSugarClientResolver.GetClientForEntity<SysSetting>()` 取客户端（`SysSetting` 未声明 `[DataSource]`，等价于取当前库），把入参 `providerName`/`providerKey` 归一化（`null` → 空字符串）后按 `(Setting_Name, Provider_Name, Provider_Key)` 精确匹配一行。
 
-`SetAsync` 是「先查后写」：查到已有行就整行更新；查不到就插入新行。若插入因唯一索引冲突失败（两个调用者同时首次创建同一设置），会重新按业务键查询——查到就转为更新，最终只留一行；查不到（例如隔离级别看不见另一事务已提交的行）就把原始的唯一约束冲突异常重新抛给调用方。
+`SetAsync` 是「先查后写」：查到已有行就整行更新；查不到就插入新行。若插入因唯一索引冲突失败（两个调用者同时首次创建同一设置），会重新按业务键查询——查到就转为更新，最终只留一行；查不到（例如隔离级别看不见另一事务已提交的行）就把原始的唯一约束冲突异常重新抛给调用方；重新查询本身失败时抛出 `AggregateException`，同时包含原插入异常与重查异常。
 
-**在事务型工作单元内，`GetClientForEntity` 会把本包的读写钉在当前事务上**（`ISqlSugarClientResolver.GetClientForEntity` 内部无条件登记进当前工作单元，不是本包可以关闭的行为）。这意味着：SQLite/MySQL 下，上一段的“重新查询转为更新”通常按预期工作；**PostgreSQL 下，一旦某条语句在事务内失败（含唯一约束冲突），整个事务立即进入 `aborted` 状态，同一事务里的后续命令（包括这次重新查询）也会失败**——竞态因此在 PostgreSQL 上会以异常形式暴露，并连带拖垮调用方当次业务事务里的其他写入，不是“`SetAsync` 单独失败”这么轻。
+**在事务型工作单元内，`GetClientForEntity` 会把本包的读写钉在当前事务上**（`ISqlSugarClientResolver.GetClientForEntity` 内部无条件登记进当前工作单元，不是本包可以关闭的行为）。这意味着：SQLite/MySQL 下，上一段的“重新查询转为更新”通常按预期工作；**PostgreSQL 下，一旦某条语句在事务内失败（含唯一约束冲突），整个事务立即进入 `aborted` 状态，同一事务里的后续命令（包括这次重新查询）也会失败**——竞态因此在 PostgreSQL 上会以 `AggregateException`（同时包含原插入异常与重查异常）的形式暴露，并连带拖垮调用方当次业务事务里的其他写入，不是“`SetAsync` 单独失败”这么轻。
 
 ## 配置
 
