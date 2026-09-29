@@ -1,0 +1,45 @@
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobEnqueueTransactionTests.cs
+  s_94057b8e5cf9b6::t_7a3376a2210812 1-224
+docs/packages/tasks-sqlsugar.md
+  s_94057b8e5cf9b6::t_52fae0f7f86066 125-127,139,145-146,148
+framework/src/XiHan.Framework.Tasks.SqlSugar/BackgroundJobs/SqlSugarBackgroundJobStore.cs
+  s_94057b8e5cf9b6::t_27f089ade86eef 81,95-97
+framework/src/XiHan.Framework.Tasks.SqlSugar/Entities/SysJobHistory.cs
+  s_94057b8e5cf9b6::t_c80555faeb4da8 16
+framework/src/XiHan.Framework.Tasks.SqlSugar/Entities/SysJobInstance.cs
+  s_94057b8e5cf9b6::t_6379782ea355fd 16
+framework/src/XiHan.Framework.Tasks.SqlSugar/Extensions/DependencyInjection/XiHanTasksSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_f8739f21154547 34-39
+framework/src/XiHan.Framework.Tasks.SqlSugar/Options/XiHanTasksSqlSugarOptions.cs
+  s_94057b8e5cf9b6::t_a6c36349e3f261 25-29
+framework/src/XiHan.Framework.Tasks.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_7c8d02f6779344 30,38-39,46
+framework/src/XiHan.Framework.Tasks.SqlSugar/ScheduledJobs/SqlSugarJobStore.cs
+  s_94057b8e5cf9b6::t_e53308d5fc6585 79,96,101-108,224-225,239,252-257
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobClaimTests.cs
+  s_94057b8e5cf9b6::t_59459906fb69fa 102-138
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/JobStoreHistoryTests.cs
+  s_94057b8e5cf9b6::t_6b21eebb1f6ed6 90,93,108,110,120,122
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/JobStoreInstanceTests.cs
+  s_94057b8e5cf9b6::t_a9ff5c856f400a 132-152
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/TasksTestContext.cs
+  s_94057b8e5cf9b6::t_cf4a5b13866d8a 29-30,58,62-68
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHanTasksSqlSugarOptionsTests.cs
+  s_94057b8e5cf9b6::t_5b96931c50b852 91-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7a7c768604b40bdabfba0145b35066e798227dfe",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
