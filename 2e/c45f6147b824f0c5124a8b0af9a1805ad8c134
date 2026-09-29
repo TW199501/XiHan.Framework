@@ -1,0 +1,33 @@
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_56968359293592 101
+framework/src/XiHan.Framework.Authentication.SqlSugar/Entities/SysAuthUser.cs
+  s_94057b8e5cf9b6::t_3b9d36d05e6b60 1-126
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/AuthUserEntityTests.cs
+  s_94057b8e5cf9b6::t_94794befcdaeb6 1-94
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/AuthenticationTestContext.cs
+  s_94057b8e5cf9b6::t_55badbe7978386 1-87
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/Fakes/FakeCurrentTenant.cs
+  s_94057b8e5cf9b6::t_98930be44914c9 1-61
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/Fakes/MutableTimeProvider.cs
+  s_94057b8e5cf9b6::t_ff6a005d03a499 1-39
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/Fakes/StubClientResolver.cs
+  s_94057b8e5cf9b6::t_b4c81706ce0362 1-96
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/XiHan.Framework.Authentication.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_4aba9f59c54ef1 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2ec45f6147b824f0c5124a8b0af9a1805ad8c134",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
