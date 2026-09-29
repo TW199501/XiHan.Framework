@@ -1,0 +1,31 @@
+framework/src/XiHan.Framework.Tasks.SqlSugar/Entities/SysJobHistory.cs
+  s_94057b8e5cf9b6::t_e59de46375d722 1-128
+framework/src/XiHan.Framework.Tasks.SqlSugar/Entities/SysJobInstance.cs
+  s_94057b8e5cf9b6::t_80ab1ac2aea9a4 1-128
+framework/src/XiHan.Framework.Tasks.SqlSugar/Mapping/JobStoreMapper.cs
+  s_94057b8e5cf9b6::t_9246061368441b 1-262
+framework/src/XiHan.Framework.Tasks.SqlSugar/Options/XiHanTasksSqlSugarOptions.cs
+  s_94057b8e5cf9b6::t_161720c1be535d 20-24
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/JobStoreMapperTests.cs
+  s_94057b8e5cf9b6::t_387119c2c19f08 1-213
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/SysJobEntitiesTests.cs
+  s_94057b8e5cf9b6::t_890c4af6561078 1-51
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHanTasksSqlSugarOptionsTests.cs
+  s_94057b8e5cf9b6::t_1d31d4d61b5b71 58-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c81aaada327342eef52e8a5f97008294ed0ed037",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
