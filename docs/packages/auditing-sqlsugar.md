@@ -66,7 +66,7 @@ sys_exception_log   sys_login_log   sys_operation_log
 | 大文本列 | `ColumnDataType = StaticConfig.CodeFirst_BigString`，由 SqlSugar 按当前数据库方言挑选类型 |
 | 定长列 | 标注 `Length`（`Trace_Id` 64、`Path` 512、`User_Agent` 512、`Query_String` 2048 等），超长值由 `AuditingLogMapper` 截断到列宽 |
 
-6 张表都带可空的 `Tenant_Id`（`long?`，无索引）：记录产生时所属的租户，`NULL` 表示宿主 / 平台。实体不实现 `IMultiTenantEntity`，不受多租户读取过滤影响，查询某租户的日志时自行按 `Tenant_Id` 过滤。
+6 张表都带可空的 `Tenant_Id`（`long?`，无索引）：记录产生时所属的租户；平台就是 0 号租户，平台记录落库为 `0`（Data 的插入 AOP 按当前作用域租户补写，未设置时为 0），不是 `NULL`，查询平台日志按 `Tenant_Id = 0` 过滤。实体不实现 `IMultiTenantEntity`，不受多租户读取过滤影响，查询某租户的日志时自行按 `Tenant_Id` 过滤。
 
 `SysLoginLog` 的 `Login_Time` 是记录模型自带的业务时间，与分表字段 `Created_Time` 各占一列：前者由应用写入，后者由写入器在落库时生成。
 

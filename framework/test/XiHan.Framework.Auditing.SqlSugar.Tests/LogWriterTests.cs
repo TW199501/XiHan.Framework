@@ -8,8 +8,10 @@ using XiHan.Framework.Auditing.SqlSugar.Entities;
 using XiHan.Framework.Auditing.SqlSugar.Extensions.DependencyInjection;
 using XiHan.Framework.Auditing.SqlSugar.Writers;
 using XiHan.Framework.Auditing.Writers;
+using XiHan.Framework.Data.SqlSugar.Auditing;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.DistributedIds;
+using XiHan.Framework.MultiTenancy;
 using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.Framework.Auditing.SqlSugar.Tests;
@@ -325,7 +327,7 @@ public class LogWriterTests
     }
 
     [Fact]
-    public async Task 平台记录写入时切入平台并在写入后还原环境租户()
+    public async Task 平台记录取客户端时租户为平台并在写入后还原环境租户()
     {
         var databaseFile = NewDatabasePath();
 
@@ -346,16 +348,56 @@ public class LogWriterTests
 
             Assert.Null(Assert.Single(resolver.TenantIdsAtResolve));
             Assert.Equal(AmbientTenantId, tenant.Id);
-
-            var range = CurrentUtcMonthRange();
-            var row = Assert.Single(db.Queryable<SysAccessLog>()
-                .SplitTable(range[0], range[1])
-                .Where(item => item.TraceId == "trace-platform")
-                .ToList());
-            Assert.Null(row.TenantId);
         }
         finally
         {
+            DeleteDatabase(databaseFile);
+        }
+    }
+
+    [Fact]
+    public async Task 挂真实数据执行处理器时平台记录落0且租户记录落记录租户()
+    {
+        var databaseFile = NewDatabasePath();
+        AsyncLocalCurrentTenantAccessor.Instance.Current = null;
+
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ICurrentTenantAccessor>(AsyncLocalCurrentTenantAccessor.Instance);
+            services.AddTransient<ICurrentTenant, CurrentTenant>();
+            using var provider = services.BuildServiceProvider();
+            var tenant = provider.GetRequiredService<ICurrentTenant>();
+            var idGenerator = IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload();
+            var handler = new SqlSugarDataExecutingHandler(
+                provider.GetRequiredService<IServiceScopeFactory>(),
+                idGenerator);
+
+            using var db = CreateClient(databaseFile);
+            db.Aop.DataExecuting = (_, entityInfo) => handler.Handle(entityInfo);
+            db.CodeFirst.SplitTables().InitTables(typeof(SysAccessLog));
+
+            var writer = new SqlSugarAccessLogWriter(new StubClientResolver(db), idGenerator, tenant);
+
+            using (tenant.Change(AmbientTenantId))
+            {
+                await writer.WriteAsync(new AccessLogRecord { TraceId = "trace-real-platform", Method = "GET", Path = "/" });
+                await writer.WriteAsync(new AccessLogRecord { TenantId = RecordTenantId, TraceId = "trace-real-tenant", Method = "GET", Path = "/" });
+                Assert.Equal(AmbientTenantId, tenant.Id);
+            }
+
+            var range = CurrentUtcMonthRange();
+            var rows = db.Queryable<SysAccessLog>()
+                .SplitTable(range[0], range[1])
+                .Where(item => item.TraceId.StartsWith("trace-real-"))
+                .ToList();
+
+            Assert.Equal(0L, Assert.Single(rows, item => item.TraceId == "trace-real-platform").TenantId);
+            Assert.Equal(RecordTenantId, Assert.Single(rows, item => item.TraceId == "trace-real-tenant").TenantId);
+        }
+        finally
+        {
+            AsyncLocalCurrentTenantAccessor.Instance.Current = null;
             DeleteDatabase(databaseFile);
         }
     }
