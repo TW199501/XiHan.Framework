@@ -92,12 +92,21 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
         {
             await client.Insertable(entity).ExecuteCommandAsync(cancellationToken);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            var retryExisting = await client.Queryable<SysUpgradeVersion>()
-                .Where(item => item.TenantKey == tenantKey)
-                .Take(1)
-                .ToListAsync(cancellationToken);
+            List<SysUpgradeVersion> retryExisting;
+
+            try
+            {
+                retryExisting = await client.Queryable<SysUpgradeVersion>()
+                    .Where(item => item.TenantKey == tenantKey)
+                    .Take(1)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception requeryException)
+            {
+                throw new AggregateException(ex, requeryException);
+            }
 
             if (retryExisting.Count > 0)
             {
@@ -114,7 +123,7 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
     /// 当前库还没有版本记录时，按给定版本登记一条
     /// </summary>
     /// <remarks>
-    /// 插入因租户键唯一索引冲突失败时按租户键重查，查到即返回 false，查不到则抛出原始异常。
+    /// 插入因租户键唯一索引冲突失败时按租户键重查，查到即返回 false，查不到则抛出原始异常；重查本身失败时抛出同时包含插入异常与重查异常的 <see cref="AggregateException"/>。
     /// </remarks>
     /// <param name="appVersion">应用版本</param>
     /// <param name="dbVersion">数据库版本</param>
@@ -154,11 +163,20 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
         {
             await client.Insertable(entity).ExecuteCommandAsync(cancellationToken);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            var existsAfterConflict = await client.Queryable<SysUpgradeVersion>()
-                .Where(item => item.TenantKey == tenantKey)
-                .AnyAsync();
+            bool existsAfterConflict;
+
+            try
+            {
+                existsAfterConflict = await client.Queryable<SysUpgradeVersion>()
+                    .Where(item => item.TenantKey == tenantKey)
+                    .AnyAsync();
+            }
+            catch (Exception requeryException)
+            {
+                throw new AggregateException(ex, requeryException);
+            }
 
             if (existsAfterConflict)
             {

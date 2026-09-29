@@ -161,6 +161,86 @@ public class UpgradeVersionStoreTests
     }
 
     /// <summary>
+    /// 创建版本行时插入失败后重查也失败，抛出同时包含插入异常与重查异常的聚合异常
+    /// </summary>
+    [Fact]
+    public async Task 创建版本行时插入失败后重查也失败则抛出包含两个异常的聚合异常()
+    {
+        using var context = new UpgradeStoreTestContext();
+        await context.Store.EnsureTablesAsync();
+        var insertFailed = false;
+        context.Client.Aop.OnLogExecuting = (sql, _) =>
+        {
+            if (sql.TrimStart().StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
+            {
+                insertFailed = true;
+                throw new InvalidOperationException("insert-boom");
+            }
+
+            if (insertFailed && sql.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("requery-boom");
+            }
+        };
+
+        var exception = await Assert.ThrowsAsync<AggregateException>(() => context.Store.GetOrCreateAsync("1.0.0", "0.9.0"));
+
+        var messages = Flatten(exception).Select(item => item.Message).ToList();
+        Assert.Contains(messages, message => message.Contains("insert-boom", StringComparison.Ordinal));
+        Assert.Contains(messages, message => message.Contains("requery-boom", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// 登记基线时插入失败后重查也失败，抛出同时包含插入异常与重查异常的聚合异常
+    /// </summary>
+    [Fact]
+    public async Task 登记基线时插入失败后重查也失败则抛出包含两个异常的聚合异常()
+    {
+        using var context = new UpgradeStoreTestContext();
+        await context.Store.EnsureTablesAsync();
+        var insertFailed = false;
+        context.Client.Aop.OnLogExecuting = (sql, _) =>
+        {
+            if (sql.TrimStart().StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
+            {
+                insertFailed = true;
+                throw new InvalidOperationException("insert-boom");
+            }
+
+            if (insertFailed && sql.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("requery-boom");
+            }
+        };
+
+        var exception = await Assert.ThrowsAsync<AggregateException>(() => context.Store.TryCreateBaselineAsync("2.0.0", "1.5.0", "1.0.0"));
+
+        var messages = Flatten(exception).Select(item => item.Message).ToList();
+        Assert.Contains(messages, message => message.Contains("insert-boom", StringComparison.Ordinal));
+        Assert.Contains(messages, message => message.Contains("requery-boom", StringComparison.Ordinal));
+    }
+
+    private static IEnumerable<Exception> Flatten(Exception exception)
+    {
+        yield return exception;
+
+        if (exception is AggregateException aggregate)
+        {
+            foreach (var inner in aggregate.InnerExceptions.SelectMany(Flatten))
+            {
+                yield return inner;
+            }
+        }
+        else if (exception.InnerException is not null)
+        {
+            foreach (var inner in Flatten(exception.InnerException))
+            {
+                yield return inner;
+            }
+        }
+    }
+
+    /// <summary>
     /// 只有成功记录视为已执行
     /// </summary>
     [Fact]
