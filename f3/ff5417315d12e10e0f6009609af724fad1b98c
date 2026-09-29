@@ -1,0 +1,87 @@
+docs/guide/authentication.md
+  s_94057b8e5cf9b6::t_6af8da1a0ce4ee 54,102
+docs/packages/authentication-sqlsugar.md
+  s_94057b8e5cf9b6::t_9b19f1291dad52 1-231
+docs/packages/authentication.md
+  s_94057b8e5cf9b6::t_6587cecb3ae55e 109,129,275-277,304
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_306b4f04201935 31,93
+framework/src/XiHan.Framework.Authentication.SqlSugar/Entities/SysAuthExternalLogin.cs
+  s_94057b8e5cf9b6::t_ce50a15206c8ed 1-79
+framework/src/XiHan.Framework.Authentication.SqlSugar/Entities/SysAuthRefreshToken.cs
+  s_94057b8e5cf9b6::t_f8eba4f66e25ce 1-68
+framework/src/XiHan.Framework.Authentication.SqlSugar/Entities/SysAuthUser.cs
+  s_94057b8e5cf9b6::t_4f22384bc93a05 1-126
+framework/src/XiHan.Framework.Authentication.SqlSugar/Extensions/DependencyInjection/XiHanAuthenticationSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_cbbe6e5fa92223 1-45
+framework/src/XiHan.Framework.Authentication.SqlSugar/ExternalLogins/SqlSugarExternalLoginStore.cs
+  s_94057b8e5cf9b6::t_d2892512b5c0ba 1-207
+framework/src/XiHan.Framework.Authentication.SqlSugar/Mapping/AuthUserMapper.cs
+  s_94057b8e5cf9b6::t_7324a29691cb23 1-144
+framework/src/XiHan.Framework.Authentication.SqlSugar/Mapping/StorageTime.cs
+  s_94057b8e5cf9b6::t_061ea7e57c38e8 1-58
+framework/src/XiHan.Framework.Authentication.SqlSugar/Options/XiHanAuthenticationSqlSugarOptions.cs
+  s_94057b8e5cf9b6::t_a35861deb27e03 1-36
+framework/src/XiHan.Framework.Authentication.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_9848002a57105d 1-92
+framework/src/XiHan.Framework.Authentication.SqlSugar/RefreshTokens/RefreshTokenHasher.cs
+  s_94057b8e5cf9b6::t_6df2a45f3ca30d 1-25
+framework/src/XiHan.Framework.Authentication.SqlSugar/RefreshTokens/SqlSugarRefreshTokenStore.cs
+  s_94057b8e5cf9b6::t_d739acf1719056 1-277
+framework/src/XiHan.Framework.Authentication.SqlSugar/Users/SqlSugarUserStore.cs
+  s_94057b8e5cf9b6::t_e9872c9136bea3 1-466
+framework/src/XiHan.Framework.Authentication.SqlSugar/XiHan.Framework.Authentication.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_15659589884a27 1-21
+framework/src/XiHan.Framework.Authentication.SqlSugar/XiHanAuthenticationSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_d4c5c62a040086 1-35
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/AuthUserEntityTests.cs
+  s_94057b8e5cf9b6::t_6639594c5ddbfa 1-94
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/AuthUserMapperTests.cs
+  s_94057b8e5cf9b6::t_760ebc3fb74700 1-163
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/AuthenticationFlowTests.cs
+  s_94057b8e5cf9b6::t_ec4325601ecc17 1-180
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/AuthenticationTestContext.cs
+  s_94057b8e5cf9b6::t_c169dc4045c3c3 1-163
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/ExternalLoginStoreTests.cs
+  s_94057b8e5cf9b6::t_18a7a58a42da62 1-299
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/Fakes/FakeCurrentTenant.cs
+  s_94057b8e5cf9b6::t_281b7ee0f07c85 1-61
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/Fakes/MutableTimeProvider.cs
+  s_94057b8e5cf9b6::t_75596afab463bf 1-39
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/Fakes/RacingRefreshTokenStore.cs
+  s_94057b8e5cf9b6::t_9c77e562dc36a7 1-63
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/Fakes/StubClientResolver.cs
+  s_94057b8e5cf9b6::t_b7d096e251e3ff 1-96
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/RefreshTokenEntityTests.cs
+  s_94057b8e5cf9b6::t_aed9447741b8dc 1-117
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/RefreshTokenReuseTests.cs
+  s_94057b8e5cf9b6::t_e45cd138bd501f 1-265
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/RefreshTokenRotationTests.cs
+  s_94057b8e5cf9b6::t_52682050bc74b6 1-156
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/RefreshTokenStoreTests.cs
+  s_94057b8e5cf9b6::t_96a7402b268c51 1-287
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/RegistrationTests.cs
+  s_94057b8e5cf9b6::t_94bbc8914c64b9 1-184
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/UserStoreReadTests.cs
+  s_94057b8e5cf9b6::t_a9b985bf997eb4 1-277
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/UserStoreWriteTests.cs
+  s_94057b8e5cf9b6::t_1b5c5dc4fcbb4d 1-443
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/XiHan.Framework.Authentication.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_054b29e71046ea 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f3ff5417315d12e10e0f6009609af724fad1b98c",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
