@@ -123,7 +123,7 @@ public sealed class XiHanDocsMcpWebOptionsValidator : IValidateOptions<XiHanDocs
     }
 
     /// <summary>
-    /// 把非法字符描述成人能读的形式，空格与控制字符直接打印出来看不见
+    /// 把非法字符描述成可读形式
     /// </summary>
     private static string DescribeCharacter(char value)
     {
