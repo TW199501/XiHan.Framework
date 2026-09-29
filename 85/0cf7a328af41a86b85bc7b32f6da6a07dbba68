@@ -1,0 +1,21 @@
+framework/src/XiHan.Framework.Workflow.SqlSugar/Extensions/DependencyInjection/XiHanWorkflowSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_dc58beb148cae6 37
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/ServiceRegistrationTests.cs
+  s_94057b8e5cf9b6::t_534de093755734 86-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "850cf7a328af41a86b85bc7b32f6da6a07dbba68",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
