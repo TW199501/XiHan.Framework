@@ -236,5 +236,6 @@ var def = new SettingDefinition("App.PageSize", defaultValue: "20")
 
 ## 相关模块
 
+- [XiHan.Framework.Settings.SqlSugar](./settings-sqlsugar)（设置值的 SqlSugar 持久化存储）
 - [XiHan.Framework.MultiTenancy](./multitenancy)（注入 `TenantSettingValueProvider` 实现租户级设置隔离、承载租户功能开关）
 - [XiHan.Framework.Security](./security)
