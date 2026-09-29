@@ -199,6 +199,7 @@ const packagesSidebar: DefaultTheme.SidebarItem[] = [
           pkg("Tasks 定时任务", "tasks"),
           pkg("Tasks.SqlSugar", "tasks-sqlsugar"),
           pkg("Traffic 流量治理", "traffic"),
+          pkg("Traffic.SqlSugar", "traffic-sqlsugar"),
           pkg("Upgrade 升级引擎", "upgrade"),
           pkg("Script 脚本引擎", "script"),
           pkg("Workflow.Abstractions", "workflow-abstractions"),
