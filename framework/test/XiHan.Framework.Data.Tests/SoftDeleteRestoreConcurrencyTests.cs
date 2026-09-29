@@ -141,6 +141,38 @@ public sealed class SoftDeleteRestoreConcurrencyTests : IDisposable
     }
 
     /// <summary>
+    /// 无外层事务的批量恢复部分失败后，内存实体状态与数据库一致，刷新过期实体后可原批重试
+    /// </summary>
+    [Fact]
+    public async Task RestoreRangeAsync_PartialFailureWithoutTransaction_ShouldKeepMemoryConsistentWithDatabase()
+    {
+        SeedDeleted(1);
+        SeedDeleted(2);
+        var entity1 = LoadRaw(1);
+        var stale2 = LoadRaw(2);
+        var rowVersion1 = entity1.RowVersion;
+        var rowVersion2 = stale2.RowVersion;
+        await RestoreAndModifyAsync(2, "newer");
+
+        _ = await Assert.ThrowsAsync<ConcurrencyConflictException>(() => _repository.RestoreRangeAsync([entity1, stale2]));
+
+        Assert.True(entity1.IsDeleted);
+        Assert.True(stale2.IsDeleted);
+        Assert.Equal(rowVersion1, entity1.RowVersion);
+        Assert.Equal(rowVersion2, stale2.RowVersion);
+        Assert.True(LoadRaw(1).IsDeleted);
+        Assert.Equal(rowVersion1, LoadRaw(1).RowVersion);
+        Assert.Equal("newer", LoadRaw(2).Text);
+
+        var fresh2 = LoadRaw(2);
+        fresh2.IsDeleted = true;
+        await _repository.RestoreRangeAsync([entity1, fresh2]);
+
+        AssertRestored(LoadRaw(1));
+        AssertRestored(LoadRaw(2));
+    }
+
+    /// <summary>
     /// 有外层事务时批量恢复不自行提交，由外层决定去留
     /// </summary>
     [Fact]
