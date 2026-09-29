@@ -1,0 +1,19 @@
+framework/src/XiHan.Framework.Authentication.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_5a60cf34443aa7 5,9-12,21,23,25-29,31,33,35,37,50-64,78,83-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3107607e7e525da267d6aa5b36149fc5b87cd2a1",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
