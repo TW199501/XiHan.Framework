@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using SqlSugar;
 using XiHan.Framework.Authentication.SqlSugar.Entities;
+using XiHan.Framework.Authentication.SqlSugar.ExternalLogins;
 using XiHan.Framework.Authentication.SqlSugar.Options;
 using XiHan.Framework.Authentication.SqlSugar.RefreshTokens;
 using XiHan.Framework.Authentication.SqlSugar.Tests.Fakes;
@@ -116,6 +117,15 @@ internal sealed class AuthenticationTestContext : IDisposable
             DbType = DbType.Sqlite,
             IsAutoCloseConnection = autoClose
         });
+    }
+
+    /// <summary>
+    /// 创建第三方登录存储，每次返回新实例
+    /// </summary>
+    /// <returns>第三方登录存储</returns>
+    public SqlSugarExternalLoginStore CreateExternalLoginStore()
+    {
+        return new SqlSugarExternalLoginStore(Resolver, Tenant, IdGenerator, Clock);
     }
 
     private IServiceScopeFactory CreateScopeFactory(ISqlSugarClientResolver resolver)
