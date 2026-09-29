@@ -75,7 +75,7 @@ internal sealed class AuthenticationTestContext : IDisposable
     /// <returns>用户存储</returns>
     public SqlSugarUserStore CreateUserStore()
     {
-        return new SqlSugarUserStore(Resolver, Tenant, IdGenerator);
+        return new SqlSugarUserStore(Resolver, Tenant, IdGenerator, Clock);
     }
 
     /// <summary>
