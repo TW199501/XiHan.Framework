@@ -210,9 +210,21 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
     /// <param name="nodeName">升级节点</param>
     /// <param name="startTime">开始时间</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public Task SetUpgradingAsync(UpgradeVersionState version, string nodeName, DateTimeOffset startTime, CancellationToken cancellationToken = default)
+    public async Task SetUpgradingAsync(UpgradeVersionState version, string nodeName, DateTimeOffset startTime, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("留待 Task 4 实现。");
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsurePersisted(version);
+
+        var client = _clientResolver.GetClientForEntity<SysUpgradeVersion>();
+
+        await client.Updateable<SysUpgradeVersion>()
+            .SetColumns(item => new SysUpgradeVersion { IsUpgrading = true, UpgradeNode = nodeName, UpgradeStartTime = startTime })
+            .Where(item => item.BasicId == version.Id)
+            .ExecuteCommandAsync(cancellationToken);
+
+        version.IsUpgrading = true;
+        version.UpgradeNode = nodeName;
+        version.UpgradeStartTime = startTime;
     }
 
     /// <summary>
@@ -222,9 +234,23 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
     /// <param name="appVersion">应用版本</param>
     /// <param name="dbVersion">数据库版本</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public Task SetUpgradeCompletedAsync(UpgradeVersionState version, string appVersion, string dbVersion, CancellationToken cancellationToken = default)
+    public async Task SetUpgradeCompletedAsync(UpgradeVersionState version, string appVersion, string dbVersion, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("留待 Task 4 实现。");
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsurePersisted(version);
+
+        var normalizedAppVersion = UpgradeMapper.NormalizeVersion(appVersion);
+        var normalizedDbVersion = UpgradeMapper.NormalizeVersion(dbVersion);
+        var client = _clientResolver.GetClientForEntity<SysUpgradeVersion>();
+
+        await client.Updateable<SysUpgradeVersion>()
+            .SetColumns(item => new SysUpgradeVersion { IsUpgrading = false, AppVersion = normalizedAppVersion, DbVersion = normalizedDbVersion })
+            .Where(item => item.BasicId == version.Id)
+            .ExecuteCommandAsync(cancellationToken);
+
+        version.IsUpgrading = false;
+        version.AppVersion = normalizedAppVersion;
+        version.DbVersion = normalizedDbVersion;
     }
 
     /// <summary>
@@ -232,9 +258,19 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
     /// </summary>
     /// <param name="version">版本状态</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public Task SetUpgradeFailedAsync(UpgradeVersionState version, CancellationToken cancellationToken = default)
+    public async Task SetUpgradeFailedAsync(UpgradeVersionState version, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("留待 Task 4 实现。");
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsurePersisted(version);
+
+        var client = _clientResolver.GetClientForEntity<SysUpgradeVersion>();
+
+        await client.Updateable<SysUpgradeVersion>()
+            .SetColumns(item => new SysUpgradeVersion { IsUpgrading = false })
+            .Where(item => item.BasicId == version.Id)
+            .ExecuteCommandAsync(cancellationToken);
+
+        version.IsUpgrading = false;
     }
 
     /// <summary>
@@ -243,9 +279,20 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
     /// <param name="version">版本状态</param>
     /// <param name="dbVersion">数据库版本</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public Task UpdateDbVersionAsync(UpgradeVersionState version, string dbVersion, CancellationToken cancellationToken = default)
+    public async Task UpdateDbVersionAsync(UpgradeVersionState version, string dbVersion, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("留待 Task 4 实现。");
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsurePersisted(version);
+
+        var normalizedDbVersion = UpgradeMapper.NormalizeVersion(dbVersion);
+        var client = _clientResolver.GetClientForEntity<SysUpgradeVersion>();
+
+        await client.Updateable<SysUpgradeVersion>()
+            .SetColumns(item => new SysUpgradeVersion { DbVersion = normalizedDbVersion })
+            .Where(item => item.BasicId == version.Id)
+            .ExecuteCommandAsync(cancellationToken);
+
+        version.DbVersion = normalizedDbVersion;
     }
 
     /// <summary>
@@ -287,5 +334,21 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
         }
 
         return UpgradeMapper.ToState(entity);
+    }
+
+    /// <summary>
+    /// 校验版本状态是否来自 GetOrCreateAsync 的返回值
+    /// </summary>
+    /// <param name="version">版本状态</param>
+    /// <exception cref="ArgumentNullException">version 为 null</exception>
+    /// <exception cref="ArgumentException">version.Id 不是合法的已持久化标识</exception>
+    private static void EnsurePersisted(UpgradeVersionState version)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+
+        if (version.Id <= 0)
+        {
+            throw new ArgumentException("version.Id 必须来自 GetOrCreateAsync 的返回值。", nameof(version));
+        }
     }
 }

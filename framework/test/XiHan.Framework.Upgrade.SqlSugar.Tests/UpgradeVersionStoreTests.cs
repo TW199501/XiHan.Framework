@@ -9,6 +9,7 @@ using XiHan.Framework.Upgrade.Abstractions;
 using XiHan.Framework.Upgrade.Models;
 using XiHan.Framework.Upgrade.Services;
 using XiHan.Framework.Upgrade.SqlSugar.Entities;
+using XiHan.Framework.Upgrade.SqlSugar.Extensions.DependencyInjection;
 using XiHan.Framework.Upgrade.SqlSugar.Services;
 
 namespace XiHan.Framework.Upgrade.SqlSugar.Tests;
@@ -172,6 +173,116 @@ public class UpgradeVersionStoreTests
         var latest = await context.Store.GetLatestHistoryAsync();
 
         Assert.Null(latest);
+    }
+
+    /// <summary>
+    /// 设置升级中状态后回写调用方对象且数据库同步更新
+    /// </summary>
+    [Fact]
+    public async Task 设置升级中状态后回写调用方对象且数据库同步更新()
+    {
+        using var context = new UpgradeStoreTestContext();
+        await context.Store.EnsureTablesAsync();
+        var version = await context.Store.GetOrCreateAsync("1.0.0", "0.9.0");
+        var startTime = DateTimeOffset.UtcNow;
+
+        await context.Store.SetUpgradingAsync(version, "node-1", startTime);
+
+        Assert.True(version.IsUpgrading);
+        Assert.Equal("node-1", version.UpgradeNode);
+        Assert.Equal(startTime, version.UpgradeStartTime);
+
+        var reloaded = context.Client.Queryable<SysUpgradeVersion>().Single(item => item.BasicId == version.Id);
+        Assert.True(reloaded.IsUpgrading);
+        Assert.Equal("node-1", reloaded.UpgradeNode);
+    }
+
+    /// <summary>
+    /// 设置升级完成状态后回写调用方对象
+    /// </summary>
+    [Fact]
+    public async Task 设置升级完成状态后回写调用方对象()
+    {
+        using var context = new UpgradeStoreTestContext();
+        await context.Store.EnsureTablesAsync();
+        var version = await context.Store.GetOrCreateAsync("1.0.0", "0.9.0");
+        await context.Store.SetUpgradingAsync(version, "node-1", DateTimeOffset.UtcNow);
+
+        await context.Store.SetUpgradeCompletedAsync(version, "1.1.0", "1.1.0");
+
+        Assert.False(version.IsUpgrading);
+        Assert.Equal("1.1.0", version.AppVersion);
+        Assert.Equal("1.1.0", version.DbVersion);
+
+        var reloaded = context.Client.Queryable<SysUpgradeVersion>().Single(item => item.BasicId == version.Id);
+        Assert.False(reloaded.IsUpgrading);
+        Assert.Equal("1.1.0", reloaded.AppVersion);
+    }
+
+    /// <summary>
+    /// 设置升级失败状态后回写调用方对象
+    /// </summary>
+    [Fact]
+    public async Task 设置升级失败状态后回写调用方对象()
+    {
+        using var context = new UpgradeStoreTestContext();
+        await context.Store.EnsureTablesAsync();
+        var version = await context.Store.GetOrCreateAsync("1.0.0", "0.9.0");
+        await context.Store.SetUpgradingAsync(version, "node-1", DateTimeOffset.UtcNow);
+
+        await context.Store.SetUpgradeFailedAsync(version);
+
+        Assert.False(version.IsUpgrading);
+
+        var reloaded = context.Client.Queryable<SysUpgradeVersion>().Single(item => item.BasicId == version.Id);
+        Assert.False(reloaded.IsUpgrading);
+    }
+
+    /// <summary>
+    /// 更新数据库版本后回写调用方对象
+    /// </summary>
+    [Fact]
+    public async Task 更新数据库版本后回写调用方对象()
+    {
+        using var context = new UpgradeStoreTestContext();
+        await context.Store.EnsureTablesAsync();
+        var version = await context.Store.GetOrCreateAsync("1.0.0", "0.9.0");
+
+        await context.Store.UpdateDbVersionAsync(version, "1.2.0");
+
+        Assert.Equal("1.2.0", version.DbVersion);
+
+        var reloaded = context.Client.Queryable<SysUpgradeVersion>().Single(item => item.BasicId == version.Id);
+        Assert.Equal("1.2.0", reloaded.DbVersion);
+    }
+
+    /// <summary>
+    /// 未经 GetOrCreateAsync 的 version 拒绝写入
+    /// </summary>
+    [Fact]
+    public async Task 未经GetOrCreateAsync的version拒绝写入()
+    {
+        using var context = new UpgradeStoreTestContext();
+        await context.Store.EnsureTablesAsync();
+        var version = new UpgradeVersionState { Id = 0 };
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => context.Store.UpdateDbVersionAsync(version, "1.0.0"));
+    }
+
+    /// <summary>
+    /// 注册扩展以 SqlSugar 存储顶替内存实现
+    /// </summary>
+    [Fact]
+    public void 注册扩展顶替内存实现()
+    {
+        var services = new ServiceCollection();
+        services.TryAddScoped<IUpgradeVersionStore, DefaultUpgradeVersionStore>();
+
+        services.AddXiHanUpgradeSqlSugar();
+
+        var descriptor = Assert.Single(services, item => item.ServiceType == typeof(IUpgradeVersionStore));
+        Assert.Equal(typeof(SqlSugarUpgradeVersionStore), descriptor.ImplementationType);
     }
 }
 
