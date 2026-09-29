@@ -111,6 +111,67 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
     }
 
     /// <summary>
+    /// 当前库还没有版本记录时，按给定版本登记一条
+    /// </summary>
+    /// <remarks>
+    /// 插入因租户键唯一索引冲突失败时按租户键重查，查到即返回 false，查不到则抛出原始异常。
+    /// </remarks>
+    /// <param name="appVersion">应用版本</param>
+    /// <param name="dbVersion">数据库版本</param>
+    /// <param name="minSupportVersion">最小支持版本</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>新登记返回 true，已有记录返回 false（不改动既有记录）</returns>
+    public async Task<bool> TryCreateBaselineAsync(string appVersion, string dbVersion, string minSupportVersion, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var tenantId = _currentTenant?.Id;
+        var tenantKey = UpgradeMapper.BuildTenantKey(tenantId);
+        var client = _clientResolver.GetClientForEntity<SysUpgradeVersion>();
+
+        var exists = await client.Queryable<SysUpgradeVersion>()
+            .Where(item => item.TenantKey == tenantKey)
+            .AnyAsync();
+
+        if (exists)
+        {
+            return false;
+        }
+
+        await OnBeforeInsertAsync(tenantKey, cancellationToken);
+
+        var entity = new SysUpgradeVersion(_idGenerator.NextId())
+        {
+            TenantId = tenantId,
+            TenantKey = tenantKey,
+            AppVersion = UpgradeMapper.NormalizeVersion(appVersion),
+            DbVersion = UpgradeMapper.NormalizeVersion(dbVersion),
+            MinSupportVersion = UpgradeMapper.NormalizeVersion(minSupportVersion),
+            IsUpgrading = false
+        };
+
+        try
+        {
+            await client.Insertable(entity).ExecuteCommandAsync(cancellationToken);
+        }
+        catch (Exception)
+        {
+            var existsAfterConflict = await client.Queryable<SysUpgradeVersion>()
+                .Where(item => item.TenantKey == tenantKey)
+                .AnyAsync();
+
+            if (existsAfterConflict)
+            {
+                return false;
+            }
+
+            throw;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// 在确认租户键不存在、正式插入新行之前调用的钩子
     /// </summary>
     /// <remarks>

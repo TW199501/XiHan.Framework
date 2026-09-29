@@ -102,6 +102,65 @@ public class UpgradeVersionStoreTests
     }
 
     /// <summary>
+    /// 没有版本记录时按给定版本登记一条并返回 true
+    /// </summary>
+    [Fact]
+    public async Task 登记基线时没有记录则新建并返回true()
+    {
+        using var context = new UpgradeStoreTestContext();
+        await context.Store.EnsureTablesAsync();
+
+        var created = await context.Store.TryCreateBaselineAsync("2.0.0", "1.5.0", "1.0.0");
+        var row = context.Client.Queryable<SysUpgradeVersion>().Single(item => item.TenantKey == "host");
+
+        Assert.True(created);
+        Assert.Equal("2.0.0", row.AppVersion);
+        Assert.Equal("1.5.0", row.DbVersion);
+        Assert.Equal("1.0.0", row.MinSupportVersion);
+        Assert.False(row.IsUpgrading);
+    }
+
+    /// <summary>
+    /// 已有版本记录时返回 false 且不改动既有记录
+    /// </summary>
+    [Fact]
+    public async Task 登记基线时已有记录则返回false且不改动()
+    {
+        using var context = new UpgradeStoreTestContext();
+        await context.Store.EnsureTablesAsync();
+        await context.Store.GetOrCreateAsync("1.0.0", "0.9.0");
+
+        var created = await context.Store.TryCreateBaselineAsync("2.0.0", "1.5.0", "1.0.0");
+        var row = context.Client.Queryable<SysUpgradeVersion>().Single(item => item.TenantKey == "host");
+
+        Assert.False(created);
+        Assert.Equal("1.0.0", row.AppVersion);
+        Assert.Equal("0.0.0", row.DbVersion);
+    }
+
+    /// <summary>
+    /// 登记基线时与并发插入冲突，返回 false 且只有一行
+    /// </summary>
+    [Fact]
+    public async Task 登记基线时插入竞态返回false且只有一行()
+    {
+        using var context = new UpgradeStoreTestContext();
+        await context.Store.EnsureTablesAsync();
+
+        var racingStore = new RacingUpgradeVersionStore(
+            new StubClientResolver(context.Client),
+            IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload(),
+            context.Client);
+
+        var created = await racingStore.TryCreateBaselineAsync("2.0.0", "1.5.0", "1.0.0");
+        var rows = context.Client.Queryable<SysUpgradeVersion>().Where(item => item.TenantKey == "host").ToList();
+
+        Assert.False(created);
+        var row = Assert.Single(rows);
+        Assert.Equal("competitor-app-version", row.AppVersion);
+    }
+
+    /// <summary>
     /// 只有成功记录视为已执行
     /// </summary>
     [Fact]
