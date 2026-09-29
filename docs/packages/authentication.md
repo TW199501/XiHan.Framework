@@ -301,5 +301,6 @@ public class MfaService(IOtpService otp)
 
 ## 相关模块
 
+- [XiHan.Framework.Authentication.SqlSugar](./authentication-sqlsugar)（用户、刷新令牌、第三方登录绑定的 SqlSugar 持久化存储）
 - [XiHan.Framework.Authorization](./authorization)（消费令牌声明做授权判定）
 - [XiHan.Framework.Security](./security)
