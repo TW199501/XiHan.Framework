@@ -52,7 +52,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 
 ## Module Catalog
 
-73 modules, one per project under `framework/src`; package names match project names.
+74 modules, one per project under `framework/src`; package names match project names.
 
 ### Common and Core
 
@@ -80,6 +80,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 | `Uow` | Unit of work: AOP interceptors manage transaction boundaries |
 | `Caching` | Hybrid caching: HybridCache (memory + Redis), caching interceptor, tenant awareness |
 | `Authentication` | Authentication: JWT / OAuth2 / OIDC, token factory, MFA, SSO |
+| `Authentication.SqlSugar` | SqlSugar persistence provider for authentication stores: users, refresh tokens (hash-only, reuse detection) and external-login bindings replace the in-memory defaults from `Authentication` |
 | `Authorization` | Authorization: RBAC, policy-based, claims-based |
 | `Security` | Security and cryptography: BouncyCastle primitives, key management, password hashing, data protection |
 | `Security.SqlSugar` | Password history persistence: SqlSugar-backed `IPasswordHistoryStore` implementation |
@@ -188,7 +189,7 @@ Utils (zero third-party deps)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx               # solution file
-│   ├── src/                               # sources (73 modules)
+│   ├── src/                               # sources (74 modules)
 │   │   ├── XiHan.Framework.Utils/         #   utilities
 │   │   ├── XiHan.Framework.Metadata/      #   framework metadata
 │   │   ├── XiHan.Framework.Core/          #   modularity core
@@ -200,7 +201,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   web core
 │   │   ├── XiHan.Framework.Web.Api/       #   dynamic APIs
 │   │   └── ...                            #   other modules
-│   ├── test/                              # tests (one per src project, 73 unit-test projects)
+│   ├── test/                              # tests (one per src project, 74 unit-test projects)
 │   │   ├── XiHan.Framework.Utils.Tests/   #   utilities tests
 │   │   ├── XiHan.Framework.Core.Tests/    #   core tests
 │   │   └── ...                            #   the rest follow <Project>.Tests

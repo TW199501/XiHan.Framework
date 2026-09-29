@@ -52,7 +52,7 @@
 
 ## 模块清单
 
-共 73 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
+共 74 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
 
 ### 公共与核心
 
@@ -80,6 +80,7 @@
 | `Uow` | 工作单元：AOP 拦截器自动管理事务边界 |
 | `Caching` | 混合缓存：HybridCache（内存 + Redis）、缓存拦截器、租户感知 |
 | `Authentication` | 认证：JWT / OAuth2 / OIDC、令牌工厂、MFA、SSO |
+| `Authentication.SqlSugar` | 认证存储 SqlSugar 提供程序：用户、刷新令牌（只存哈希、重用检测）与第三方登录绑定，以 Replace 顶替 Authentication 的内存实现 |
 | `Authorization` | 授权：RBAC、策略授权、声明授权 |
 | `Security` | 安全与加密：BouncyCastle 企业级密码学、密钥管理、密码哈希、数据保护 |
 | `Security.SqlSugar` | 密码历史 SqlSugar 持久化：`IPasswordHistoryStore` 的 SqlSugar 落库实现 |
@@ -188,7 +189,7 @@ Utils (零第三方依赖)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx              # 解决方案文件
-│   ├── src/                               # 源码（73 个模块）
+│   ├── src/                               # 源码（74 个模块）
 │   │   ├── XiHan.Framework.Utils/         #   公共工具
 │   │   ├── XiHan.Framework.Metadata/      #   框架元数据
 │   │   ├── XiHan.Framework.Core/          #   模块化核心
@@ -200,7 +201,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   Web 核心
 │   │   ├── XiHan.Framework.Web.Api/       #   动态 API
 │   │   └── ...                            #   其他模块
-│   ├── test/                              # 测试（src 下每个项目一一对应，共 73 个单测工程）
+│   ├── test/                              # 测试（src 下每个项目一一对应，共 74 个单测工程）
 │   │   ├── XiHan.Framework.Utils.Tests/   #   工具测试
 │   │   ├── XiHan.Framework.Core.Tests/    #   内核测试
 │   │   └── ...                            #   其余按 <项目名>.Tests 一一对应
