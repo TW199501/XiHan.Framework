@@ -1,0 +1,41 @@
+docs/packages/auditing-sqlsugar.md
+  s_94057b8e5cf9b6::t_031d3d03d0c186 178
+docs/packages/eventbus-sqlsugar.md
+  s_94057b8e5cf9b6::t_61d81b5c7661b3 119-120,169,196-199
+framework/src/XiHan.Framework.EventBus.SqlSugar/Entities/SysEventOutbox.cs
+  s_94057b8e5cf9b6::t_47cd7877be57f5 14
+framework/src/XiHan.Framework.EventBus.SqlSugar/Extensions/DependencyInjection/XiHanSqlSugarEventBusServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_1724d54e703759 33-38
+framework/src/XiHan.Framework.EventBus.SqlSugar/Inbox/SqlSugarEventInbox.cs
+  s_94057b8e5cf9b6::t_c3e10b3b954e55 191,253
+framework/src/XiHan.Framework.EventBus.SqlSugar/Outbox/SqlSugarEventOutbox.cs
+  s_94057b8e5cf9b6::t_e375b58e47a557 13,23,31,36,41,54-55,61-91
+framework/src/XiHan.Framework.EventBus.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_02474a40e4b130 32,55
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/InboxStateTests.cs
+  s_94057b8e5cf9b6::t_42108b9e06dd97 131-168,201,237,269
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxConcurrencyTests.cs
+  s_94057b8e5cf9b6::t_397cde0aa4aec6 99
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxEnqueueTests.cs
+  s_94057b8e5cf9b6::t_c25071ea29f402 202-239
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxRegistrationTests.cs
+  s_94057b8e5cf9b6::t_089338c422b484 10,53-109
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxTestContext.cs
+  s_94057b8e5cf9b6::t_baa5cdcc81cf86 70-71,74,92-96,179-183,242
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f1d0160edcf9878566ade0c7a2dbb1790eae759b",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
