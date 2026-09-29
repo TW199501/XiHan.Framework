@@ -1,0 +1,25 @@
+framework/src/XiHan.Framework.Authentication.SqlSugar/Entities/SysAuthExternalLogin.cs
+  s_94057b8e5cf9b6::t_939b761dbe3940 1-79
+framework/src/XiHan.Framework.Authentication.SqlSugar/ExternalLogins/SqlSugarExternalLoginStore.cs
+  s_94057b8e5cf9b6::t_a362d614a26019 1-177
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/AuthenticationTestContext.cs
+  s_94057b8e5cf9b6::t_be5e6a9f142c88 8,122-130
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/ExternalLoginStoreTests.cs
+  s_94057b8e5cf9b6::t_09cb87ea592536 1-220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4ec2441adf9de30c55154aec26b8849b2c8bd052",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
