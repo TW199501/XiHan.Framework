@@ -428,6 +428,7 @@ services.AddHostedService<OutboxConsumer>();
 
 ## 相关模块
 
+- [XiHan.Framework.Tasks.SqlSugar](./tasks-sqlsugar) — 后台作业、定时任务实例与执行历史的 SqlSugar 持久化存储。
 - [XiHan.Framework.Caching](./caching) — 分布式锁与缓存底座。
 - [XiHan.Framework.MultiTenancy](./multitenancy) — 多租户上下文来源。
 - [XiHan.Framework.Observability](./observability) — 可观测性，配合任务指标与追踪。
