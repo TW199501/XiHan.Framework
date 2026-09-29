@@ -2,6 +2,7 @@
 <!--
   代码覆盖率采集设置，由 ci.yml 的测试步骤以绝对路径传入。
   从覆盖率插桩中排除 XiHan.Framework.Docs.Mcp 程序集，该程序集的测试照常执行。
+  规避第三方插桩缺陷，上游修复后移除此排除。
 -->
 <Configuration>
   <CodeCoverage>
