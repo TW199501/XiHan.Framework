@@ -64,6 +64,7 @@ DDD 分层与应用服务契约。
 | [Authentication](./authentication) | 认证：JWT / OAuth2 / OIDC、令牌工厂、MFA、SSO |
 | [Authentication.SqlSugar](./authentication-sqlsugar) | 认证存储 SqlSugar 提供程序：用户、刷新令牌（只存哈希、重用检测）与第三方登录绑定落库，替换内存实现 |
 | [Authorization](./authorization) | 授权：RBAC、策略授权、声明授权 |
+| [Authorization.SqlSugar](./authorization-sqlsugar) | 授权存储 SqlSugar 提供程序：权限、角色、策略落库，查表式权限检查器每次判定至多两条 SQL |
 
 ## 5. 多租户 · 配置 · 校验
 
