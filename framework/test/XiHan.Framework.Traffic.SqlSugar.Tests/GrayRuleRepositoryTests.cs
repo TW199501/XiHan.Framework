@@ -192,7 +192,8 @@ internal sealed class GrayRuleTestContext : IDisposable
     /// 构造函数
     /// </summary>
     /// <param name="refreshInterval">缓存刷新间隔，默认 30 秒</param>
-    public GrayRuleTestContext(TimeSpan? refreshInterval = null)
+    /// <param name="timeProvider">时间提供器，默认系统时间</param>
+    public GrayRuleTestContext(TimeSpan? refreshInterval = null, TimeProvider? timeProvider = null)
     {
         _databaseFile = Path.Combine(Path.GetTempPath(), $"xihan_gray_rule_{Guid.NewGuid():N}.db");
 
@@ -222,7 +223,8 @@ internal sealed class GrayRuleTestContext : IDisposable
         Repository = new SqlSugarGrayRuleRepository(
             _serviceProvider.GetRequiredService<IServiceScopeFactory>(),
             Microsoft.Extensions.Options.Options.Create(new XiHanTrafficSqlSugarOptions { RefreshInterval = refreshInterval ?? TimeSpan.FromSeconds(30) }),
-            NullLogger<SqlSugarGrayRuleRepository>.Instance);
+            NullLogger<SqlSugarGrayRuleRepository>.Instance,
+            timeProvider ?? TimeProvider.System);
     }
 
     /// <summary>

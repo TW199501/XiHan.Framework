@@ -3,6 +3,7 @@
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using XiHan.Framework.Traffic.Extensions.DependencyInjection;
 using XiHan.Framework.Traffic.SqlSugar.Options;
 using XiHan.Framework.Traffic.SqlSugar.Repositories;
@@ -23,6 +24,7 @@ public static class XiHanTrafficSqlSugarServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.TryAddSingleton<TimeProvider>(TimeProvider.System);
         services.ReplaceGrayRuleRepository<SqlSugarGrayRuleRepository>();
 
         return services;

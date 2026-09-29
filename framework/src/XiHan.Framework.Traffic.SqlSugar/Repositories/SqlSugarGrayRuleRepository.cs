@@ -30,10 +30,11 @@ public class SqlSugarGrayRuleRepository : IGrayRuleRepository
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly XiHanTrafficSqlSugarOptions _options;
     private readonly ILogger<SqlSugarGrayRuleRepository> _logger;
+    private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
 
     private volatile Dictionary<string, GrayRule> _cache = new(StringComparer.Ordinal);
-    private long _lastRefreshTicks = DateTime.MinValue.Ticks;
+    private long _lastRefreshTicks;
 
     /// <summary>
     /// 构造函数
@@ -41,14 +42,17 @@ public class SqlSugarGrayRuleRepository : IGrayRuleRepository
     /// <param name="scopeFactory">服务范围工厂，用于按需解析 Scoped 的客户端解析器</param>
     /// <param name="options">缓存刷新配置</param>
     /// <param name="logger">日志记录器</param>
+    /// <param name="timeProvider">时间提供器</param>
     public SqlSugarGrayRuleRepository(
         IServiceScopeFactory scopeFactory,
         IOptions<XiHanTrafficSqlSugarOptions> options,
-        ILogger<SqlSugarGrayRuleRepository> logger)
+        ILogger<SqlSugarGrayRuleRepository> logger,
+        TimeProvider timeProvider)
     {
         _scopeFactory = scopeFactory;
         _options = options.Value;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     /// <summary>
@@ -164,12 +168,13 @@ public class SqlSugarGrayRuleRepository : IGrayRuleRepository
             }
 
             _cache = loaded;
-            Volatile.Write(ref _lastRefreshTicks, DateTime.UtcNow.Ticks);
+            Volatile.Write(ref _lastRefreshTicks, _timeProvider.GetUtcNow().UtcTicks);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             var backoff = _options.RefreshInterval < MaxFailureBackoff ? _options.RefreshInterval : MaxFailureBackoff;
-            Volatile.Write(ref _lastRefreshTicks, (DateTime.UtcNow - _options.RefreshInterval + backoff).Ticks);
+            var deferTicks = Math.Max(_options.RefreshInterval.Ticks - backoff.Ticks, 0);
+            Volatile.Write(ref _lastRefreshTicks, Math.Max(_timeProvider.GetUtcNow().UtcTicks - deferTicks, 1));
 
             _logger.LogWarning(ex, "灰度规则加载失败，保留上次成功加载的规则，{Backoff} 后重试", backoff);
             throw;
@@ -181,8 +186,12 @@ public class SqlSugarGrayRuleRepository : IGrayRuleRepository
     /// </summary>
     private bool IsExpired()
     {
-        var elapsedTicks = DateTime.UtcNow.Ticks - Volatile.Read(ref _lastRefreshTicks);
+        var lastRefreshTicks = Volatile.Read(ref _lastRefreshTicks);
+        if (lastRefreshTicks == 0)
+        {
+            return true;
+        }
 
-        return elapsedTicks >= _options.RefreshInterval.Ticks;
+        return _timeProvider.GetUtcNow().UtcTicks - lastRefreshTicks >= _options.RefreshInterval.Ticks;
     }
 }
