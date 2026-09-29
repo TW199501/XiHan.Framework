@@ -124,9 +124,19 @@ public class SqlSugarExternalLoginStore : IExternalLoginStore
         {
             await client.Insertable(entity).ExecuteCommandAsync();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            var conflict = await FindAsync(client, effectiveTenantId, info.Provider, info.ProviderKey);
+            SysAuthExternalLogin? conflict;
+
+            try
+            {
+                conflict = await FindAsync(client, effectiveTenantId, info.Provider, info.ProviderKey);
+            }
+            catch (Exception requeryException)
+            {
+                throw new AggregateException(ex, requeryException);
+            }
+
             if (conflict is null)
             {
                 throw;

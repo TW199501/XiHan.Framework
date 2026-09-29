@@ -370,9 +370,20 @@ public class SqlSugarUserStore : IUserStore
         {
             await client.Insertable(AuthUserMapper.ToEntity(user, id, tenantId)).ExecuteCommandAsync();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            if (await FindByUserNameAsync(client, tenantId, user.Username) is not null)
+            SysAuthUser? conflict;
+
+            try
+            {
+                conflict = await FindByUserNameAsync(client, tenantId, user.Username);
+            }
+            catch (Exception requeryException)
+            {
+                throw new AggregateException(ex, requeryException);
+            }
+
+            if (conflict is not null)
             {
                 throw new InvalidOperationException($"用户名 {user.Username} 已存在");
             }

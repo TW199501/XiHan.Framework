@@ -213,8 +213,8 @@ services.Replace(ServiceDescriptor.Singleton<IRefreshTokenStore, SqlSugarRefresh
 - **`OptIn` 建表模式**下本包的表不会自动创建
 - **失败计数与锁定参与当前工作单元**：`IncrementFailedLoginAttemptsAsync` / `SetLockoutEndAsync` 与业务写入同属当前工作单元。下游在登录失败时若抛出异常导致事务回滚，失败计数与锁定会一起回滚，账户锁定即失效；登录失败应以返回值表示，不要抛异常，或在独立的工作单元中记录失败
 - **`RowVersion` 不递增**：实体带 `RowVersion` 版本验证列，但本包的存储以 `SetColumns` 更新，不递增版本
-- **唯一索引冲突按契约转抛**：`AddUserAsync` 与第三方登录 `CreateAsync` 先查后插，并发插入撞唯一索引时会重查；同名用户或其他用户的绑定已存在则抛 `InvalidOperationException`，查不到则原样抛出
-- **PostgreSQL 事务内的插入竞态**：若 `AddUserAsync` 或第三方登录 `CreateAsync` 在事务型工作单元内执行，PostgreSQL 上唯一冲突会使整个事务中止，随后的重查也会失败，竞态以异常形式暴露，且重查抛出的异常会取代原始的插入异常。在事务外调用即可避免
+- **唯一索引冲突按契约转抛**：`AddUserAsync` 与第三方登录 `CreateAsync` 先查后插，并发插入撞唯一索引时会重查；同名用户或其他用户的绑定已存在则抛 `InvalidOperationException`，查不到则原样抛出；重查本身失败时抛出 `AggregateException`，同时包含原插入异常与重查异常
+- **PostgreSQL 事务内的插入竞态**：若 `AddUserAsync` 或第三方登录 `CreateAsync` 在事务型工作单元内执行，PostgreSQL 上唯一冲突会使整个事务中止，随后的重查也会失败，此时抛出 `AggregateException`，同时包含原插入异常与重查异常。在事务外调用即可避免
 
 ## 依赖模块
 
