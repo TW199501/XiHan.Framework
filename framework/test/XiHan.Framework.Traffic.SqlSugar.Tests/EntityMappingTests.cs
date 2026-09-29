@@ -117,4 +117,31 @@ public class EntityMappingTests
         Assert.Equal(expectedUtc, roundTrip.ExpiryTime);
         Assert.Equal(DateTimeKind.Utc, roundTrip.CreatedTime.Kind);
     }
+
+    /// <summary>
+    /// 本地时间转换为同一时刻的 UTC 后往返
+    /// </summary>
+    [Fact]
+    public void 本地时间转换为同一时刻的UTC后往返()
+    {
+        var local = new DateTime(2026, 9, 28, 10, 30, 0, DateTimeKind.Local);
+        var model = new GrayRule
+        {
+            RuleId = "rule-3",
+            RuleName = "本地时间",
+            CreatedTime = local,
+            UpdatedTime = local,
+            EffectiveTime = local,
+            ExpiryTime = local
+        };
+
+        var roundTrip = GrayRuleMapper.ToModel(GrayRuleMapper.ToEntity(model));
+
+        var expectedUtc = local.ToUniversalTime();
+
+        Assert.Equal(expectedUtc, roundTrip.CreatedTime);
+        Assert.Equal(expectedUtc, roundTrip.UpdatedTime);
+        Assert.Equal(expectedUtc, roundTrip.EffectiveTime);
+        Assert.Equal(expectedUtc, roundTrip.ExpiryTime);
+    }
 }

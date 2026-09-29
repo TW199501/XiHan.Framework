@@ -66,24 +66,28 @@ public static class GrayRuleMapper
     }
 
     /// <summary>
-    /// 把未标注时区的时间按 UTC 解释后转换为 DateTimeOffset
+    /// 把时间转换为偏移为零的 DateTimeOffset
     /// </summary>
     /// <remarks>
-    /// 把 <paramref name="value"/> 的 <see cref="DateTime.Kind"/> 统一视为 <see cref="DateTimeKind.Utc"/>
-    /// 后再转换为 <see cref="DateTimeOffset"/>，忽略原有的 <see cref="DateTime.Kind"/> 标注。
+    /// <see cref="DateTimeKind.Local"/> 转换为同一时刻的 UTC；
+    /// <see cref="DateTimeKind.Unspecified"/> 与 <see cref="DateTimeKind.Utc"/> 按 UTC 解释。
     /// </remarks>
     /// <param name="value">原始时间</param>
-    /// <returns>按 UTC 解释后的时间</returns>
+    /// <returns>偏移为零的时间</returns>
     private static DateTimeOffset ToUtcOffset(DateTime value)
     {
-        return new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc));
+        var utc = value.Kind == DateTimeKind.Local
+            ? value.ToUniversalTime()
+            : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
+        return new DateTimeOffset(utc);
     }
 
     /// <summary>
-    /// 把可空的未标注时区时间按 UTC 解释后转换为 DateTimeOffset
+    /// 把可空的时间转换为偏移为零的 DateTimeOffset
     /// </summary>
     /// <param name="value">原始时间</param>
-    /// <returns>按 UTC 解释后的时间，输入为空时返回空</returns>
+    /// <returns>偏移为零的时间，输入为空时返回空</returns>
     private static DateTimeOffset? ToUtcOffset(DateTime? value)
     {
         return value.HasValue ? ToUtcOffset(value.Value) : null;
