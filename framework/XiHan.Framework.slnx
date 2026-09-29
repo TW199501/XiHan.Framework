@@ -64,6 +64,7 @@
     <Project Path="src/XiHan.Framework.Serialization/XiHan.Framework.Serialization.csproj" />
     <Project Path="src/XiHan.Framework.Settings.SqlSugar/XiHan.Framework.Settings.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Tasks/XiHan.Framework.Tasks.csproj" />
+    <Project Path="src/XiHan.Framework.Tasks.SqlSugar/XiHan.Framework.Tasks.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Templating/XiHan.Framework.Templating.csproj" />
     <Project Path="src/XiHan.Framework.Threading/XiHan.Framework.Threading.csproj" />
     <Project Path="src/XiHan.Framework.Timing/XiHan.Framework.Timing.csproj" />
@@ -137,6 +138,7 @@
     <Project Path="test/XiHan.Framework.Settings.SqlSugar.Tests/XiHan.Framework.Settings.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Settings.Tests/XiHan.Framework.Settings.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Tasks.Tests/XiHan.Framework.Tasks.Tests.csproj" />
+    <Project Path="test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHan.Framework.Tasks.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Templating.Tests/XiHan.Framework.Templating.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Threading.Tests/XiHan.Framework.Threading.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Timing.Tests/XiHan.Framework.Timing.Tests.csproj" />

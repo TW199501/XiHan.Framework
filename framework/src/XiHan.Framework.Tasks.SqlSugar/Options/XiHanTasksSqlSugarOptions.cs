@@ -1,0 +1,20 @@
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+namespace XiHan.Framework.Tasks.SqlSugar.Options;
+
+/// <summary>
+/// 任务 SqlSugar 存储配置
+/// </summary>
+public class XiHanTasksSqlSugarOptions
+{
+    /// <summary>
+    /// 配置节名称
+    /// </summary>
+    public const string SectionName = "XiHan:Tasks:SqlSugar";
+
+    /// <summary>
+    /// 后台作业租约时长，领取后超过该时长仍未删除或更新的作业可被重新领取
+    /// </summary>
+    public TimeSpan BackgroundJobLeaseTimeout { get; set; } = TimeSpan.FromMinutes(5);
+}

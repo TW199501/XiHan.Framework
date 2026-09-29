@@ -1,0 +1,33 @@
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using XiHan.Framework.Tasks.SqlSugar.Options;
+
+namespace XiHan.Framework.Tasks.SqlSugar.Extensions.DependencyInjection;
+
+/// <summary>
+/// 任务 SqlSugar 存储服务集合扩展
+/// </summary>
+public static class XiHanTasksSqlSugarServiceCollectionExtensions
+{
+    /// <summary>
+    /// 以 SqlSugar 存储替换任务模块的进程内存储
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <param name="configuration">配置</param>
+    /// <returns>服务集合</returns>
+    public static IServiceCollection AddXiHanTasksSqlSugar(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        services.Configure<XiHanTasksSqlSugarOptions>(
+            configuration.GetSection(XiHanTasksSqlSugarOptions.SectionName));
+
+        return services;
+    }
+}
