@@ -1,0 +1,27 @@
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_ecc791f9a6f5ab 149
+framework/src/XiHan.Framework.Traffic.SqlSugar/Entities/SysGrayRule.cs
+  s_94057b8e5cf9b6::t_2f65decffd9ef7 1-101
+framework/src/XiHan.Framework.Traffic.SqlSugar/Mapping/GrayRuleMapper.cs
+  s_94057b8e5cf9b6::t_be3f467d714bfd 1-91
+framework/test/XiHan.Framework.Traffic.SqlSugar.Tests/EntityMappingTests.cs
+  s_94057b8e5cf9b6::t_33ed462265cb0b 1-120
+framework/test/XiHan.Framework.Traffic.SqlSugar.Tests/XiHan.Framework.Traffic.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_fb9baea8d7ad6f 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7075351d2689f62875730efd1afd400847c188cf",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
