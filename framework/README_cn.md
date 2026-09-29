@@ -52,7 +52,7 @@
 
 ## 模块清单
 
-共 69 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
+共 70 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
 
 ### 公共与核心
 
@@ -113,6 +113,7 @@
 | `Timing` | 时间策略：时区管理、时间抽象 |
 | `Templating` | 模板渲染：Scriban 引擎、模板注册表 |
 | `Tasks` | 定时任务与后台作业：调度引擎、后台服务、多租户感知 |
+| `Tasks.SqlSugar` | 任务 SqlSugar 持久化提供程序：后台作业入队与业务同事务、多实例领取互斥，定时任务实例与执行历史落库 |
 | `Traffic` | 流量治理：灰度路由（规则引擎 + Header / IP / 百分比 / 租户 / 用户 匹配器）；限流与熔断仅提供策略接口 |
 | `Upgrade` | 升级引擎：版本存储、迁移执行、分布式锁、启动自动检查 |
 | `AI.Abstractions` | AI 抽象层：智能体、对话、配置、护栏、提示词、RAG、技能等接口契约 |
@@ -184,7 +185,7 @@ Utils (零第三方依赖)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx              # 解决方案文件
-│   ├── src/                               # 源码（69 个模块）
+│   ├── src/                               # 源码（70 个模块）
 │   │   ├── XiHan.Framework.Utils/         #   公共工具
 │   │   ├── XiHan.Framework.Metadata/      #   框架元数据
 │   │   ├── XiHan.Framework.Core/          #   模块化核心
@@ -196,7 +197,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   Web 核心
 │   │   ├── XiHan.Framework.Web.Api/       #   动态 API
 │   │   └── ...                            #   其他模块
-│   ├── test/                              # 测试（src 下每个项目一一对应，共 69 个单测工程）
+│   ├── test/                              # 测试（src 下每个项目一一对应，共 70 个单测工程）
 │   │   ├── XiHan.Framework.Utils.Tests/   #   工具测试
 │   │   ├── XiHan.Framework.Core.Tests/    #   内核测试
 │   │   └── ...                            #   其余按 <项目名>.Tests 一一对应
