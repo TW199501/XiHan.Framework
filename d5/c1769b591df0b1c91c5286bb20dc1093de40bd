@@ -1,0 +1,29 @@
+docs/packages/security-sqlsugar.md
+  s_94057b8e5cf9b6::t_9cae719b663ad8 64-65,68
+framework/src/XiHan.Framework.Security.SqlSugar/Entities/SysPasswordHistory.cs
+  s_94057b8e5cf9b6::t_6832f02bf213c6 13-15
+framework/src/XiHan.Framework.Security.SqlSugar/Extensions/DependencyInjection/XiHanSecuritySqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_c513d2d90217c5 25-27
+framework/src/XiHan.Framework.Security.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_398efab71871fe 19
+framework/src/XiHan.Framework.Security.SqlSugar/Services/SqlSugarPasswordHistoryStore.cs
+  s_94057b8e5cf9b6::t_4af6095f36ac94 52,86
+framework/test/XiHan.Framework.Security.SqlSugar.Tests/PasswordHistoryStoreTests.cs
+  s_94057b8e5cf9b6::t_5b25296d226ac2 7,115-168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d5c1769b591df0b1c91c5286bb20dc1093de40bd",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
