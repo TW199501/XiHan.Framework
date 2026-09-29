@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using XiHan.Framework.EventBus.Abstractions.Distributed;
 using XiHan.Framework.EventBus.Distributed;
+using XiHan.Framework.EventBus.SqlSugar.Inbox;
 using XiHan.Framework.EventBus.SqlSugar.Options;
 using XiHan.Framework.EventBus.SqlSugar.Outbox;
 
@@ -17,7 +18,7 @@ namespace XiHan.Framework.EventBus.SqlSugar.Extensions.DependencyInjection;
 public static class XiHanSqlSugarEventBusServiceCollectionExtensions
 {
     /// <summary>
-    /// 以 SqlSugar 发件箱替换默认的进程内发件箱
+    /// 以 SqlSugar 收发件箱替换默认的进程内收发件箱
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <param name="configuration">配置</param>
@@ -35,10 +36,14 @@ public static class XiHanSqlSugarEventBusServiceCollectionExtensions
         services.Configure<XiHanDistributedEventBusOptions>(options =>
         {
             options.Outboxes.Configure(config => config.ImplementationType = typeof(SqlSugarEventOutbox));
+            options.Inboxes.Configure(config => config.ImplementationType = typeof(SqlSugarEventInbox));
         });
 
         services.TryAddScoped<SqlSugarEventOutbox>();
         services.Replace(ServiceDescriptor.Scoped<IEventOutbox, SqlSugarEventOutbox>());
+
+        services.TryAddScoped<SqlSugarEventInbox>();
+        services.Replace(ServiceDescriptor.Scoped<IEventInbox, SqlSugarEventInbox>());
 
         return services;
     }

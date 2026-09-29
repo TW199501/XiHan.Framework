@@ -13,7 +13,7 @@ namespace XiHan.Framework.EventBus.SqlSugar;
 /// </summary>
 /// <remarks>
 /// 在应用模块上 <c>[DependsOn(typeof(XiHanSqlSugarEventBusModule))]</c> 即启用。
-/// 本模块以 SqlSugar 发件箱替换默认的进程内发件箱；收件箱在后续版本提供。
+/// 本模块以 SqlSugar 收发件箱替换默认的进程内收发件箱。
 /// 配置节：<c>XiHan:EventBus:SqlSugar</c>。
 /// </remarks>
 [DependsOn(
