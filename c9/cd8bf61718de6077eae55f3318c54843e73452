@@ -1,0 +1,51 @@
+docs/guide/gateway.md
+  s_94057b8e5cf9b6::t_70a81f68b83e6c 224
+docs/packages/traffic-sqlsugar.md
+  s_94057b8e5cf9b6::t_591a32c76c107b 1-112
+docs/packages/traffic.md
+  s_94057b8e5cf9b6::t_9462b705264750 42,153,172
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_ba9d2aa4a5e109 68,137
+framework/src/XiHan.Framework.Traffic.SqlSugar/Entities/SysGrayRule.cs
+  s_94057b8e5cf9b6::t_7d1848b69380ea 1-101
+framework/src/XiHan.Framework.Traffic.SqlSugar/Extensions/DependencyInjection/XiHanTrafficSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_b5683ce470cc62 1-53
+framework/src/XiHan.Framework.Traffic.SqlSugar/Mapping/GrayRuleMapper.cs
+  s_94057b8e5cf9b6::t_dc21af3523e77f 1-95
+framework/src/XiHan.Framework.Traffic.SqlSugar/Options/XiHanTrafficSqlSugarOptions.cs
+  s_94057b8e5cf9b6::t_8bc145829dfb51 1-20
+framework/src/XiHan.Framework.Traffic.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_74ea0fc285419c 1-48
+framework/src/XiHan.Framework.Traffic.SqlSugar/Repositories/SqlSugarGrayRuleRepository.cs
+  s_94057b8e5cf9b6::t_fffdcca79a56a8 1-197
+framework/src/XiHan.Framework.Traffic.SqlSugar/XiHan.Framework.Traffic.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_147eb313436771 1-21
+framework/src/XiHan.Framework.Traffic.SqlSugar/XiHanTrafficSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_71b3d32f4420fe 1-35
+framework/test/XiHan.Framework.Traffic.SqlSugar.Tests/EntityMappingTests.cs
+  s_94057b8e5cf9b6::t_5fa8d4784ad6e9 1-147
+framework/test/XiHan.Framework.Traffic.SqlSugar.Tests/GrayRuleRefreshResilienceTests.cs
+  s_94057b8e5cf9b6::t_bcd37365bfea29 1-237
+framework/test/XiHan.Framework.Traffic.SqlSugar.Tests/GrayRuleRepositoryTests.cs
+  s_94057b8e5cf9b6::t_166f51493a9570 1-356
+framework/test/XiHan.Framework.Traffic.SqlSugar.Tests/TrafficSqlSugarOptionsTests.cs
+  s_94057b8e5cf9b6::t_4200f7315ceed2 1-69
+framework/test/XiHan.Framework.Traffic.SqlSugar.Tests/XiHan.Framework.Traffic.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_878cb895f66075 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c9cd8bf61718de6077eae55f3318c54843e73452",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
