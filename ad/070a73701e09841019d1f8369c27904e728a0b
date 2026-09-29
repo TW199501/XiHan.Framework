@@ -1,0 +1,23 @@
+framework/src/XiHan.Framework.Authentication.SqlSugar/Mapping/AuthUserMapper.cs
+  s_94057b8e5cf9b6::t_1f0121d758805b 1-144
+framework/src/XiHan.Framework.Authentication.SqlSugar/Mapping/StorageTime.cs
+  s_94057b8e5cf9b6::t_74e1070f2da993 1-58
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/AuthUserMapperTests.cs
+  s_94057b8e5cf9b6::t_36bc07fba1b3c5 1-163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ad070a73701e09841019d1f8369c27904e728a0b",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
