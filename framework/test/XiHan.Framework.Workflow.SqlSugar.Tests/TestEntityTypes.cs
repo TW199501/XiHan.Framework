@@ -13,5 +13,10 @@ internal static class TestEntityTypes
     /// <summary>
     /// 全部工作流实体类型
     /// </summary>
-    public static Type[] All { get; } = [typeof(SysWorkflowDefinition)];
+    public static Type[] All { get; } =
+    [
+        typeof(SysWorkflowDefinition),
+        typeof(SysWorkflowInstance),
+        typeof(SysWorkflowNodeInstance)
+    ];
 }
