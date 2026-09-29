@@ -1,215 +1,129 @@
 # AGENTS.md
 
-面向编码 Agent 的操作手册。本仓库是**纯类库**，没有可运行的宿主应用；改动必须可被下游应用（如 XiHan.BasicApp）以 NuGet 包消费。
+本文件约束在 XiHan.Framework 仓库内工作的 AI Agent。回答、文档与提交说明使用中文；代码标识、公开 API 和标准技术术语保持英文。
 
-当前版本 **3.13.1**，目标框架 **net10.0**，SDK 以根目录 `global.json` 为准（`10.0.302`，`rollForward: latestPatch` —— 锁在 10.0.3xx 功能带，10.0.4xx 下解决方案还原会全线失败）。解决方案是 **`framework/XiHan.Framework.slnx`**（slnx，不是 `.sln`）。`framework/src/` 下 66 个项目各自发布为同名 NuGet 包，版本号统一，不单独发某个包。
+## 仓库概览
 
-查代码优先用 CodeGraph（根目录 `.codegraph/`）：MCP `codegraph_explore` 或 `codegraph explore "<符号或问题>"`。跨模块调用链与影响面比 grep + 逐个 Read 准。
+XiHan.Framework 是面向 .NET 10 的模块化应用框架。仓库以分层模块、显式依赖和统一生命周期为核心，公共默认实现保持零外部基础设施依赖，具体数据库、缓存和消息实现由应用层提供。
 
-更完整的人类文档：根 `README.md`、模块内 `README.md`、文档站源码 `docs/`（部署到 https://framework.docs.xihanfun.com）。
+### 技术栈
 
----
+| 技术 | 要求 | 用途 |
+| --- | --- | --- |
+| .NET SDK | `global.json` 锁定的 10.0.1xx 功能带 | 编译与运行 |
+| C# | Nullable + ImplicitUsings | 框架源码 |
+| Microsoft.Testing.Platform | 由 `global.json` 启用 | 测试运行器 |
+| xUnit v3 | 以 `framework/props/test.props` 为准 | 单元与集成测试 |
+| VitePress | 以 `docs/package.json` 为准 | 文档站 |
 
-## 目录地图
+## 开始前必须做
+
+1. 按任务读取对应技能：模块、分层与公共 API 读取 `.agents/skills/module-development/SKILL.md`；缓存、队列和外部资源读取 `.agents/skills/resource-governance/SKILL.md`；测试、文档、打包和发布读取 `.agents/skills/testing-release/SKILL.md`。
+2. 同时涉及多个职责时加载对应多个技能，不要一次读取无关资料。
+3. 检查当前分支、`git status` 和最近提交；保留用户已有改动。
+4. 阅读目标模块及其直接依赖的 README、项目文件、Module 类和相邻实现。
+5. 先确认能力应归属 Utils、Metadata、Core、Domain、Application、Infrastructure 还是 Web 层，再创建代码。
+6. 查找已有接口、默认实现、扩展方法与测试，不重复建设相同能力。
+
+## 目录结构
 
 ```text
-.
-├── framework/
-│   ├── XiHan.Framework.slnx          # 唯一解决方案（按 7 层文件夹组织）
-│   ├── src/                          # 66 个可打包库项目
-│   ├── test/                         # xunit.v3 测试（CI 强门禁）
-│   ├── tool/                         # 仓库内工具（不发布）
-│   ├── props/                        # 共享 MSBuild：netcore / common / version / nuget / test
-│   ├── nuget/                        # 打进每个包的 LICENSE / logo / readme
-│   ├── nupkgs/                       # 本机构建产物（GeneratePackageOnBuild=true）
-│   ├── scripts/                      # 交互式本机脚本，禁止在自动化里调用
-│   └── .editorconfig                 # C# 风格（以这里为准，不要靠感觉）
-├── docs/                             # VitePress 文档站
-│   ├── guide/                        # 概念指南
-│   ├── packages/                     # 每包一页
-│   └── .vitepress/config.ts          # 侧边栏
-├── .github/workflows/                # ci.yml 只构建+测试；deploy-docs.yml 发文档站
-└── global.json                       # SDK 锁定
+/
+├─ AGENTS.md
+├─ .agents/skills/                 # 按模块、资源和发布分类的仓库技能
+├─ .claude/skills -> ../.agents/skills
+├─ CLAUDE.md -> AGENTS.md
+├─ docs/                           # VitePress 文档站
+├─ framework/
+│  ├─ XiHan.Framework.slnx         # 主解决方案
+│  ├─ props/                       # 公共构建、测试、包元数据
+│  ├─ scripts/                     # 项目维护与 NuGet 脚本
+│  ├─ src/                         # 正式模块
+│  ├─ test/                        # 单元与集成测试
+│  ├─ sample/                      # 示例
+│  └─ tool/                        # 工具项目
+└─ next/                           # 下一阶段设计与实验；不等同于正式 API
 ```
-
-`slnx` 分层文件夹（新增项目必须放对层，禁止反向引用）：
-
-| 文件夹 | 层 | 代表项目 |
-| --- | --- | --- |
-| `/1.src/1.Common/` | Utils / Analyzers | `Utils`（零依赖工具）、`Analyzers`（Roslyn） |
-| `/1.src/2.Metadata/` | 元数据 | `Metadata` |
-| `/1.src/3.Core/` | 核心 | `Core`（模块系统 / DI / 生命周期） |
-| `/1.src/4.Domain/` | 领域 | `Domain`、`Domain.Shared` |
-| `/1.src/5.Application/` | 应用 | `Application`、`Application.Contracts`、`MultiTenancy*`、`Validation*`、`Settings` |
-| `/1.src/6.Infrastructure/` | 基础设施 | `Data`、`Caching`、`EventBus*`、`AI*`、`Bot*`、`Uow`、`Workflow*` 等 |
-| `/1.src/7.Web/` | Web | `Web.Core`、`Web.Api`、`Web.Mcp`、`Web.Docs`、`Web.Gateway`、`Web.Grpc`、`Web.RealTime` |
-
-`Abstractions` 后缀包只放接口契约，实现包依赖它，禁止反过来。可插拔实现拆成兄弟子包（`EventBus.Kafka`、`Bot.Telegram`），主包不引它们的依赖。
-
----
 
 ## 常用命令
 
-一律在**仓库根目录**执行。
+在仓库根执行：
 
-```bash
-dotnet restore framework/XiHan.Framework.slnx
+| 任务 | 命令 |
+| --- | --- |
+| 还原 | `dotnet restore framework/XiHan.Framework.slnx` |
+| 常规构建 | `dotnet build framework/XiHan.Framework.slnx -c Release --no-restore -p:GeneratePackageOnBuild=false` |
+| CI 同形测试 | `dotnet test --solution framework/XiHan.Framework.slnx --configuration Release --no-build -p:TestingPlatformCommandLineArguments="--coverage --coverage-output-format cobertura"` |
+| 文档安装 | `pnpm --dir docs install --frozen-lockfile` |
+| 文档构建 | `pnpm --dir docs build` |
 
-# 本机构建默认会产包（nuget.props 的 GeneratePackageOnBuild=true，输出到 framework/nupkgs）
-# 只编译验证时关掉，明显更快 —— CI 就是这么做的
-dotnet build framework/XiHan.Framework.slnx -c Release -p:GeneratePackageOnBuild=false
+`global.json` 已选择 Microsoft.Testing.Platform。不要改回 VSTest 形式，也不要删除 `--solution` 来规避测试运行错误。
 
-dotnet test framework/XiHan.Framework.slnx -c Release
+## 架构约束
 
-# 单个测试项目 / 类 / 方法
-dotnet test framework/test/XiHan.Framework.Utils.Tests/XiHan.Framework.Utils.Tests.csproj
-dotnet test framework/test/XiHan.Framework.Utils.Tests/XiHan.Framework.Utils.Tests.csproj --filter "FullyQualifiedName~CacheHelperAdvancedTests"
-```
+### 依赖方向
 
-文档站：
+- 基础能力按 `Utils → Metadata → Core → Domain → Application/Contracts → Infrastructure → Web` 单向演进。
+- 模块通过 `[DependsOn]` 声明依赖；不得通过静态服务定位、反射探测或复制代码形成隐式依赖。
+- 抽象与契约放在下层或 `.Abstractions` 项目，具体 Provider 放在上层实现项目。
+- 不允许为了复用少量代码让底层模块反向引用 Web、数据库、Redis 或应用模块。
 
-```bash
-cd docs && pnpm install && pnpm dev
-```
+### 模块与生命周期
 
-`framework/scripts/` 下的 PowerShell（版本升级、推包、清理 bin/obj）全部是**交互式**（`Read-Host`）且用 **CWD 相对路径**。必须 `cd` 到脚本自身目录再执行，**不要在自动化流程里调用**。
+- 模块命名遵循 `XiHan.Framework.<Module>`；抽象、Provider 和 Web 集成沿用现有后缀。
+- 新模块或依赖变化必须检查完整拓扑，不制造环依赖。
+- 初始化与关闭逻辑放入现有模块生命周期钩子；保持异步、顺序和异常语义一致。
+- 服务注册应显式、幂等，并通过模块扩展方法组织；不要膨胀应用入口。
 
----
+### 公共 API
 
-## 架构（读懂这个才读得懂其它一切）
+- 公开类型、成员和选项必须有准确 XML 文档。
+- Nullable 是契约的一部分；不要用 `!`、空字符串或默认实例掩盖非法状态。
+- 异步 API 接受并传递 `CancellationToken`；不阻塞异步调用，不吞异常。
+- 破坏性 API 变更必须明确说明迁移方式，不保留推测性兼容别名或静默兜底。
+- 优先使用 .NET 内建能力；新增依赖必须有明确的框架级收益和依赖边界。
 
-### 分层
+### 默认实现与外部资源
 
-严格 7 层，禁止反向依赖与循环依赖：
-
-```text
-Utils（零依赖） → Metadata → Core → Domain(.Shared) → Application(.Contracts) → 基础设施 → Web
-```
-
-### 模块系统
-
-每个包有且只有一个 `XiHanModule` 子类，命名 `XiHan{ModuleName}Module`，放在项目根目录。
-
-- `[DependsOn(typeof(XxxModule))]` 声明依赖 → `XiHanModuleHelper.FindAllModuleTypes` 从启动模块递归收集全图（重复跳过），再拓扑排序决定装配顺序
-- 7 个生命周期钩子分两阶段：`PreConfigureServices` / `ConfigureServices` / `PostConfigureServices`，然后 `OnPreApplicationInitialization` / `OnApplicationInitialization` / `OnPostApplicationInitialization`，退出时 `OnApplicationShutdown`
-- 宿主入口：`builder.AddApplicationAsync<TStartupModule>()` + `app.InitializeApplicationAsync()`（见 `framework/src/XiHan.Framework.Web.Core/Extensions/DependencyInjection/`）
-
-**模块类只做装配，不写逻辑。** `ConfigureServices` 里调一个 `services.AddXiHan{Feature}(configuration)` 扩展方法，实现放在 `Extensions/DependencyInjection/XiHan{Feature}ServiceCollectionExtensions.cs`。改功能先找扩展方法，别在模块类里堆代码。
-
-### 配置约定
-
-Options 类型命名 `XiHan{Feature}Options`，自带 `const string SectionName`，配置节一律 `XiHan:` 前缀（如 `XiHan:AI:Mcp`、`XiHan:Web:Api:Auth`）。
-
-涉及对外暴露 / 凭据的能力用 **fail-closed 门控**：没启用或没配密钥时**既不注册服务也不映射端点**，而不是注册了再拦。范式见 `XiHanWebMcpServiceCollectionExtensions` —— 服务注册与端点映射共用同一个 `IsExposable` 判定。
-
-### 动态 API
-
-应用服务被自动投影成 controller，不手写 controller。约定在 `DefaultDynamicApiConvention`，全局值在 `AddXiHanWebApiMvc()` 里设定。
-
-- **路由剥离动词**（`CreateXxxAsync` → `POST /Xxx`），由 `Conventions.PreserveRoutePredicate = false` 决定。全部前端按此对接，翻转它会导致所有路由变化。
-- 只有显式 `[FromRoute]` 的参数才进路由段，不按参数名后缀推断（给既有方法加参数不能变成静默的线上破坏）。
-- 启动期会物化一次 `ActionDescriptor`，让路由 / 控制器名冲突在启动时暴露，而不是首个请求 500。
-
-MVC 过滤器顺序有语义，调整前先读 `XiHanWebApiServiceCollectionExtensions` 里对应注释：缓存过滤器排在工作单元**之外**（命中缓存不开事务），工作单元排**最后**（最贴近动作，动作抛的异常先落到它手里）。
-
-Web 中间件顺序同样有语义（见 `XiHanWebApiModule.OnApplicationInitialization`）：`UseForwardedHeaders` 必须最先；限流 / 熔断在路由后、鉴权前；租户解析在认证后、授权前；会话闸门夹在租户解析与授权之间。
-
-### AI 技能与 MCP 双通道
-
-`IAiSkill` 是应用层供给的能力单元，框架同时投影成：① `AIFunction`（M.E.AI 自动函数调用）；② MCP tool。
-
-传输与投影解耦：`SkillMcpToolsConfigurator` 通过 `IConfigureOptions<McpServerOptions>` 把技能并入工具集，**与传输无关**，只在宿主调了官方 `AddMcpServer()` 时才触发。`XiHan.Framework.Web.Mcp` 只负责 HTTP 传输 + `/mcp` 端点 + key 鉴权。加新传输（如 stdio）应**新建包**复用 `AddXiHanMcpServerTools()`，不要改投影层。
-
----
-
-## 编码约定
-
-- **文件头是编译期规则**：每个 `.cs` 必须以这两行开头，由 `XHFH001`（`XiHanFileHeaderAnalyzer`，severity=warning）检查并提供 Code Fix：
-
-  ```csharp
-  // Copyright (c) 2021-Present XiHanFun and contributors.
-  // Licensed under the MIT License. See LICENSE in the project root for license information.
-  ```
-
-- 注释与 XML 文档注释一律**简体中文**；`GenerateDocumentationFile` 全局开启，public 成员缺 `<summary>` 会告警
-- `Nullable` 与 `ImplicitUsings` 全局 enable（`props/common.props`）；C# `LangVersion=latest`（`props/netcore.props`）
-- file-scoped namespace、primary constructor、表达式体**属性 / 访问器**；表达式体**方法 / 构造函数**明确关闭（`framework/.editorconfig`）
-- 缩进 4 空格，换行 **LF**，UTF-8
-- 改功能时保持周围文件的风格：不要顺手把大段代码改成另一种写法
-
-### 项目文件约定
-
-- 非 Web：`Sdk="Microsoft.NET.Sdk"`
-- Web 类模块：`Sdk="Microsoft.NET.Sdk.Web"` 且 `<OutputType>Library</OutputType>`，通常再加 `<NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>`
-- csproj 按序 Import：`netcore` → `common` → `version` → `nuget`
-- 测试项目 Import `props/test.props`（已 `<Using Include="Xunit" />`，`IsPackable=false`）
-
----
-
-## 新增一个模块要动的地方
-
-1. `framework/src/XiHan.Framework.X/` + csproj（按上节 Import）
-2. `XiHanXModule.cs` + `Extensions/DependencyInjection/` 下的装配扩展
-3. 模块 `README.md`，固定七段：**概述 / 核心能力 / 依赖关系 / 配置与约定 / 使用方式 / 扩展点 / 目录结构**
-4. 注册进 `framework/XiHan.Framework.slnx` 对应分层文件夹
-5. `docs/packages/x.md`，必要时加 `docs/guide/x.md`，并更新 `docs/.vitepress/config.ts` 侧边栏
-6. 根 `README.md` 的模块清单与架构图
-
-公共 API / 配置节 / 路由一旦合入即被下游消费。破坏性变更必须在 PR 模板的「破坏性变更」栏写明，并同步文档。
-
----
+- 框架默认实现命名为 `DefaultXxx`，必须可独立工作、边界明确且有容量上限。
+- 默认实现不得要求 Redis、数据库、消息队列或应用配置才能启动。
+- 分布式与持久化实现由消费应用提供，框架只定义稳定契约和必要扩展点。
+- 缓存、队列、会话和注册表不得无界增长；容量、过期、清理与并发语义必须测试。
 
 ## 测试
 
-- 栈：xunit.v3 4.0 + Microsoft.Testing.Platform（MTP）。`global.json` 的 `test.runner` 指定 MTP —— 没有它，`dotnet test` 会走 VSTest 目标并被 .NET 10 SDK 硬性拒绝。因此不要给 `dotnet test` 加 `--logger` / `--results-directory` 这类 VSTest 专属参数，MTP 下会以退出码 5「零项测试被执行」失败
-- CI（`.github/workflows/ci.yml`）在 **ubuntu** 上跑，触发 `main` / `dev` 的 push 与 PR，**不起任何外部服务**
-- 依赖 Redis / ES 等的测试必须自跳过：`Assert.SkipWhen(...)`，地址从环境变量取。范式见 `RedisPendingBehaviorTests`（读 `XIHAN_TEST_REDIS`，缺省 `localhost:6379,user=redis,password=redis`，连不上整类跳过）
-- 所有测试项目都是强门禁，失败即中断
-- 改公共约定（动态 API 路由、过滤器顺序、模块生命周期、fail-closed 门控）时，优先补/改对应测试项目，不要只手测
+- 修改哪个正式模块，就在对应测试项目添加或更新测试。
+- 优先验证公开可观察行为、错误、取消、并发、边界容量和生命周期顺序。
+- 修复缺陷先写能复现问题的测试，再改实现。
+- 涉及模块发现、依赖排序、配置绑定、动态代理或序列化时，补充跨项目集成验证。
+- 不以覆盖率数字代替有效断言，不删除测试或放宽 CI 阈值来通过门禁。
+- 资源受限且明确出现系统资源不足时，才可临时使用 `/m:4 /nr:false` 控制 MSBuild 并发；这不是默认命令。
 
-测试项目位置：`framework/test/XiHan.Framework.{模块}.Tests/`。集成探测在 `Integration.Tests` 与 `Web.Tests`（后者是最小 Web 宿主，不是产品应用）。
+## 文档与示例
 
----
+- 改变公开 API、默认值、配置、生命周期或使用方式时，同步更新 XML 文档、模块 README、示例和文档站。
+- 示例只展示推荐路径，不保留已废弃做法，也不把应用专用基础设施包装成框架默认方案。
+- 文档命令在 `docs/` 执行；源码命令在仓库根或 `framework/` 对应位置执行。
 
-## 版本与提交
+## 发布
 
-- 唯一版本源：`framework/props/version.props`（与 `docs/package.json` 对齐）
-- 发布全在本机：`scripts/nuget/VersionUpgrade.ps1`（改版本并构建）→ `PushNugetPackages.ps1`（推 NuGet）
-- CI **不发布**任何包
-- 提交信息：中文 Conventional Commits，作用域用模块小写名
-  - `fix(web-api): 动作抛异常时回滚事务`
-  - `feat(caching): ...`
-  - 提版本：`build: v3.13.0`
-  - 随后单独一条：`docs: 补写 vX.Y.Z 更新日志，文档站版本抬到 X.Y.Z`（同时改 `docs/package.json` 与 `docs/changelog.md`）
+- `framework/props/nuget.props` 默认可在构建时生成包，日常验证应显式关闭 `GeneratePackageOnBuild`，避免制造无关包产物。
+- 版本脚本、包撤销脚本、打标签和 NuGet 发布都属于外部状态变更，只有用户明确要求时才能执行。
+- 发布前以 `.github/workflows/ci.yml` 和 `.github/workflows/release.yml` 为最终事实源，完成 Release 构建、MTP 测试和包清单核对。
 
----
+## Git 与提交
 
-## 改代码时先看哪里
+- 保留用户已有和无关改动；不要 reset、checkout 或清理它们。
+- 使用 Conventional Commits：`<type>(<scope>): <中文说明>`。
+- 每个模块能力或独立修复单独提交；契约、实现、测试和文档属于同一闭环时放在同一提交。
+- 提交前检查 `git diff --check`、相关测试和必要的 Release 构建。
+- 不推送、不发布、不创建远程 PR，除非用户明确要求。
 
-| 要改的东西 | 先打开 |
-| --- | --- |
-| 模块装配 / 生命周期 | `XiHan{Name}Module.cs`，立刻转到 `Extensions/DependencyInjection/` |
-| 选项与配置节 | `Options/XiHan{Feature}Options.cs` 的 `SectionName` |
-| 动态 API 路由 / 动词 | `Web.Api/DynamicApi/Conventions/DefaultDynamicApiConvention.cs` |
-| MVC 过滤器顺序 | `Web.Api/Extensions/DependencyInjection/XiHanWebApiServiceCollectionExtensions.cs` |
-| HTTP 中间件顺序 | `Web.Api/XiHanWebApiModule.cs` 的 `OnApplicationInitialization` |
-| MCP 投影（与传输无关） | `AI/Mcp/SkillMcpToolsConfigurator.cs`、`AddXiHanMcpServerTools` |
-| MCP HTTP 传输 / 鉴权 | `Web.Mcp/Extensions/DependencyInjection/` |
-| 工作单元 / 事务 | `Uow` + Web.Api 过滤器注册顺序 |
-| 文件头 / 分析器 | `Analyzers/FileHeaders/` |
+## 禁止事项
 
----
-
-## 不要做的事
-
-- 不要在本仓库里「跑起来看一下」——没有宿主。验证靠 `dotnet build` / `dotnet test`，或下游应用
-- 不要手写 `.sln`，不要改 slnx 的分层文件夹语义去迁就引用
-- 不要在 `XiHanModule` 子类里堆业务或大段注册逻辑
-- 不要让实现包被 Abstractions 引用，不要让主包引用可插拔子包
-- 不要翻转 `PreserveRoutePredicate`，不要按参数名推断路由段
-- 不要在没启用 / 没密钥时仍注册对外端点
-- 不要把新 MCP 传输塞进 `Web.Mcp` 或改投影层
-- 不要在自动化里跑 `framework/scripts/**/*.ps1`
-- 不要为了「完整测试」在 CI 假设 Redis / ES 一定存在
-- 不要用英文写注释或 XML 文档
-- 不要漏文件头；不要提交 CRLF 的 `.cs`
+- 不跨层放置实现，不以“方便”绕过模块依赖。
+- 不添加静默兜底、无限重试或无界内存集合。
+- 不把 BasicApp 或其他应用的具体存储实现放入框架默认路径。
+- 不猜测 API、版本、模块数量或 CI 命令；以当前检出为准。
+- 不手改构建产物、包目录或生成文件代替修改真源。
+- 不运行版本升级、NuGet 撤销、发布或其他破坏性脚本，除非用户明确授权。
