@@ -115,6 +115,7 @@ public class YourAppModule : XiHanModule
 ## 注意事项与最佳实践
 
 - **变量必须可 JSON 序列化**。变量字典的值类型是 `object`，读回后每个值都是 `JsonElement`（对象属性名与字典键保持写入时的原样），需经 `WorkflowVariables.Get<T>` / `WorkflowValueConverter` 取值；表达式求值会自动归一化。
+- **JSON 列按原属性名写入**。此前写入的数据保留 camelCase 属性名：强类型读取不区分大小写，照常读回；此前写入的变量里的 POCO 值，键仍是 camelCase。
 - **删除实例前先删书签**：先 `IWorkflowBookmarkStore.DeleteByInstanceAsync`，再 `IWorkflowInstanceStore.DeleteAsync`。
 - **推进过程不是原子的**：恢复、启动、取消、重试都由多次独立提交组成，进程在中途崩溃或重新部署会留下运行中却没有书签的实例；定期查询这类实例并人工处理。
 - **书签删除比内存实现严格**：`DeleteAsync` 删除不存在的书签抛 `WorkflowException`。

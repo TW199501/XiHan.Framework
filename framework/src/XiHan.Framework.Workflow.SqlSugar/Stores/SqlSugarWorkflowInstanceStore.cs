@@ -50,7 +50,7 @@ public class SqlSugarWorkflowInstanceStore : IWorkflowInstanceStore
     /// <param name="correlationId">业务相关性标识（为空表示不过滤）</param>
     /// <param name="maxResultCount">最大返回条数</param>
     /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>实例列表（按创建时间降序）</returns>
+    /// <returns>实例列表（按创建时间降序；指定定义编码时按序数比较过滤后在内存中截取条数）</returns>
     public async Task<List<WorkflowInstance>> GetListAsync(
         WorkflowInstanceStatus? status = null,
         string? definitionCode = null,
@@ -66,13 +66,19 @@ public class SqlSugarWorkflowInstanceStore : IWorkflowInstanceStore
         var statusValue = (int)(status ?? default);
 
         var entities = await _executor.ExecuteAsync(
-            client => client.Queryable<SysWorkflowInstance>()
-                .WhereIF(status is not null, item => item.Status == statusValue)
-                .WhereIF(definitionCode is not null, item => item.DefinitionCode == definitionCode)
-                .WhereIF(correlationId is not null, item => item.CorrelationId == correlationId)
-                .OrderBy(item => item.CreationTime, OrderByType.Desc)
-                .OrderBy(item => item.BasicId, OrderByType.Desc)
-                .ToListAsync(cancellationToken),
+            client =>
+            {
+                var query = client.Queryable<SysWorkflowInstance>()
+                    .WhereIF(status is not null, item => item.Status == statusValue)
+                    .WhereIF(definitionCode is not null, item => item.DefinitionCode == definitionCode)
+                    .WhereIF(correlationId is not null, item => item.CorrelationId == correlationId)
+                    .OrderBy(item => item.CreationTime, OrderByType.Desc)
+                    .OrderBy(item => item.BasicId, OrderByType.Desc);
+
+                return definitionCode is null
+                    ? query.Take(maxResultCount).ToListAsync(cancellationToken)
+                    : query.ToListAsync(cancellationToken);
+            },
             cancellationToken);
 
         return [.. entities

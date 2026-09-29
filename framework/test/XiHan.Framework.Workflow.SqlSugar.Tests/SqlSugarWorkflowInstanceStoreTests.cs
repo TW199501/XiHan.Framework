@@ -83,6 +83,22 @@ public class SqlSugarWorkflowInstanceStoreTests : IDisposable
     }
 
     /// <summary>
+    /// 无定义编码条件时按条数上限截取
+    /// </summary>
+    [Fact]
+    public async Task 无定义编码条件时按条数上限截取()
+    {
+        for (var index = 1; index <= 5; index++)
+        {
+            await _store.InsertAsync(NewInstance("i" + index, BaseTime.AddMinutes(index)));
+        }
+
+        var found = await _store.GetListAsync(maxResultCount: 3);
+
+        Assert.Equal(["i5", "i4", "i3"], found.Select(item => item.Id));
+    }
+
+    /// <summary>
     /// 每次查找返回新对象
     /// </summary>
     [Fact]
