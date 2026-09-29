@@ -1,0 +1,33 @@
+README.md
+  s_94057b8e5cf9b6::t_de8120aba31699 8,20,55
+README_cn.md
+  s_94057b8e5cf9b6::t_dcfba0e050ee99 8,20,55
+docs/index.md
+  s_94057b8e5cf9b6::t_8429cfe23ae699 9,41
+docs/introduction.md
+  s_94057b8e5cf9b6::t_faafc3e9d85770 57
+docs/packages/index.md
+  s_94057b8e5cf9b6::t_791b7bc5bbceca 3
+docs/why.md
+  s_94057b8e5cf9b6::t_19666a1363caa5 86,123,142,160
+framework/README.md
+  s_94057b8e5cf9b6::t_f695734ce9e9fb 55,85,193,205
+framework/README_cn.md
+  s_94057b8e5cf9b6::t_fe6225a368fc16 55,85,193,205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "aa58d1f663879e21187917981067ac4a8f933c16",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
