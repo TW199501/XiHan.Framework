@@ -1,0 +1,366 @@
+framework/test/XiHan.Framework.Utils.Tests/Core/StringHelperTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-268
+framework/src/XiHan.Framework.Domain/Entities/Abstracts/IStrictMultiTenantEntity.cs
+  s_94057b8e5cf9b6::t_239239d398d750 20
+docs/packages/ai.md
+  s_94057b8e5cf9b6::t_239239d398d750 105
+framework/src/XiHan.Framework.Web.Api/Filters/XiHanActionLoggingFilter.cs
+  s_94057b8e5cf9b6::t_239239d398d750 91
+framework/src/XiHan.Framework.Data/SqlSugar/Extensions/TenantFilterExtensions.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-48
+.agents/skills/create-pr/SKILL.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-25
+.agents/skills/resource-governance/references/defaults-and-resources.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-35
+.github/workflows/ci.yml
+  s_94057b8e5cf9b6::t_239239d398d750 3
+.agents/skills/version-release/SKILL.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-27
+framework/src/XiHan.Framework.Web.Api/Middlewares/XiHanApiLoggingMiddleware.cs
+  s_94057b8e5cf9b6::t_239239d398d750 10,93,99
+framework/test/XiHan.Framework.Utils.Tests/Security/OtpHelperTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 374-414
+framework/src/XiHan.Framework.Utils/Objects/DeepMergeHelper.cs
+  s_94057b8e5cf9b6::t_239239d398d750 23,27,33-45,47,64,202-206,295-299,308,310,312,315-316,319,323,327,331,335-340,499-504,511-630
+  s_94057b8e5cf9b6::t_acef464f8d76a4 631
+framework/src/XiHan.Framework.Data/SqlSugar/Initializers/DbEntityTypeProvider.cs
+  s_94057b8e5cf9b6::t_239239d398d750 68-73
+framework/test/XiHan.Framework.Utils.Tests/Logging/LoggingPerformanceTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 266,268-271
+framework/test/XiHan.Framework.MultiTenancy.Tests/CurrentTenantTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 68,73,84-96
+  s_94057b8e5cf9b6::t_66abb4999968b9 97-100
+framework/src/XiHan.Framework.MultiTenancy/CurrentUserTenantResolveContributor.cs
+  s_94057b8e5cf9b6::t_239239d398d750 13-17,38,43
+framework/test/XiHan.Framework.AI.Tests/SkillMcpToolsConfiguratorTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-92
+framework/src/XiHan.Framework.Data/SqlSugar/Initializers/IDbInitializer.cs
+  s_94057b8e5cf9b6::t_239239d398d750 12,22
+framework/test/XiHan.Framework.Data.Tests/DbInitializerPhaseOrderTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-250
+framework/src/XiHan.Framework.MultiTenancy/TenantSettingValueProvider.cs
+  s_94057b8e5cf9b6::t_239239d398d750 63,65-67,71
+framework/test/XiHan.Framework.Utils.Tests/Localization/CurrencyHelperTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-143
+framework/src/XiHan.Framework.Upgrade/Abstractions/IUpgradeVersionStore.cs
+  s_94057b8e5cf9b6::t_239239d398d750 57-66
+framework/src/XiHan.Framework.Workflow/Engine/WorkflowEngine.cs
+  s_94057b8e5cf9b6::t_239239d398d750 140-141,207-209
+framework/test/XiHan.Framework.Utils.Tests/Threading/AsyncBarrierPhaseTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-117
+framework/src/XiHan.Framework.Upgrade/Services/DefaultUpgradeVersionStore.cs
+  s_94057b8e5cf9b6::t_239239d398d750 94-128
+  s_94057b8e5cf9b6::t_f78ccb00e27d5d 93
+docs/introduction.md
+  s_94057b8e5cf9b6::t_239239d398d750 61-71
+framework/src/XiHan.Framework.Auditing/ExceptionLogRecord.cs
+  s_94057b8e5cf9b6::t_239239d398d750 22-26
+  s_94057b8e5cf9b6::t_3cd452f96dcb58 21
+.agents/skills/issue-reply/SKILL.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-26
+framework/src/XiHan.Framework.MultiTenancy/Features/TenantFeatureChecker.cs
+  s_94057b8e5cf9b6::t_239239d398d750 55-56,61
+  s_94057b8e5cf9b6::t_e7cf2ea251b8ab 62
+framework/src/XiHan.Framework.Data/SqlSugar/Routing/IEntityModuleDataSourceResolver.cs
+  s_94057b8e5cf9b6::t_239239d398d750 22-28
+framework/test/XiHan.Framework.Upgrade.Tests/Services/DefaultUpgradeVersionStoreTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 43-78
+framework/test/XiHan.Framework.Utils.Tests/Threading/DebouncerTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-191
+framework/test/XiHan.Framework.Data.Tests/TenantWriteGuardPreReadTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-251
+docs/packages/data.md
+  s_94057b8e5cf9b6::t_239239d398d750 84,151,563
+framework/src/XiHan.Framework.Utils/Security/MaskHelper.cs
+  s_94057b8e5cf9b6::t_239239d398d750 25,28-29,52,55-56,82-88,91,99,102,110,113
+.agents/skills/resource-governance/agents/openai.yaml
+  s_94057b8e5cf9b6::t_239239d398d750 1-7
+docs/guide/data.md
+  s_94057b8e5cf9b6::t_239239d398d750 95,97-106,150-151,153,172
+framework/test/XiHan.Framework.Data.Tests/PlatformPlacementRoutingTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-213
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Executor/JobExecutorTests.cs
+  s_94057b8e5cf9b6::t_2a02d0ef655eb5 346
+  s_94057b8e5cf9b6::t_239239d398d750 6-7,347-408,444-512
+  s_94057b8e5cf9b6::t_353f09c22957a7 513
+framework/src/XiHan.Framework.Auditing/AccessLogRecord.cs
+  s_94057b8e5cf9b6::t_239239d398d750 22-26
+  s_94057b8e5cf9b6::t_72f42774fc097f 21
+AGENTS.md
+  s_94057b8e5cf9b6::t_239239d398d750 3,5,7,9,11,13-17,19,21-26,28,31-45,48,50,52-58,60,62,64,66-69,71,73-76,78,80-84,86,88-91,95-100,102,104-106,108,110-112,114,116-120,122-129
+framework/src/XiHan.Framework.Utils/Collections/TreeExtensions.cs
+  s_94057b8e5cf9b6::t_239239d398d750 20-23,26-28,31-36,38,40,42,44-45,47,49-53,56,284-339
+  s_94057b8e5cf9b6::t_59d850d9b07b1f 340
+.agents/skills/resource-governance/SKILL.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-21
+framework/src/XiHan.Framework.Data/SqlSugar/Repository/SqlSugarSoftDeleteRepository.cs
+  s_94057b8e5cf9b6::t_239239d398d750 20,74,127-128,142,157,192,246,260,274
+framework/src/XiHan.Framework.Web.Api/Middlewares/XiHanRequestLoggingMiddleware.cs
+  s_94057b8e5cf9b6::t_239239d398d750 98-99,103-105
+framework/test/XiHan.Framework.Observability.Tests/HealthChecks/MemoryHealthCheckTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 13-16,18,64,74-75,121-122
+framework/src/XiHan.Framework.Auditing/ApiLogRecord.cs
+  s_94057b8e5cf9b6::t_239239d398d750 22-26
+  s_94057b8e5cf9b6::t_29cc4ab400fbe9 21
+framework/test/XiHan.Framework.Script.Tests/Core/ScriptResultTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 175
+docs/package.json
+  s_94057b8e5cf9b6::t_239239d398d750 3
+docs/packages/script.md
+  s_94057b8e5cf9b6::t_239239d398d750 44
+framework/src/XiHan.Framework.Upgrade/Abstractions/IUpgradeEngine.cs
+  s_94057b8e5cf9b6::t_239239d398d750 19-29
+framework/src/XiHan.Framework.Web.Mcp/README.md
+  s_94057b8e5cf9b6::t_239239d398d750 71,97
+framework/test/XiHan.Framework.Utils.Tests/Core/MathHelperOverflowTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-118
+framework/test/XiHan.Framework.Utils.Tests/Security/MaskHelperTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 210-246,259-273,275
+  s_94057b8e5cf9b6::t_cd897e6312e23f 274,276
+framework/src/XiHan.Framework.Auditing/OperationLogRecord.cs
+  s_94057b8e5cf9b6::t_239239d398d750 27-31
+  s_94057b8e5cf9b6::t_a3a39f1ada182b 26
+framework/src/XiHan.Framework.Data/SqlSugar/Routing/PlatformDataSourceAttribute.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-25
+framework/src/XiHan.Framework.Data/SqlSugar/Initializers/DbInitializer.cs
+  s_94057b8e5cf9b6::t_239239d398d750 56-59,80,82-100,104,107-110,231,233-235,245-270,275-276,278,281,373-374,387,454-455
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Executor/JobExecutor.cs
+  s_94057b8e5cf9b6::t_239239d398d750 50-55,79,132-143
+  s_94057b8e5cf9b6::t_96472bf8bafee3 144-145
+framework/src/XiHan.Framework.Settings/XiHan.Framework.Settings.csproj
+  s_94057b8e5cf9b6::t_239239d398d750 18
+framework/test/XiHan.Framework.MultiTenancy.Tests/CurrentUserTenantResolveContributorTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 17-18,107,110,118,176
+framework/src/XiHan.Framework.Upgrade/Services/UpgradeEngine.cs
+  s_94057b8e5cf9b6::t_239239d398d750 123-143,417-418
+  s_94057b8e5cf9b6::t_d3d8d2b7f8687b 122
+framework/src/XiHan.Framework.Utils/Localization/CurrencyHelper.cs
+  s_94057b8e5cf9b6::t_239239d398d750 13-27,34,44-48,55-56,58-64,67-79,101-103,162-226
+framework/test/XiHan.Framework.Utils.Tests/Objects/DeepMergeHelperNullAndSetTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-195
+framework/src/XiHan.Framework.Web.Gateway/Middlewares/GrayRoutingMiddleware.cs
+  s_94057b8e5cf9b6::t_239239d398d750 90-91,93
+.github/workflows/release.yml
+  s_94057b8e5cf9b6::t_239239d398d750 1-122
+framework/test/XiHan.Framework.Script.Tests/Core/MemoryUsageTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 12-20,25,30,34-35,38,50,54,61-62,73-80,87,92-198,211,214-221
+framework/test/XiHan.Framework.Utils.Tests/Maths/NumberExtensionsLcmTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-97
+.agents/skills/version-release/agents/openai.yaml
+  s_94057b8e5cf9b6::t_239239d398d750 1-7
+docs/.vitepress/theme/index.ts
+  s_94057b8e5cf9b6::t_239239d398d750 3,13-16
+.agents/skills/testing-release/SKILL.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-24
+docs/packages/ai-abstractions.md
+  s_94057b8e5cf9b6::t_239239d398d750 84
+framework/src/XiHan.Framework.Web.Mcp/Extensions/DependencyInjection/XiHanWebMcpServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_239239d398d750 24,44
+framework/src/XiHan.Framework.Web.Mcp/Options/McpToolExposureConfigurator.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-109
+docs/.vitepress/gen-llms.ts
+  s_94057b8e5cf9b6::t_239239d398d750 1-246
+docs/packages/multitenancy.md
+  s_94057b8e5cf9b6::t_239239d398d750 49,100
+framework/src/XiHan.Framework.Data/SqlSugar/Clients/SqlSugarClientResolver.cs
+  s_94057b8e5cf9b6::t_239239d398d750 104,106,120,133-138
+  s_94057b8e5cf9b6::t_532cbc076345f7 139
+framework/test/XiHan.Framework.Upgrade.Tests/XiHanUpgradeModuleTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 238-242,318-322
+framework/test/XiHan.Framework.Utils.Tests/Core/DateTimeHelperDetailedAgeTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-117
+.agents/skills/commit-msg/SKILL.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-16
+framework/src/XiHan.Framework.Utils/Core/StringHelper.cs
+  s_94057b8e5cf9b6::t_239239d398d750 114-119,122,124,227-232,235,263-269,272-275,277,280,291-301,304-306,308,311-312,314-315,317-319,321-324,326,330-331,334-335,404-416,419-420,422
+.agents/skills/module-development/references/architecture.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-49
+framework/src/XiHan.Framework.Observability/Diagnostics/DiagnosticsModels.cs
+  s_94057b8e5cf9b6::t_239239d398d750 89-90
+framework/test/XiHan.Framework.Web.Api.Tests/TenantResolution/TenantResolveMiddlewareTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-251
+docs/guide/observability.md
+  s_94057b8e5cf9b6::t_239239d398d750 248,266
+.agents/skills/module-development/SKILL.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-31
+framework/src/XiHan.Framework.AI.Abstractions/Rag/RetrievalFilter.cs
+  s_94057b8e5cf9b6::t_239239d398d750 9-11,15,17
+framework/src/XiHan.Framework.Utils/Core/RegexHelper.cs
+  s_94057b8e5cf9b6::t_239239d398d750 119-123,129-130,139-148,210,212-217
+.agents/skills/changelog-collect/SKILL.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-23
+framework/test/XiHan.Framework.Utils.Tests/Collections/TreeExtensionsOrderIndependenceTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-141
+framework/src/XiHan.Framework.Utils/Maths/NumberExtensions.cs
+  s_94057b8e5cf9b6::t_239239d398d750 378-383,386-391
+.agents/skills/issue-reply/agents/openai.yaml
+  s_94057b8e5cf9b6::t_239239d398d750 1-7
+docs/changelog.md
+  s_94057b8e5cf9b6::t_239239d398d750 5,8-64,67-71,76,78,81-84,93-95,97,100-109
+docs/packages/web-mcp.md
+  s_94057b8e5cf9b6::t_239239d398d750 68,77,87
+framework/src/XiHan.Framework.Data/SqlSugar/Aggregates/SugarMultiTenantAggregateRoot.cs
+  s_94057b8e5cf9b6::t_239239d398d750 38
+framework/src/XiHan.Framework.Utils/Security/OtpHelper.cs
+  s_94057b8e5cf9b6::t_239239d398d750 5,79,115-116,311-330
+  s_94057b8e5cf9b6::t_9a93f384295874 331
+framework/src/XiHan.Framework.Workflow/Definitions/WorkflowDefinitionManager.cs
+  s_94057b8e5cf9b6::t_239239d398d750 65-66
+framework/test/XiHan.Framework.Data.Tests/EntityBaseColumnNamingTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-111
+framework/src/XiHan.Framework.AI/Rag/DefaultKnowledgeRetriever.cs
+  s_94057b8e5cf9b6::t_239239d398d750 45,104-107,109-110,112-114
+framework/test/XiHan.Framework.Utils.Tests/Core/RegexHelperNumberTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-65
+.agents/skills/module-development/references/module-development.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-40
+docs/.vitepress/config.ts
+  s_94057b8e5cf9b6::t_239239d398d750 3,423-467
+.agents/skills/testing-release/references/testing-and-release.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-43
+framework/src/XiHan.Framework.Data/Extensions/DependencyInjection/XiHanDataServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_239239d398d750 236-240,242,249,458,462-463,467
+framework/src/XiHan.Framework.Observability/Diagnostics/DiagnosticsService.cs
+  s_94057b8e5cf9b6::t_239239d398d750 67-71
+framework/test/XiHan.Framework.Web.Gateway.Tests/Middlewares/GrayRoutingMiddlewareTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 266,269,278
+docs/guide/multi-tenancy.md
+  s_94057b8e5cf9b6::t_239239d398d750 23,42,44-61,78-79,82-83,87,114-115,117-119
+framework/test/XiHan.Framework.Utils.Tests/Timing/LunarCalendarHelperTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-566
+docs/guide/ai.md
+  s_94057b8e5cf9b6::t_239239d398d750 326
+framework/src/XiHan.Framework.Data/SqlSugar/Repository/SqlSugarRepositoryBase.cs
+  s_94057b8e5cf9b6::t_239239d398d750 7,30-36,117,143,205,267,286,345,362,378,394,405-449,453,455-457,460,464,471,473,477,481,485,499-500,505-507,511,514-516,534,588,601,639
+framework/test/XiHan.Framework.Data.Tests/PlatformTenantScopeTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-357
+docs/guide/auditing.md
+  s_94057b8e5cf9b6::t_239239d398d750 294
+framework/src/XiHan.Framework.Auditing/LoginLogRecord.cs
+  s_94057b8e5cf9b6::t_239239d398d750 22-26
+  s_94057b8e5cf9b6::t_5092d2e4417f29 21
+framework/test/XiHan.Framework.Upgrade.Tests/Services/UpgradeStatusServiceTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 402-406
+framework/src/XiHan.Framework.Web.Api/Contexts/RequestContext.cs
+  s_94057b8e5cf9b6::t_239239d398d750 9-14,42
+framework/src/XiHan.Framework.Data/SqlSugar/Tenanting/SqlSugarTenantConnectionResolver.cs
+  s_94057b8e5cf9b6::t_239239d398d750 64-67,78-84
+framework/test/XiHan.Framework.Web.Mcp.Tests/Options/McpToolExposureConfiguratorTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-245
+.agents/skills/module-development/agents/openai.yaml
+  s_94057b8e5cf9b6::t_239239d398d750 1-7
+framework/src/XiHan.Framework.Observability/HealthChecks/MemoryHealthCheck.cs
+  s_94057b8e5cf9b6::t_239239d398d750 30-33
+docs/.vitepress/theme/XhPageMarkdown.vue
+  s_94057b8e5cf9b6::t_239239d398d750 1-38
+framework/src/XiHan.Framework.Data/SqlSugar/Aggregates/SugarAggregateRoot.cs
+  s_94057b8e5cf9b6::t_239239d398d750 40,46,52,58,64,70,76,82,88,94,100
+framework/src/XiHan.Framework.Data/SqlSugar/Initializers/DbSchemaUpgradeContext.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-41
+framework/test/XiHan.Framework.Utils.Tests/Core/DateTimeHelperBoundaryTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-102
+framework/src/XiHan.Framework.Web.Api/Logging/ExceptionLogReporter.cs
+  s_94057b8e5cf9b6::t_239239d398d750 54
+framework/test/XiHan.Framework.Utils.Tests/Threading/AsyncReaderWriterLockTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-191
+.agents/skills/test-review/SKILL.md
+  s_94057b8e5cf9b6::t_239239d398d750 1-23
+framework/src/XiHan.Framework.Data/SqlSugar/Extensions/EntityAuditExtensions.cs
+  s_94057b8e5cf9b6::t_239239d398d750 165,167-170,175,179,183,188-190
+framework/src/XiHan.Framework.Workflow/UserTasks/WorkflowUserTaskService.cs
+  s_94057b8e5cf9b6::t_239239d398d750 320-321
+.agents/skills/create-pr/agents/openai.yaml
+  s_94057b8e5cf9b6::t_239239d398d750 1-7
+framework/src/XiHan.Framework.Script/Core/MemoryUsage.cs
+  s_94057b8e5cf9b6::t_239239d398d750 9-28,32,34-35,38,40-41,44,46-47,52-57,68-69,82-85,88
+docs/packages/utils.md
+  s_94057b8e5cf9b6::t_239239d398d750 106,395,401,483
+framework/src/XiHan.Framework.Utils/Core/MathHelper.cs
+  s_94057b8e5cf9b6::t_239239d398d750 11-21,169,171-176,179-180,197,199-203,206-207
+framework/test/XiHan.Framework.Upgrade.Tests/Services/UpgradeEngineTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 445-482,688-703
+  s_94057b8e5cf9b6::t_30b306c0cde049 704
+.agents/skills/testing-release/agents/openai.yaml
+  s_94057b8e5cf9b6::t_239239d398d750 1-7
+framework/src/XiHan.Framework.Domain/Repositories/TenantWriteGuard.cs
+  s_94057b8e5cf9b6::t_239239d398d750 14-18
+.github/workflows/deploy-docs.yml
+  s_94057b8e5cf9b6::t_239239d398d750 50-54
+framework/props/version.props
+  s_94057b8e5cf9b6::t_239239d398d750 5-7
+framework/src/XiHan.Framework.MultiTenancy/CurrentTenant.cs
+  s_94057b8e5cf9b6::t_239239d398d750 30
+framework/test/XiHan.Framework.AI.Abstractions.Tests/Rag/RetrievalFilterTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 20,22-25,27,31,36,39,41,52,54,105,110,113,117
+docs/guide/faq.md
+  s_94057b8e5cf9b6::t_239239d398d750 206,208
+framework/src/XiHan.Framework.Utils/Threading/AsyncReaderWriterLock.cs
+  s_94057b8e5cf9b6::t_239239d398d750 4-5,51-57,60-61,67,70-71,73-75,80-81,85-93,100-114
+  s_94057b8e5cf9b6::t_fdc4ee1c0efc51 115-116
+framework/src/XiHan.Framework.Data/SqlSugar/Routing/EntityModuleDataSourceResolver.cs
+  s_94057b8e5cf9b6::t_239239d398d750 21-22,39-64
+docs/packages/multitenancy-abstractions.md
+  s_94057b8e5cf9b6::t_239239d398d750 115-116
+framework/src/XiHan.Framework.Utils/Threading/Debouncer.cs
+  s_94057b8e5cf9b6::t_239239d398d750 9-12,18,23,33-43,46-49,52-57,59-60,62,64-75,81,84-96
+framework/test/XiHan.Framework.Settings.Tests/SettingManagerTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 9,296,302,332,334-338,341,622,624,632,635-647
+  s_94057b8e5cf9b6::t_a02fa26c3c80a1 648
+framework/src/XiHan.Framework.Settings/SettingManager.cs
+  s_94057b8e5cf9b6::t_239239d398d750 9,242-244,246,249
+framework/test/XiHan.Framework.Observability.Tests/Diagnostics/DiagnosticsServiceTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 123-128,133,138,205-206
+framework/src/XiHan.Framework.Data/SqlSugar/Repository/SqlSugarReadOnlyRepository.cs
+  s_94057b8e5cf9b6::t_239239d398d750 63,65-67,72
+framework/test/XiHan.Framework.Upgrade.Tests/Services/UpgradeCoordinatorTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 210-214
+framework/src/XiHan.Framework.Script/Core/ScriptEngine.cs
+  s_94057b8e5cf9b6::t_239239d398d750 111
+.agents/skills/test-review/agents/openai.yaml
+  s_94057b8e5cf9b6::t_239239d398d750 1-7
+docs/guide/upgrade.md
+  s_94057b8e5cf9b6::t_239239d398d750 195,197,199-229
+framework/src/XiHan.Framework.Data/SqlSugar/Initializers/IDbSchemaUpgrader.cs
+  s_94057b8e5cf9b6::t_239239d398d750 1-29
+framework/src/XiHan.Framework.Utils/Threading/AsyncBarrier.cs
+  s_94057b8e5cf9b6::t_239239d398d750 22-36,173,376
+framework/src/XiHan.Framework.AI.Abstractions/Rag/IKnowledgeRetriever.cs
+  s_94057b8e5cf9b6::t_239239d398d750 16-23
+framework/src/XiHan.Framework.Utils/Timing/LunarCalendarHelper.cs
+  s_94057b8e5cf9b6::t_239239d398d750 32-56,103-114,188-189,191-192,194,197-198,229-230,238-254,295,298,306-311,314,322-328,331-333,344-355,360,365,369-375,410,412-419,426-430,506,509-513,571-572,583,588-590,600,605-621,624-633,636,638-640,642-643,645-648,650-660,662,781-782,785-789,903
+framework/src/XiHan.Framework.Script/Monitoring/ScriptMonitor.cs
+  s_94057b8e5cf9b6::t_239239d398d750 70
+.agents/skills/changelog-collect/agents/openai.yaml
+  s_94057b8e5cf9b6::t_239239d398d750 1-7
+framework/src/XiHan.Framework.Utils/Core/DateTimeHelper.cs
+  s_94057b8e5cf9b6::t_239239d398d750 23-31,125-131,150-164,430-434,437,480,483-501
+.agents/skills/commit-msg/agents/openai.yaml
+  s_94057b8e5cf9b6::t_239239d398d750 1-7
+framework/src/XiHan.Framework.MultiTenancy.Abstractions/ICurrentTenant.cs
+  s_94057b8e5cf9b6::t_239239d398d750 14-15,17,23
+framework/src/XiHan.Framework.Web.Api/Middlewares/XiHanTenantResolveMiddleware.cs
+  s_94057b8e5cf9b6::t_239239d398d750 5-7,11,13-14,21-34,39-48,52-55,59,65,70-71,73,76,78,83,85-89,93-113,115,117,139-182
+  s_94057b8e5cf9b6::t_50035a7fd2e0a7 183
+framework/test/XiHan.Framework.MultiTenancy.Tests/TenantSettingValueProviderTests.cs
+  s_94057b8e5cf9b6::t_239239d398d750 57,60,65,73,77,83-84,97,99-103,106,153-155,166,181
+.claude/skills
+  s_94057b8e5cf9b6::t_5201b3858bd877 1
+CLAUDE.md
+  s_94057b8e5cf9b6::t_f834c98dc406bc 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "572e8b513620cb74fe7f0f4898b83c2d2a34ebb7",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
