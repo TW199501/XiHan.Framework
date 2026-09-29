@@ -62,14 +62,15 @@ public class YourAppModule : XiHanModule
 | `Target_Service_Id` | `string(128)`，可空 | 目标服务标识 |
 | `Configuration` | 大文本，可空 | 规则配置，按字符串原样存取 |
 | `Effective_Time` / `Expiry_Time` | 时间，可空 | 生效区间，读回时按 UTC 解释 |
-| `Created_Time` / `Updated_Time` | 时间 | 创建与更新时间 |
+| `Created_Time` | 时间，非空 | 创建时间 |
+| `Updated_Time` | 时间，可空 | 更新时间 |
 | `Remark` | `string(512)`，可空 | 备注 |
 
 ## 工作原理
 
-- `GetEnabledRulesAsync` / `GetRuleByIdAsync` 先检查缓存是否过期：距上次加载超过 `RefreshInterval` 时，重新从库里读全部规则替换缓存；未过期直接返回缓存内容
-- `RefreshAsync` 立即重新加载，不看间隔
-- 仓储注册为单例，每次加载新建一个服务作用域解析 `ISqlSugarClientResolver`，加载期间切换到宿主上下文：规则从宿主布局的库读取，与触发刷新的请求属于哪个租户无关
+- `GetEnabledRulesAsync` / `GetRuleByIdAsync` 先检查缓存是否过期：距上次加载超过 `RefreshInterval` 时，重新从库里读全部规则替换缓存；未过期直接返回缓存内容。到期后并发的读取只有一个去查库，其余等它加载完直接用新缓存
+- `RefreshAsync` 立即重新加载，不看间隔；加载失败时保留原缓存并向调用方抛出异常
+- 仓储注册为单例，每次加载新建一个服务作用域解析 `ISqlSugarClientResolver`，加载期间在独立的非事务工作单元里切换到平台（0 号租户）上下文：规则从平台布局的库读取，与触发刷新的请求属于哪个租户无关
 - 返回的规则对象运行时类型是 `GrayRule`：灰度引擎按 `(rule as GrayRule)?.TargetVersion` 读取目标版本
 
 ## 配置
@@ -92,6 +93,7 @@ public class YourAppModule : XiHanModule
 ## 注意事项与最佳实践
 
 - **多实例缓存不同步**：每个实例各自刷新缓存，规则变更最坏要等一个 `RefreshInterval` 才在所有实例生效；需要立即生效时在各实例上调用 `RefreshAsync`
+- **库不可用时保留上次成功加载的规则并退避重试**：自动刷新失败会记一条警告，继续返回旧规则，并在 `RefreshInterval` 与 5 秒中较小的时间后再试；从未成功加载过时返回空集合
 - **仓储不提供写方法**：直接对 `sys_gray_rule` 表增删改，改完后等待刷新或调用 `RefreshAsync`
 - **`Configuration` 不做 JSON 校验**：内容格式错误要到规则匹配时才会暴露
 - **生效区间按 UTC 比较**：经映射写入时，`Local` 时间换算为同一时刻的 UTC，未标注时区的时间按 UTC 解释；直接写表时请写 UTC

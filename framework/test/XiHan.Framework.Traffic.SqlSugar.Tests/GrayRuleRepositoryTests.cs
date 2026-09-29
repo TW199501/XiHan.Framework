@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SqlSugar;
 using XiHan.Framework.Data.SqlSugar.Clients;
@@ -16,6 +17,8 @@ using XiHan.Framework.Traffic.SqlSugar.Entities;
 using XiHan.Framework.Traffic.SqlSugar.Extensions.DependencyInjection;
 using XiHan.Framework.Traffic.SqlSugar.Options;
 using XiHan.Framework.Traffic.SqlSugar.Repositories;
+using XiHan.Framework.Uow;
+using XiHan.Framework.Uow.Abstracts;
 
 namespace XiHan.Framework.Traffic.SqlSugar.Tests;
 
@@ -206,13 +209,20 @@ internal sealed class GrayRuleTestContext : IDisposable
         Resolver = new StubClientResolver(Client, Tenant);
 
         var services = new ServiceCollection();
+        services.AddOptions();
+        services.AddLogging();
         services.AddSingleton<ISqlSugarClientResolver>(Resolver);
         services.AddSingleton<ICurrentTenant>(Tenant);
+        services.AddSingleton<IAmbientUnitOfWork, AmbientUnitOfWork>();
+        services.AddSingleton<IUnitOfWorkEventPublisher, NullUnitOfWorkEventPublisher>();
+        services.AddTransient<IUnitOfWork, UnitOfWork>();
+        services.AddSingleton<IUnitOfWorkManager, UnitOfWorkManager>();
         _serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
 
         Repository = new SqlSugarGrayRuleRepository(
             _serviceProvider.GetRequiredService<IServiceScopeFactory>(),
-            Microsoft.Extensions.Options.Options.Create(new XiHanTrafficSqlSugarOptions { RefreshInterval = refreshInterval ?? TimeSpan.FromSeconds(30) }));
+            Microsoft.Extensions.Options.Options.Create(new XiHanTrafficSqlSugarOptions { RefreshInterval = refreshInterval ?? TimeSpan.FromSeconds(30) }),
+            NullLogger<SqlSugarGrayRuleRepository>.Instance);
     }
 
     /// <summary>
