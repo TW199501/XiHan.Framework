@@ -54,6 +54,8 @@ public class EntityConventionTests
     [Theory]
     [InlineData(typeof(SysAuthzUserPermission))]
     [InlineData(typeof(SysAuthzRolePermission))]
+    [InlineData(typeof(SysAuthzRole))]
+    [InlineData(typeof(SysAuthzUserRole))]
     public void 关联实体按租户严格隔离(Type entityType)
     {
         Assert.True(typeof(IStrictMultiTenantEntity).IsAssignableFrom(entityType));
@@ -134,6 +136,38 @@ public class EntityConventionTests
             context.Client.Insertable(NewRolePermission(context, 0, "r1", "A")).ExecuteCommandAsync());
     }
 
+    /// <summary>
+    /// 角色标识与角色名称在同一租户内各自唯一，不同租户可重复
+    /// </summary>
+    [Fact]
+    public async Task 角色标识与名称在同一租户内唯一()
+    {
+        using var context = new AuthorizationTestContext();
+
+        await context.Client.Insertable(NewRole(context, 0, "r1", "admin")).ExecuteCommandAsync();
+        await context.Client.Insertable(NewRole(context, 1, "r1", "admin")).ExecuteCommandAsync();
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            context.Client.Insertable(NewRole(context, 0, "r1", "other")).ExecuteCommandAsync());
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            context.Client.Insertable(NewRole(context, 0, "r2", "admin")).ExecuteCommandAsync());
+    }
+
+    /// <summary>
+    /// 用户角色关联在同一租户内唯一，不同租户可重复
+    /// </summary>
+    [Fact]
+    public async Task 用户角色关联在同一租户内唯一()
+    {
+        using var context = new AuthorizationTestContext();
+
+        await context.Client.Insertable(NewUserRole(context, 0, "u1", "r1")).ExecuteCommandAsync();
+        await context.Client.Insertable(NewUserRole(context, 1, "u1", "r1")).ExecuteCommandAsync();
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            context.Client.Insertable(NewUserRole(context, 0, "u1", "r1")).ExecuteCommandAsync());
+    }
+
     private static SysAuthzPermission NewPermission(AuthorizationTestContext context, string name)
     {
         return new SysAuthzPermission(context.IdGenerator.NextId())
@@ -161,6 +195,29 @@ public class EntityConventionTests
             TenantId = tenantId,
             RoleId = roleId,
             PermissionName = permissionName
+        };
+    }
+
+    private static SysAuthzRole NewRole(AuthorizationTestContext context, long tenantId, string roleId, string roleName)
+    {
+        return new SysAuthzRole(context.IdGenerator.NextId())
+        {
+            TenantId = tenantId,
+            RoleId = roleId,
+            RoleName = roleName,
+            DisplayName = roleName,
+            IsEnabled = true,
+            CreatedTime = DateTime.UtcNow
+        };
+    }
+
+    private static SysAuthzUserRole NewUserRole(AuthorizationTestContext context, long tenantId, string userId, string roleId)
+    {
+        return new SysAuthzUserRole(context.IdGenerator.NextId())
+        {
+            TenantId = tenantId,
+            UserId = userId,
+            RoleId = roleId
         };
     }
 }
