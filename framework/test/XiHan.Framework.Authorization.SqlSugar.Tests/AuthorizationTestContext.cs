@@ -83,6 +83,15 @@ internal sealed class AuthorizationTestContext : IDisposable
     }
 
     /// <summary>
+    /// 创建权限检查器
+    /// </summary>
+    /// <returns>权限检查器</returns>
+    public SqlSugarPermissionChecker CreatePermissionChecker()
+    {
+        return new SqlSugarPermissionChecker(Resolver, CurrentTenant);
+    }
+
+    /// <summary>
     /// 释放客户端并删除临时库文件
     /// </summary>
     public void Dispose()
