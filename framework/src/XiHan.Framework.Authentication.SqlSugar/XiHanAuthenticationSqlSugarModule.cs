@@ -13,7 +13,8 @@ namespace XiHan.Framework.Authentication.SqlSugar;
 /// </summary>
 /// <remarks>
 /// 在应用模块上 <c>[DependsOn(typeof(XiHanAuthenticationSqlSugarModule))]</c> 即启用。
-/// 本模块以 SqlSugar 用户存储替换认证模块的内存用户存储。
+/// 本模块以 SqlSugar 存储替换认证模块的用户、刷新令牌与第三方登录的内存存储。
+/// 配置节：<c>XiHan:Authentication:SqlSugar</c>。
 /// </remarks>
 [DependsOn(
     typeof(XiHanAuthenticationModule),
