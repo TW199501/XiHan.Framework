@@ -3,6 +3,7 @@
 
 using XiHan.Framework.Core.Modularity;
 using XiHan.Framework.Data;
+using XiHan.Framework.Settings.SqlSugar.Extensions.DependencyInjection;
 
 namespace XiHan.Framework.Settings.SqlSugar;
 
@@ -11,7 +12,7 @@ namespace XiHan.Framework.Settings.SqlSugar;
 /// </summary>
 /// <remarks>
 /// 在应用模块上 <c>[DependsOn(typeof(XiHanSettingsSqlSugarModule))]</c> 即启用。
-/// 本模块提供设置值的 SqlSugar 实体定义；存储实现的注册在后续任务提供。
+/// 本模块以 SqlSugar 存储替换 <see cref="XiHanSettingsModule"/> 注册的空存储。
 /// </remarks>
 [DependsOn(
     typeof(XiHanSettingsModule),
@@ -19,4 +20,12 @@ namespace XiHan.Framework.Settings.SqlSugar;
 )]
 public class XiHanSettingsSqlSugarModule : XiHanModule
 {
+    /// <summary>
+    /// 服务配置
+    /// </summary>
+    /// <param name="context"></param>
+    public override void ConfigureServices(ServiceConfigurationContext context)
+    {
+        context.Services.AddXiHanSettingsSqlSugar();
+    }
 }
