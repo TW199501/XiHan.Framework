@@ -9,7 +9,7 @@ using XiHan.Framework.EventBus.SqlSugar.Mapping;
 namespace XiHan.Framework.EventBus.SqlSugar.Tests;
 
 /// <summary>
-/// 发件箱建表测试
+/// 收发件箱建表测试
 /// </summary>
 public class TableInitializationTests
 {
@@ -79,6 +79,57 @@ public class TableInitializationTests
         }
     }
 
+    /// <summary>
+    /// 收件箱表能建出来
+    /// </summary>
+    [Fact]
+    public void 收件箱表能建出来()
+    {
+        var databaseFile = Path.Combine(Path.GetTempPath(), $"xihan_inbox_{Guid.NewGuid():N}.db");
+
+        try
+        {
+            using var db = CreateClient(databaseFile);
+
+            db.CodeFirst.InitTables(typeof(SysEventInbox));
+
+            var tableNames = db.DbMaintenance.GetTableInfoList(false)
+                .Select(table => table.Name)
+                .ToList();
+
+            Assert.Contains(tableNames, name => string.Equals(name, "sys_event_inbox", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            DeleteQuietly(databaseFile);
+        }
+    }
+
+    /// <summary>
+    /// 重复的去重键被唯一索引拦下
+    /// </summary>
+    [Fact]
+    public void 重复的去重键被唯一索引拦下()
+    {
+        var databaseFile = Path.Combine(Path.GetTempPath(), $"xihan_inbox_{Guid.NewGuid():N}.db");
+
+        try
+        {
+            using var db = CreateClient(databaseFile);
+
+            db.CodeFirst.InitTables(typeof(SysEventInbox));
+
+            db.Insertable(NewInboxEntity("dup-key")).ExecuteCommand();
+
+            Assert.ThrowsAny<Exception>(() => db.Insertable(NewInboxEntity("dup-key")).ExecuteCommand());
+            Assert.Equal(1, db.Queryable<SysEventInbox>().Count());
+        }
+        finally
+        {
+            DeleteQuietly(databaseFile);
+        }
+    }
+
     private static SqlSugarClient CreateClient(string databaseFile)
     {
         return new SqlSugarClient(new ConnectionConfig
@@ -96,5 +147,18 @@ public class TableInitializationTests
         {
             File.Delete(databaseFile);
         }
+    }
+
+    private static SysEventInbox NewInboxEntity(string dedupKey)
+    {
+        return new SysEventInbox(Guid.NewGuid())
+        {
+            MessageId = dedupKey,
+            DedupKey = dedupKey,
+            EventName = "Order.Paid",
+            EventData = [1],
+            CreatedTime = DateTimeOffset.UtcNow,
+            Status = SysEventInbox.StatusPending
+        };
     }
 }
