@@ -78,6 +78,7 @@ public class SqlSugarBackgroundJobStore : IBackgroundJobStore
     /// 按优先级降序、已尝试次数升序、下次执行时间升序排序。
     /// 租约时长由 <see cref="XiHanTasksSqlSugarOptions.BackgroundJobLeaseTimeout"/> 配置，
     /// 删除或更新作业会结束租约。应用名为空与空字符串视为同一个应用。
+    /// 实际领取数量取 <paramref name="maxResultCount"/> 与 <see cref="XiHanTasksSqlSugarOptions.MaxClaimBatchSize"/> 的较小者。
     /// </remarks>
     /// <param name="applicationName">应用名</param>
     /// <param name="maxResultCount">最大返回数量</param>
@@ -91,7 +92,9 @@ public class SqlSugarBackgroundJobStore : IBackgroundJobStore
 
         var applicationKey = BackgroundJobMapper.ToApplicationKey(applicationName);
 
-        var claimed = await _clientAccessor.ExecuteAsync(client => ClaimAsync(client, applicationKey, maxResultCount));
+        var claimCount = Math.Min(maxResultCount, _options.MaxClaimBatchSize);
+
+        var claimed = await _clientAccessor.ExecuteAsync(client => ClaimAsync(client, applicationKey, claimCount));
 
         return [.. claimed.Select(BackgroundJobMapper.ToJobInfo)];
     }

@@ -100,6 +100,43 @@ public class BackgroundJobClaimTests
     }
 
     /// <summary>
+    /// 请求数量超过批量上限时只领取上限数量
+    /// </summary>
+    [Fact]
+    public async Task 请求数量超过批量上限时只领取上限数量()
+    {
+        using var context = new TasksTestContext();
+        for (var index = 0; index < 60; index++)
+        {
+            await context.BackgroundJobStore.InsertAsync(NewJob(null));
+        }
+
+        var claimed = await context.BackgroundJobStore.GetWaitingJobsAsync(null, 1000);
+
+        Assert.Equal(50, claimed.Count);
+        Assert.Equal(50, await context.Client.Queryable<SysBackgroundJob>()
+            .Where(item => item.ClaimToken != null)
+            .CountAsync());
+    }
+
+    /// <summary>
+    /// 批量上限取自配置
+    /// </summary>
+    [Fact]
+    public async Task 批量上限取自配置()
+    {
+        using var context = new TasksTestContext(maxClaimBatchSize: 7);
+        for (var index = 0; index < 20; index++)
+        {
+            await context.BackgroundJobStore.InsertAsync(NewJob(null));
+        }
+
+        var claimed = await context.BackgroundJobStore.GetWaitingJobsAsync(null, 1000);
+
+        Assert.Equal(7, claimed.Count);
+    }
+
+    /// <summary>
     /// 数量上限为零时返回空且不领取
     /// </summary>
     [Fact]

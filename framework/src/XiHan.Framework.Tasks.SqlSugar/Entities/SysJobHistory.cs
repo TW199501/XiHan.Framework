@@ -13,6 +13,7 @@ namespace XiHan.Framework.Tasks.SqlSugar.Entities;
 [SugarIndex("idx_sys_job_history_name_started",
     nameof(SysJobHistory.JobName), OrderByType.Asc,
     nameof(SysJobHistory.StartedAt), OrderByType.Desc)]
+[SugarIndex("idx_sys_job_history_started_at", nameof(SysJobHistory.StartedAt), OrderByType.Asc)]
 public class SysJobHistory : SugarEntity<string>
 {
     /// <summary>

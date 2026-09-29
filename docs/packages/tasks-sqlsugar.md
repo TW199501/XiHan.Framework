@@ -122,6 +122,9 @@ public class YourAppModule : XiHanModule
 | --- | --- | --- | --- |
 | `BackgroundJobLeaseTimeout` | `TimeSpan` | `00:05:00` | 后台作业租约时长 |
 | `RunningInstanceGracePeriod` | `TimeSpan` | `00:01:00` | 运行中任务实例的宽限期 |
+| `MaxClaimBatchSize` | `int` | `50` | 单次领取的作业数量上限，必须大于零，否则启动校验失败 |
+
+实际领取数量取调用方请求数量与 `MaxClaimBatchSize` 的较小者。一轮领到的作业共用同一个租约，Worker 又串行执行这一轮的全部作业，因此该上限限制了共用一个租约的作业数，也就限制了一轮耗时超过租约的风险。
 
 ## 主要 API / 类型
 
@@ -133,14 +136,16 @@ public class YourAppModule : XiHanModule
 | `TasksHostClientAccessor` | 在宿主上下文中取默认布局主库客户端的访问器 |
 | `SysBackgroundJob` / `SysJobInstance` / `SysJobHistory` | 三个实体 |
 | `BackgroundJobMapper` / `JobStoreMapper` | 契约与实体的双向映射 |
-| `XiHanTasksSqlSugarOptions` | 租约与宽限期配置 |
+| `XiHanTasksSqlSugarOptions` | 租约、宽限期与领取批量上限配置 |
 
 ## 注意事项与最佳实践
 
 - **后台作业的执行语义是至少一次**。作业处理器必须幂等。
 - **租约要大于一轮的执行耗时**。未配置 Redis 的多实例部署下，一轮耗时超过租约时，尚未执行到的作业可能被另一实例重复领取。调大 `BackgroundJobLeaseTimeout`，或调小 `XiHan:BackgroundJobs:MaxJobFetchCount`。
+- **提前结束的一轮不会释放租约**。Worker 因停机或锁续期失败提前结束一轮时，已领取但未执行的作业要等租约过期才会被再次领取。
+- **SQL Server 未开启 RCSI 时，领取会被未提交的入队事务阻塞**。默认的已提交读隔离下，未提交的入队事务持有的行锁会让领取的查询等待；在库上开启 `READ_COMMITTED_SNAPSHOT`（RCSI）可避免。
 - **`GetWaitingJobsAsync` 是领取不是查询**。调用后作业已被盖上令牌，不要在别处当作只读查询复用，也不要在事务型工作单元里调用它。
-- **执行记录只增不减**。框架不会自动清理，需应用定期调用 `IJobStore.CleanupHistoryAsync`；放弃的后台作业同样需要应用自行清理。
+- **执行记录只增不减**。框架不会自动清理，需应用定期调用 `IJobStore.CleanupHistoryAsync`；它同时清掉运行截止时刻早于保留期的遗留运行中实例。放弃的后台作业同样需要应用自行清理。
 - **运行中实例对所有节点可见**。多节点共用一个库时，不允许并发的任务在节点之间也互斥。
 - **不限时的任务要留意遗留实例**。任务超时小于等于 0 时，运行中实例在被显式结束之前一直算运行中；这类任务若不允许并发、又在执行途中崩溃，会一直被跳过。用 `IJobStore.UpdateJobStatusAsync(实例标识, JobStatus.Failed)` 清除，遗留实例的 `Running_Deadline` 为 `9999-12-31`。
 - **跨库写入不是一个事务**。业务数据在模块库或租户独立库时，作业的入队与业务各自提交。

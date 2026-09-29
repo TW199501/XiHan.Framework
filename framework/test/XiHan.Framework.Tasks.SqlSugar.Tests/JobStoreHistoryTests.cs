@@ -87,10 +87,10 @@ public class JobStoreHistoryTests
     }
 
     /// <summary>
-    /// 清理早于保留期的历史与已结束实例
+    /// 清理早于保留期的历史、已结束实例与截止时刻早于保留期的遗留运行实例
     /// </summary>
     [Fact]
-    public async Task 清理早于保留期的历史与已结束实例()
+    public async Task 清理早于保留期的历史与已结束实例及遗留运行实例()
     {
         using var context = new TasksTestContext();
         var now = DateTimeOffset.UtcNow;
@@ -105,8 +105,9 @@ public class JobStoreHistoryTests
         var oldRunning = NewInstance("Report.Daily", JobStatus.Running, now.AddDays(-40));
         var recentSucceeded = NewInstance("Report.Daily", JobStatus.Succeeded, now.AddDays(-1));
         recentSucceeded.CompletedAt = now.AddDays(-1);
+        var recentRunning = NewInstance("Report.Daily", JobStatus.Running, now);
 
-        foreach (var instance in new[] { oldSucceeded, oldRunning, recentSucceeded })
+        foreach (var instance in new[] { oldSucceeded, oldRunning, recentSucceeded, recentRunning })
         {
             await context.JobStore.SaveJobInstanceAsync(instance);
         }
@@ -116,8 +117,9 @@ public class JobStoreHistoryTests
         var remaining = Assert.Single(await context.JobStore.GetJobHistoryAsync("Report.Daily"));
         Assert.Equal(recentHistory.HistoryId, remaining.HistoryId);
         Assert.Null(await context.JobStore.GetJobInstanceAsync(oldSucceeded.InstanceId));
-        Assert.NotNull(await context.JobStore.GetJobInstanceAsync(oldRunning.InstanceId));
+        Assert.Null(await context.JobStore.GetJobInstanceAsync(oldRunning.InstanceId));
         Assert.NotNull(await context.JobStore.GetJobInstanceAsync(recentSucceeded.InstanceId));
+        Assert.NotNull(await context.JobStore.GetJobInstanceAsync(recentRunning.InstanceId));
     }
 
     /// <summary>

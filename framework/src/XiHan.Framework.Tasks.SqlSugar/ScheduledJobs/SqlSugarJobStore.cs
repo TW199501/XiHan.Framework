@@ -76,7 +76,7 @@ public class SqlSugarJobStore : IJobStore
     /// 更新任务实例状态，实例不存在时不做任何事
     /// </summary>
     /// <remarks>
-    /// 终止状态同时把完成时间写为当前时间。
+    /// 终止状态且完成时间为空时，把完成时间写为当前时间；已有完成时间保持不变。
     /// </remarks>
     /// <param name="instanceId">实例唯一标识</param>
     /// <param name="status">状态</param>
@@ -93,10 +93,17 @@ public class SqlSugarJobStore : IJobStore
             await _clientAccessor.ExecuteAsync(client => client.Updateable<SysJobInstance>()
                 .SetColumns(item => new SysJobInstance
                 {
-                    Status = statusValue,
-                    CompletedAt = completedAt
+                    Status = statusValue
                 })
                 .Where(item => item.BasicId == instanceId)
+                .ExecuteCommandAsync());
+
+            await _clientAccessor.ExecuteAsync(client => client.Updateable<SysJobInstance>()
+                .SetColumns(item => new SysJobInstance
+                {
+                    CompletedAt = completedAt
+                })
+                .Where(item => item.BasicId == instanceId && item.CompletedAt == null)
                 .ExecuteCommandAsync());
 
             return;
@@ -214,7 +221,8 @@ public class SqlSugarJobStore : IJobStore
     /// 清理过期的执行历史与已结束的任务实例
     /// </summary>
     /// <remarks>
-    /// 删除开始时间早于保留期的执行历史，以及状态为成功、失败或已取消且完成时间早于保留期的任务实例。
+    /// 删除开始时间早于保留期的执行历史，状态为成功、失败或已取消且完成时间早于保留期的任务实例，
+    /// 以及状态为运行中且运行截止时刻早于保留期的遗留实例。
     /// </remarks>
     /// <param name="retentionDays">保留天数</param>
     public async Task CleanupHistoryAsync(int retentionDays)
@@ -228,6 +236,7 @@ public class SqlSugarJobStore : IJobStore
         var succeeded = (int)JobStatus.Succeeded;
         var failed = (int)JobStatus.Failed;
         var canceled = (int)JobStatus.Canceled;
+        var running = (int)JobStatus.Running;
 
         await _clientAccessor.ExecuteAsync(async client =>
         {
@@ -239,6 +248,12 @@ public class SqlSugarJobStore : IJobStore
                 .Where(item => (item.Status == succeeded || item.Status == failed || item.Status == canceled)
                     && item.CompletedAt != null
                     && item.CompletedAt < cutoff)
+                .ExecuteCommandAsync();
+
+            await client.Deleteable<SysJobInstance>()
+                .Where(item => item.Status == running
+                    && item.RunningDeadline != null
+                    && item.RunningDeadline < cutoff)
                 .ExecuteCommandAsync();
         });
     }

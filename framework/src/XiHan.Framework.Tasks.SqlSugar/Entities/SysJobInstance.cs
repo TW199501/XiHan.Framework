@@ -13,6 +13,7 @@ namespace XiHan.Framework.Tasks.SqlSugar.Entities;
 [SugarIndex("idx_sys_job_instance_name_status",
     nameof(SysJobInstance.JobName), OrderByType.Asc,
     nameof(SysJobInstance.Status), OrderByType.Asc)]
+[SugarIndex("idx_sys_job_instance_completed_at", nameof(SysJobInstance.CompletedAt), OrderByType.Asc)]
 public class SysJobInstance : SugarEntity<string>
 {
     /// <summary>

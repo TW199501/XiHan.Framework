@@ -26,7 +26,8 @@ internal sealed class TasksTestContext : IDisposable
     /// 构造函数
     /// </summary>
     /// <param name="leaseTimeout">后台作业租约时长，默认五分钟</param>
-    public TasksTestContext(TimeSpan? leaseTimeout = null)
+    /// <param name="maxClaimBatchSize">单次领取的批量上限，默认取配置默认值</param>
+    public TasksTestContext(TimeSpan? leaseTimeout = null, int? maxClaimBatchSize = null)
     {
         _databaseFile = Path.Combine(Path.GetTempPath(), $"xihan_tasks_{Guid.NewGuid():N}.db");
 
@@ -54,11 +55,17 @@ internal sealed class TasksTestContext : IDisposable
 
         Clock = new FakeClock(BaseTime);
 
-        var options = Microsoft.Extensions.Options.Options.Create(new XiHanTasksSqlSugarOptions
+        var optionValues = new XiHanTasksSqlSugarOptions
         {
             BackgroundJobLeaseTimeout = leaseTimeout ?? TimeSpan.FromMinutes(5),
             RunningInstanceGracePeriod = TimeSpan.FromMinutes(1)
-        });
+        };
+        if (maxClaimBatchSize.HasValue)
+        {
+            optionValues.MaxClaimBatchSize = maxClaimBatchSize.Value;
+        }
+
+        var options = Microsoft.Extensions.Options.Options.Create(optionValues);
 
         BackgroundJobStore = new SqlSugarBackgroundJobStore(Accessor, Clock, options);
         JobStore = new SqlSugarJobStore(Accessor, options);

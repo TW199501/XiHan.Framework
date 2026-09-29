@@ -31,8 +31,12 @@ public static class XiHanTasksSqlSugarServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.Configure<XiHanTasksSqlSugarOptions>(
-            configuration.GetSection(XiHanTasksSqlSugarOptions.SectionName));
+        services.AddOptions<XiHanTasksSqlSugarOptions>()
+            .Bind(configuration.GetSection(XiHanTasksSqlSugarOptions.SectionName))
+            .Validate(
+                options => options.MaxClaimBatchSize > 0,
+                "任务 SqlSugar 存储配置无效：MaxClaimBatchSize 必须大于零。")
+            .ValidateOnStart();
 
         services.TryAddSingleton<TasksHostClientAccessor>();
         services.Replace(ServiceDescriptor.Singleton<IBackgroundJobStore, SqlSugarBackgroundJobStore>());

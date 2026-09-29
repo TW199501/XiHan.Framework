@@ -130,6 +130,27 @@ public class JobStoreInstanceTests
     }
 
     /// <summary>
+    /// 更新为终止状态时不覆盖已有的完成时间
+    /// </summary>
+    [Fact]
+    public async Task 更新为终止状态时不覆盖已有的完成时间()
+    {
+        using var context = new TasksTestContext();
+        var completedAt = DateTimeOffset.UtcNow.AddHours(-2);
+        var instance = NewInstance("Report.Daily", JobStatus.Running, completedAt.AddMinutes(-5));
+        instance.CompletedAt = completedAt;
+        await context.JobStore.SaveJobInstanceAsync(instance);
+
+        await context.JobStore.UpdateJobStatusAsync(instance.InstanceId, JobStatus.Failed);
+
+        var found = await context.JobStore.GetJobInstanceAsync(instance.InstanceId);
+        Assert.NotNull(found);
+        Assert.Equal(JobStatus.Failed, found.Status);
+        Assert.True(found.CompletedAt.HasValue);
+        AssertClose(completedAt, found.CompletedAt.GetValueOrDefault());
+    }
+
+    /// <summary>
     /// 更新不存在的实例不抛异常且不插入
     /// </summary>
     [Fact]
