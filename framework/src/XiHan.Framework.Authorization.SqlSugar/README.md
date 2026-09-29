@@ -10,7 +10,7 @@
 - `SqlSugarPermissionStore`、`SqlSugarRoleStore`、`SqlSugarPolicyStore` 以 `Replace` 顶替主包的三个内存存储
 - `SqlSugarPermissionChecker` 顶替 `IPermissionChecker`：一次权限判定至多执行 2 条 SQL（直接授予命中时 1 条），与用户的角色数、一次判定的权限数无关
 - 删除角色时在同一事务内级联删除其用户关联与角色权限；已处于事务型工作单元中时并入该事务
-- 角色与各类授予按租户严格隔离，权限定义与策略全局共享
+- 角色与各类授予按租户严格隔离；权限定义与策略存放在当前租户布局的主库，不带租户列
 - 表结构由 `DbInitializer` 在应用启动时创建，**必须开启** `XiHan:Data:SqlSugarCore` 下的 `EnableDbInitialization` 与 `EnableTableInitialization`（二者默认均为 `false`）
 
 ## 依赖关系
@@ -25,7 +25,7 @@
 
 未开启上述两个建表开关时不会建表，首次调用任何一个存储或检查器即报「表不存在」。实体标注了 `[TableInitialization(Group = "Authorization")]`：`TableInitialization.Mode` 为 `OptIn` 时同样会建这六张表；`All` 模式下可用 `ExcludedGroups: ["Authorization"]` 跳过它们。
 
-角色、用户角色关联、用户权限、角色权限四张表按租户隔离：每条读写都显式带 `Tenant_Id = ICurrentTenant.Id ?? 0`，插入时写入同一个值，结果只来自当前租户，与 `EnableTenantFilter` 开关无关；四个实体同时实现 `IStrictMultiTenantEntity`，全局过滤器开着时与显式条件结果相同。平台态（无租户上下文）读写租户 0 的数据，看不到业务租户的角色与授予；要管理某个租户的授权，先用 `ICurrentTenant.Change` 切到该租户。权限定义与策略不分租户，租户态调用它们的写方法会改到所有租户共用的数据，应只在平台态开放。
+角色、用户角色关联、用户权限、角色权限四张表按租户隔离：每条读写都显式带 `Tenant_Id = ICurrentTenant.Id ?? 0`，插入时写入同一个值，结果只来自当前租户，与 `EnableTenantFilter` 开关无关；四个实体同时实现 `IStrictMultiTenantEntity`，全局过滤器开着时与显式条件结果相同。平台态（无租户上下文）读写租户 0 的数据，看不到业务租户的角色与授予；要管理某个租户的授权，先用 `ICurrentTenant.Change` 切到该租户。权限定义与策略两张表不带租户列，落在当前租户布局的主库：共享库部署下各租户共用平台播种的同一份数据，租户态调用它们的写方法会改到这份共用数据，应只在平台态开放；租户独立库部署下每个租户库各有一份，须在每个租户库内播种，平台态写入只影响平台库。
 
 所有读写经 `ISqlSugarClientResolver.GetCurrentClient()`，存在事务型工作单元时自动并入。
 
@@ -78,7 +78,8 @@ public class YourAppModule : XiHanModule
 权限定义不在 `IPermissionStore` 契约里，通过具体类型写入（例如在数据种子中）：
 
 ```csharp
-var permissionStore = serviceProvider.GetRequiredService<SqlSugarPermissionStore>();
+using var scope = serviceProvider.CreateScope();
+var permissionStore = scope.ServiceProvider.GetRequiredService<SqlSugarPermissionStore>();
 
 await permissionStore.AddPermissionsAsync(
 [
@@ -86,6 +87,8 @@ await permissionStore.AddPermissionsAsync(
     new PermissionDefinition("User.Delete", "删除用户")
 ]);
 ```
+
+`AddPermissionsAsync` 逐条写入，不保证原子性：中途失败时，已写入的定义不会回滚。
 
 ## 扩展点
 

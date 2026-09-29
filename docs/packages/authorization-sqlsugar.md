@@ -65,12 +65,12 @@ public class MyModule : XiHanModule { }
 
 | 表 | 内容 | 租户 | 唯一索引 |
 | --- | --- | --- | --- |
-| `sys_authz_permission` | 权限定义 | 全局 | `Permission_Name` |
+| `sys_authz_permission` | 权限定义 | 无租户列，随租户布局的主库 | `Permission_Name` |
 | `sys_authz_user_permission` | 用户直接授予 | 严格隔离 | `Tenant_Id, User_Id, Permission_Name` |
 | `sys_authz_role_permission` | 角色授予 | 严格隔离 | `Tenant_Id, Role_Id, Permission_Name` |
 | `sys_authz_role` | 角色 | 严格隔离 | `Tenant_Id, Role_Id`；`Tenant_Id, Role_Name` |
 | `sys_authz_user_role` | 用户角色关联 | 严格隔离 | `Tenant_Id, User_Id, Role_Id` |
-| `sys_authz_policy` | 策略 | 全局 | `Policy_Name` |
+| `sys_authz_policy` | 策略 | 无租户列，随租户布局的主库 | `Policy_Name` |
 
 | 约定 | 值 |
 | --- | --- |
@@ -117,7 +117,7 @@ SqlSugarPermissionChecker.IsGrantedAsync(userId, name)
 
 ### 事务与客户端
 
-所有读写经 `ISqlSugarClientResolver.GetCurrentClient()`，存在事务型工作单元时自动并入——「创建用户 + 分配角色」可以在同一个事务里完成。六张表始终在当前租户的主库，不按实体分库。
+所有读写经 `ISqlSugarClientResolver.GetCurrentClient()`，存在事务型工作单元时自动并入——「创建用户 + 分配角色」可以在同一个事务里完成。六张表都在当前租户布局的主库，不按实体分库：共享库部署下即平台主库，租户独立库部署下是各租户自己的主库。
 
 ## 主要 API / 类型
 
@@ -139,7 +139,8 @@ SqlSugarPermissionChecker.IsGrantedAsync(userId, name)
 权限定义不在 `IPermissionStore` 契约里，通过具体类型写入：
 
 ```csharp
-var permissionStore = serviceProvider.GetRequiredService<SqlSugarPermissionStore>();
+using var scope = serviceProvider.CreateScope();
+var permissionStore = scope.ServiceProvider.GetRequiredService<SqlSugarPermissionStore>();
 
 await permissionStore.AddPermissionsAsync(
 [
@@ -147,6 +148,8 @@ await permissionStore.AddPermissionsAsync(
     new PermissionDefinition("User.Delete", "删除用户")
 ]);
 ```
+
+`AddPermissionsAsync` 逐条写入，不保证原子性：中途失败时，已写入的定义不会回滚。
 
 ### 2. 建角色并授权
 
@@ -174,7 +177,7 @@ var granted = await permissionChecker.IsGrantedAsync(userId, "User.Create");
 
 - **建表开关默认关闭**。`EnableDbInitialization` 与 `EnableTableInitialization` 都要打开
 - **租户隔离不依赖过滤器**。角色、用户角色关联与两张授予表的每条 SQL 显式带当前租户条件，联表另带 `Tenant_Id` 相等；`EnableTenantFilter` 关掉时结果也只来自当前租户。平台态读写租户 0，管理某个租户的授权须先切换到该租户
-- **权限定义与策略全局可写**。这两张表不分租户，租户态调用写方法会改到所有租户共用的数据，应只在平台态开放
+- **权限定义与策略存放在当前租户布局的主库**。这两张表不带租户列：共享库部署下各租户共用平台播种的数据，租户态调用写方法会改到这份共用数据，应只在平台态开放；租户独立库部署下每个租户库各有一份，须在每个租户库内播种，平台态写入只影响平台库
 - **含自定义要求的策略写入即抛 `NotSupportedException`**。这是为了不让一条要求在落库时悄悄消失
 - **策略评估仍逐权限判定**。`DefaultPolicyEvaluator` 对 `RequiredPermissions` 逐个调 `IsGrantedAsync`，p 个权限约 2p 条 SQL
 - **应用自己的检查器优先**。应用 `Replace` 了 `IPermissionChecker` 时，本包的检查器不生效
