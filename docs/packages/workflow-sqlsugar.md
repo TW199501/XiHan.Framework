@@ -114,12 +114,13 @@ public class YourAppModule : XiHanModule
 
 ## 注意事项与最佳实践
 
-- **变量必须可 JSON 序列化**。读回后整数与小数都是 `decimal`、嵌套对象是 `JsonElement`，经 `WorkflowVariables` / `WorkflowValueConverter` 取值。
+- **变量必须可 JSON 序列化**。变量字典的值类型是 `object`，读回后每个值都是 `JsonElement`（对象属性名与字典键保持写入时的原样），需经 `WorkflowVariables.Get<T>` / `WorkflowValueConverter` 取值；表达式求值会自动归一化。
 - **删除实例前先删书签**：先 `IWorkflowBookmarkStore.DeleteByInstanceAsync`，再 `IWorkflowInstanceStore.DeleteAsync`。
 - **推进过程不是原子的**：恢复、启动、取消、重试都由多次独立提交组成，进程在中途崩溃或重新部署会留下运行中却没有书签的实例；定期查询这类实例并人工处理。
 - **书签删除比内存实现严格**：`DeleteAsync` 删除不存在的书签抛 `WorkflowException`。
+- **书签 `UpdateAsync` 在行不存在时不插入**，与内存实现（按标识覆盖写入）不同。
 - **已完成实例永久保留**，清理策略由应用实现。
-- **定义编码与实例过滤条件随数据库排序规则比较**，MySQL 默认不区分大小写；编码保持大小写一致。
+- **按编码的查询在数据库条件之后再做区分大小写的比较**，`Leave` 与 `leave` 是两个编码；但唯一索引 `(Code, Version)` 在不区分大小写的排序规则（MySQL 默认）下会让 `Leave` 与 `leave` 互相冲突，Code 请保持大小写一致。
 - **SQLite 不适合与外层事务共用**：外层已写同一个库时，存储的独立连接会撞 `database is locked`。
 - **在服务作用域内解析引擎**：存储是 Scoped。
 

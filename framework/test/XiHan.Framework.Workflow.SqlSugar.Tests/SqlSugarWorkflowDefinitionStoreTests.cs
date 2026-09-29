@@ -129,6 +129,27 @@ public class SqlSugarWorkflowDefinitionStoreTests : IDisposable
     }
 
     /// <summary>
+    /// 编码查询按序数比较不受大小写相近编码影响
+    /// </summary>
+    [Fact]
+    public async Task 编码查询按序数比较不受大小写相近编码影响()
+    {
+        var upper = NewDefinition("Leave", 2, WorkflowDefinitionStatus.Published);
+        var lower = NewDefinition("leave", 1, WorkflowDefinitionStatus.Published);
+        await _store.InsertAsync(upper);
+        await _store.InsertAsync(lower);
+
+        var latest = await _store.FindLatestPublishedAsync("leave");
+        Assert.NotNull(latest);
+        Assert.Equal(lower.Id, latest.Id);
+        Assert.Equal(1, await _store.GetMaxVersionAsync("leave"));
+        Assert.Equal(2, await _store.GetMaxVersionAsync("Leave"));
+        Assert.Null(await _store.FindByVersionAsync("leave", 2));
+        Assert.Equal(lower.Id, (await _store.FindByVersionAsync("leave", 1))!.Id);
+        Assert.Equal([1], (await _store.GetListAsync(code: "leave")).Select(item => item.Version));
+    }
+
+    /// <summary>
     /// 更新写回全部字段包括清空的可空字段
     /// </summary>
     [Fact]

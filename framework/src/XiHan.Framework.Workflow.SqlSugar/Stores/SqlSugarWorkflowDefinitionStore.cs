@@ -57,7 +57,8 @@ public class SqlSugarWorkflowDefinitionStore : IWorkflowDefinitionStore
                 .ToListAsync(cancellationToken),
             cancellationToken);
 
-        return entities.Count == 0 ? null : WorkflowDefinitionMapper.ToDefinition(entities[0]);
+        var matched = entities.Find(item => string.Equals(item.Code, code, StringComparison.Ordinal));
+        return matched is null ? null : WorkflowDefinitionMapper.ToDefinition(matched);
     }
 
     /// <summary>
@@ -74,11 +75,11 @@ public class SqlSugarWorkflowDefinitionStore : IWorkflowDefinitionStore
             client => client.Queryable<SysWorkflowDefinition>()
                 .Where(item => item.Code == code && item.Status == published)
                 .OrderBy(item => item.Version, OrderByType.Desc)
-                .Take(1)
                 .ToListAsync(cancellationToken),
             cancellationToken);
 
-        return entities.Count == 0 ? null : WorkflowDefinitionMapper.ToDefinition(entities[0]);
+        var latest = entities.Find(item => string.Equals(item.Code, code, StringComparison.Ordinal));
+        return latest is null ? null : WorkflowDefinitionMapper.ToDefinition(latest);
     }
 
     /// <summary>
@@ -89,16 +90,17 @@ public class SqlSugarWorkflowDefinitionStore : IWorkflowDefinitionStore
     /// <returns>最大版本号（编码不存在返回 0）</returns>
     public async Task<int> GetMaxVersionAsync(string code, CancellationToken cancellationToken = default)
     {
-        var versions = await _executor.ExecuteAsync(
+        var entities = await _executor.ExecuteAsync(
             client => client.Queryable<SysWorkflowDefinition>()
                 .Where(item => item.Code == code)
-                .OrderBy(item => item.Version, OrderByType.Desc)
-                .Select(item => item.Version)
-                .Take(1)
                 .ToListAsync(cancellationToken),
             cancellationToken);
 
-        return versions.Count == 0 ? 0 : versions[0];
+        return entities
+            .Where(item => string.Equals(item.Code, code, StringComparison.Ordinal))
+            .Select(item => item.Version)
+            .DefaultIfEmpty(0)
+            .Max();
     }
 
     /// <summary>
@@ -124,7 +126,9 @@ public class SqlSugarWorkflowDefinitionStore : IWorkflowDefinitionStore
                 .ToListAsync(cancellationToken),
             cancellationToken);
 
-        return [.. entities.Select(WorkflowDefinitionMapper.ToDefinition)];
+        return [.. entities
+            .Where(item => code is null || string.Equals(item.Code, code, StringComparison.Ordinal))
+            .Select(WorkflowDefinitionMapper.ToDefinition)];
     }
 
     /// <summary>

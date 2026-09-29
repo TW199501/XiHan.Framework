@@ -6,10 +6,15 @@ using System.Text.Json;
 namespace XiHan.Framework.Workflow.SqlSugar.Mapping;
 
 /// <summary>
-/// 工作流 JSON 列的序列化工具，选项与 WorkflowValueConverter 的反序列化选项一致
+/// 工作流 JSON 列的序列化工具，使用 Web 默认选项并保留属性名原样
 /// </summary>
 internal static class WorkflowJsonColumn
 {
+    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = null
+    };
+
     /// <summary>
     /// 序列化为 JSON 文本
     /// </summary>
@@ -18,7 +23,7 @@ internal static class WorkflowJsonColumn
     /// <returns>JSON 文本</returns>
     public static string Serialize<T>(T value)
     {
-        return JsonSerializer.Serialize(value, JsonSerializerOptions.Web);
+        return JsonSerializer.Serialize(value, Options);
     }
 
     /// <summary>
@@ -35,6 +40,6 @@ internal static class WorkflowJsonColumn
             return new T();
         }
 
-        return JsonSerializer.Deserialize<T>(json, JsonSerializerOptions.Web) ?? new T();
+        return JsonSerializer.Deserialize<T>(json, Options) ?? new T();
     }
 }

@@ -383,10 +383,12 @@ services.AddXiHanWorkflowActivity<SendSmsActivity>();
 自己实现时，三个端口各自 `Replace` 即可（框架用 `TryAddSingleton` 注册了内存实现，再 `TryAdd` 会被静默忽略，**必须用 `Replace`**）：
 
 ```csharp
-services.Replace(ServiceDescriptor.Singleton<IWorkflowDefinitionStore, DbWorkflowDefinitionStore>());
-services.Replace(ServiceDescriptor.Singleton<IWorkflowInstanceStore, DbWorkflowInstanceStore>());
-services.Replace(ServiceDescriptor.Singleton<IWorkflowBookmarkStore, DbWorkflowBookmarkStore>());
+services.Replace(ServiceDescriptor.Scoped<IWorkflowDefinitionStore, DbWorkflowDefinitionStore>());
+services.Replace(ServiceDescriptor.Scoped<IWorkflowInstanceStore, DbWorkflowInstanceStore>());
+services.Replace(ServiceDescriptor.Scoped<IWorkflowBookmarkStore, DbWorkflowBookmarkStore>());
 ```
+
+依赖 Scoped 服务时须用 Scoped。
 
 实现时要守住的语义契约：
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using XiHan.Framework.Workflow.Abstractions.Runtime;
+using XiHan.Framework.Workflow.Expressions;
 using XiHan.Framework.Workflow.SqlSugar.Entities;
 using XiHan.Framework.Workflow.SqlSugar.Stores;
 
@@ -41,6 +42,44 @@ public class SqlSugarWorkflowInstanceStoreTests : IDisposable
         Assert.Equal("leave", found.DefinitionCode);
         Assert.Equal(88, new WorkflowVariables(found.Variables).Get<int>("amount"));
         Assert.Null(await _store.FindAsync("missing"));
+    }
+
+    /// <summary>
+    /// 变量中的对象值读回后属性名保持原样并可被表达式求值
+    /// </summary>
+    [Fact]
+    public async Task 变量中的对象值读回后属性名保持原样并可被表达式求值()
+    {
+        var instance = NewInstance("i1", BaseTime);
+        instance.Variables["order"] = new OrderVariable { Amount = 100 };
+        instance.Variables["byKey"] = new Dictionary<string, object?> { ["Mixed"] = 1 };
+
+        await _store.InsertAsync(instance);
+        var found = await _store.FindAsync("i1");
+
+        Assert.NotNull(found);
+        var evaluator = new WorkflowExpressionEvaluator(new TestClock());
+        Assert.True(await evaluator.EvaluateConditionAsync("order.Amount > 50", found.Variables));
+        Assert.True(await evaluator.EvaluateConditionAsync("byKey.Mixed == 1", found.Variables));
+    }
+
+    /// <summary>
+    /// 按定义编码过滤按序数比较并在过滤后截取条数
+    /// </summary>
+    [Fact]
+    public async Task 按定义编码过滤按序数比较并在过滤后截取条数()
+    {
+        var lower = NewInstance("i1", BaseTime);
+        var upper = NewInstance("i2", BaseTime.AddMinutes(1));
+        upper.DefinitionCode = "Leave";
+        var lowerNewer = NewInstance("i3", BaseTime.AddMinutes(2));
+        await _store.InsertAsync(lower);
+        await _store.InsertAsync(upper);
+        await _store.InsertAsync(lowerNewer);
+
+        var found = await _store.GetListAsync(definitionCode: "leave", maxResultCount: 2);
+
+        Assert.Equal(["i3", "i1"], found.Select(item => item.Id));
     }
 
     /// <summary>
@@ -247,5 +286,10 @@ public class SqlSugarWorkflowInstanceStoreTests : IDisposable
             TryCount = 1,
             StartTime = startTime
         };
+    }
+
+    private sealed class OrderVariable
+    {
+        public decimal Amount { get; set; }
     }
 }

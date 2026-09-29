@@ -72,11 +72,13 @@ public class SqlSugarWorkflowInstanceStore : IWorkflowInstanceStore
                 .WhereIF(correlationId is not null, item => item.CorrelationId == correlationId)
                 .OrderBy(item => item.CreationTime, OrderByType.Desc)
                 .OrderBy(item => item.BasicId, OrderByType.Desc)
-                .Take(maxResultCount)
                 .ToListAsync(cancellationToken),
             cancellationToken);
 
-        return [.. entities.Select(WorkflowInstanceMapper.ToInstance)];
+        return [.. entities
+            .Where(item => definitionCode is null || string.Equals(item.DefinitionCode, definitionCode, StringComparison.Ordinal))
+            .Take(maxResultCount)
+            .Select(WorkflowInstanceMapper.ToInstance)];
     }
 
     /// <summary>
