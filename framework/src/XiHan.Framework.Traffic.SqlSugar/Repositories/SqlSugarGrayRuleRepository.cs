@@ -4,6 +4,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using XiHan.Framework.Data.SqlSugar.Clients;
+using XiHan.Framework.MultiTenancy.Abstractions;
 using XiHan.Framework.Traffic.GrayRouting.Abstractions;
 using XiHan.Framework.Traffic.GrayRouting.Models;
 using XiHan.Framework.Traffic.SqlSugar.Entities;
@@ -68,14 +69,23 @@ public class SqlSugarGrayRuleRepository : IGrayRuleRepository
     /// <summary>
     /// 强制从数据库重新加载全部规则
     /// </summary>
+    /// <remarks>
+    /// 加载期间当前租户切换为宿主，规则从宿主布局的库读取。
+    /// </remarks>
     /// <param name="cancellationToken">取消令牌</param>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         using var scope = _scopeFactory.CreateScope();
-        var clientResolver = scope.ServiceProvider.GetRequiredService<ISqlSugarClientResolver>();
-        var client = clientResolver.GetClientForEntity<SysGrayRule>();
+        var currentTenant = scope.ServiceProvider.GetRequiredService<ICurrentTenant>();
 
-        var entities = await client.Queryable<SysGrayRule>().ToListAsync(cancellationToken);
+        List<SysGrayRule> entities;
+        using (currentTenant.Change(null))
+        {
+            var clientResolver = scope.ServiceProvider.GetRequiredService<ISqlSugarClientResolver>();
+            var client = clientResolver.GetClientForEntity<SysGrayRule>();
+
+            entities = await client.Queryable<SysGrayRule>().ToListAsync(cancellationToken);
+        }
 
         var loaded = new Dictionary<string, GrayRule>(StringComparer.Ordinal);
         foreach (var entity in entities)

@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SqlSugar;
 using XiHan.Framework.Data.SqlSugar.Clients;
+using XiHan.Framework.MultiTenancy;
+using XiHan.Framework.MultiTenancy.Abstractions;
 using XiHan.Framework.Traffic.Extensions.DependencyInjection;
 using XiHan.Framework.Traffic.GrayRouting.Abstractions;
 using XiHan.Framework.Traffic.GrayRouting.Enums;
@@ -141,6 +143,25 @@ public class GrayRuleRepositoryTests
     }
 
     /// <summary>
+    /// 在租户上下文中刷新时以宿主上下文取客户端，调用后恢复原租户
+    /// </summary>
+    [Fact]
+    public async Task 在租户上下文中刷新时以宿主上下文取客户端()
+    {
+        using var context = new GrayRuleTestContext();
+
+        using (context.Tenant.Change(42))
+        {
+            await context.Repository.RefreshAsync();
+
+            Assert.Equal(42L, context.Tenant.Id);
+        }
+
+        Assert.NotEmpty(context.Resolver.ObservedTenantIds);
+        Assert.All(context.Resolver.ObservedTenantIds, tenantId => Assert.Null(tenantId));
+    }
+
+    /// <summary>
     /// 注册扩展以 SqlSugar 仓储顶替内存实现
     /// </summary>
     [Fact]
@@ -181,8 +202,12 @@ internal sealed class GrayRuleTestContext : IDisposable
 
         Client.CodeFirst.InitTables(typeof(SysGrayRule));
 
+        Tenant = new CurrentTenant(AsyncLocalCurrentTenantAccessor.Instance);
+        Resolver = new StubClientResolver(Client, Tenant);
+
         var services = new ServiceCollection();
-        services.AddSingleton<ISqlSugarClientResolver>(new StubClientResolver(Client));
+        services.AddSingleton<ISqlSugarClientResolver>(Resolver);
+        services.AddSingleton<ICurrentTenant>(Tenant);
         _serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
 
         Repository = new SqlSugarGrayRuleRepository(
@@ -199,6 +224,16 @@ internal sealed class GrayRuleTestContext : IDisposable
     /// 被测仓储
     /// </summary>
     public SqlSugarGrayRuleRepository Repository { get; }
+
+    /// <summary>
+    /// 当前租户
+    /// </summary>
+    public ICurrentTenant Tenant { get; }
+
+    /// <summary>
+    /// 记录解析时租户的客户端解析器
+    /// </summary>
+    public StubClientResolver Resolver { get; }
 
     /// <summary>
     /// 释放服务容器、客户端并删除临时库文件
@@ -221,15 +256,23 @@ internal sealed class GrayRuleTestContext : IDisposable
 internal sealed class StubClientResolver : ISqlSugarClientResolver
 {
     private readonly ISqlSugarClient _client;
+    private readonly ICurrentTenant _currentTenant;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="client">固定返回的客户端</param>
-    public StubClientResolver(ISqlSugarClient client)
+    /// <param name="currentTenant">当前租户</param>
+    public StubClientResolver(ISqlSugarClient client, ICurrentTenant currentTenant)
     {
         _client = client;
+        _currentTenant = currentTenant;
     }
+
+    /// <summary>
+    /// 每次解析实体客户端时的租户标识
+    /// </summary>
+    public List<long?> ObservedTenantIds { get; } = [];
 
     /// <summary>
     /// 获取当前客户端
@@ -245,6 +288,7 @@ internal sealed class StubClientResolver : ISqlSugarClientResolver
     /// <param name="entityType">实体类型</param>
     public ISqlSugarClient GetClientForEntity(Type entityType)
     {
+        ObservedTenantIds.Add(_currentTenant.Id);
         return _client;
     }
 

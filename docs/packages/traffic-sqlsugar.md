@@ -69,7 +69,7 @@ public class YourAppModule : XiHanModule
 
 - `GetEnabledRulesAsync` / `GetRuleByIdAsync` 先检查缓存是否过期：距上次加载超过 `RefreshInterval` 时，重新从库里读全部规则替换缓存；未过期直接返回缓存内容
 - `RefreshAsync` 立即重新加载，不看间隔
-- 仓储注册为单例，每次加载新建一个服务作用域解析 `ISqlSugarClientResolver`
+- 仓储注册为单例，每次加载新建一个服务作用域解析 `ISqlSugarClientResolver`，加载期间切换到宿主上下文：规则从宿主布局的库读取，与触发刷新的请求属于哪个租户无关
 - 返回的规则对象运行时类型是 `GrayRule`：灰度引擎按 `(rule as GrayRule)?.TargetVersion` 读取目标版本
 
 ## 配置
@@ -94,7 +94,7 @@ public class YourAppModule : XiHanModule
 - **多实例缓存不同步**：每个实例各自刷新缓存，规则变更最坏要等一个 `RefreshInterval` 才在所有实例生效；需要立即生效时在各实例上调用 `RefreshAsync`
 - **仓储不提供写方法**：直接对 `sys_gray_rule` 表增删改，改完后等待刷新或调用 `RefreshAsync`
 - **`Configuration` 不做 JSON 校验**：内容格式错误要到规则匹配时才会暴露
-- **生效区间按 UTC 比较**：写入 `Effective_Time` / `Expiry_Time` 时使用 UTC 时间
+- **生效区间按 UTC 比较**：经映射写入时，`Local` 时间换算为同一时刻的 UTC，未标注时区的时间按 UTC 解释；直接写表时请写 UTC
 
 ## 扩展点 / 自定义
 
