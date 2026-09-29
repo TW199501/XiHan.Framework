@@ -208,6 +208,6 @@ public async Task<UpgradeStartResult> TriggerUpgrade(IUpgradeCoordinator coordin
 ## 相关模块
 
 - [XiHan.Framework.Upgrade.SqlSugar](./upgrade-sqlsugar) — 版本状态与迁移历史的 SqlSugar 持久化存储。
-- [XiHan.Framework.Data](./data) — 数据访问层，业务侧通常在此实现版本存储与迁移执行器。
+- [XiHan.Framework.Data](./data) — 数据访问层，版本存储可依赖 Upgrade.SqlSugar，迁移执行器仍由业务实现。
 - [XiHan.Framework.Caching](./caching) — 分布式锁底座，生产环境的升级锁常基于此实现。
 - [XiHan.Framework.Timing](./timing) — 时间处理，升级历史与状态记录常用。
