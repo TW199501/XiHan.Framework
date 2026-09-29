@@ -4,6 +4,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.DependencyInjection;
+using XiHan.Framework.Workflow.Abstractions.Stores;
 using XiHan.Framework.Workflow.SqlSugar.Options;
 using XiHan.Framework.Workflow.SqlSugar.Stores;
 
@@ -31,6 +32,7 @@ public static class XiHanWorkflowSqlSugarServiceCollectionExtensions
             configuration.GetSection(XiHanWorkflowSqlSugarOptions.SectionName));
 
         services.TryAddScoped<WorkflowSqlSugarExecutor>();
+        services.Replace(ServiceDescriptor.Scoped<IWorkflowDefinitionStore, SqlSugarWorkflowDefinitionStore>());
 
         return services;
     }
