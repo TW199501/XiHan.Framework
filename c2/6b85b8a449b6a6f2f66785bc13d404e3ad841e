@@ -1,0 +1,21 @@
+docs/guide/upgrade.md
+  s_94057b8e5cf9b6::t_72049c32e611dc 15,347-349
+docs/packages/upgrade.md
+  s_94057b8e5cf9b6::t_3ba4460b232d3a 210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c26b85b8a449b6a6f2f66785bc13d404e3ad841e",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
