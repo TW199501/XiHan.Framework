@@ -167,7 +167,9 @@ Utils (零第三方依赖)
               ├── Uow
               │     ├── Caching (+ Redis)
               │     └── EventBus ──→ EventBus.RabbitMQ / Kafka / Redis
-              ├── Domain.Shared ──→ Domain ──→ Data (SqlSugar)
+              ├── Domain.Shared ──→ Domain ──→ Data (SqlSugar) ──→ *.SqlSugar
+              │     │                                             (Auditing / Authentication / Authorization / EventBus /
+              │     │                                              Security / Settings / Tasks / Traffic / Upgrade / Workflow，共 10 个持久化子包)
               │     └── Application.Contracts ──→ Application
               ├── MultiTenancy.Abstractions ──→ MultiTenancy
               │     ├── Tasks

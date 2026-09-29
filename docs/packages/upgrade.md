@@ -36,7 +36,7 @@ public class MyModule : XiHanModule { }
 | 接口 | 默认实现 | 生命周期 | 生产可用性 |
 | --- | --- | --- | --- |
 | `IUpgradeScriptProvider` | `FileSystemUpgradeScriptProvider` | Singleton | 可用（从文件系统扫描 SQL） |
-| `IUpgradeVersionStore` | `DefaultUpgradeVersionStore` | Scoped | 最多 10000 个租户、每租户 10000 条迁移历史；生产需替换为数据库实现 |
+| `IUpgradeVersionStore` | `DefaultUpgradeVersionStore` | Scoped | 最多 10000 个租户、每租户 10000 条迁移历史；生产需替换为数据库实现（用 SqlSugar 可直接依赖 [XiHan.Framework.Upgrade.SqlSugar](./upgrade-sqlsugar)，或自行实现） |
 | `IUpgradeLockProvider` | `DefaultUpgradeLockProvider` | Singleton | 最多 10000 个锁条目；多节点需替换为应用级分布式锁 |
 | `IUpgradeMigrationExecutor` | `DefaultUpgradeMigrationExecutor` | Singleton | **必须替换**（默认直接抛异常，见下） |
 | `IUpgradeTenantProvider` | `DefaultUpgradeTenantProvider` | Scoped | 视多租户需求替换（默认只返回当前 `ICurrentTenant`，不会遍历租户库） |

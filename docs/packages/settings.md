@@ -90,7 +90,7 @@ UserSettingValueProvider (U)          → 取 ISettingStore（当前用户 UserI
 - **作用域读写**：`SettingScope` 分 `Application`（`"G"`）/ `Tenant`（`"T"`）/ `User`（`"U"`）/ `Session`（同 `"U"`）；用户/租户键来自 `ICurrentUser`
 - **加密与校验**：定义可标记 `IsEncrypted` 走 AES；可挂 `Validator` 校验写入值
 - **变更事件**：`SettingManager.OnSettingChanged` 在写入后触发 `SettingChangedEventArgs`
-- **可插拔存储**：`ISettingStore` 承载持久化，默认 `NullSettingStore`（`TryRegister`），上层替换为数据库实现
+- **可插拔存储**：`ISettingStore` 承载持久化，默认 `NullSettingStore`（`TryRegister`），用 SqlSugar 可直接依赖 [XiHan.Framework.Settings.SqlSugar](./settings-sqlsugar)，或自行实现数据库版本
 
 ## 主要 API / 类型
 

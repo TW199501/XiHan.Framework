@@ -99,7 +99,7 @@ version:iterations:algorithm:base64(salt):base64(hash)
 | `GenerateRecoveryCodesAsync` / `VerifyRecoveryCodeAsync` | 恢复码 |
 | `RecordFailedLoginAttemptAsync` | 记录失败尝试（锁定与风控的输入） |
 
-用户数据的读写走 `IUserStore`——框架只定义契约，**业务侧必须 `Replace` 成自己的实现**（通常是数据库）。
+用户数据的读写走 `IUserStore`——框架只定义契约，默认实现只够开发期用，生产必须换掉：用 SqlSugar 可直接依赖 [XiHan.Framework.Authentication.SqlSugar](../packages/authentication-sqlsugar)，或自行实现并 `Replace`。
 
 ## 一次性验证码
 

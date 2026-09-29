@@ -52,7 +52,7 @@ public class MyModule : XiHanModule { }
 - 17 个内置活动
 
 ::: warning 默认存储是内存实现
-`DefaultWorkflowDefinitionStore` / `DefaultWorkflowInstanceStore` / `DefaultWorkflowBookmarkStore` 都是有界的**进程内默认存储**：定义最多 10000 条、实例最多 100000 条、节点实例与书签各最多 500000 条；达到上限会拒绝新增，不会静默淘汰流程数据。它们进程重启即全部丢失，也不跨实例；需要持久化时由应用实现三个 Store 端口并 `Replace` 默认注册。
+`DefaultWorkflowDefinitionStore` / `DefaultWorkflowInstanceStore` / `DefaultWorkflowBookmarkStore` 都是有界的**进程内默认存储**：定义最多 10000 条、实例最多 100000 条、节点实例与书签各最多 500000 条；达到上限会拒绝新增，不会静默淘汰流程数据。它们进程重启即全部丢失，也不跨实例；需要持久化时，用 SqlSugar 可直接依赖 [XiHan.Framework.Workflow.SqlSugar](./workflow-sqlsugar)，或自行实现三个 Store 端口并 `Replace` 默认注册。
 :::
 
 ## 工作原理

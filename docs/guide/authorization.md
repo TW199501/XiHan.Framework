@@ -177,7 +177,7 @@ if (!result.Succeeded)
 
 只需要把授权数据落库时，依赖 [XiHan.Framework.Authorization.SqlSugar](../packages/authorization-sqlsugar)：权限、角色、策略存储换成 SqlSugar 实现，并以直接查表的检查器替换 `DefaultPermissionChecker`。
 
-生产做法是自己实现 `IPermissionChecker`，读一份按用户缓存的授权快照：
+不用 SqlSugar 子包、要自行实现判定时，实现 `IPermissionChecker`，读一份按用户缓存的授权快照：
 
 ```csharp
 public sealed class SnapshotPermissionChecker : IPermissionChecker

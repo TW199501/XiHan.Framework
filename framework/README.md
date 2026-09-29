@@ -167,7 +167,9 @@ Utils (zero third-party deps)
               ├── Uow
               │     ├── Caching (+ Redis)
               │     └── EventBus ──→ EventBus.RabbitMQ / Kafka / Redis
-              ├── Domain.Shared ──→ Domain ──→ Data (SqlSugar)
+              ├── Domain.Shared ──→ Domain ──→ Data (SqlSugar) ──→ *.SqlSugar
+              │     │                                             (Auditing / Authentication / Authorization / EventBus /
+              │     │                                              Security / Settings / Tasks / Traffic / Upgrade / Workflow, 10 persistence packages)
               │     └── Application.Contracts ──→ Application
               ├── MultiTenancy.Abstractions ──→ MultiTenancy
               │     ├── Tasks
