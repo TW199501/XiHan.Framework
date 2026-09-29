@@ -73,6 +73,7 @@
     <Project Path="src/XiHan.Framework.Traffic.SqlSugar/XiHan.Framework.Traffic.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Uow/XiHan.Framework.Uow.csproj" />
     <Project Path="src/XiHan.Framework.Upgrade/XiHan.Framework.Upgrade.csproj" />
+    <Project Path="src/XiHan.Framework.Upgrade.SqlSugar/XiHan.Framework.Upgrade.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.VirtualFileSystem/XiHan.Framework.VirtualFileSystem.csproj" />
     <Project Path="src/XiHan.Framework.Workflow.Abstractions/XiHan.Framework.Workflow.Abstractions.csproj" />
     <Project Path="src/XiHan.Framework.Workflow/XiHan.Framework.Workflow.csproj" />
