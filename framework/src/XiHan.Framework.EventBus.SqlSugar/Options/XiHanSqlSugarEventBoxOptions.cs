@@ -14,7 +14,12 @@ public class XiHanSqlSugarEventBoxOptions
     public const string SectionName = "XiHan:EventBus:SqlSugar";
 
     /// <summary>
-    /// 领取超时，超过该时长仍未删除的已领取记录可被重新领取
+    /// 领取超时，超过该时长仍未完结的已领取记录可被重新领取，收发件箱共用
     /// </summary>
     public TimeSpan ClaimTimeout { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// 收件箱已处理与已丢弃记录的保留期，超过该时长的记录被清理
+    /// </summary>
+    public TimeSpan InboxRetentionPeriod { get; set; } = TimeSpan.FromDays(7);
 }

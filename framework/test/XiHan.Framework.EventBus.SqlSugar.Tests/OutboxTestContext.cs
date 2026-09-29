@@ -164,12 +164,17 @@ internal sealed class StubClientResolver : ISqlSugarClientResolver
     public Dictionary<string, Exception> FaultyConfigIds { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// 当前库的选择器，为空时使用构造函数传入的当前库
+    /// </summary>
+    public Func<string>? CurrentConfigIdSelector { get; set; }
+
+    /// <summary>
     /// 获取当前客户端
     /// </summary>
     /// <returns>当前库的客户端</returns>
     public ISqlSugarClient GetCurrentClient()
     {
-        return GetClient(_currentConfigId);
+        return GetClient(CurrentConfigIdSelector?.Invoke() ?? _currentConfigId);
     }
 
     /// <summary>
