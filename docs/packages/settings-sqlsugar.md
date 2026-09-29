@@ -33,13 +33,14 @@ public class YourAppModule : XiHanModule
 }
 ```
 
-建表需要开启 [Data](./data) 的建表初始化，**默认是关闭的**：
+建表需要开启 [Data](./data) 的库初始化与建表初始化，**默认都是关闭的**：
 
 ```json
 {
   "XiHan": {
     "Data": {
       "SqlSugarCore": {
+        "EnableDbInitialization": true,
         "EnableTableInitialization": true
       }
     }

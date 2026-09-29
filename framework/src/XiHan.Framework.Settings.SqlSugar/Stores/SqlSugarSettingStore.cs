@@ -116,9 +116,18 @@ public class SqlSugarSettingStore : ISettingStore
         {
             await client.Insertable(entity).ExecuteCommandAsync();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            var winner = await FindAsync(client, name, normalizedProviderName, normalizedProviderKey);
+            SysSetting? winner;
+
+            try
+            {
+                winner = await FindAsync(client, name, normalizedProviderName, normalizedProviderKey);
+            }
+            catch (Exception requeryException)
+            {
+                throw new AggregateException(ex, requeryException);
+            }
 
             if (winner is null)
             {

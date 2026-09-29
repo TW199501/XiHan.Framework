@@ -238,6 +238,54 @@ public class SqlSugarSettingStoreTests : IDisposable
         Assert.Single(rows);
         Assert.Equal("second", rows[0].SettingValue);
     }
+
+    /// <summary>
+    /// 插入失败后重查也失败时，异常中保留原始插入异常
+    /// </summary>
+    [Fact]
+    public async Task 插入失败后重查也失败时保留原始插入异常()
+    {
+        var insertFailed = false;
+        _client.Aop.OnLogExecuting = (sql, _) =>
+        {
+            if (sql.TrimStart().StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
+            {
+                insertFailed = true;
+                throw new InvalidOperationException("insert-boom");
+            }
+
+            if (insertFailed && sql.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("requery-boom");
+            }
+        };
+
+        var exception = await Assert.ThrowsAnyAsync<Exception>(() => _store.SetAsync("App.Failing", "value", "G", null));
+
+        var messages = Flatten(exception).Select(item => item.Message).ToList();
+        Assert.Contains(messages, message => message.Contains("insert-boom", StringComparison.Ordinal));
+        Assert.Contains(messages, message => message.Contains("requery-boom", StringComparison.Ordinal));
+    }
+
+    private static IEnumerable<Exception> Flatten(Exception exception)
+    {
+        yield return exception;
+
+        if (exception is AggregateException aggregate)
+        {
+            foreach (var inner in aggregate.InnerExceptions.SelectMany(Flatten))
+            {
+                yield return inner;
+            }
+        }
+        else if (exception.InnerException is not null)
+        {
+            foreach (var inner in Flatten(exception.InnerException))
+            {
+                yield return inner;
+            }
+        }
+    }
 }
 
 /// <summary>
