@@ -366,7 +366,19 @@ public class SqlSugarUserStore : IUserStore
             throw new InvalidOperationException($"用户名 {user.Username} 已存在");
         }
 
-        await client.Insertable(AuthUserMapper.ToEntity(user, id, tenantId)).ExecuteCommandAsync();
+        try
+        {
+            await client.Insertable(AuthUserMapper.ToEntity(user, id, tenantId)).ExecuteCommandAsync();
+        }
+        catch (Exception)
+        {
+            if (await FindByUserNameAsync(client, tenantId, user.Username) is not null)
+            {
+                throw new InvalidOperationException($"用户名 {user.Username} 已存在");
+            }
+
+            throw;
+        }
 
         user.UserId = id.ToString(CultureInfo.InvariantCulture);
         _loadedUsers[id] = user;

@@ -1,6 +1,8 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using XiHan.Framework.Authentication.SqlSugar.ExternalLogins;
+using XiHan.Framework.Authentication.SqlSugar.Tests.Fakes;
 using XiHan.Framework.Authentication.OAuth;
 using XiHan.Framework.Authentication.SqlSugar.Entities;
 
@@ -200,6 +202,34 @@ public class ExternalLoginStoreTests
         Assert.Equal(256, row.DisplayName?.Length);
         Assert.Equal(2048, row.AvatarUrl?.Length);
         Assert.Equal("gh-1", row.ProviderKey);
+    }
+
+    /// <summary>
+    /// 插入撞到唯一索引且已绑定其他用户时抛出契约异常
+    /// </summary>
+    [Fact]
+    public async Task 插入撞到唯一索引且已绑定其他用户时抛出契约异常()
+    {
+        using var context = NewContext();
+        var inserted = false;
+        context.Client.Aop.OnLogExecuting = (sql, _) =>
+        {
+            if (inserted || !sql.TrimStart().StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            inserted = true;
+            using var other = context.CreateClient(autoClose: true);
+            var rival = new SqlSugarExternalLoginStore(new StubClientResolver(other), context.Tenant, context.IdGenerator, context.Clock);
+            rival.CreateAsync(2002, NewInfo("github", "gh-1")).GetAwaiter().GetResult();
+        };
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => context.CreateExternalLoginStore().CreateAsync(1001, NewInfo("github", "gh-1")));
+
+        Assert.Contains("已绑定到其他用户", error.Message);
+        Assert.True(inserted);
     }
 
     private static AuthenticationTestContext NewContext()

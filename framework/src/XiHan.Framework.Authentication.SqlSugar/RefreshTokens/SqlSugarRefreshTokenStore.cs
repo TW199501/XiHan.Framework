@@ -138,7 +138,7 @@ public class SqlSugarRefreshTokenStore : IRefreshTokenStore
     /// 移除刷新令牌，标记为已撤销
     /// </summary>
     /// <remarks>
-    /// 令牌不存在时不做任何事；令牌已被撤销时抛出异常。
+    /// 令牌不存在时不做任何事；条件更新未命中而令牌存在，说明已被撤销，抛出异常。
     /// </remarks>
     /// <param name="refreshToken">刷新令牌</param>
     /// <exception cref="InvalidOperationException">该令牌已被撤销</exception>
@@ -159,11 +159,11 @@ public class SqlSugarRefreshTokenStore : IRefreshTokenStore
             return;
         }
 
-        var alreadyRevoked = client.Queryable<SysAuthRefreshToken>()
-            .Where(item => item.TokenHash == tokenHash && item.RevokedTime != null)
+        var exists = client.Queryable<SysAuthRefreshToken>()
+            .Where(item => item.TokenHash == tokenHash)
             .Any();
 
-        if (alreadyRevoked)
+        if (exists)
         {
             throw new InvalidOperationException("刷新令牌已被撤销。");
         }

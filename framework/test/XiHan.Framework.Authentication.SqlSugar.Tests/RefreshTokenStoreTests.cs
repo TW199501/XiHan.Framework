@@ -218,6 +218,36 @@ public class RefreshTokenStoreTests
     }
 
     /// <summary>
+    /// 条件更新前令牌被其他连接撤销时抛出
+    /// </summary>
+    [Fact]
+    public void 条件更新前令牌被其他连接撤销时抛出()
+    {
+        using var context = NewContext();
+        var store = context.CreateRefreshTokenStore();
+        store.Save("token-1", Subject, InOneDay(context));
+        var tokenHash = RefreshTokenHasher.Hash("token-1");
+        var revoked = false;
+        context.Client.Aop.OnLogExecuting = (sql, _) =>
+        {
+            if (revoked || !sql.TrimStart().StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            revoked = true;
+            using var other = context.CreateClient(autoClose: true);
+            other.Updateable<SysAuthRefreshToken>()
+                .SetColumns(item => new SysAuthRefreshToken { RevokedTime = DateTime.UtcNow })
+                .Where(item => item.TokenHash == tokenHash)
+                .ExecuteCommand();
+        };
+
+        Assert.Throws<InvalidOperationException>(() => store.Remove("token-1"));
+        Assert.True(revoked);
+    }
+
+    /// <summary>
     /// 重复保存同一令牌抛出
     /// </summary>
     [Fact]

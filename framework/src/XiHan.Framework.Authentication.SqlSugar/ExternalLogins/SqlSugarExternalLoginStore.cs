@@ -108,7 +108,7 @@ public class SqlSugarExternalLoginStore : IExternalLoginStore
             throw new InvalidOperationException($"{info.Provider} 账号已绑定到其他用户");
         }
 
-        await client.Insertable(new SysAuthExternalLogin(_idGenerator.NextId())
+        var entity = new SysAuthExternalLogin(_idGenerator.NextId())
         {
             TenantId = effectiveTenantId,
             UserId = userId,
@@ -118,7 +118,27 @@ public class SqlSugarExternalLoginStore : IExternalLoginStore
             Email = Truncate(info.Email, MaxEmailLength),
             AvatarUrl = Truncate(info.AvatarUrl, MaxAvatarUrlLength),
             CreatedTime = _timeProvider.GetUtcNow().UtcDateTime
-        }).ExecuteCommandAsync();
+        };
+
+        try
+        {
+            await client.Insertable(entity).ExecuteCommandAsync();
+        }
+        catch (Exception)
+        {
+            var conflict = await FindAsync(client, effectiveTenantId, info.Provider, info.ProviderKey);
+            if (conflict is null)
+            {
+                throw;
+            }
+
+            if (conflict.UserId == userId)
+            {
+                return;
+            }
+
+            throw new InvalidOperationException($"{info.Provider} 账号已绑定到其他用户");
+        }
     }
 
     /// <summary>

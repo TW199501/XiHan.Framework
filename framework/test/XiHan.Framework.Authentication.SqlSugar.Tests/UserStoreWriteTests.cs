@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using XiHan.Framework.Authentication.SqlSugar.Entities;
+using XiHan.Framework.Authentication.SqlSugar.Tests.Fakes;
+using XiHan.Framework.Authentication.SqlSugar.Users;
 using XiHan.Framework.Authentication.Users;
 
 namespace XiHan.Framework.Authentication.SqlSugar.Tests;
@@ -350,6 +352,34 @@ public class UserStoreWriteTests
         Assert.Equal(0, await store.GetFailedLoginAttemptsAsync("ghost"));
         Assert.Null(await store.GetLockoutEndAsync("ghost"));
         Assert.Equal(0, await context.Client.Queryable<SysAuthUser>().CountAsync());
+    }
+
+    /// <summary>
+    /// 插入撞到唯一索引且同名用户已存在时抛出契约异常
+    /// </summary>
+    [Fact]
+    public async Task 插入撞到唯一索引且同名用户已存在时抛出契约异常()
+    {
+        using var context = new AuthenticationTestContext();
+        var inserted = false;
+        context.Client.Aop.OnLogExecuting = (sql, _) =>
+        {
+            if (inserted || !sql.TrimStart().StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            inserted = true;
+            using var other = context.CreateClient(autoClose: true);
+            var rival = new SqlSugarUserStore(new StubClientResolver(other), context.Tenant, context.IdGenerator, context.Clock);
+            rival.AddUserAsync(NewUser("alice")).GetAwaiter().GetResult();
+        };
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => context.CreateUserStore().AddUserAsync(NewUser("alice")));
+
+        Assert.Contains("alice", error.Message);
+        Assert.True(inserted);
     }
 
     private static UserInfo NewUser(string username)
