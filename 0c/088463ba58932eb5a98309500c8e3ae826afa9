@@ -1,0 +1,29 @@
+framework/src/XiHan.Framework.EventBus.SqlSugar/Inbox/SqlSugarEventInbox.cs
+  s_94057b8e5cf9b6::t_d8010afc3051c4 1-215
+framework/src/XiHan.Framework.EventBus.SqlSugar/Options/XiHanSqlSugarEventBoxOptions.cs
+  s_94057b8e5cf9b6::t_3a0c12e95aa9e0 17,20-24
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/InboxClaimTests.cs
+  s_94057b8e5cf9b6::t_f29a3949ba78eb 1-239
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/InboxEnqueueTests.cs
+  s_94057b8e5cf9b6::t_dbba96b677f05c 1-168
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/InboxTestContext.cs
+  s_94057b8e5cf9b6::t_bbd494c819be74 1-202
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxTestContext.cs
+  s_94057b8e5cf9b6::t_494fde39c543ea 166-170,177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "0c088463ba58932eb5a98309500c8e3ae826afa9",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
