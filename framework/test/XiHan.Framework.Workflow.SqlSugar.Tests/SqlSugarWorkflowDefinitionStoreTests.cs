@@ -109,6 +109,29 @@ public class SqlSugarWorkflowDefinitionStoreTests : IDisposable
     }
 
     /// <summary>
+    /// 取最大版本时不读回节点等大字段
+    /// </summary>
+    [Fact]
+    public async Task 取最大版本时不读回节点等大字段()
+    {
+        await _store.InsertAsync(NewDefinition("leave", 1));
+        var selects = new List<string>();
+        _database.Scope.Aop.OnLogExecuting = (sql, _) =>
+        {
+            if (sql.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
+            {
+                selects.Add(sql);
+            }
+        };
+
+        await _store.GetMaxVersionAsync("leave");
+
+        var select = Assert.Single(selects);
+        Assert.DoesNotContain("Nodes_Json", select, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Transitions_Json", select, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// 列表按编码升序版本降序并按条件过滤
     /// </summary>
     [Fact]

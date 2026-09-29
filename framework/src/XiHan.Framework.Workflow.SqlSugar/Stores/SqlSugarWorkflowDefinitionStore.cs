@@ -93,6 +93,7 @@ public class SqlSugarWorkflowDefinitionStore : IWorkflowDefinitionStore
         var entities = await _executor.ExecuteAsync(
             client => client.Queryable<SysWorkflowDefinition>()
                 .Where(item => item.Code == code)
+                .Select(item => new { item.Code, item.Version })
                 .ToListAsync(cancellationToken),
             cancellationToken);
 
