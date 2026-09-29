@@ -84,7 +84,7 @@ public class YourAppModule : XiHanModule
 
 - **多实例互斥不在本包**：本包只做数据存取，多个实例同时执行升级由 `IUpgradeLockProvider` 负责互斥
 - **PostgreSQL 事务内的插入竞态**：若 `GetOrCreateAsync` 或 `TryCreateBaselineAsync` 在事务型工作单元内执行，PostgreSQL 上唯一冲突会使整个事务中止，随后的重查也会失败，此时抛出 `AggregateException`，同时包含原插入异常与重查异常。在事务外调用即可避免
-- **版本与脚本名的比较口径**：写入与 `HasMigrationHistoryAsync` 查询都会先对版本做首尾空白裁剪；版本、脚本名的大小写是否区分由数据库排序规则决定（MySQL、SQL Server 默认不区分，PostgreSQL、SQLite 区分），本包不再额外统一大小写
+- **版本与脚本名的比较口径**：写入与 `HasMigrationHistoryAsync` 查询都会先对版本做首尾空白裁剪；版本、脚本名的大小写是否区分由数据库排序规则决定（MySQL、SQL Server 默认不区分，PostgreSQL、SQLite 区分），本包不统一大小写
 - **已存在但索引缺失的旧表**：`EnsureTablesAsync` 对同名索引已存在的表不重建索引；旧表里若已有同一 `Tenant_Key` 的重复行，首次建唯一索引会失败，需先清理
 
 ## 扩展点 / 自定义
