@@ -169,6 +169,7 @@ public override void ConfigureServices(ServiceConfigurationContext context)
 
 ## 相关模块
 
+- [XiHan.Framework.Traffic.SqlSugar](./traffic-sqlsugar) — 灰度规则的 SqlSugar 只读仓储，从数据库加载并定时刷新。
 - [XiHan.Framework.Web.Gateway](./web-gateway) — 网关层，灰度决策的典型执行方。
 - [XiHan.Framework.Web.Api](./web-api) — 入站限流 / 熔断的真正实现所在层。
 - [XiHan.Framework.Observability](./observability) — 可观测性，配合流量治理做指标与追踪。
