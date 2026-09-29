@@ -1,0 +1,23 @@
+docs/packages/traffic-sqlsugar.md
+  s_94057b8e5cf9b6::t_36550249e0914d 72,97
+framework/src/XiHan.Framework.Traffic.SqlSugar/Repositories/SqlSugarGrayRuleRepository.cs
+  s_94057b8e5cf9b6::t_d38d3e54e97a6d 7,72-74,79,81-88
+framework/test/XiHan.Framework.Traffic.SqlSugar.Tests/GrayRuleRepositoryTests.cs
+  s_94057b8e5cf9b6::t_2970a4eea0a7e9 8-9,145-163,205-207,209-210,228-237,259,265-266,269,272-276,291
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c55aa3acb1204bc61b8558e57b9a03d1cc03a6b6",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
