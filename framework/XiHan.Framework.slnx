@@ -29,6 +29,7 @@
     <Project Path="src/XiHan.Framework.Auditing/XiHan.Framework.Auditing.csproj" />
     <Project Path="src/XiHan.Framework.Auditing.SqlSugar/XiHan.Framework.Auditing.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Authentication/XiHan.Framework.Authentication.csproj" Id="2438269a-f231-41bf-b911-a9d5556e1bc6" />
+    <Project Path="src/XiHan.Framework.Authentication.SqlSugar/XiHan.Framework.Authentication.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Authorization/XiHan.Framework.Authorization.csproj" />
     <Project Path="src/XiHan.Framework.Bot/XiHan.Framework.Bot.csproj" />
     <Project Path="src/XiHan.Framework.Bot.DingTalk/XiHan.Framework.Bot.DingTalk.csproj" />
