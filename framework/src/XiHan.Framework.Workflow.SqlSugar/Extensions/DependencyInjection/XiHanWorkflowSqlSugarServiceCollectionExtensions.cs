@@ -2,8 +2,10 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.Framework.Workflow.SqlSugar.Options;
+using XiHan.Framework.Workflow.SqlSugar.Stores;
 
 namespace XiHan.Framework.Workflow.SqlSugar.Extensions.DependencyInjection;
 
@@ -27,6 +29,8 @@ public static class XiHanWorkflowSqlSugarServiceCollectionExtensions
 
         services.Configure<XiHanWorkflowSqlSugarOptions>(
             configuration.GetSection(XiHanWorkflowSqlSugarOptions.SectionName));
+
+        services.TryAddScoped<WorkflowSqlSugarExecutor>();
 
         return services;
     }
