@@ -1,0 +1,21 @@
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/AuthorizationTestContext.cs
+  s_94057b8e5cf9b6::t_cbb020dbe19a22 7,66-74
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/PermissionStoreTests.cs
+  s_94057b8e5cf9b6::t_26b5bcb253d4c4 1-304
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "67e20c8b491acc04156a0b129cae4ce09d5a6beb",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
