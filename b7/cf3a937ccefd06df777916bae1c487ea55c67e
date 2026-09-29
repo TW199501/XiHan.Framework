@@ -1,0 +1,25 @@
+framework/src/XiHan.Framework.Tasks.SqlSugar/Entities/SysBackgroundJob.cs
+  s_94057b8e5cf9b6::t_cbe849c29aba7c 1-107
+framework/src/XiHan.Framework.Tasks.SqlSugar/Mapping/BackgroundJobMapper.cs
+  s_94057b8e5cf9b6::t_85902e3863da81 1-74
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobMapperTests.cs
+  s_94057b8e5cf9b6::t_1697eef5b6390b 1-102
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/SysBackgroundJobTests.cs
+  s_94057b8e5cf9b6::t_a4dcf7c521c58c 1-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b7cf3a937ccefd06df777916bae1c487ea55c67e",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
