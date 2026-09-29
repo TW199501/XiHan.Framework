@@ -33,6 +33,7 @@ public static class XiHanWorkflowSqlSugarServiceCollectionExtensions
 
         services.TryAddScoped<WorkflowSqlSugarExecutor>();
         services.Replace(ServiceDescriptor.Scoped<IWorkflowDefinitionStore, SqlSugarWorkflowDefinitionStore>());
+        services.Replace(ServiceDescriptor.Scoped<IWorkflowInstanceStore, SqlSugarWorkflowInstanceStore>());
 
         return services;
     }
