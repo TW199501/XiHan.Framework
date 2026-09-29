@@ -1,0 +1,19 @@
+framework/src/XiHan.Framework.Workflow.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_9e104b61dd5768 1-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "26ae9e5088cccb6d5e1fe8c5f9dc9f6d14cc6cc6",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
