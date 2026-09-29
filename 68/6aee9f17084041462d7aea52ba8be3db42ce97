@@ -1,0 +1,31 @@
+docs/guide/workflow.md
+  s_94057b8e5cf9b6::t_2c738c1f3b0fe8 386-388,391-392
+docs/packages/workflow-sqlsugar.md
+  s_94057b8e5cf9b6::t_b3e331f9e84746 117,121,123
+framework/src/XiHan.Framework.Workflow.SqlSugar/Mapping/WorkflowJsonColumn.cs
+  s_94057b8e5cf9b6::t_e56a18c0cd6e58 9,13-17,26,43
+framework/src/XiHan.Framework.Workflow.SqlSugar/Stores/SqlSugarWorkflowDefinitionStore.cs
+  s_94057b8e5cf9b6::t_c9577b4696815d 60-61,81-82,93,99-103,129-131
+framework/src/XiHan.Framework.Workflow.SqlSugar/Stores/SqlSugarWorkflowInstanceStore.cs
+  s_94057b8e5cf9b6::t_d8e77c40c231d8 78-81
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/SqlSugarWorkflowDefinitionStoreTests.cs
+  s_94057b8e5cf9b6::t_583934fe536092 131-151
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/SqlSugarWorkflowInstanceStoreTests.cs
+  s_94057b8e5cf9b6::t_e50293b8e4322c 5,47-84,290-294
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "686aee9f17084041462d7aea52ba8be3db42ce97",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
