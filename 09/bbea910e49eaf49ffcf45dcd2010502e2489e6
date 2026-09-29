@@ -1,0 +1,27 @@
+framework/src/XiHan.Framework.Traffic.SqlSugar/Extensions/DependencyInjection/XiHanTrafficSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_5afa345e6d1da9 1-46
+framework/src/XiHan.Framework.Traffic.SqlSugar/Options/XiHanTrafficSqlSugarOptions.cs
+  s_94057b8e5cf9b6::t_0220dd12fee13a 1-20
+framework/src/XiHan.Framework.Traffic.SqlSugar/Repositories/SqlSugarGrayRuleRepository.cs
+  s_94057b8e5cf9b6::t_edeaa49c1b1395 1-106
+framework/src/XiHan.Framework.Traffic.SqlSugar/XiHanTrafficSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_7484337440a9e6 4,7,16,24-34
+framework/test/XiHan.Framework.Traffic.SqlSugar.Tests/GrayRuleRepositoryTests.cs
+  s_94057b8e5cf9b6::t_d329c5a02e7c25 1-300
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "09bbea910e49eaf49ffcf45dcd2010502e2489e6",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
