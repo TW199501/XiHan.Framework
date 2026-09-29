@@ -98,6 +98,7 @@
     <Project Path="test/XiHan.Framework.Auditing.Tests/XiHan.Framework.Auditing.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Auditing.SqlSugar.Tests/XiHan.Framework.Auditing.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Authentication.Tests/XiHan.Framework.Authentication.Tests.csproj" />
+    <Project Path="test/XiHan.Framework.Authentication.SqlSugar.Tests/XiHan.Framework.Authentication.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Authorization.Tests/XiHan.Framework.Authorization.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Bot.DingTalk.Tests/XiHan.Framework.Bot.DingTalk.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Bot.Email.Tests/XiHan.Framework.Bot.Email.Tests.csproj" />

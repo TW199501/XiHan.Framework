@@ -1,0 +1,87 @@
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using SqlSugar;
+using XiHan.Framework.Authentication.SqlSugar.Entities;
+using XiHan.Framework.Authentication.SqlSugar.Tests.Fakes;
+using XiHan.Framework.DistributedIds;
+
+namespace XiHan.Framework.Authentication.SqlSugar.Tests;
+
+/// <summary>
+/// 认证存储测试夹具，提供一个临时 SQLite 库与存储所需的替身
+/// </summary>
+internal sealed class AuthenticationTestContext : IDisposable
+{
+    private readonly string _databaseFile;
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="entityTypes">要建表的实体类型，为空时只建用户表</param>
+    public AuthenticationTestContext(params Type[] entityTypes)
+    {
+        _databaseFile = Path.Combine(Path.GetTempPath(), $"xihan_auth_{Guid.NewGuid():N}.db");
+
+        Client = new SqlSugarClient(new ConnectionConfig
+        {
+            // 关闭连接池，用例结束后驱动不再持有临时库文件句柄
+            ConnectionString = $"DataSource={_databaseFile};Pooling=False",
+            DbType = DbType.Sqlite,
+            IsAutoCloseConnection = true
+        });
+
+        if (entityTypes.Length == 0)
+        {
+            Client.CodeFirst.InitTables(typeof(SysAuthUser));
+        }
+        else
+        {
+            Client.CodeFirst.InitTables(entityTypes);
+        }
+
+        Resolver = new StubClientResolver(Client);
+    }
+
+    /// <summary>
+    /// 临时库的客户端
+    /// </summary>
+    public SqlSugarClient Client { get; }
+
+    /// <summary>
+    /// 桩解析器
+    /// </summary>
+    public StubClientResolver Resolver { get; }
+
+    /// <summary>
+    /// 当前租户替身
+    /// </summary>
+    public FakeCurrentTenant Tenant { get; } = new();
+
+    /// <summary>
+    /// 可调时钟
+    /// </summary>
+    public MutableTimeProvider Clock { get; } = new(DateTimeOffset.UtcNow);
+
+    /// <summary>
+    /// 雪花主键生成器
+    /// </summary>
+    public IDistributedIdGenerator<long> IdGenerator { get; } = IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload();
+
+    /// <summary>
+    /// 释放客户端并删除临时库文件
+    /// </summary>
+    public void Dispose()
+    {
+        Client.Dispose();
+
+        string[] files = [_databaseFile, $"{_databaseFile}-wal", $"{_databaseFile}-shm"];
+        foreach (var file in files)
+        {
+            if (File.Exists(file))
+            {
+                File.Delete(file);
+            }
+        }
+    }
+}
