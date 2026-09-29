@@ -5,6 +5,7 @@ using System.Reflection;
 using SqlSugar;
 using XiHan.Framework.Authorization.SqlSugar.Entities;
 using XiHan.Framework.Authorization.SqlSugar.Permissions;
+using XiHan.Framework.Authorization.SqlSugar.Roles;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.DistributedIds;
 using XiHan.Framework.MultiTenancy.Abstractions;
@@ -70,6 +71,15 @@ internal sealed class AuthorizationTestContext : IDisposable
     public SqlSugarPermissionStore CreatePermissionStore()
     {
         return new SqlSugarPermissionStore(Resolver, CurrentTenant, IdGenerator);
+    }
+
+    /// <summary>
+    /// 创建角色存储
+    /// </summary>
+    /// <returns>角色存储</returns>
+    public SqlSugarRoleStore CreateRoleStore()
+    {
+        return new SqlSugarRoleStore(Resolver, CurrentTenant, IdGenerator);
     }
 
     /// <summary>
