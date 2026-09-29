@@ -203,6 +203,7 @@ public class ReportService(IAuthorizationService authz)
 
 ## 相关模块
 
+- [XiHan.Framework.Authorization.SqlSugar](./authorization-sqlsugar)（权限、角色、策略的 SqlSugar 持久化存储与查表权限检查器）
 - [XiHan.Framework.Authentication](./authentication)
 - [XiHan.Framework.Security](./security)
 - [BasicApp 权限模型](https://basicapp.docs.xihanfun.com/backend/permission)（权限码 / 数据范围 / 字段脱敏的应用层落地）
