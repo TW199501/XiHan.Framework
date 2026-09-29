@@ -83,6 +83,64 @@ public class SqlSugarWorkflowInstanceStoreTests : IDisposable
     }
 
     /// <summary>
+    /// 按定义编码过滤时带分页限制读取而不是一次读全部
+    /// </summary>
+    /// <remarks>
+    /// SQLite 的等值比较区分大小写，数据库端已排除大小写不同的编码，凑满条数后只发出一条带 LIMIT 的查询。
+    /// </remarks>
+    [Fact]
+    public async Task 按定义编码过滤时带分页限制读取而不是一次读全部()
+    {
+        for (var index = 1; index <= 10; index++)
+        {
+            var instance = NewInstance("i" + index, BaseTime.AddMinutes(index));
+            if (index % 2 == 0)
+            {
+                instance.DefinitionCode = "Leave";
+            }
+
+            await _store.InsertAsync(instance);
+        }
+
+        var selects = new List<string>();
+        _database.Scope.Aop.OnLogExecuting = (sql, _) =>
+        {
+            if (sql.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
+            {
+                selects.Add(sql);
+            }
+        };
+
+        var found = await _store.GetListAsync(definitionCode: "leave", maxResultCount: 2);
+
+        Assert.Equal(["i9", "i7"], found.Select(item => item.Id));
+        var select = Assert.Single(selects);
+        Assert.Contains("LIMIT", select, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 按定义编码过滤时匹配行不足条数则读完所有分页
+    /// </summary>
+    [Fact]
+    public async Task 按定义编码过滤时匹配行不足条数则读完所有分页()
+    {
+        for (var index = 1; index <= 7; index++)
+        {
+            var instance = NewInstance("i" + index, BaseTime.AddMinutes(index));
+            if (index != 4)
+            {
+                instance.DefinitionCode = "Leave";
+            }
+
+            await _store.InsertAsync(instance);
+        }
+
+        var found = await _store.GetListAsync(definitionCode: "leave", maxResultCount: 3);
+
+        Assert.Equal(["i4"], found.Select(item => item.Id));
+    }
+
+    /// <summary>
     /// 无定义编码条件时按条数上限截取
     /// </summary>
     [Fact]

@@ -50,7 +50,7 @@ public class SqlSugarWorkflowInstanceStore : IWorkflowInstanceStore
     /// <param name="correlationId">业务相关性标识（为空表示不过滤）</param>
     /// <param name="maxResultCount">最大返回条数</param>
     /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>实例列表（按创建时间降序；指定定义编码时按序数比较过滤后在内存中截取条数）</returns>
+    /// <returns>实例列表（按创建时间降序；指定定义编码时按页读取候选，在内存中按序数比较过滤，凑满条数或读完所有页后停止）</returns>
     public async Task<List<WorkflowInstance>> GetListAsync(
         WorkflowInstanceStatus? status = null,
         string? definitionCode = null,
@@ -66,7 +66,7 @@ public class SqlSugarWorkflowInstanceStore : IWorkflowInstanceStore
         var statusValue = (int)(status ?? default);
 
         var entities = await _executor.ExecuteAsync(
-            client =>
+            async client =>
             {
                 var query = client.Queryable<SysWorkflowInstance>()
                     .WhereIF(status is not null, item => item.Status == statusValue)
@@ -75,16 +75,30 @@ public class SqlSugarWorkflowInstanceStore : IWorkflowInstanceStore
                     .OrderBy(item => item.CreationTime, OrderByType.Desc)
                     .OrderBy(item => item.BasicId, OrderByType.Desc);
 
-                return definitionCode is null
-                    ? query.Take(maxResultCount).ToListAsync(cancellationToken)
-                    : query.ToListAsync(cancellationToken);
+                if (definitionCode is null)
+                {
+                    return await query.Take(maxResultCount).ToListAsync(cancellationToken);
+                }
+
+                var matched = new List<SysWorkflowInstance>(maxResultCount);
+                for (var pageIndex = 1; matched.Count < maxResultCount; pageIndex++)
+                {
+                    var page = await query.ToPageListAsync(pageIndex, maxResultCount, cancellationToken);
+                    matched.AddRange(page
+                        .Where(item => string.Equals(item.DefinitionCode, definitionCode, StringComparison.Ordinal))
+                        .Take(maxResultCount - matched.Count));
+
+                    if (page.Count < maxResultCount)
+                    {
+                        break;
+                    }
+                }
+
+                return matched;
             },
             cancellationToken);
 
-        return [.. entities
-            .Where(item => definitionCode is null || string.Equals(item.DefinitionCode, definitionCode, StringComparison.Ordinal))
-            .Take(maxResultCount)
-            .Select(WorkflowInstanceMapper.ToInstance)];
+        return [.. entities.Select(WorkflowInstanceMapper.ToInstance)];
     }
 
     /// <summary>
