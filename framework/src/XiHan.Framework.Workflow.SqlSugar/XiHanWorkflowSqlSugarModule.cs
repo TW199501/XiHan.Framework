@@ -1,6 +1,7 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using XiHan.Framework.Core.Application;
 using XiHan.Framework.Core.Extensions.DependencyInjection;
 using XiHan.Framework.Core.Modularity;
 using XiHan.Framework.Data;
@@ -31,5 +32,14 @@ public class XiHanWorkflowSqlSugarModule : XiHanModule
         var services = context.Services;
 
         services.AddXiHanWorkflowSqlSugar(services.GetConfiguration());
+    }
+
+    /// <summary>
+    /// 应用初始化
+    /// </summary>
+    /// <param name="context">应用初始化上下文</param>
+    public override void OnApplicationInitialization(ApplicationInitializationContext context)
+    {
+        context.ServiceProvider.WarnIfWorkflowLockIsProcessLocal();
     }
 }
