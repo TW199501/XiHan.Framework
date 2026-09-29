@@ -1,0 +1,23 @@
+docs/packages/upgrade-sqlsugar.md
+  s_94057b8e5cf9b6::t_63097236e40b94 86-87
+framework/src/XiHan.Framework.Upgrade.SqlSugar/Services/SqlSugarUpgradeVersionStore.cs
+  s_94057b8e5cf9b6::t_e1f5cc3d11b9de 254,260
+framework/test/XiHan.Framework.Upgrade.SqlSugar.Tests/UpgradeVersionStoreTests.cs
+  s_94057b8e5cf9b6::t_36dd7c61ffb895 193-212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d621943d1e28d6990f9494a75af3cbb04cba08e5",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
