@@ -3,6 +3,10 @@
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using XiHan.Framework.Tasks.BackgroundJobs.Abstractions;
+using XiHan.Framework.Tasks.SqlSugar.BackgroundJobs;
+using XiHan.Framework.Tasks.SqlSugar.Clients;
 using XiHan.Framework.Tasks.SqlSugar.Options;
 
 namespace XiHan.Framework.Tasks.SqlSugar.Extensions.DependencyInjection;
@@ -27,6 +31,9 @@ public static class XiHanTasksSqlSugarServiceCollectionExtensions
 
         services.Configure<XiHanTasksSqlSugarOptions>(
             configuration.GetSection(XiHanTasksSqlSugarOptions.SectionName));
+
+        services.TryAddSingleton<TasksHostClientAccessor>();
+        services.Replace(ServiceDescriptor.Singleton<IBackgroundJobStore, SqlSugarBackgroundJobStore>());
 
         return services;
     }
