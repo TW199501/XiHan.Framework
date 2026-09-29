@@ -191,6 +191,26 @@ public class UpgradeVersionStoreTests
     }
 
     /// <summary>
+    /// 版本带前后空白时仍能查到已执行记录
+    /// </summary>
+    [Fact]
+    public async Task 版本带前后空白时仍能查到已执行记录()
+    {
+        using var context = new UpgradeStoreTestContext();
+        await context.Store.EnsureTablesAsync();
+
+        await context.Store.AddMigrationHistoryAsync(new UpgradeMigrationHistory
+        {
+            Version = "1.0.0",
+            ScriptName = "0001.sql",
+            ExecutedTime = DateTimeOffset.UtcNow,
+            Success = true
+        });
+
+        Assert.True(await context.Store.HasMigrationHistoryAsync("  1.0.0 ", "0001.sql"));
+    }
+
+    /// <summary>
     /// 返回最新的迁移历史
     /// </summary>
     [Fact]

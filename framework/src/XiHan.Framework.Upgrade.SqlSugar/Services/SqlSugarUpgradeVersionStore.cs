@@ -251,12 +251,13 @@ public class SqlSugarUpgradeVersionStore : IUpgradeVersionStore
         }
 
         var tenantKey = UpgradeMapper.BuildTenantKey(_currentTenant?.Id);
+        var normalizedVersion = UpgradeMapper.NormalizeVersion(version);
         var client = _clientResolver.GetClientForEntity<SysUpgradeMigrationHistory>();
 
         var matched = await client.Queryable<SysUpgradeMigrationHistory>()
             .Where(item => item.TenantKey == tenantKey
                 && item.Success
-                && item.Version == version
+                && item.Version == normalizedVersion
                 && item.ScriptName == scriptName)
             .Take(1)
             .ToListAsync(cancellationToken);
