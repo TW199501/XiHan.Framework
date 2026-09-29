@@ -4,6 +4,7 @@
 using SqlSugar;
 using XiHan.Framework.Authentication.SqlSugar.Entities;
 using XiHan.Framework.Authentication.SqlSugar.Tests.Fakes;
+using XiHan.Framework.Authentication.SqlSugar.Users;
 using XiHan.Framework.DistributedIds;
 
 namespace XiHan.Framework.Authentication.SqlSugar.Tests;
@@ -67,6 +68,15 @@ internal sealed class AuthenticationTestContext : IDisposable
     /// 雪花主键生成器
     /// </summary>
     public IDistributedIdGenerator<long> IdGenerator { get; } = IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload();
+
+    /// <summary>
+    /// 创建用户存储，每次返回新实例，代表一个新的请求作用域
+    /// </summary>
+    /// <returns>用户存储</returns>
+    public SqlSugarUserStore CreateUserStore()
+    {
+        return new SqlSugarUserStore(Resolver, Tenant, IdGenerator);
+    }
 
     /// <summary>
     /// 释放客户端并删除临时库文件
