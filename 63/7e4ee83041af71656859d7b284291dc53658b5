@@ -1,0 +1,21 @@
+docs/packages/authorization-sqlsugar.md
+  s_94057b8e5cf9b6::t_6894e046b3bf73 68,73,120,142-143,152-153,180
+framework/src/XiHan.Framework.Authorization.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_06e4d1d735ec84 13,28,81-82,91-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "637e4ee83041af71656859d7b284291dc53658b5",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
