@@ -61,6 +61,7 @@
     <Project Path="src/XiHan.Framework.SearchEngines/XiHan.Framework.SearchEngines.csproj" />
     <Project Path="src/XiHan.Framework.SearchEngines.Elasticsearch/XiHan.Framework.SearchEngines.Elasticsearch.csproj" />
     <Project Path="src/XiHan.Framework.Security/XiHan.Framework.Security.csproj" />
+    <Project Path="src/XiHan.Framework.Security.SqlSugar/XiHan.Framework.Security.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Serialization/XiHan.Framework.Serialization.csproj" />
     <Project Path="src/XiHan.Framework.Settings.SqlSugar/XiHan.Framework.Settings.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Tasks/XiHan.Framework.Tasks.csproj" />
