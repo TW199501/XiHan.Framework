@@ -135,6 +135,20 @@ public class XiHanTasksSqlSugarOptionsTests
         Assert.Throws<OptionsValidationException>(validator.Validate);
     }
 
+    /// <summary>
+    /// 后台作业租约时长不大于零时读取选项失败
+    /// </summary>
+    [Theory]
+    [InlineData("00:00:00")]
+    [InlineData("-00:01:00")]
+    public void 后台作业租约时长不大于零时读取选项失败(string value)
+    {
+        using var provider = BuildProvider("XiHan:Tasks:SqlSugar:BackgroundJobLeaseTimeout", value);
+
+        Assert.Throws<OptionsValidationException>(
+            () => provider.GetRequiredService<IOptions<XiHanTasksSqlSugarOptions>>().Value);
+    }
+
     private static ServiceProvider BuildProvider(string key, string value)
     {
         var configuration = new ConfigurationBuilder()

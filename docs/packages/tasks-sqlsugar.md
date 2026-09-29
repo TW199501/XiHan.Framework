@@ -120,7 +120,7 @@ public class YourAppModule : XiHanModule
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `BackgroundJobLeaseTimeout` | `TimeSpan` | `00:05:00` | 后台作业租约时长 |
+| `BackgroundJobLeaseTimeout` | `TimeSpan` | `00:05:00` | 后台作业租约时长，必须大于零，否则启动校验失败 |
 | `RunningInstanceGracePeriod` | `TimeSpan` | `00:01:00` | 运行中任务实例的宽限期 |
 | `MaxClaimBatchSize` | `int` | `50` | 单次领取的作业数量上限，必须大于零，否则启动校验失败 |
 

@@ -34,8 +34,8 @@ public static class XiHanTasksSqlSugarServiceCollectionExtensions
         services.AddOptions<XiHanTasksSqlSugarOptions>()
             .Bind(configuration.GetSection(XiHanTasksSqlSugarOptions.SectionName))
             .Validate(
-                options => options.MaxClaimBatchSize > 0,
-                "任务 SqlSugar 存储配置无效：MaxClaimBatchSize 必须大于零。")
+                options => options.MaxClaimBatchSize > 0 && options.BackgroundJobLeaseTimeout > TimeSpan.Zero,
+                "任务 SqlSugar 存储配置无效：MaxClaimBatchSize 与 BackgroundJobLeaseTimeout 必须大于零。")
             .ValidateOnStart();
 
         services.TryAddSingleton<TasksHostClientAccessor>();
