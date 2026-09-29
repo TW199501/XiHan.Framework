@@ -239,5 +239,6 @@ public class AccountService(IPasswordHasher hasher, IPasswordPolicyService polic
 
 ## 相关模块
 
+- [XiHan.Framework.Security.SqlSugar](./security-sqlsugar)（密码历史的 SqlSugar 持久化存储）
 - [XiHan.Framework.Authentication](./authentication)（在此之上实现 JWT / OAuth2 / MFA / 一次性验证码）
 - [XiHan.Framework.Authorization](./authorization)（RBAC / Policy / ABAC 授权）
