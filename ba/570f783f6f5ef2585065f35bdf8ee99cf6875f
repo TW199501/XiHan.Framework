@@ -1,0 +1,25 @@
+framework/src/XiHan.Framework.Upgrade.SqlSugar/Extensions/DependencyInjection/XiHanUpgradeSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_877d4022f11553 1-29
+framework/src/XiHan.Framework.Upgrade.SqlSugar/Services/SqlSugarUpgradeVersionStore.cs
+  s_94057b8e5cf9b6::t_14df6b098f2dfb 213,215-227,237,239-253,261,263-273,282,284-295,338-353
+framework/src/XiHan.Framework.Upgrade.SqlSugar/XiHanUpgradeSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_3cd40637f955cb 6,15,23-30
+framework/test/XiHan.Framework.Upgrade.SqlSugar.Tests/UpgradeVersionStoreTests.cs
+  s_94057b8e5cf9b6::t_da91d3e90d9939 12,177-286
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ba570f783f6f5ef2585065f35bdf8ee99cf6875f",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
