@@ -1,0 +1,23 @@
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_590e1b6fdeb4c6 153
+framework/test/XiHan.Framework.Upgrade.SqlSugar.Tests/EntityMappingTests.cs
+  s_94057b8e5cf9b6::t_07ab20066a559d 1-143
+framework/test/XiHan.Framework.Upgrade.SqlSugar.Tests/XiHan.Framework.Upgrade.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_8ade518f82e24c 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "116aedeb0864a9e9b73f87c85324432cd9380535",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
