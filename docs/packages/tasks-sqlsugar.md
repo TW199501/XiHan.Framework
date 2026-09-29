@@ -144,7 +144,6 @@ public class YourAppModule : XiHanModule
 - **运行中实例对所有节点可见**。多节点共用一个库时，不允许并发的任务在节点之间也互斥。
 - **不限时的任务要留意遗留实例**。任务超时小于等于 0 时，运行中实例在被显式结束之前一直算运行中；这类任务若不允许并发、又在执行途中崩溃，会一直被跳过。用 `IJobStore.UpdateJobStatusAsync(实例标识, JobStatus.Failed)` 清除，遗留实例的 `Running_Deadline` 为 `9999-12-31`。
 - **跨库写入不是一个事务**。业务数据在模块库或租户独立库时，作业的入队与业务各自提交。
-- **结束后的任务实例只更新状态与完成时间**。主包的 `JobExecutor` 在任务结束后只调用 `UpdateJobStatusAsync(实例标识, 状态)`，耗时、错误信息、堆栈与重试次数不经存储契约传入，`sys_job_instance` 里这些列停留在开始执行时的值；完整结果见同一次执行写入的 `sys_job_history`。
 - **两个存储的生命周期仍是单例**，与主包一致。之后调用 `UseRedisBackgroundJobStore()` 或 `XiHanJobBuilder.UseStore<T>()` 会覆盖本包。
 
 ## 扩展点 / 自定义

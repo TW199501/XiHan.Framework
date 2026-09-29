@@ -296,6 +296,52 @@ public class JobExecutorTests
     }
 
     /// <summary>
+    /// 任务体返回失败结果时，结束后的完整实例写回存储
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_WhenWorkerReturnsFailure_SavesFinishedInstanceToStore()
+    {
+        var store = new SnapshotJobStore();
+        var executor = new JobExecutor(
+            new ServiceCollection().BuildServiceProvider(),
+            NullLogger<JobExecutor>.Instance,
+            store,
+            []);
+        var instance = CreateInstance(typeof(FailingWorker));
+
+        await executor.ExecuteAsync(instance, null, TestContext.Current.CancellationToken);
+
+        var saved = store.SavedSnapshots[^1];
+        Assert.Equal(JobStatus.Failed, saved.Status);
+        Assert.Equal("业务校验未通过", saved.ErrorMessage);
+        Assert.NotNull(saved.CompletedAt);
+        Assert.NotNull(saved.DurationMilliseconds);
+    }
+
+    /// <summary>
+    /// 任务体无法创建时，结束后的完整实例写回存储
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_WhenJobCannotBeCreated_SavesFinishedInstanceToStore()
+    {
+        var store = new SnapshotJobStore();
+        var executor = new JobExecutor(
+            new ServiceCollection().BuildServiceProvider(),
+            NullLogger<JobExecutor>.Instance,
+            store,
+            []);
+        var instance = CreateInstance(typeof(NotAWorker));
+
+        await executor.ExecuteAsync(instance, null, TestContext.Current.CancellationToken);
+
+        var saved = store.SavedSnapshots[^1];
+        Assert.Equal(JobStatus.Failed, saved.Status);
+        Assert.NotNull(saved.ErrorMessage);
+        Assert.NotNull(saved.CompletedAt);
+        Assert.NotNull(saved.DurationMilliseconds);
+    }
+
+    /// <summary>
     /// 组装一个不带中间件的执行器
     /// </summary>
     private static JobExecutor CreateExecutor(DefaultJobStore store)
@@ -504,6 +550,85 @@ public class JobExecutorTests
         {
             context.AttemptCount = _attemptCount;
             return next(context);
+        }
+    }
+
+    /// <summary>
+    /// 每次保存实例时记录一份字段快照的存储
+    /// </summary>
+    private sealed class SnapshotJobStore : IJobStore
+    {
+        /// <summary>
+        /// 每次保存实例时的字段快照
+        /// </summary>
+        public List<JobInstance> SavedSnapshots { get; } = [];
+
+        /// <summary>
+        /// 保存任务实例
+        /// </summary>
+        public Task SaveJobInstanceAsync(JobInstance jobInstance)
+        {
+            SavedSnapshots.Add(new JobInstance
+            {
+                InstanceId = jobInstance.InstanceId,
+                JobName = jobInstance.JobName,
+                JobInfo = jobInstance.JobInfo,
+                Status = jobInstance.Status,
+                CompletedAt = jobInstance.CompletedAt,
+                DurationMilliseconds = jobInstance.DurationMilliseconds,
+                ErrorMessage = jobInstance.ErrorMessage,
+                StackTrace = jobInstance.StackTrace,
+                RetryCount = jobInstance.RetryCount
+            });
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// 更新任务状态
+        /// </summary>
+        public Task UpdateJobStatusAsync(string instanceId, JobStatus status)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// 保存执行历史
+        /// </summary>
+        public Task SaveJobHistoryAsync(JobHistory history)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// 获取任务实例
+        /// </summary>
+        public Task<JobInstance?> GetJobInstanceAsync(string instanceId)
+        {
+            return Task.FromResult<JobInstance?>(null);
+        }
+
+        /// <summary>
+        /// 获取执行历史
+        /// </summary>
+        public Task<IReadOnlyList<JobHistory>> GetJobHistoryAsync(string jobName, int pageIndex = 1, int pageSize = 20)
+        {
+            return Task.FromResult<IReadOnlyList<JobHistory>>([]);
+        }
+
+        /// <summary>
+        /// 获取运行中的实例
+        /// </summary>
+        public Task<IReadOnlyList<JobInstance>> GetRunningInstancesAsync(string jobName)
+        {
+            return Task.FromResult<IReadOnlyList<JobInstance>>([]);
+        }
+
+        /// <summary>
+        /// 清理执行历史
+        /// </summary>
+        public Task CleanupHistoryAsync(int retentionDays)
+        {
+            return Task.CompletedTask;
         }
     }
 }
