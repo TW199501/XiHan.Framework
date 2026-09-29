@@ -1,0 +1,21 @@
+docs/guide/tasks.md
+  s_94057b8e5cf9b6::t_0e76c5bff890ee 402-403,477
+docs/packages/tasks.md
+  s_94057b8e5cf9b6::t_1314d505e2fedc 431
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4e0fd19eb8eec410749940680177877d289edae9",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
