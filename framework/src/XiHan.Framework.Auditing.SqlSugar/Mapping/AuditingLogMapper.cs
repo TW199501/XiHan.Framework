@@ -40,7 +40,8 @@ public static class AuditingLogMapper
             Referer = Clamp(record.Referer, 512),
             ElapsedMilliseconds = record.ElapsedMilliseconds,
             ResponseSize = record.ResponseSize,
-            ErrorMessage = record.ErrorMessage
+            ErrorMessage = record.ErrorMessage,
+            TenantId = record.TenantId
         };
     }
 
@@ -81,7 +82,8 @@ public static class AuditingLogMapper
             RequestSize = record.RequestSize,
             ResponseSize = record.ResponseSize,
             IsSuccess = record.IsSuccess,
-            ErrorMessage = record.ErrorMessage
+            ErrorMessage = record.ErrorMessage,
+            TenantId = record.TenantId
         };
     }
 
@@ -114,7 +116,8 @@ public static class AuditingLogMapper
             RequestParams = record.RequestParams,
             RequestBody = record.RequestBody,
             RemoteIp = Clamp(record.RemoteIp, 64),
-            UserAgent = Clamp(record.UserAgent, 512)
+            UserAgent = Clamp(record.UserAgent, 512),
+            TenantId = record.TenantId
         };
     }
 
@@ -141,7 +144,8 @@ public static class AuditingLogMapper
             LoginIp = Clamp(record.LoginIp, 64),
             UserAgent = Clamp(record.UserAgent, 512),
             DeviceId = Clamp(record.DeviceId, 128),
-            LoginTime = record.LoginTime
+            LoginTime = record.LoginTime,
+            TenantId = record.TenantId
         };
     }
 
@@ -173,7 +177,8 @@ public static class AuditingLogMapper
             ElapsedMilliseconds = record.ElapsedMilliseconds,
             RemoteIp = Clamp(record.RemoteIp, 64),
             UserAgent = Clamp(record.UserAgent, 512),
-            ErrorMessage = record.ErrorMessage
+            ErrorMessage = record.ErrorMessage,
+            TenantId = record.TenantId
         };
     }
 

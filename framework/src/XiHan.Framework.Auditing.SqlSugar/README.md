@@ -14,7 +14,7 @@
 依赖 `XiHan.Framework.Auditing`（日志记录模型与写入器契约）与 `XiHan.Framework.Data`（SqlSugar 数据访问）。
 
 ## 配置与约定
-表名 `sys_` 前缀、全小写下划线；列名 Pascal_Snake_Case；主键 `Basic_Id` 为雪花 ID，非自增。分表字段为 `Created_Time`。
+表名 `sys_` 前缀、全小写下划线；列名 Pascal_Snake_Case；主键 `Basic_Id` 为雪花 ID，非自增。分表字段为 `Created_Time`。6 张表都带可空的 `Tenant_Id`（无索引），记录产生时所属的租户，`NULL` 表示平台。访问 / 接口 / 异常 / 登录 / 操作 5 类写入器按记录的租户落戳，并在 `ICurrentTenant.Change(record.TenantId)` 作用域内取客户端并插入，不依赖写入时的环境租户。
 
 建表沿用 `XiHan.Framework.Data` 的开关 `XiHan:Data:SqlSugarCore:EnableTableInitialization`，默认 `false`；未开启时由 SqlSugar 在分表插入缺少目标表时补建。请求体、响应体、异常堆栈等大文本列为 `CodeFirst_BigString`，不设上限；其余定长列由映射层按列宽截断，避免超长的路径、查询串、User-Agent 让整批日志写入失败。
 

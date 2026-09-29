@@ -131,4 +131,10 @@ public class SysAccessLog : SugarCreationEntity<long>, ISplitTableEntity
     /// </summary>
     [SugarColumn(ColumnName = "Error_Message", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = true, ColumnDescription = "错误信息")]
     public string? ErrorMessage { get; set; }
+
+    /// <summary>
+    /// 租户标识
+    /// </summary>
+    [SugarColumn(ColumnName = "Tenant_Id", IsNullable = true, ColumnDescription = "租户标识")]
+    public long? TenantId { get; set; }
 }

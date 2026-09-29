@@ -56,6 +56,26 @@ public class AuditingLogMapperTests
     }
 
     [Fact]
+    public void 五类日志映射保留记录的租户标识()
+    {
+        Assert.Equal(7L, AuditingLogMapper.ToEntity(new AccessLogRecord { TenantId = 7 }, 1L, CreatedTime).TenantId);
+        Assert.Equal(7L, AuditingLogMapper.ToEntity(new ApiLogRecord { TenantId = 7 }, 1L, CreatedTime).TenantId);
+        Assert.Equal(7L, AuditingLogMapper.ToEntity(new ExceptionLogRecord { TenantId = 7 }, 1L, CreatedTime).TenantId);
+        Assert.Equal(7L, AuditingLogMapper.ToEntity(new LoginLogRecord { TenantId = 7 }, 1L, CreatedTime).TenantId);
+        Assert.Equal(7L, AuditingLogMapper.ToEntity(new OperationLogRecord { TenantId = 7 }, 1L, CreatedTime).TenantId);
+    }
+
+    [Fact]
+    public void 五类日志的平台记录租户标识保持为空()
+    {
+        Assert.Null(AuditingLogMapper.ToEntity(new AccessLogRecord(), 1L, CreatedTime).TenantId);
+        Assert.Null(AuditingLogMapper.ToEntity(new ApiLogRecord(), 1L, CreatedTime).TenantId);
+        Assert.Null(AuditingLogMapper.ToEntity(new ExceptionLogRecord(), 1L, CreatedTime).TenantId);
+        Assert.Null(AuditingLogMapper.ToEntity(new LoginLogRecord(), 1L, CreatedTime).TenantId);
+        Assert.Null(AuditingLogMapper.ToEntity(new OperationLogRecord(), 1L, CreatedTime).TenantId);
+    }
+
+    [Fact]
     public void 登录日志的登录时间与创建时间各自独立()
     {
         var loginTime = new DateTimeOffset(2026, 9, 20, 8, 0, 0, TimeSpan.Zero);

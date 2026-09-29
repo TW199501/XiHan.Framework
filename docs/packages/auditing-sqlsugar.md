@@ -66,6 +66,8 @@ sys_exception_log   sys_login_log   sys_operation_log
 | 大文本列 | `ColumnDataType = StaticConfig.CodeFirst_BigString`，由 SqlSugar 按当前数据库方言挑选类型 |
 | 定长列 | 标注 `Length`（`Trace_Id` 64、`Path` 512、`User_Agent` 512、`Query_String` 2048 等），超长值由 `AuditingLogMapper` 截断到列宽 |
 
+6 张表都带可空的 `Tenant_Id`（`long?`，无索引）：记录产生时所属的租户，`NULL` 表示宿主 / 平台。实体不实现 `IMultiTenantEntity`，不受多租户读取过滤影响，查询某租户的日志时自行按 `Tenant_Id` 过滤。
+
 `SysLoginLog` 的 `Login_Time` 是记录模型自带的业务时间，与分表字段 `Created_Time` 各占一列：前者由应用写入，后者由写入器在落库时生成。
 
 6 张表的列与 [Auditing](./auditing) 的记录模型逐字段对应，外加基类的 `Basic_Id`、`Row_Version`、`Created_Time`、`Created_Id`、`Created_By`。
@@ -92,7 +94,7 @@ sys_exception_log   sys_login_log   sys_operation_log
    → Insertable(entity).SplitTable().ExecuteCommandAsync()  —— 与业务写同一事务
 ```
 
-写入器做三件事：向 `IDistributedIdGenerator<long>` 取主键、取 `DateTimeOffset.UtcNow` 作为创建时间、把记录交给映射器后插入对应分表。字段搬运全在 `AuditingLogMapper`，它是静态纯方法，可脱离数据库单测。
+写入器做三件事：向 `IDistributedIdGenerator<long>` 取主键、取 `DateTimeOffset.UtcNow` 作为创建时间、把记录交给映射器后插入对应分表。访问 / 接口 / 异常 / 登录 / 操作这 5 类写入器按记录的 `TenantId` 落戳，并在 `ICurrentTenant.Change(record.TenantId)` 作用域内取客户端并插入，即按记录所属租户路由，不依赖写入时的环境租户——队列模式下写入发生在后台线程，环境里已没有请求的租户；`TenantId` 为 `null` 时切入平台。字段搬运全在 `AuditingLogMapper`，它是静态纯方法，可脱离数据库单测。
 
 客户端经 `ISqlSugarClientResolver` 取得，因此这 5 张可按 `[ModuleDataSource]` 路由的日志表遵循 [Data](./data) 的多数据源与租户路由规则：默认落当前租户的主库。
 
@@ -162,7 +164,7 @@ services.Replace(ServiceDescriptor.Scoped<IOperationLogWriter, MyOperationLogWri
 
 - **换落库方式**：`Replace` 掉任一 `IXxxLogWriter`，例如改写成批量 `INSERT` 或同时转发到外部收集器
 - **换映射规则**：`AuditingLogMapper` 的 6 个方法按记录类型重载，写入器自行映射即可绕开
-- **指定库位**：给实体标注 `[ModuleDataSource("XXX")]` 即按 [Data](./data) 的模块分库路由，审计表随实体所在库；实体差异日志表例外，见下方「注意事项」
+- **指定库位**：这 6 个实体在本包内，无法给它们标注 `[ModuleDataSource]`。要让审计表落到指定模块库，替换 `IEntityModuleDataSourceResolver`（`Replace` 掉默认实现），对 `SysAccessLog` 等实体类型返回模块数据源名，再按 [Data](./data) 的模块分库路由；写入器按 `GetClientForEntity<SysAccessLog>()` 等基础实体类型取客户端，因此继承出的子类不会改变写入器的路由。实体差异日志表例外，见下方「注意事项」
 
 ## 注意事项与最佳实践
 
@@ -175,6 +177,7 @@ services.Replace(ServiceDescriptor.Scoped<IOperationLogWriter, MyOperationLogWri
 - **实体差异日志固定落主库**。`SqlSugarEntityDiffLogWriter` 经 `GetCurrentClient()` 取客户端，不支持 `[ModuleDataSource]` 路由；业务实体声明了模块数据源时，该实体的差异日志仍落在当前布局主库。
 - **差异日志写失败会把业务一起回滚**。`SqlSugarDiffLogAop` 的整体 try/catch 只保证异常不外抛、错误进日志，保护不了已被数据库中止的事务：差异日志的 `INSERT` 与业务写同一事务，PostgreSQL 下事务内的任何报错都会让事务进入 aborted 状态（SQL Server 开 `XACT_ABORT ON` 时同理），随后的提交失败，那笔业务写入随之回滚。其余 5 类日志一般在业务事务之外落库，写入失败只是丢日志（登录日志若在活动事务作用域内调用，同样随那笔事务回滚）。
 - **定长列由映射层截断**。路径、查询串、User-Agent、来源页、异常类型等列宽有限，而采集端不夹长度；超长的自由文本在 SQL Server / MySQL 严格模式下会让整条 `INSERT` 抛错（队列模式下 `FlushAsync` 的 try 在逐条循环外层，一条失败连带丢弃整批），MySQL 非严格模式则会静默截断。`AuditingLogMapper` 统一把这些列截到列宽，保留前缀；请求体、响应体、异常堆栈等大文本列不设上限。
+- **MySQL 上每月第一笔差异日志可能提交业务事务**。实体差异日志与业务写同一事务，当月分表尚不存在时，`SplitTable()` 插入会自动建分表；MySQL 的 DDL 会隐式提交当前事务，业务事务因此被提前提交。建议预先建好当月与下月分表。
 - **日志落库失败不重试**。Worker 捕获写入异常仅记 `LogWarning`，这一批日志会丢失，需要可靠性请在写入器内自行兜底。
 
 ## 依赖模块

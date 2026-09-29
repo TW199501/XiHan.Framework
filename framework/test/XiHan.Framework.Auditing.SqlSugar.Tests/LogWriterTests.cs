@@ -10,6 +10,7 @@ using XiHan.Framework.Auditing.SqlSugar.Writers;
 using XiHan.Framework.Auditing.Writers;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.DistributedIds;
+using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.Framework.Auditing.SqlSugar.Tests;
 
@@ -18,6 +19,9 @@ namespace XiHan.Framework.Auditing.SqlSugar.Tests;
 /// </summary>
 public class LogWriterTests
 {
+    private const long AmbientTenantId = 1001L;
+    private const long RecordTenantId = 2002L;
+
     [Fact]
     public async Task 访问日志写入器按实体类型路由并落入当月分表()
     {
@@ -29,14 +33,17 @@ public class LogWriterTests
 
             db.CodeFirst.SplitTables().InitTables(typeof(SysAccessLog));
 
-            var resolver = new StubClientResolver(db);
+            var tenant = new RecordingCurrentTenant(AmbientTenantId);
+            var resolver = new StubClientResolver(db, () => tenant.Id);
             var writer = new SqlSugarAccessLogWriter(
                 resolver,
-                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload());
+                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload(),
+                tenant);
 
             var before = DateTimeOffset.UtcNow;
             await writer.WriteAsync(new AccessLogRecord
             {
+                TenantId = RecordTenantId,
                 TraceId = "trace-access",
                 Method = "GET",
                 Path = "/Home",
@@ -45,6 +52,7 @@ public class LogWriterTests
             var after = DateTimeOffset.UtcNow;
 
             AssertRouted(resolver, typeof(SysAccessLog));
+            AssertWrittenInRecordTenant(resolver, tenant);
 
             var range = CurrentUtcMonthRange();
             var found = db.Queryable<SysAccessLog>()
@@ -53,6 +61,7 @@ public class LogWriterTests
                 .ToList();
 
             var row = Assert.Single(found);
+            Assert.Equal(RecordTenantId, row.TenantId);
             Assert.NotEqual(0L, row.BasicId);
             AssertCreatedTimeNearNow(row.CreatedTime, before, after);
         }
@@ -73,14 +82,17 @@ public class LogWriterTests
 
             db.CodeFirst.SplitTables().InitTables(typeof(SysApiLog));
 
-            var resolver = new StubClientResolver(db);
+            var tenant = new RecordingCurrentTenant(AmbientTenantId);
+            var resolver = new StubClientResolver(db, () => tenant.Id);
             var writer = new SqlSugarApiLogWriter(
                 resolver,
-                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload());
+                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload(),
+                tenant);
 
             var before = DateTimeOffset.UtcNow;
             await writer.WriteAsync(new ApiLogRecord
             {
+                TenantId = RecordTenantId,
                 TraceId = "trace-api",
                 Method = "POST",
                 Path = "/Api/Order",
@@ -90,6 +102,7 @@ public class LogWriterTests
             var after = DateTimeOffset.UtcNow;
 
             AssertRouted(resolver, typeof(SysApiLog));
+            AssertWrittenInRecordTenant(resolver, tenant);
 
             var range = CurrentUtcMonthRange();
             var found = db.Queryable<SysApiLog>()
@@ -98,6 +111,7 @@ public class LogWriterTests
                 .ToList();
 
             var row = Assert.Single(found);
+            Assert.Equal(RecordTenantId, row.TenantId);
             Assert.NotEqual(0L, row.BasicId);
             Assert.Equal("app-1", row.AppId);
             AssertCreatedTimeNearNow(row.CreatedTime, before, after);
@@ -119,14 +133,17 @@ public class LogWriterTests
 
             db.CodeFirst.SplitTables().InitTables(typeof(SysExceptionLog));
 
-            var resolver = new StubClientResolver(db);
+            var tenant = new RecordingCurrentTenant(AmbientTenantId);
+            var resolver = new StubClientResolver(db, () => tenant.Id);
             var writer = new SqlSugarExceptionLogWriter(
                 resolver,
-                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload());
+                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload(),
+                tenant);
 
             var before = DateTimeOffset.UtcNow;
             await writer.WriteAsync(new ExceptionLogRecord
             {
+                TenantId = RecordTenantId,
                 TraceId = "trace-exception",
                 Method = "GET",
                 Path = "/Boom",
@@ -137,6 +154,7 @@ public class LogWriterTests
             var after = DateTimeOffset.UtcNow;
 
             AssertRouted(resolver, typeof(SysExceptionLog));
+            AssertWrittenInRecordTenant(resolver, tenant);
 
             var range = CurrentUtcMonthRange();
             var found = db.Queryable<SysExceptionLog>()
@@ -145,6 +163,7 @@ public class LogWriterTests
                 .ToList();
 
             var row = Assert.Single(found);
+            Assert.Equal(RecordTenantId, row.TenantId);
             Assert.NotEqual(0L, row.BasicId);
             Assert.Equal(500, row.StatusCode);
             AssertCreatedTimeNearNow(row.CreatedTime, before, after);
@@ -166,15 +185,18 @@ public class LogWriterTests
 
             db.CodeFirst.SplitTables().InitTables(typeof(SysLoginLog));
 
-            var resolver = new StubClientResolver(db);
+            var tenant = new RecordingCurrentTenant(AmbientTenantId);
+            var resolver = new StubClientResolver(db, () => tenant.Id);
             var writer = new SqlSugarLoginLogWriter(
                 resolver,
-                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload());
+                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload(),
+                tenant);
 
             var loginTime = DateTimeOffset.UtcNow.AddMinutes(-1);
             var before = DateTimeOffset.UtcNow;
             await writer.WriteAsync(new LoginLogRecord
             {
+                TenantId = RecordTenantId,
                 TraceId = "trace-login",
                 UserName = "tester",
                 LoginResult = 1,
@@ -184,6 +206,7 @@ public class LogWriterTests
             var after = DateTimeOffset.UtcNow;
 
             AssertRouted(resolver, typeof(SysLoginLog));
+            AssertWrittenInRecordTenant(resolver, tenant);
 
             var range = CurrentUtcMonthRange();
             var found = db.Queryable<SysLoginLog>()
@@ -192,6 +215,7 @@ public class LogWriterTests
                 .ToList();
 
             var row = Assert.Single(found);
+            Assert.Equal(RecordTenantId, row.TenantId);
             Assert.NotEqual(0L, row.BasicId);
             Assert.Equal("tester", row.UserName);
             Assert.Equal(1, row.LoginResult);
@@ -214,14 +238,17 @@ public class LogWriterTests
 
             db.CodeFirst.SplitTables().InitTables(typeof(SysOperationLog));
 
-            var resolver = new StubClientResolver(db);
+            var tenant = new RecordingCurrentTenant(AmbientTenantId);
+            var resolver = new StubClientResolver(db, () => tenant.Id);
             var writer = new SqlSugarOperationLogWriter(
                 resolver,
-                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload());
+                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload(),
+                tenant);
 
             var before = DateTimeOffset.UtcNow;
             await writer.WriteAsync(new OperationLogRecord
             {
+                TenantId = RecordTenantId,
                 TraceId = "trace-operation",
                 Method = "POST",
                 Path = "/Order",
@@ -231,6 +258,7 @@ public class LogWriterTests
             var after = DateTimeOffset.UtcNow;
 
             AssertRouted(resolver, typeof(SysOperationLog));
+            AssertWrittenInRecordTenant(resolver, tenant);
 
             var range = CurrentUtcMonthRange();
             var found = db.Queryable<SysOperationLog>()
@@ -239,6 +267,7 @@ public class LogWriterTests
                 .ToList();
 
             var row = Assert.Single(found);
+            Assert.Equal(RecordTenantId, row.TenantId);
             Assert.NotEqual(0L, row.BasicId);
             Assert.Equal(201, row.StatusCode);
             AssertCreatedTimeNearNow(row.CreatedTime, before, after);
@@ -288,6 +317,42 @@ public class LogWriterTests
             Assert.Equal("Update", row.OperationType);
             Assert.Equal("EntityChange", row.AuditType);
             AssertCreatedTimeNearNow(row.CreatedTime, before, after);
+        }
+        finally
+        {
+            DeleteDatabase(databaseFile);
+        }
+    }
+
+    [Fact]
+    public async Task 平台记录写入时切入平台并在写入后还原环境租户()
+    {
+        var databaseFile = NewDatabasePath();
+
+        try
+        {
+            using var db = CreateClient(databaseFile);
+
+            db.CodeFirst.SplitTables().InitTables(typeof(SysAccessLog));
+
+            var tenant = new RecordingCurrentTenant(AmbientTenantId);
+            var resolver = new StubClientResolver(db, () => tenant.Id);
+            var writer = new SqlSugarAccessLogWriter(
+                resolver,
+                IdGeneratorFactory.CreateSnowflakeIdGenerator_LowWorkload(),
+                tenant);
+
+            await writer.WriteAsync(new AccessLogRecord { TraceId = "trace-platform", Method = "GET", Path = "/" });
+
+            Assert.Null(Assert.Single(resolver.TenantIdsAtResolve));
+            Assert.Equal(AmbientTenantId, tenant.Id);
+
+            var range = CurrentUtcMonthRange();
+            var row = Assert.Single(db.Queryable<SysAccessLog>()
+                .SplitTable(range[0], range[1])
+                .Where(item => item.TraceId == "trace-platform")
+                .ToList());
+            Assert.Null(row.TenantId);
         }
         finally
         {
@@ -350,6 +415,12 @@ public class LogWriterTests
         Assert.Equal(0, resolver.GetClientCalls);
     }
 
+    private static void AssertWrittenInRecordTenant(StubClientResolver resolver, RecordingCurrentTenant tenant)
+    {
+        Assert.Equal(RecordTenantId, Assert.Single(resolver.TenantIdsAtResolve));
+        Assert.Equal(AmbientTenantId, tenant.Id);
+    }
+
     private static void AssertUsedCurrentClient(StubClientResolver resolver)
     {
         Assert.Empty(resolver.RequestedEntityTypes);
@@ -397,11 +468,15 @@ public class LogWriterTests
 internal sealed class StubClientResolver : ISqlSugarClientResolver
 {
     private readonly ISqlSugarClient _client;
+    private readonly Func<long?>? _tenantProbe;
 
-    public StubClientResolver(ISqlSugarClient client)
+    public StubClientResolver(ISqlSugarClient client, Func<long?>? tenantProbe = null)
     {
         _client = client;
+        _tenantProbe = tenantProbe;
     }
+
+    public List<long?> TenantIdsAtResolve { get; } = [];
 
     public List<Type> RequestedEntityTypes { get; } = [];
 
@@ -418,6 +493,7 @@ internal sealed class StubClientResolver : ISqlSugarClientResolver
     public ISqlSugarClient GetClientForEntity(Type entityType)
     {
         RequestedEntityTypes.Add(entityType);
+        TenantIdsAtResolve.Add(_tenantProbe?.Invoke());
         return _client;
     }
 
@@ -445,5 +521,37 @@ internal sealed class StubClientResolver : ISqlSugarClientResolver
     public ITenant AsTenant()
     {
         throw new NotSupportedException("测试桩不支持多租户切换。");
+    }
+}
+
+/// <summary>
+/// 测试用当前租户：Change 期间替换标识，释放后还原
+/// </summary>
+internal sealed class RecordingCurrentTenant : ICurrentTenant
+{
+    public RecordingCurrentTenant(long? id)
+    {
+        Id = id;
+    }
+
+    public bool IsAvailable => Id is > 0;
+
+    public long? Id { get; private set; }
+
+    public string? Name => null;
+
+    public IDisposable Change(long? id, string? name = null)
+    {
+        var previous = Id;
+        Id = id;
+        return new Restore(this, previous);
+    }
+
+    private sealed class Restore(RecordingCurrentTenant owner, long? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            owner.Id = previous;
+        }
     }
 }

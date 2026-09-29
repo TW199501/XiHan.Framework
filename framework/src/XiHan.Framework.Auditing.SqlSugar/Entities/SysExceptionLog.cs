@@ -131,4 +131,10 @@ public class SysExceptionLog : SugarCreationEntity<long>, ISplitTableEntity
     /// </summary>
     [SugarColumn(ColumnName = "User_Agent", Length = 512, IsNullable = true, ColumnDescription = "用户代理")]
     public string? UserAgent { get; set; }
+
+    /// <summary>
+    /// 租户标识
+    /// </summary>
+    [SugarColumn(ColumnName = "Tenant_Id", IsNullable = true, ColumnDescription = "租户标识")]
+    public long? TenantId { get; set; }
 }

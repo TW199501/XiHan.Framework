@@ -7,6 +7,7 @@ using XiHan.Framework.Auditing.SqlSugar.Mapping;
 using XiHan.Framework.Auditing.Writers;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.DistributedIds;
+using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.Framework.Auditing.SqlSugar.Writers;
 
@@ -17,18 +18,22 @@ public class SqlSugarOperationLogWriter : IOperationLogWriter
 {
     private readonly ISqlSugarClientResolver _clientResolver;
     private readonly IDistributedIdGenerator<long> _idGenerator;
+    private readonly ICurrentTenant _currentTenant;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="clientResolver">客户端解析器</param>
     /// <param name="idGenerator">主键生成器</param>
+    /// <param name="currentTenant">当前租户</param>
     public SqlSugarOperationLogWriter(
         ISqlSugarClientResolver clientResolver,
-        IDistributedIdGenerator<long> idGenerator)
+        IDistributedIdGenerator<long> idGenerator,
+        ICurrentTenant currentTenant)
     {
         _clientResolver = clientResolver;
         _idGenerator = idGenerator;
+        _currentTenant = currentTenant;
     }
 
     /// <summary>
@@ -42,8 +47,12 @@ public class SqlSugarOperationLogWriter : IOperationLogWriter
         cancellationToken.ThrowIfCancellationRequested();
 
         var entity = AuditingLogMapper.ToEntity(record, _idGenerator.NextId(), DateTimeOffset.UtcNow);
-        var client = _clientResolver.GetClientForEntity<SysOperationLog>();
 
-        await client.Insertable(entity).SplitTable().ExecuteCommandAsync();
+        using (_currentTenant.Change(record.TenantId))
+        {
+            var client = _clientResolver.GetClientForEntity<SysOperationLog>();
+
+            await client.Insertable(entity).SplitTable().ExecuteCommandAsync();
+        }
     }
 }

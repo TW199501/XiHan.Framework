@@ -95,4 +95,10 @@ public class SysLoginLog : SugarCreationEntity<long>, ISplitTableEntity
     /// </summary>
     [SugarColumn(ColumnName = "Login_Time", IsNullable = false, ColumnDescription = "登录时间")]
     public DateTimeOffset LoginTime { get; set; }
+
+    /// <summary>
+    /// 租户标识
+    /// </summary>
+    [SugarColumn(ColumnName = "Tenant_Id", IsNullable = true, ColumnDescription = "租户标识")]
+    public long? TenantId { get; set; }
 }
