@@ -1,0 +1,22 @@
+framework/test/XiHan.Framework.Data.Tests/SoftDeleteRetryTests.cs
+  s_94057b8e5cf9b6::t_27cf356c28f55c 1-304
+  s_94057b8e5cf9b6::t_7acff7f8be1729 305-310
+framework/src/XiHan.Framework.Data/SqlSugar/Repository/SqlSugarSoftDeleteRepository.cs
+  s_94057b8e5cf9b6::t_edf688d0c128c6 62,64-72,110,117-125,196,200-208,247,254-262,527-594
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fded30c567afccc8cb63c64d64d537fc293083c3",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
