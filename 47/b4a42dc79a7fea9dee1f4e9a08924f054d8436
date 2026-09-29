@@ -1,0 +1,37 @@
+README.md
+  s_94057b8e5cf9b6::t_b937f9e49d1231 8,20,55
+README_cn.md
+  s_94057b8e5cf9b6::t_733748953892de 8,20,55
+docs/.vitepress/config.ts
+  s_94057b8e5cf9b6::t_a72785644afc1f 145
+docs/index.md
+  s_94057b8e5cf9b6::t_0dc3bf94024555 9,41
+docs/introduction.md
+  s_94057b8e5cf9b6::t_422003e0c6a454 57
+docs/packages/index.md
+  s_94057b8e5cf9b6::t_bc10bb31234c7d 3,63
+docs/packages/security-sqlsugar.md
+  s_94057b8e5cf9b6::t_ec5b61f0e4bafe 102
+docs/why.md
+  s_94057b8e5cf9b6::t_e3755b7cd9fc94 86,123,142,160
+framework/README.md
+  s_94057b8e5cf9b6::t_a7aa825b63956e 55,85,161,185,197
+framework/README_cn.md
+  s_94057b8e5cf9b6::t_578c4f2954b566 55,85,161,185,197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "47b4a42dc79a7fea9dee1f4e9a08924f054d8436",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
