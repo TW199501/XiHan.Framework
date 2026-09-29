@@ -1,0 +1,19 @@
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowDefinitionMapperTests.cs
+  s_94057b8e5cf9b6::t_97de2a2bc0952d 1-161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "356cd2b091cc97b8b6ccafc67e5cc589cb861d54",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
