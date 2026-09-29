@@ -1,0 +1,23 @@
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/TestEntityTypes.cs
+  s_94057b8e5cf9b6::t_44674269b24634 1-17
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowDefinitionEntityTests.cs
+  s_94057b8e5cf9b6::t_1f25633a69652c 1-49
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowEntityConventionTests.cs
+  s_94057b8e5cf9b6::t_3a24333096fde8 1-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "547e53bfc6507e17b014d575190cfc96d2bcec48",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
