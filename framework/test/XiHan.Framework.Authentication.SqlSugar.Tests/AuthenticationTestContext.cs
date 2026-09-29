@@ -1,11 +1,15 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using Microsoft.Extensions.DependencyInjection;
 using SqlSugar;
 using XiHan.Framework.Authentication.SqlSugar.Entities;
+using XiHan.Framework.Authentication.SqlSugar.RefreshTokens;
 using XiHan.Framework.Authentication.SqlSugar.Tests.Fakes;
 using XiHan.Framework.Authentication.SqlSugar.Users;
+using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.DistributedIds;
+using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.Framework.Authentication.SqlSugar.Tests;
 
@@ -15,6 +19,7 @@ namespace XiHan.Framework.Authentication.SqlSugar.Tests;
 internal sealed class AuthenticationTestContext : IDisposable
 {
     private readonly string _databaseFile;
+    private readonly List<ServiceProvider> _serviceProviders = [];
 
     /// <summary>
     /// 构造函数
@@ -79,10 +84,36 @@ internal sealed class AuthenticationTestContext : IDisposable
     }
 
     /// <summary>
+    /// 创建刷新令牌存储
+    /// </summary>
+    /// <param name="resolver">客户端解析器，为空时使用夹具的桩解析器</param>
+    /// <returns>刷新令牌存储</returns>
+    public SqlSugarRefreshTokenStore CreateRefreshTokenStore(ISqlSugarClientResolver? resolver = null)
+    {
+        return new SqlSugarRefreshTokenStore(CreateScopeFactory(resolver ?? Resolver), IdGenerator, Clock);
+    }
+
+    private IServiceScopeFactory CreateScopeFactory(ISqlSugarClientResolver resolver)
+    {
+        var provider = new ServiceCollection()
+            .AddSingleton(resolver)
+            .AddSingleton<ICurrentTenant>(Tenant)
+            .BuildServiceProvider();
+        _serviceProviders.Add(provider);
+
+        return provider.GetRequiredService<IServiceScopeFactory>();
+    }
+
+    /// <summary>
     /// 释放客户端并删除临时库文件
     /// </summary>
     public void Dispose()
     {
+        foreach (var serviceProvider in _serviceProviders)
+        {
+            serviceProvider.Dispose();
+        }
+
         Client.Dispose();
 
         string[] files = [_databaseFile, $"{_databaseFile}-wal", $"{_databaseFile}-shm"];
