@@ -1,0 +1,25 @@
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_66667aee2dabe5 32
+framework/src/XiHan.Framework.Authentication.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_2ba9cd867992ee 1-38
+framework/src/XiHan.Framework.Authentication.SqlSugar/XiHan.Framework.Authentication.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_e772cb9837599b 1-21
+framework/src/XiHan.Framework.Authentication.SqlSugar/XiHanAuthenticationSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_07dada25b567b6 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d6f1df45e500ec634ab48c6064326a70e41a06f9",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
