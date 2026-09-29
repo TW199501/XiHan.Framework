@@ -2,8 +2,10 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using SqlSugar;
 using XiHan.Framework.Authentication.SqlSugar.Entities;
+using XiHan.Framework.Authentication.SqlSugar.Options;
 using XiHan.Framework.Authentication.SqlSugar.RefreshTokens;
 using XiHan.Framework.Authentication.SqlSugar.Tests.Fakes;
 using XiHan.Framework.Authentication.SqlSugar.Users;
@@ -86,11 +88,34 @@ internal sealed class AuthenticationTestContext : IDisposable
     /// <summary>
     /// 创建刷新令牌存储
     /// </summary>
+    /// <param name="options">存储配置，为空时使用默认配置</param>
     /// <param name="resolver">客户端解析器，为空时使用夹具的桩解析器</param>
     /// <returns>刷新令牌存储</returns>
-    public SqlSugarRefreshTokenStore CreateRefreshTokenStore(ISqlSugarClientResolver? resolver = null)
+    public SqlSugarRefreshTokenStore CreateRefreshTokenStore(
+        XiHanAuthenticationSqlSugarOptions? options = null,
+        ISqlSugarClientResolver? resolver = null)
     {
-        return new SqlSugarRefreshTokenStore(CreateScopeFactory(resolver ?? Resolver), IdGenerator, Clock);
+        return new SqlSugarRefreshTokenStore(
+            CreateScopeFactory(resolver ?? Resolver),
+            IdGenerator,
+            Clock,
+            Microsoft.Extensions.Options.Options.Create(options ?? new XiHanAuthenticationSqlSugarOptions()),
+            NullLogger<SqlSugarRefreshTokenStore>.Instance);
+    }
+
+    /// <summary>
+    /// 创建连接同一临时库的新客户端
+    /// </summary>
+    /// <param name="autoClose">是否每条命令后自动关闭连接</param>
+    /// <returns>客户端</returns>
+    public SqlSugarClient CreateClient(bool autoClose)
+    {
+        return new SqlSugarClient(new ConnectionConfig
+        {
+            ConnectionString = $"DataSource={_databaseFile};Pooling=False",
+            DbType = DbType.Sqlite,
+            IsAutoCloseConnection = autoClose
+        });
     }
 
     private IServiceScopeFactory CreateScopeFactory(ISqlSugarClientResolver resolver)
