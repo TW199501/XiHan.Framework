@@ -1,0 +1,45 @@
+docs/guide/auditing.md
+  s_94057b8e5cf9b6::t_4face8d69df66b 146-150
+docs/guide/authentication.md
+  s_94057b8e5cf9b6::t_9d72d84abcd4a5 102
+docs/guide/authorization.md
+  s_94057b8e5cf9b6::t_bad4aa2beb95f1 180
+docs/guide/gateway.md
+  s_94057b8e5cf9b6::t_f620511d4bb9d2 224
+docs/packages/authentication.md
+  s_94057b8e5cf9b6::t_65be4c33eb73a0 109,129,275-277
+docs/packages/authorization.md
+  s_94057b8e5cf9b6::t_a204ba5509d328 185
+docs/packages/security.md
+  s_94057b8e5cf9b6::t_68bc8980010029 223-224
+docs/packages/settings.md
+  s_94057b8e5cf9b6::t_ab5214ba7a486d 93
+docs/packages/tasks.md
+  s_94057b8e5cf9b6::t_988a6a0b2a42b3 405,416
+docs/packages/traffic.md
+  s_94057b8e5cf9b6::t_04332ab26fbbbf 42,153
+docs/packages/upgrade.md
+  s_94057b8e5cf9b6::t_ea54287c12194d 39
+docs/packages/workflow.md
+  s_94057b8e5cf9b6::t_d3f64f1a686bef 55
+framework/README.md
+  s_94057b8e5cf9b6::t_0d1d43ce31bc52 170-172
+framework/README_cn.md
+  s_94057b8e5cf9b6::t_1afd2a4e333b36 170-172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "44632d2f99e15124d68b4412d009f17ff8a6fbf6",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
