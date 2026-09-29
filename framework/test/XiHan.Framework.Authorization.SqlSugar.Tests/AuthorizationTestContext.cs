@@ -4,6 +4,7 @@
 using System.Reflection;
 using SqlSugar;
 using XiHan.Framework.Authorization.SqlSugar.Entities;
+using XiHan.Framework.Authorization.SqlSugar.Permissions;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.DistributedIds;
 using XiHan.Framework.MultiTenancy.Abstractions;
@@ -61,6 +62,15 @@ internal sealed class AuthorizationTestContext : IDisposable
     /// 可写的当前租户，默认无租户上下文
     /// </summary>
     public StubCurrentTenant CurrentTenant { get; } = new();
+
+    /// <summary>
+    /// 创建权限存储
+    /// </summary>
+    /// <returns>权限存储</returns>
+    public SqlSugarPermissionStore CreatePermissionStore()
+    {
+        return new SqlSugarPermissionStore(Resolver, CurrentTenant, IdGenerator);
+    }
 
     /// <summary>
     /// 释放客户端并删除临时库文件
