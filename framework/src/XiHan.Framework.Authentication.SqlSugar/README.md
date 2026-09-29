@@ -34,6 +34,8 @@
 
 **第三方登录**：`tenantId` 为空时使用当前租户，而不是主包默认实现的 0。同一第三方账号已绑定其他用户时 `CreateAsync` 抛 `InvalidOperationException`，改绑须先 `RemoveAsync`。提供商名称统一小写、不区分大小写；提供商用户标识区分大小写。`RemoveAsync` 不看租户。显示名称、邮箱、头像地址超长时截断。无论是否启用 OAuth，本包都会注册第三方登录存储。
 
+**事务与并发**：`IncrementFailedLoginAttemptsAsync` / `SetLockoutEndAsync` 参与当前工作单元；下游在登录失败时若抛出异常导致事务回滚，失败计数与锁定会一起回滚，因此登录失败应以返回值表示，不要抛异常，或在独立的工作单元中记录失败。`Remove` 的条件更新未命中时按令牌是否存在判定，存在即视为已撤销并抛出，不受 MySQL 可重复读快照影响。`AddUserAsync` 与第三方登录 `CreateAsync` 先查后插，插入撞唯一索引时会重查：已存在则抛 `InvalidOperationException`，否则原样抛出。实体带 `RowVersion` 版本验证列，但本包的存储以 `SetColumns` 更新，不递增版本。
+
 时间一律以 UTC 存储。下游若自己也 `Replace` 了这些契约，以模块装配顺序靠后者为准。
 
 ## 使用方式

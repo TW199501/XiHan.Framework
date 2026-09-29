@@ -211,6 +211,9 @@ services.Replace(ServiceDescriptor.Singleton<IRefreshTokenStore, SqlSugarRefresh
 - **刷新令牌存储同步访问数据库**，契约是同步的
 - **第三方登录的 `tenantId` 为空时用当前租户**，与默认实现的 0 不同；已绑定其他用户时拒绝改绑
 - **`OptIn` 建表模式**下本包的表不会自动创建
+- **失败计数与锁定参与当前工作单元**：`IncrementFailedLoginAttemptsAsync` / `SetLockoutEndAsync` 与业务写入同属当前工作单元。下游在登录失败时若抛出异常导致事务回滚，失败计数与锁定会一起回滚，账户锁定即失效；登录失败应以返回值表示，不要抛异常，或在独立的工作单元中记录失败
+- **`RowVersion` 不递增**：实体带 `RowVersion` 版本验证列，但本包的存储以 `SetColumns` 更新，不递增版本
+- **唯一索引冲突按契约转抛**：`AddUserAsync` 与第三方登录 `CreateAsync` 先查后插，并发插入撞唯一索引时会重查；同名用户或其他用户的绑定已存在则抛 `InvalidOperationException`，查不到则原样抛出
 
 ## 依赖模块
 
