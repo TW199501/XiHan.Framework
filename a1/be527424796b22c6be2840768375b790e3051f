@@ -1,0 +1,25 @@
+framework/src/XiHan.Framework.Tasks.SqlSugar/ScheduledJobs/SqlSugarJobStore.cs
+  s_94057b8e5cf9b6::t_7107d5331b2215 1-253
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/JobStoreHistoryTests.cs
+  s_94057b8e5cf9b6::t_f5f9c7df93da95 1-159
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/JobStoreInstanceTests.cs
+  s_94057b8e5cf9b6::t_700b4617616efb 1-321
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/TasksTestContext.cs
+  s_94057b8e5cf9b6::t_5df1a7905e66a8 13,40,57-64,102-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a1be527424796b22c6be2840768375b790e3051f",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
