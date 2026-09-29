@@ -1,0 +1,47 @@
+docs/guide/upgrade.md
+  s_94057b8e5cf9b6::t_69ace58cf2b24e 15,347-349
+docs/packages/upgrade-sqlsugar.md
+  s_94057b8e5cf9b6::t_6bed66c8875cba 1-101
+docs/packages/upgrade.md
+  s_94057b8e5cf9b6::t_7da1a574cbf586 39,210-211
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_845286812bf474 70,139
+framework/src/XiHan.Framework.Upgrade.SqlSugar/Entities/SysUpgradeMigrationHistory.cs
+  s_94057b8e5cf9b6::t_954e6d729321bf 1-77
+framework/src/XiHan.Framework.Upgrade.SqlSugar/Entities/SysUpgradeVersion.cs
+  s_94057b8e5cf9b6::t_0aff38de24b5ca 1-78
+framework/src/XiHan.Framework.Upgrade.SqlSugar/Extensions/DependencyInjection/XiHanUpgradeSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_e26d582cd45be0 1-29
+framework/src/XiHan.Framework.Upgrade.SqlSugar/Mapping/UpgradeMapper.cs
+  s_94057b8e5cf9b6::t_ae670f286737a6 1-76
+framework/src/XiHan.Framework.Upgrade.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_9cf46dc8a58feb 1-45
+framework/src/XiHan.Framework.Upgrade.SqlSugar/Services/SqlSugarUpgradeVersionStore.cs
+  s_94057b8e5cf9b6::t_b3b1098effbd17 1-434
+framework/src/XiHan.Framework.Upgrade.SqlSugar/XiHan.Framework.Upgrade.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_d87e5bf24cc192 1-21
+framework/src/XiHan.Framework.Upgrade.SqlSugar/XiHanUpgradeSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_d21570476eaa8f 1-31
+framework/test/XiHan.Framework.Upgrade.SqlSugar.Tests/EntityMappingTests.cs
+  s_94057b8e5cf9b6::t_de00d24a1ecfd7 1-143
+framework/test/XiHan.Framework.Upgrade.SqlSugar.Tests/UpgradeVersionStoreTests.cs
+  s_94057b8e5cf9b6::t_beb0eb45862563 1-626
+framework/test/XiHan.Framework.Upgrade.SqlSugar.Tests/XiHan.Framework.Upgrade.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_8a9487fc1ed6cf 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "8860c4591545545bfbf4083f1d33d8fb9be6bacd",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
