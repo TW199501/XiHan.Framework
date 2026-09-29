@@ -52,7 +52,7 @@
 
 ## 模块清单
 
-共 75 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
+共 76 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
 
 ### 公共与核心
 
@@ -95,6 +95,7 @@
 | `EventBus.SqlSugar` | 事件收发件箱 SqlSugar 持久化提供程序：发件箱按业务所在库落库，收件箱按消息标识去重，多实例领取互斥 |
 | `Workflow.Abstractions` | 工作流抽象：流程定义模型、活动契约、运行时实例与书签模型、存储端口、人工任务契约，不含执行实现 |
 | `Workflow` | 工作流引擎：图执行引擎、内置活动集、人工任务（审批）、表达式求值、定时器调度、内存存储默认实现 |
+| `Workflow.SqlSugar` | 工作流 SqlSugar 持久化提供程序：定义、实例、执行历史与书签落库，每次存储操作独立事务提交 |
 | `Castle` | AOP 动态代理：Castle DynamicProxy 集成，服务拦截器注册 |
 | `Logging` | 结构化日志：Serilog 集成、文件/控制台输出、异步写入 |
 | `Serialization` | 序列化：基于 System.Text.Json 的动态 JSON 操作、序列化选项组合 |
@@ -190,7 +191,7 @@ Utils (零第三方依赖)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx              # 解决方案文件
-│   ├── src/                               # 源码（75 个模块）
+│   ├── src/                               # 源码（76 个模块）
 │   │   ├── XiHan.Framework.Utils/         #   公共工具
 │   │   ├── XiHan.Framework.Metadata/      #   框架元数据
 │   │   ├── XiHan.Framework.Core/          #   模块化核心
@@ -202,7 +203,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   Web 核心
 │   │   ├── XiHan.Framework.Web.Api/       #   动态 API
 │   │   └── ...                            #   其他模块
-│   ├── test/                              # 测试（src 下每个项目一一对应，共 75 个单测工程）
+│   ├── test/                              # 测试（src 下每个项目一一对应，共 76 个单测工程）
 │   │   ├── XiHan.Framework.Utils.Tests/   #   工具测试
 │   │   ├── XiHan.Framework.Core.Tests/    #   内核测试
 │   │   └── ...                            #   其余按 <项目名>.Tests 一一对应

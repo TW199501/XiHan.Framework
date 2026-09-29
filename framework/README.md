@@ -52,7 +52,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 
 ## Module Catalog
 
-75 modules, one per project under `framework/src`; package names match project names.
+76 modules, one per project under `framework/src`; package names match project names.
 
 ### Common and Core
 
@@ -95,6 +95,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 | `EventBus.SqlSugar` | SqlSugar persistence provider for the event outbox and inbox: the outbox is persisted in the database the business writes to, the inbox deduplicates by message id, claiming is mutually exclusive across instances |
 | `Workflow.Abstractions` | Workflow abstractions: definition model, activity contracts, runtime instance and bookmark models, storage ports, human-task contracts; no execution logic |
 | `Workflow` | Workflow engine: graph execution engine, built-in activity set, human tasks (approvals), expression evaluation, timer scheduling, in-memory store by default |
+| `Workflow.SqlSugar` | SqlSugar persistence provider for workflows: definitions, instances, execution history and bookmarks; every store call commits in its own transaction |
 | `Castle` | AOP dynamic proxy: Castle DynamicProxy integration and interceptor registration |
 | `Logging` | Structured logging: Serilog integration, file/console sinks, async writes |
 | `Serialization` | Serialization: dynamic JSON manipulation and `JsonSerializerOptions` composition on System.Text.Json |
@@ -190,7 +191,7 @@ Utils (zero third-party deps)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx               # solution file
-│   ├── src/                               # sources (75 modules)
+│   ├── src/                               # sources (76 modules)
 │   │   ├── XiHan.Framework.Utils/         #   utilities
 │   │   ├── XiHan.Framework.Metadata/      #   framework metadata
 │   │   ├── XiHan.Framework.Core/          #   modularity core
@@ -202,7 +203,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   web core
 │   │   ├── XiHan.Framework.Web.Api/       #   dynamic APIs
 │   │   └── ...                            #   other modules
-│   ├── test/                              # tests (one per src project, 75 unit-test projects)
+│   ├── test/                              # tests (one per src project, 76 unit-test projects)
 │   │   ├── XiHan.Framework.Utils.Tests/   #   utilities tests
 │   │   ├── XiHan.Framework.Core.Tests/    #   core tests
 │   │   └── ...                            #   the rest follow <Project>.Tests
