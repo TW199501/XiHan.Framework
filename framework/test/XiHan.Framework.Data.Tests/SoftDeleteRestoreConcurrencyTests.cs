@@ -99,6 +99,98 @@ public sealed class SoftDeleteRestoreConcurrencyTests : IDisposable
     }
 
     /// <summary>
+    /// 无外层事务时批量恢复的第二个实体过期，第一个实体的写入随之回滚
+    /// </summary>
+    [Fact]
+    public async Task RestoreRangeAsync_SecondEntityStale_WithoutTransaction_ShouldRollBackFirst()
+    {
+        SeedDeleted(1);
+        SeedDeleted(2);
+        var stale1 = LoadRaw(1);
+        var stale2 = LoadRaw(2);
+        await RestoreAndModifyAsync(2, "newer");
+
+        _ = await Assert.ThrowsAsync<ConcurrencyConflictException>(() => _repository.RestoreRangeAsync([stale1, stale2]));
+
+        Assert.True(LoadRaw(1).IsDeleted);
+        Assert.Equal("newer", LoadRaw(2).Text);
+    }
+
+    /// <summary>
+    /// 自开事务回滚后已写入实体的行版本还原，刷新过期实体后可原批重试
+    /// </summary>
+    [Fact]
+    public async Task RestoreRangeAsync_OwnedRollback_ShouldRestoreRowVersionsAndAllowRetry()
+    {
+        SeedDeleted(1);
+        SeedDeleted(2);
+        var entity1 = LoadRaw(1);
+        var stale2 = LoadRaw(2);
+        await RestoreAndModifyAsync(2, "newer");
+
+        _ = await Assert.ThrowsAsync<ConcurrencyConflictException>(() => _repository.RestoreRangeAsync([entity1, stale2]));
+
+        Assert.Equal(LoadRaw(1).RowVersion, entity1.RowVersion);
+
+        var fresh2 = LoadRaw(2);
+        entity1.IsDeleted = true;
+        await _repository.RestoreRangeAsync([entity1, fresh2]);
+
+        AssertRestored(LoadRaw(1));
+        AssertRestored(LoadRaw(2));
+    }
+
+    /// <summary>
+    /// 有外层事务时批量恢复不自行提交，由外层决定去留
+    /// </summary>
+    [Fact]
+    public async Task RestoreRangeAsync_WithOuterTransaction_ShouldLeaveCommitToOuter()
+    {
+        SeedDeleted(1);
+        SeedDeleted(2);
+        var client = _scope.GetConnectionScope(ConfigId);
+        var notes = new[] { LoadRaw(1), LoadRaw(2) };
+
+        await client.Ado.BeginTranAsync();
+        Assert.NotNull(client.Ado.Transaction);
+        await _repository.RestoreRangeAsync(notes);
+        Assert.NotNull(client.Ado.Transaction);
+        await client.Ado.RollbackTranAsync();
+
+        Assert.True(LoadRaw(1).IsDeleted);
+        Assert.True(LoadRaw(2).IsDeleted);
+    }
+
+    /// <summary>
+    /// 同一主键对应多个不同实例时批量恢复被拒，数据库不变
+    /// </summary>
+    [Fact]
+    public async Task RestoreRangeAsync_DuplicateKeyDistinctInstances_ShouldThrowArgumentException()
+    {
+        SeedDeleted(1);
+        var first = LoadRaw(1);
+        var second = LoadRaw(1);
+
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => _repository.RestoreRangeAsync([first, second]));
+
+        Assert.True(LoadRaw(1).IsDeleted);
+    }
+
+    /// <summary>
+    /// 同一实例重复传入时只恢复一次
+    /// </summary>
+    [Fact]
+    public async Task RestoreRangeAsync_SameInstanceTwice_ShouldRestoreOnce()
+    {
+        SeedDeleted(1);
+        var note = LoadRaw(1);
+
+        await _repository.RestoreRangeAsync([note, note]);
+
+        AssertRestored(LoadRaw(1));
+    }
+
+    /// <summary>
     /// 预读之后、UPDATE 之前行被并发物理删除时按并发冲突拒绝
     /// </summary>
     [Fact]
