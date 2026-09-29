@@ -150,6 +150,7 @@
     <Project Path="test/XiHan.Framework.Traffic.SqlSugar.Tests/XiHan.Framework.Traffic.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Uow.Tests/XiHan.Framework.Uow.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Upgrade.Tests/XiHan.Framework.Upgrade.Tests.csproj" />
+    <Project Path="test/XiHan.Framework.Upgrade.SqlSugar.Tests/XiHan.Framework.Upgrade.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Utils.Tests/XiHan.Framework.Utils.Tests.csproj" Id="e6f382f6-e361-47cd-af97-2689f3d784c8" />
     <Project Path="test/XiHan.Framework.Validation.Abstractions.Tests/XiHan.Framework.Validation.Abstractions.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Validation.Tests/XiHan.Framework.Validation.Tests.csproj" />
