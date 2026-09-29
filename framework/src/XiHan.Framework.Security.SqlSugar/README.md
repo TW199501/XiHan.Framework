@@ -40,6 +40,7 @@ public class YourAppModule : XiHanModule
 ## 目录结构
 
 ```
-Entities/    密码历史实体
-Services/    SqlSugarPasswordHistoryStore
+Entities/                        密码历史实体
+Extensions/DependencyInjection/  注册扩展
+Services/                        SqlSugarPasswordHistoryStore
 ```
