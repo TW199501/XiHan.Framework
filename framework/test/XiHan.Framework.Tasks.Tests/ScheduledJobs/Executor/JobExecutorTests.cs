@@ -358,7 +358,7 @@ public class JobExecutorTests
         await executor.ExecuteAsync(instance, null, TestContext.Current.CancellationToken);
 
         Assert.Equal(66L, TenantCapturingWorker.CapturedTenantId);
-        Assert.Equal([66L, 66L, 66L], store.ObservedTenantIds);
+        Assert.Equal([66L, 66L, 66L, 66L], store.ObservedTenantIds);
         Assert.Null(AsyncLocalCurrentTenantAccessor.Instance.Current);
     }
 
@@ -392,7 +392,7 @@ public class JobExecutorTests
 
         await executor.ExecuteAsync(CreateInstance(typeof(SucceedingWorker)), null, TestContext.Current.CancellationToken);
 
-        Assert.Equal([null, null, null], store.ObservedTenantIds);
+        Assert.Equal([null, null, null, null], store.ObservedTenantIds);
     }
 
     /// <summary>
