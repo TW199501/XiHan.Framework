@@ -67,6 +67,7 @@ public class EntityConventionTests
     /// <param name="entityType">实体类型</param>
     [Theory]
     [InlineData(typeof(SysAuthzPermission))]
+    [InlineData(typeof(SysAuthzPolicy))]
     public void 定义实体不按租户隔离(Type entityType)
     {
         Assert.False(typeof(IMultiTenantEntity).IsAssignableFrom(entityType));
@@ -104,6 +105,20 @@ public class EntityConventionTests
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
             context.Client.Insertable(NewPermission(context, "User.Create")).ExecuteCommandAsync());
+    }
+
+    /// <summary>
+    /// 策略名称唯一
+    /// </summary>
+    [Fact]
+    public async Task 策略名称唯一()
+    {
+        using var context = new AuthorizationTestContext();
+
+        await context.Client.Insertable(NewPolicy(context, "AdminOnly")).ExecuteCommandAsync();
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            context.Client.Insertable(NewPolicy(context, "AdminOnly")).ExecuteCommandAsync());
     }
 
     /// <summary>
@@ -218,6 +233,16 @@ public class EntityConventionTests
             TenantId = tenantId,
             UserId = userId,
             RoleId = roleId
+        };
+    }
+
+    private static SysAuthzPolicy NewPolicy(AuthorizationTestContext context, string name)
+    {
+        return new SysAuthzPolicy(context.IdGenerator.NextId())
+        {
+            PolicyName = name,
+            DisplayName = name,
+            IsEnabled = true
         };
     }
 }
