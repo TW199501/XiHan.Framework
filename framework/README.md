@@ -52,7 +52,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 
 ## Module Catalog
 
-72 modules, one per project under `framework/src`; package names match project names.
+73 modules, one per project under `framework/src`; package names match project names.
 
 ### Common and Core
 
@@ -118,6 +118,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 | `Traffic` | Traffic governance: gray routing (rule engine with header / IP / percentage / tenant / user matchers); rate limiting and circuit breaking are policy interfaces only |
 | `Traffic.SqlSugar` | Gray rule persistence: SqlSugar-backed read-only `IGrayRuleRepository` with in-memory cache |
 | `Upgrade` | Upgrade engine: version store, migration execution, distributed lock, automatic check on startup |
+| `Upgrade.SqlSugar` | Upgrade version persistence: SqlSugar-backed `IUpgradeVersionStore` for version state and migration history |
 | `AI.Abstractions` | AI abstractions: agents, chat, configuration, guardrails, prompts, RAG, skills |
 | `AI` | AI integration: Microsoft.Extensions.AI model abstraction, Microsoft.Agents.AI agent framework, MCP protocol support |
 | `Bot` | Bot core: multi-channel dispatch pipeline, policies and templates; channels come from the sub-packages below |
@@ -187,7 +188,7 @@ Utils (zero third-party deps)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx               # solution file
-│   ├── src/                               # sources (72 modules)
+│   ├── src/                               # sources (73 modules)
 │   │   ├── XiHan.Framework.Utils/         #   utilities
 │   │   ├── XiHan.Framework.Metadata/      #   framework metadata
 │   │   ├── XiHan.Framework.Core/          #   modularity core
@@ -199,7 +200,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   web core
 │   │   ├── XiHan.Framework.Web.Api/       #   dynamic APIs
 │   │   └── ...                            #   other modules
-│   ├── test/                              # tests (one per src project, 72 unit-test projects)
+│   ├── test/                              # tests (one per src project, 73 unit-test projects)
 │   │   ├── XiHan.Framework.Utils.Tests/   #   utilities tests
 │   │   ├── XiHan.Framework.Core.Tests/    #   core tests
 │   │   └── ...                            #   the rest follow <Project>.Tests
