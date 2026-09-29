@@ -10,13 +10,12 @@ namespace XiHan.Framework.Docs.Mcp.Web.Tests;
 /// 用官方 MCP 客户端走完整协议握手，验证三个文档工具经 HTTP 真的可用
 /// </summary>
 /// <remarks>
-/// 这一组不自己拼 JSON-RPC，而是让 <see cref="McpClient"/> 去谈协议版本、开会话、调工具：
-/// 手拼的报文只能证明服务端没报错，谈不拢协议这类问题它看不出来。
+/// 由 <see cref="McpClient"/> 完成协议协商、会话建立与工具调用。
 /// </remarks>
 public class DocsToolsOverHttpTests : IAsyncLifetime
 {
     /// <summary>
-    /// 本组共用的密钥，长度须满足 <c>XiHanDocsMcpWebOptionsValidator</c> 的十六字符下限，否则宿主根本起不来
+    /// 本组共用的密钥，长度须满足 <c>XiHanDocsMcpWebOptionsValidator</c> 的十六字符下限
     /// </summary>
     private const string ApiKey = "docs-http-transport-key";
 
@@ -36,7 +35,7 @@ public class DocsToolsOverHttpTests : IAsyncLifetime
         var transport = new HttpClientTransport(new HttpClientTransportOptions
         {
             Endpoint = new Uri(_host.BaseAddress, "/mcp"),
-            // 不用 AutoDetect：探测失败会退回 SSE 再报一个与本用例无关的错，掩盖真正的失败原因
+            // 固定使用流式 HTTP 传输
             TransportMode = HttpTransportMode.StreamableHttp,
             AdditionalHeaders = new Dictionary<string, string> { ["X-Api-Key"] = ApiKey }
         });

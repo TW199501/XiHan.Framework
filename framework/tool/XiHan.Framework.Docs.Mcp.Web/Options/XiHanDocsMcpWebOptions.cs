@@ -8,12 +8,8 @@ namespace XiHan.Framework.Docs.Mcp.Web.Options;
 /// </summary>
 /// <remarks>
 /// 鉴权为「部署方管理的 key」：请求须带 <see cref="HeaderName"/>(或 Authorization: Bearer)且值等于 <see cref="ApiKey"/>。
-/// fail-closed：未开启或未配置 ApiKey 则既不注册 MCP 服务也不映射 /mcp 端点——半配好的部署暴露不出任何东西，
-/// 而不是暴露一个不设防的端点。
-/// <para>
-/// 与 <c>XiHan.Framework.Web.Mcp</c> 的 <c>XiHanMcpOptions</c> 字段一一对应，只有配置节名不同：
-/// 那个节（<c>XiHan:AI:Mcp</c>）属于宿主应用，这个节属于本文档服务端，两者可以在同一台机器上各配各的。
-/// </para>
+/// fail-closed：未开启或未配置 ApiKey 则既不注册 MCP 服务也不映射 /mcp 端点。
+/// 字段与 <c>XiHan.Framework.Web.Mcp</c> 的 <c>XiHanMcpOptions</c> 一一对应，配置节名不同。
 /// </remarks>
 public sealed class XiHanDocsMcpWebOptions
 {
@@ -46,7 +42,7 @@ public sealed class XiHanDocsMcpWebOptions
     public string Path { get; set; } = "/mcp";
 
     /// <summary>
-    /// 是否无状态 HTTP（无服务端→客户端回调；三个工具都是纯检索，默认 true）
+    /// 是否无状态 HTTP（无服务端→客户端回调，默认 true）
     /// </summary>
     public bool Stateless { get; set; } = true;
 

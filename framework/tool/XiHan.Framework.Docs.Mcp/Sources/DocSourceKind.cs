@@ -19,7 +19,7 @@ public enum DocSourceKind
     Package,
 
     /// <summary>
-    /// 包自带的 README，简洁说明，与代码同步度最高（framework/src/*/README.md）
+    /// 包自带的 README（framework/src/*/README.md）
     /// </summary>
     PackageReadme,
 

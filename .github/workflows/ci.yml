@@ -51,8 +51,7 @@ jobs:
         # 测试应用；--coverage 经 TestingPlatformCommandLineArguments 透传给每个测试程序，
         # 覆盖率文件产出到工作目录下的 TestResults/。失败即中断。
         # MTP 模式下解决方案必须经 --solution 传入，位置参数会被直接拒绝。
-        # codecoverage.settings.xml 排除了一个会让插桩崩溃的程序集，原因见该文件内的说明；
-        # 该参数由各测试程序自行解析，工作目录不一定是仓库根，因此传绝对路径。
+        # 以绝对路径传入 codecoverage.settings.xml，按其中的规则排除程序集。
         run: >
           dotnet test --solution framework/XiHan.Framework.slnx
           --configuration Release

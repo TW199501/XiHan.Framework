@@ -10,9 +10,7 @@ namespace XiHan.Framework.Docs.Mcp.Tests;
 /// </summary>
 /// <typeparam name="T">日志类别</typeparam>
 /// <remarks>
-/// 断言渲染后的文本是不够的：那样把 <c>LogInformation($"命中 {count} 段")</c> 写成插值串也照样能过，
-/// 而插值串在结构化日志后端里是一条查不了的整串。这里把 <c>state</c> 里的键值对原样收下，
-/// 用例便能断言「{HitCount} 这个字段确实存在且等于 3」——插值串没有字段，那样写会直接变红。
+/// 按写入顺序收集日志条目，并原样保存 <c>state</c> 中的结构化键值对。
 /// </remarks>
 internal sealed class CapturingLogger<T> : ILogger<T>
 {

@@ -17,15 +17,7 @@ namespace XiHan.Framework.Docs.Mcp.Tests;
 /// 宿主进程集成测试：像真实 MCP 客户端那样把服务端拉起来跑一遍
 /// </summary>
 /// <remarks>
-/// 存在的理由只有一条：stdout 是 JSON-RPC 协议通道，混进去任何一行非协议文本，
-/// 连接当场就废。而这条失效路径进程内测不出来——日志提供程序写到哪个流、
-/// 宿主启动时打不打横幅、有没有人顺手写了一句 <c>Console.WriteLine</c>，
-/// 都只在进程真正跑起来时才有答案。手工验证过一次不算数：它不会在 CI 里重跑。
-/// <para>
-/// stdin 必须一直握着。用 <c>echo '...' | dotnet ...</c> 灌一行然后关掉管道的话，
-/// EOF 会让传输层在响应写出前就拆掉连接，看到的现象是「请求成功了但 stdout 是空的」，
-/// 极易被误读成服务端坏了。真实客户端全程持有 stdin，这里也一样。
-/// </para>
+/// 以子进程启动服务端并全程持有 stdin，校验整段会话中 stdout 只有 JSON-RPC 报文。
 /// </remarks>
 public class StdioHostIntegrationTests
 {
@@ -49,7 +41,7 @@ public class StdioHostIntegrationTests
         new(@"`(docs/guide/[^`]+\.md)` 第 (\d+)-(\d+) 行", RegexOptions.None, TimeSpan.FromSeconds(5));
 
     /// <summary>
-    /// 首个响应的等待上限，放宽到足以覆盖 CI 上的冷启动与全量建索引
+    /// 首个响应的等待上限，包含冷启动与全量建索引的时间
     /// </summary>
     private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(60);
 
@@ -99,8 +91,7 @@ public class StdioHostIntegrationTests
         var text = result?["content"]?[0]?["text"]?.GetValue<string>();
         Assert.False(string.IsNullOrWhiteSpace(text), $"检索结果没有文本内容：{searchResponse.ToJsonString()}");
 
-        // 出处是这个服务端的全部价值所在：拿不出「哪篇文档第几行」，
-        // 返回的正文对调用方来说和凭记忆编的没有区别
+        // 结果带出处：文档路径与起止行号
         var citation = CitationPattern.Match(text!);
         Assert.True(citation.Success, $"检索结果里没有形如 `docs/...md` 第 x-y 行 的出处：\n{Excerpt(text!)}");
         Assert.Contains("docs/guide/event-bus.md", text!, StringComparison.Ordinal);
@@ -113,8 +104,7 @@ public class StdioHostIntegrationTests
         var exitCode = server.CloseInputAndWaitForExit(ResponseTimeout);
         Assert.Equal(0, exitCode);
 
-        // 这才是本条测试真正守着的东西：整段会话里 stdout 的每一行都必须是协议行。
-        // 只断言「能读到响应」是不够的——日志混在响应前后照样能被读到响应。
+        // 整段会话里 stdout 的每一行都必须是 JSON-RPC 报文
         Assert.True(
             server.StandardOutputLines.Count >= 2,
             $"标准输出只有 {server.StandardOutputLines.Count} 行，握手与检索的响应没有全部写出。"
@@ -132,10 +122,7 @@ public class StdioHostIntegrationTests
     /// 仓库根无效时以退出码 1 结束，原因写在标准错误，标准输出一个字节都不能有
     /// </summary>
     /// <remarks>
-    /// 三条断言各自挡一种退化：退出码钉住「异常被接住并转成退出码」——
-    /// 把 catch 去掉的话，未处理异常在 Linux 上是 134、Windows 上是另一个大负数，不会是 1；
-    /// 标准输出为空钉住「错误信息没走错流」；标准错误的内容钉住「说清楚了是哪个路径、缺什么」，
-    /// 而不是一句无从下手的空退出。
+    /// 断言退出码为 1、标准输出为空、标准错误说明了路径与缺失项。
     /// </remarks>
     [Fact]
     public void 仓库根无效时退出码为一且原因只写到标准错误()
@@ -166,7 +153,7 @@ public class StdioHostIntegrationTests
     }
 
     /// <summary>
-    /// 截取一段用于失败诊断的文本，整篇章节原文动辄上千字，不该灌进 CI 日志
+    /// 截取一段用于失败诊断的文本
     /// </summary>
     /// <param name="text">原文</param>
     /// <returns>不超过 400 字符的摘录</returns>
@@ -241,9 +228,8 @@ public class StdioHostIntegrationTests
     /// </summary>
     /// <returns>dll 的绝对路径，或 null</returns>
     /// <remarks>
-    /// 目标框架与构建配置都从测试自身的输出目录反推（<c>bin/&lt;配置&gt;/&lt;目标框架&gt;</c>），
-    /// 不写死；仓库根复用 <see cref="DocSourceLocator.ResolveRepositoryRoot"/>，
-    /// 那本来就是它的职责。
+    /// 目标框架与构建配置从测试自身的输出目录（<c>bin/&lt;配置&gt;/&lt;目标框架&gt;</c>）反推；
+    /// 仓库根由 <see cref="DocSourceLocator.ResolveRepositoryRoot"/> 定位。
     /// </remarks>
     private static string? FindServerAssembly()
     {
@@ -349,7 +335,7 @@ public class StdioHostIntegrationTests
 
             startInfo.ArgumentList.Add(serverAssembly);
 
-            // 显式指定仓库根，测试就不依赖子进程从自己所在目录逐层向上找得对不对
+            // 显式指定仓库根
             startInfo.Environment["XIHAN_DOCS_ROOT"] = docsRoot;
 
             var server = new McpServerProcess(new Process { StartInfo = startInfo });
@@ -421,7 +407,7 @@ public class StdioHostIntegrationTests
                     $"子进程在 {timeout.TotalSeconds:F0} 秒内没有退出。标准错误：\n{StandardError}");
             }
 
-            // 无参重载会一并等异步输出回调排空，之后收集到的行才是完整的
+            // 无参重载同时等待异步输出回调排空
             _process.WaitForExit();
 
             return _process.ExitCode;
@@ -480,7 +466,7 @@ public class StdioHostIntegrationTests
         }
 
         /// <summary>
-        /// 定位 dotnet 宿主：测试进程自己就跑在它上面，从运行时目录回推比依赖 PATH 稳
+        /// 定位 dotnet 宿主：从当前运行时目录回推
         /// </summary>
         /// <returns>dotnet 可执行文件路径</returns>
         private static string ResolveDotnetHost()

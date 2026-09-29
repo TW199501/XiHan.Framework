@@ -67,7 +67,7 @@ public class DocsMcpToolsTests : IDisposable
     }
 
     /// <summary>
-    /// 零命中时明确告知文档中没有，而不是返回空内容诱导模型编造
+    /// 零命中时明确告知文档中没有相关内容
     /// </summary>
     [Fact]
     public void 零命中时明确告知()
@@ -76,9 +76,37 @@ public class DocsMcpToolsTests : IDisposable
 
         Assert.Contains("未找到", result);
 
-        // 「没检索到」与「明确要求不要猜」是两件事：只断言前者的话，
-        // 一句干巴巴的「未找到」也能过，而那正是诱导模型自行补齐的写法。
+        // 同时要求不要基于猜测作答
         Assert.Contains("不要基于猜测", result);
+    }
+
+    /// <summary>
+    /// 超过长度上限的查询被拒绝，不执行检索
+    /// </summary>
+    [Fact]
+    public void 超长查询被拒绝()
+    {
+        var query = "分布式事件什么时候发布" + new string(' ', DocsMcpOptions.MaxQueryLength);
+
+        var result = CreateTools().SearchDocs(query, source: null, limit: 5);
+
+        Assert.Contains("过长", result);
+        Assert.Contains(DocsMcpOptions.MaxQueryLength.ToString(), result);
+        Assert.DoesNotContain("docs/guide/event-bus.md", result);
+    }
+
+    /// <summary>
+    /// 长度恰好等于上限的查询照常检索
+    /// </summary>
+    [Fact]
+    public void 长度等于上限的查询照常检索()
+    {
+        var prefix = "分布式事件什么时候发布";
+        var query = prefix + new string(' ', DocsMcpOptions.MaxQueryLength - prefix.Length);
+
+        var result = CreateTools().SearchDocs(query, source: null, limit: 5);
+
+        Assert.Contains("事务提交之后", result);
     }
 
     /// <summary>
@@ -146,17 +174,6 @@ public class DocsMcpToolsTests : IDisposable
     /// <summary>
     /// 仓库根内但未被索引的文件不返回内容
     /// </summary>
-    /// <remarks>
-    /// 包含性校验只挡得住逃逸仓库根的路径，挡不住仓库内的源码与配置。
-    /// 工具的描述写的是「读取曦寒框架的一篇文档」，能力边界必须与描述一致，
-    /// 否则一旦按 README 的扩展点把 Tools 层搬到网络传输后面，这就是一个仓库外泄端点。
-    /// 断言正文没被带出来，而不只是断言有「未找到」字样——后者一个照读不误但顺手加句提示的实现也能过。
-    /// <para>
-    /// 先断言夹具文件确实存在：这条测试的全部意义在于「文件就在那儿，但工具不给读」。
-    /// 哪天有人清理夹具删掉构造函数里写它的那几行，File.Exists 为假会让实现走进
-    /// 「路径不存在」分支，两条断言同时满足，测试**空转变绿**——那正是这个分支被咬过三次的病。
-    /// </para>
-    /// </remarks>
     [Fact]
     public void 拒绝读取未被索引的仓库内文件()
     {
@@ -169,20 +186,13 @@ public class DocsMcpToolsTests : IDisposable
         Assert.DoesNotContain("绝密连接串", result);
         Assert.Contains("未找到", result);
 
-        // 同一个工具实例读一篇被索引的文档仍然正常：证明上面的「未找到」来自白名单，
-        // 而不是整个 read_doc 坏掉了——一个恒返回「未找到」的实现同样能满足前两条断言
+        // 同一实例读取已索引的文档仍返回正文
         Assert.Contains("发布方不认识订阅方", tools.ReadDoc("docs/guide/event-bus.md", section: null));
     }
 
     /// <summary>
     /// 同一篇文档的等价写法都能读到，不因写法差异退化成「未找到」
     /// </summary>
-    /// <remarks>
-    /// 白名单比对的基准必须是解析后的绝对路径。拿使用者原串比的话，这几种写法
-    /// 都能通过「没逃出仓库根」的包含性校验、却匹配不上白名单里的规范相对路径，
-    /// 于是一篇明明被索引了的文档被答成「未找到」——不是安全问题，是纯粹的能用性缺陷，
-    /// 而且症状（未找到）会把排查引向完全错误的方向。
-    /// </remarks>
     /// <param name="path">等价写法</param>
     [Theory]
     [InlineData("docs/guide/event-bus.md")]
@@ -201,10 +211,7 @@ public class DocsMcpToolsTests : IDisposable
     /// 白名单对大小写的态度与包含性校验保持一致
     /// </summary>
     /// <remarks>
-    /// Windows 上大小写不敏感，`DOCS/GUIDE/...` 指的就是同一个文件，读得到才对；
-    /// 类 Unix 上那是另一个并不存在的路径，答「未找到」才对。
-    /// 两道关卡各写一遍平台判断迟早会漏改一处，所以它们共用
-    /// <see cref="DocSourceLocator.PathComparison"/>，这条断言钉住二者不会分家。
+    /// Windows 上视为同一文件，其余平台上视为不存在的路径。
     /// </remarks>
     [Fact]
     public void 大小写写法按平台判定()
@@ -226,8 +233,7 @@ public class DocsMcpToolsTests : IDisposable
     /// 换个写法也绕不过白名单
     /// </summary>
     /// <remarks>
-    /// 上面几条放宽了写法的容忍度，这条确认放宽的只是写法而不是边界：
-    /// 同样用 `./` 与 `..` 绕，未被索引的仓库内文件依然读不出来。
+    /// 用 <c>./</c> 与 <c>..</c> 改写路径后，未被索引的仓库内文件仍读不出来。
     /// </remarks>
     [Fact]
     public void 等价写法绕不过白名单()
@@ -239,7 +245,7 @@ public class DocsMcpToolsTests : IDisposable
     }
 
     /// <summary>
-    /// 默认列表不展开章节标题，控制 token 消耗
+    /// 默认列表不展开章节标题
     /// </summary>
     [Fact]
     public void 默认列表不展开章节()

@@ -14,13 +14,8 @@ namespace XiHan.Framework.Docs.Mcp.Indexing;
 /// </summary>
 /// <param name="locator">文档来源定位器</param>
 /// <param name="options">可调参数</param>
-/// <param name="timeProvider">时钟，便于测试注入</param>
+/// <param name="timeProvider">时钟</param>
 /// <param name="logger">日志记录器，全部写入 stderr</param>
-/// <remarks>
-/// 热更新采用 mtime 轮询而非 FileSystemWatcher：后者在网络磁盘、WSL 挂载
-/// 以及编辑器「写临时文件再改名」的保存流程下会静默漏事件，
-/// 而这里全量重建只需几百毫秒，不值得为省这点成本引入一个会失效的机制。
-/// </remarks>
 public sealed class DocIndex(
     DocSourceLocator locator,
     DocsMcpOptions options,
@@ -43,8 +38,7 @@ public sealed class DocIndex(
     /// </summary>
     /// <returns>本次调用看到的索引快照</returns>
     /// <remarks>
-    /// 调用方必须只用这个返回值，不要再去读 <see cref="Current"/>：
-    /// 重建可以插在任意两次读取之间，理由见 <see cref="IndexSnapshot"/> 的说明。
+    /// 调用方应使用本次返回的快照，不要再读取 <see cref="Current"/>。
     /// </remarks>
     public IndexSnapshot EnsureFresh()
     {
@@ -91,8 +85,7 @@ public sealed class DocIndex(
     /// </summary>
     private void Rebuild(IReadOnlyList<DocFile> files)
     {
-        // 重建耗时是判断「查询变慢是不是索引在重建」的唯一线索：EnsureFresh 是同步的，
-        // 撞上重建的那一次查询会把整次重建的时间算进自己头上
+        // 记录重建耗时
         var stopwatch = Stopwatch.StartNew();
 
         var sections = new List<DocSection>();
@@ -114,7 +107,7 @@ public sealed class DocIndex(
             index.Add(i, sections[i].TitlePath, sections[i].Content);
         }
 
-        // 三者一次性整体换掉：中途被读到的只会是上一份完全自洽的快照，不会是半新半旧的组合
+        // 以新快照整体替换当前快照
         Current = new IndexSnapshot(sections, index, files);
 
         logger.LogInformation(

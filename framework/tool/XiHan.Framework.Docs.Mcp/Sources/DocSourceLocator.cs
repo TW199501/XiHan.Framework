@@ -6,10 +6,6 @@ namespace XiHan.Framework.Docs.Mcp.Sources;
 /// <summary>
 /// 找不到仓库根时抛出
 /// </summary>
-/// <remarks>
-/// 刻意让进程启动失败，而不是带着空索引进入服务状态——
-/// 一个「连得上但永远搜不到东西」的服务端比一个起不来的更难排查。
-/// </remarks>
 public sealed class DocsRootNotFoundException : Exception
 {
     /// <summary>
@@ -31,14 +27,7 @@ public sealed class DocSourceLocator(string repositoryRoot)
     /// 路径比较方式，随平台而定
     /// </summary>
     /// <remarks>
-    /// 比较方式必须随平台而定：Windows 路径大小写不敏感，类 Unix 文件系统区分大小写。
-    /// 在后者上若忽略大小写，/tmp/repo 会被误判为落在 /tmp/Repo 之内——那是两个不同目录，
-    /// 等于把仓库根外的文件放行了出去。CI 跑在 ubuntu 上，越界拦截依赖的正是这一条。
-    /// <para>
-    /// 对外暴露成属性是为了让「包含性校验」与「白名单比对」用的是同一条规则：
-    /// 两处各写一遍平台判断的话，只要有一处漏改，就会出现「路径过得了校验、却匹配不上白名单」
-    /// 这种既不安全也不好用的错位。
-    /// </para>
+    /// Windows 上忽略大小写，其余平台区分大小写；包含性校验与白名单比对共用此规则。
     /// </remarks>
     public static StringComparison PathComparison { get; } =
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -124,7 +113,7 @@ public sealed class DocSourceLocator(string repositoryRoot)
         var combined = Path.GetFullPath(Path.Combine(RepositoryRoot, relativePath));
         var prefix = RepositoryRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
 
-        // 越界拦截就在这一句上，比较方式为什么随平台而定见 PathComparison 的注释
+        // 路径必须位于仓库根之内
         if (!combined.StartsWith(prefix, PathComparison))
         {
             return false;

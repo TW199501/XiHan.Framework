@@ -100,9 +100,11 @@ dotnet build framework/tool/XiHan.Framework.Docs.Mcp.Web/XiHan.Framework.Docs.Mc
 XiHan__Docs__Mcp__Enabled=true \
 XiHan__Docs__Mcp__ApiKey='<32 字节随机串>' \
 XIHAN_DOCS_ROOT=/srv/xihan-framework \
-ASPNETCORE_URLS=http://0.0.0.0:5199 \
+ASPNETCORE_URLS=http://127.0.0.1:5199 \
 dotnet framework/tool/XiHan.Framework.Docs.Mcp.Web/bin/Release/net10.0/XiHan.Framework.Docs.Mcp.Web.dll
 ```
+
+进程只监听本机回环地址，对外由同目录 `deploy/` 下的反向代理样例（`Caddyfile.example` / `nginx.conf.example`）转发到 `127.0.0.1:5199`，见[摆到反向代理后面](#摆到反向代理后面)。
 
 服务端跑起来的样子（日志走 stdout，这里 stdout **不是**协议通道，与 stdio 服务端相反）：
 
@@ -182,7 +184,7 @@ data: {"result":{"protocolVersion":"2025-06-18","capabilities":{"logging":{},"to
 
 ### 摆到反向代理后面
 
-本项目自己不提供任何传输层安全：没有 TLS、没有限流、没有审计日志。要暴露到本机以外，前面必须摆一层反向代理，由它负责这几件事。`deploy/` 下有两份可以直接改用的样例：
+本项目自己不提供任何传输层安全：没有 TLS、没有限流、没有审计日志；进程内只把单个请求体限制在 64KB 以内，超出返回 413。要暴露到本机以外，前面必须摆一层反向代理，由它负责这几件事。`deploy/` 下有两份可以直接改用的样例：
 
 | 文件 | 适合谁 |
 | --- | --- |

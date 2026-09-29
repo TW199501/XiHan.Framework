@@ -15,7 +15,6 @@ public readonly record struct Posting(int SectionId, bool InTitle);
 /// </summary>
 /// <remarks>
 /// 同一章节内同一词条只保留一条记录，标题命中优先。
-/// 这样打分时的「命中词数 ÷ 查询词总数」才是真正的覆盖率，不会被词频扭曲。
 /// </remarks>
 public sealed class BigramIndex
 {

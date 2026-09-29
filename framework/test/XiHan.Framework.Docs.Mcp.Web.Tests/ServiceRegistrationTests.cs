@@ -13,9 +13,7 @@ namespace XiHan.Framework.Docs.Mcp.Web.Tests;
 /// 服务注册层的 fail-closed 断言
 /// </summary>
 /// <remarks>
-/// 「端点 404」只证明没映射端点，证明不了没注册服务；而 fail-closed 的意义正在于半配好的部署
-/// 连 MCP 服务都不该建起来。所以这一组直接查 <see cref="IServiceCollection"/> 里有没有 MCP 相关登记，
-/// 与 <see cref="EndpointExposureTests"/> 的 404 断言互补。
+/// 直接检查 <see cref="IServiceCollection"/> 中的 MCP 相关登记，与 <see cref="EndpointExposureTests"/> 的 404 断言互补。
 /// </remarks>
 public class ServiceRegistrationTests
 {
@@ -50,7 +48,7 @@ public class ServiceRegistrationTests
     {
         var services = BuildServices(enabled, apiKey);
 
-        // 索引与工具本身与「是否对外暴露」无关，不该被 fail-closed 一并砍掉
+        // 未暴露时 DocsMcpTools 仍然注册
         Assert.True(
             services.Any(d => d.ServiceType == typeof(DocsMcpTools)),
             $"{场景}：DocsMcpTools 应照常注册。");

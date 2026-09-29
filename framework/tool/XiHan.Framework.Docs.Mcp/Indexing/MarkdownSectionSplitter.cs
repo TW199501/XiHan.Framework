@@ -10,9 +10,7 @@ namespace XiHan.Framework.Docs.Mcp.Indexing;
 /// 把一篇 Markdown 切分为若干章节
 /// </summary>
 /// <remarks>
-/// 按一级与二级标题切分，三级及更深标题并入所属章节以避免切得过碎。
-/// 关键约束：必须跳过代码围栏内部的井号——这批文档中大量存在 bash 的注释与 C# 的 #region，
-/// 无脑按行首井号切分会把代码块切成假章节。
+/// 按一级与二级标题切分，三级及更深标题并入所属章节；代码围栏内的井号不识别为标题。
 /// </remarks>
 public static class MarkdownSectionSplitter
 {

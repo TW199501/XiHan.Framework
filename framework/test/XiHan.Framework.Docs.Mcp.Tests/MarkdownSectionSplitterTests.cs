@@ -70,9 +70,9 @@ public class MarkdownSectionSplitterTests
 
         Assert.Single(sections);
         Assert.Equal("安装与启用", sections[0].Heading);
-        // 围栏内的一级井号一旦被当成标题，文档标题会被污染成「安装这个包」
+        // 围栏内的一级井号不改变文档标题
         Assert.Equal("安装", sections[0].DocumentTitle);
-        // 围栏内容必须原样保留，不能被当成标题行吞掉
+        // 围栏内容原样保留
         Assert.Contains("# 安装这个包", sections[0].Content);
         Assert.Contains("dotnet add package", sections[0].Content);
         Assert.Contains("#region", sections[0].Content);

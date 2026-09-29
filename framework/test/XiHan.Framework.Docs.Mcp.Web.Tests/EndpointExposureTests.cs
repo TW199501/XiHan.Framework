@@ -9,13 +9,12 @@ namespace XiHan.Framework.Docs.Mcp.Web.Tests;
 /// 端点暴露与否的 fail-closed 断言
 /// </summary>
 /// <remarks>
-/// 404 与 401 的区别在这里是有意义的：未就绪的部署应当「根本没有这个端点」，
-/// 而不是「有端点但拒绝你」——后者会把这台机器上跑着一个 MCP 服务这件事泄露出去。
+/// 未就绪的部署不映射端点，请求返回 404。
 /// </remarks>
 public class EndpointExposureTests
 {
     /// <summary>
-    /// 本组共用的密钥，长度须满足 <c>XiHanDocsMcpWebOptionsValidator</c> 的十六字符下限，否则宿主根本起不来
+    /// 本组共用的密钥，长度须满足 <c>XiHanDocsMcpWebOptionsValidator</c> 的十六字符下限
     /// </summary>
     private const string ApiKey = "endpoint-exposure-test-key";
 
@@ -45,7 +44,7 @@ public class EndpointExposureTests
 
         await using var host = await DocsMcpWebTestHost.StartAsync([.. settings]);
 
-        // 连密钥都带上：即便请求本身无可挑剔，端点也不该存在
+        // 请求携带正确密钥
         using var response = await host.SendInitializeAsync(request =>
         {
             if (!string.IsNullOrEmpty(apiKey))

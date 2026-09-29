@@ -9,25 +9,14 @@ namespace XiHan.Framework.Docs.Mcp.Web.Options;
 /// 文档 MCP Server HTTP 传输配置的启动期校验
 /// </summary>
 /// <remarks>
-/// <see cref="XiHanDocsMcpWebOptions.IsExposable"/> 只回答「要不要暴露」，不回答「暴露得对不对」。
-/// 一个空白的 <see cref="XiHanDocsMcpWebOptions.HeaderName"/>、一个不以斜杠开头的
-/// <see cref="XiHanDocsMcpWebOptions.Path"/>、一把短到能爆破的密钥，都能一路配到部署上线，
-/// 然后在真实流量里表现成 404、500 或「怎么都过不了鉴权」——那时候排查成本远高于在启动时直接拒绝。
-/// 配合 <c>ValidateOnStart()</c> 使用，进程在开始服务之前就退出。
-/// <para>
-/// 只在<b>确实要暴露</b>时校验：仓库里提交的默认配置就是「关闭且没有密钥」，
-/// 一台刻意关掉的服务必须能干干净净地启动，否则默认配置自己先启动不了。
-/// </para>
+/// 仅在 <see cref="XiHanDocsMcpWebOptions.IsExposable"/> 为 true 时校验请求头名、端点路径与密钥长度；
+/// 配合 <c>ValidateOnStart()</c> 使用，校验失败时进程在开始服务之前退出。
 /// </remarks>
 public sealed class XiHanDocsMcpWebOptionsValidator : IValidateOptions<XiHanDocsMcpWebOptions>
 {
     /// <summary>
     /// 密钥的最短长度
     /// </summary>
-    /// <remarks>
-    /// 16 个字符对应的搜索空间已经让在线爆破不再现实（本服务无限流，唯一的门就是这把密钥）；
-    /// 再短就属于「配了等于没配」，宁可拒绝启动也不要让人以为自己是安全的。
-    /// </remarks>
     private const int MinimumApiKeyLength = 16;
 
     /// <summary>
@@ -45,7 +34,7 @@ public sealed class XiHanDocsMcpWebOptionsValidator : IValidateOptions<XiHanDocs
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        // 不暴露的部署没有端点、没有鉴权、也没有路由，这几项配得对不对都影响不到任何人
+        // 不暴露时跳过校验
         if (!options.IsExposable)
         {
             return ValidateOptionsResult.Success;

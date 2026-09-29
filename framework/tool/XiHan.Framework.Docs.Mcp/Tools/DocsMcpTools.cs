@@ -24,20 +24,8 @@ namespace XiHan.Framework.Docs.Mcp.Tools;
 /// <param name="options">可调参数</param>
 /// <param name="logger">日志记录器</param>
 /// <remarks>
-/// 工具数量刻意压到三个：工具越多，模型越容易选错或漏用。
-/// 来源区分用参数表达，而不是拆成 search_guide / search_packages 之类的多个工具。
-/// 全部返回 Markdown 文本而非 JSON，因为调用方是语言模型，同等信息量下 Markdown 的 token 消耗更低。
-/// <para>
-/// 每次工具调用都记一条结构化日志（工具名、耗时、结果、结果条数），因为三个工具**从不抛异常给客户端**——
-/// 它们把失败包成一段说明文字返回。这个设计对模型友好，对运维却意味着：远端一句「它什么都没找到」，
-/// 事后可能对应 401、404、工具内部异常、索引正在重建、真的零命中、或者索引是旧的，
-/// 而这些在响应体里长得都差不多。日志是唯一能把它们区分开的地方。
-/// </para>
-/// <para>
-/// 查询串是文档问题不是凭据，记录它是有意的；密钥与任何请求头一律不记。
-/// stdio 宿主的 stdout 是 JSON-RPC 通道，所以这里只用 <see cref="ILogger"/>，绝不写 <c>Console</c>——
-/// 日志走 stderr 由宿主的日志配置保证（见两个 <c>Program.cs</c>）。
-/// </para>
+/// 三个工具均返回 Markdown 文本，失败时返回说明文字而不向客户端抛出异常。
+/// 每次调用记一条结构化日志（工具名、耗时、结果、结果条数），只经 <see cref="ILogger"/> 输出，不记录密钥与请求头。
 /// </remarks>
 [McpServerToolType]
 public sealed class DocsMcpTools(
@@ -77,6 +65,18 @@ public sealed class DocsMcpTools(
                 return "查询串为空，请给出要检索的问题或关键词。";
             }
 
+            if (query.Length > DocsMcpOptions.MaxQueryLength)
+            {
+                logger.LogInformation(
+                    "{Tool} 拒绝超长查询：长度 {QueryLength} 超过上限 {MaxQueryLength}，耗时 {ElapsedMs} 毫秒。",
+                    "search_docs",
+                    query.Length,
+                    DocsMcpOptions.MaxQueryLength,
+                    stopwatch.ElapsedMilliseconds);
+
+                return $"查询串过长（{query.Length} 个字符），上限为 {DocsMcpOptions.MaxQueryLength} 个字符，请精简后重试。";
+            }
+
             var snapshot = index.EnsureFresh();
 
             var (filter, notice) = ParseSource(source);
@@ -84,11 +84,7 @@ public sealed class DocsMcpTools(
             var terms = expander.Expand(query);
             var hits = scorer.Rank(terms, snapshot.Sections, snapshot.Index, filter, effectiveLimit);
 
-            // 命中不为空不等于相关：中文 bigram 总能在高频片段上蹭到几段文字，
-            // 所以还要问一句「这个查询里的词，语料到底认不认识」，不认识就走同一条显式否认分支。
-            //
-            // 判定无条件先算出来（而不是靠 || 短路），是为了拿到覆盖率写日志：
-            // 「零命中」与「命中了但被截断拒绝」返回给模型的是同一段文字，事后却要能分得开。
+            // 判定查询是否落在已索引文档范围内，并取得覆盖率用于日志
             var relevant = gate.IsAboutIndexedDocs(query, snapshot.Index, snapshot.Sections.Count, out var coverage);
 
             if (hits.Count == 0 || !relevant)
@@ -161,7 +157,7 @@ public sealed class DocsMcpTools(
                 source ?? "all",
                 stopwatch.ElapsedMilliseconds);
 
-            return $"检索时发生错误：{ex.Message}";
+            return "检索时发生错误，请稍后重试。";
         }
     }
 
@@ -185,8 +181,7 @@ public sealed class DocsMcpTools(
 
             if (!locator.TryResolveDocumentPath(path, out var absolutePath))
             {
-                // 单独记一条：这是唯一一条「请求被安全策略挡下」的分支，
-                // 与「路径写错了」是两件性质完全不同的事
+                // 越界路径按警告级别单独记录
                 logger.LogWarning(
                     "{Tool} 拒绝越界路径：请求路径「{Path}」不在仓库根内，耗时 {ElapsedMs} 毫秒。",
                     "read_doc",
@@ -196,14 +191,7 @@ public sealed class DocsMcpTools(
                 return $"拒绝访问 `{path}`：路径必须是仓库根内的相对路径。";
             }
 
-            // 仅包含性校验是不够的：通过之后 `.git/config`、任意源码、任意 appsettings 都会被原样读出，
-            // 而本工具的契约是「读一篇曦寒框架的文档」。所以再加一道白名单，只放行枚举出来的文档。
-            // 白名单里的条目都是真实枚举出来的文件，符号链接是否解析也就不再有意义。
-            //
-            // 比对的是**解析后的绝对路径**而不是使用者原串：拿原串比的话，`./docs/x.md`、
-            // `docs//x.md`、Windows 上大小写不同的写法都能过包含性校验却匹配不上白名单，
-            // 白白退化成「未找到」；大小写的判定也必须与包含性校验共用同一条 PathComparison，
-            // 否则两道关卡对同一个路径会给出互相矛盾的答案。
+            // 只放行索引内的文档：按解析后的绝对路径比对，大小写规则与包含性校验共用 PathComparison
             var indexed = snapshot.Files.FirstOrDefault(
                 f => f.AbsolutePath.Equals(absolutePath, DocSourceLocator.PathComparison));
 
@@ -215,7 +203,7 @@ public sealed class DocsMcpTools(
 
             if (!File.Exists(absolutePath))
             {
-                // 在索引里却读不到文件：索引是旧的。这条与上一条的返回文本一样，日志里必须分开
+                // 文件在索引内但已不存在
                 logger.LogWarning(
                     "{Tool} 命中索引却读不到文件：「{Path}」可能已被删除或改名，索引尚未刷新，耗时 {ElapsedMs} 毫秒。",
                     "read_doc",
@@ -225,7 +213,7 @@ public sealed class DocsMcpTools(
                 return BuildPathSuggestion(snapshot, path);
             }
 
-            // 往下一律用白名单里的规范相对路径，不再碰使用者原串
+            // 以下使用索引中的规范相对路径
             var sections = snapshot.Sections.Where(s => s.RelativePath == indexed.RelativePath).ToList();
 
             if (!string.IsNullOrWhiteSpace(section))
@@ -262,7 +250,7 @@ public sealed class DocsMcpTools(
                 return $"# `{path}`\n\n{content}";
             }
 
-            // 超长改返目录，客户端拿到的不是文档内容。不记的话，「读不到正文」查不出原因
+            // 全文超长时改为返回章节目录
             logger.LogInformation(
                 "{Tool} 全文超长改返目录：「{Path}」共 {ContentLength} 个字符，超过上限 {MaxLength}，耗时 {ElapsedMs} 毫秒。",
                 "read_doc",
@@ -291,7 +279,7 @@ public sealed class DocsMcpTools(
                 section ?? string.Empty,
                 stopwatch.ElapsedMilliseconds);
 
-            return $"读取文档时发生错误：{ex.Message}";
+            return "读取文档时发生错误，请稍后重试。";
         }
     }
 
@@ -316,9 +304,7 @@ public sealed class DocsMcpTools(
             var (filter, notice) = ParseSource(source);
             var files = filter is null ? snapshot.Files : snapshot.Files.Where(f => f.Source == filter).ToList();
 
-            // 按路径建一次索引再进循环：逐篇过滤全表是 O(文件数 × 章节数)，
-            // 当前语料 163 篇 × 1720 个章节 ≈ 28 万次字符串比较，白付一次。
-            // ToLookup 保序，缺键返回空集合，输出与逐篇 Where 完全一致。
+            // 按相对路径对章节分组
             var sectionsByPath = snapshot.Sections.ToLookup(s => s.RelativePath, StringComparer.Ordinal);
 
             var builder = new StringBuilder();
@@ -375,7 +361,7 @@ public sealed class DocsMcpTools(
                 source ?? "all",
                 stopwatch.ElapsedMilliseconds);
 
-            return $"列出文档时发生错误：{ex.Message}";
+            return "列出文档时发生错误，请稍后重试。";
         }
     }
 
@@ -387,9 +373,7 @@ public sealed class DocsMcpTools(
     /// <param name="section">请求的章节，未指定时记空串</param>
     /// <param name="stopwatch">本次调用的计时器</param>
     /// <remarks>
-    /// read_doc 的多条出口返回给模型的都是普通文本，客户端看不出走的是哪一条。
-    /// 性质特殊的三条（路径越界、命中索引却读不到文件、全文超长改返目录）各记各的消息，
-    /// 其余四条共用本方法，靠 <c>Outcome</c> 这个字段区分。
+    /// 路径越界、索引内文件缺失、全文超长改返目录三种情况单独记录，其余结果经本方法记录，以 <c>Outcome</c> 字段区分。
     /// </remarks>
     private void LogReadDocOutcome(string outcome, string path, string? section, Stopwatch stopwatch)
     {
@@ -423,7 +407,7 @@ public sealed class DocsMcpTools(
     }
 
     /// <summary>
-    /// 描述来源分类，便于模型判断内容性质
+    /// 描述来源分类
     /// </summary>
     private static string DescribeSource(DocSourceKind source)
     {
@@ -464,7 +448,7 @@ public sealed class DocsMcpTools(
     }
 
     /// <summary>
-    /// 构造零命中时的回复，明确告知文档中没有，避免模型自行编造
+    /// 构造零命中时的回复，明确告知文档中没有相关内容
     /// </summary>
     private static string BuildEmptyResult(IndexSnapshot snapshot, string query, string notice)
     {

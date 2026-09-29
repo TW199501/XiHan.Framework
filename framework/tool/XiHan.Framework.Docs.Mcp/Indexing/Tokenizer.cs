@@ -7,9 +7,8 @@ namespace XiHan.Framework.Docs.Mcp.Indexing;
 /// 中英混合分词器
 /// </summary>
 /// <remarks>
-/// 中文没有空格分隔，故对连续中文字符切双字词（bigram）；英文与标识符按非字母数字边界切词，
-/// 并额外按帕斯卡/驼峰命名拆分，使 <c>ILocalEventBus</c> 与「event bus」能命中同一段文本。
-/// 长度不足 2 的词条一律丢弃，因为它们的区分度过低。
+/// 对连续中文字符切双字词（bigram）；英文与标识符按非字母数字边界切词，并额外按帕斯卡/驼峰命名拆分；
+/// 长度不足 2 的词条丢弃。
 /// </remarks>
 public static class Tokenizer
 {
@@ -19,17 +18,7 @@ public static class Tokenizer
     /// <param name="text">待切分的文本</param>
     /// <returns>词条列表，输入为空时返回空集合</returns>
     /// <remarks>
-    /// 本方法只保证集合语义：一个词条出现在结果里，当且仅当它能按上述规则从文本中切出来。
-    /// 出现次数不承载任何信息，不要拿来当词频用——重复项的有无是实现细节而非契约：
-    /// 帕斯卡拆词的结果会用 <c>terms.Contains</c> 对已累积的列表去重，
-    /// 而整词与中文 bigram 的追加不去重，两条路径的语义本就不一致。
-    /// <para>
-    /// 现存的消费方也都在自己那一侧去重，没有一处读词频：
-    /// <c>BigramIndex.Add</c> 走 <c>ToHashSet</c>、<c>RelevanceGate</c> 走 <c>Distinct</c>、
-    /// <c>SynonymExpander.Expand</c> 用字典累权重。当前语料下这层不一致无害
-    /// （章节短、词表小，线性 <c>Contains</c> 也谈不上开销），因此保持现状；
-    /// 真要统一，去重该由调用方决定，而不是在这里替所有人做主。
-    /// </para>
+    /// 结果只具集合语义：同一词条可能重复出现，出现次数不表示词频，需要去重时由调用方处理。
     /// </remarks>
     public static IReadOnlyList<string> Tokenize(string? text)
     {

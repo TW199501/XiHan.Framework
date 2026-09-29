@@ -17,7 +17,7 @@ try
 }
 catch (DocsRootNotFoundException ex)
 {
-    // 日志管道此刻还没建起来，只能直接写 stderr，并以非零退出码让编排器看见失败
+    // 错误信息写入 stderr，并以退出码 1 结束
     await Console.Error.WriteLineAsync(ex.Message);
     return 1;
 }
@@ -44,7 +44,7 @@ if (options.IsExposable)
 }
 else
 {
-    // fail-closed：既没注册 MCP 服务也没映射端点，此处只把「缺哪一项」讲清楚
+    // 未暴露端点：记录缺少的配置项
     var missing = new List<string>();
     if (!options.Enabled)
     {

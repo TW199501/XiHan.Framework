@@ -11,10 +11,8 @@ namespace XiHan.Framework.Docs.Mcp.Search;
 /// </summary>
 /// <param name="options">可调参数</param>
 /// <remarks>
-/// 这是排序之后的一道判定，不参与排序、也不改变 <see cref="SectionScorer.Rank"/> 的结果。
-/// 排序回答「哪几段最像」，本判定回答「像的这几段值不值得拿出去」——
-/// 两者需要的信号不同：排序不需要 IDF，而「这个查询是不是在问我们的文档」恰恰只能靠 IDF，
-/// 因为只有 IDF 能区分「怎么」（到处都是，无信息量）与「Kubernetes」（零出现，决定性）。
+/// 在排序之后判定，不参与排序、也不改变 <see cref="SectionScorer.Rank"/> 的结果；
+/// 依据是查询词条按 IDF 加权后被语料认识的比例。
 /// </remarks>
 public sealed class RelevanceGate(DocsMcpOptions options)
 {
@@ -36,15 +34,10 @@ public sealed class RelevanceGate(DocsMcpOptions options)
     /// <param name="query">用户查询串</param>
     /// <param name="index">倒排索引</param>
     /// <param name="totalSections">章节总数</param>
-    /// <param name="coverage">本次判定用的覆盖率，供调用方记日志——只在返回 false 时才有诊断意义</param>
+    /// <param name="coverage">本次判定用的覆盖率</param>
     /// <returns>落在范围内时为 true；为 false 时调用方应走显式否认分支</returns>
     /// <remarks>
-    /// 有这个重载是为了让调用方能把覆盖率写进日志：0.90 这个阈值是在离线的黄金查询集上标定的，
-    /// 要拿真实流量复核它，就得知道被拒绝的查询实际落在多少。
-    /// <para>
-    /// 语料太小以致判据不生效时，<paramref name="coverage"/> 取 1.0——那条路径必然返回 true，
-    /// 而调用方只在拒绝时才会去看这个值。
-    /// </para>
+    /// 语料章节数低于 <c>MinSectionsForRelevanceCutoff</c> 时，<paramref name="coverage"/> 取 1.0 并返回 true。
     /// </remarks>
     public bool IsAboutIndexedDocs(string query, BigramIndex index, int totalSections, out double coverage)
     {
@@ -66,8 +59,7 @@ public sealed class RelevanceGate(DocsMcpOptions options)
     /// <param name="totalSections">章节总数</param>
     /// <returns>0 到 1 之间的比例，无可用词条时返回 1</returns>
     /// <remarks>
-    /// 只统计用户自己写下的词，不统计同义词扩展出来的词：
-    /// 扩展词是从术语表里取的，按构造必然存在于语料中，算进去只会把比例推向 1。
+    /// 只统计查询串本身切出的词条，不含同义词扩展出的词条。
     /// </remarks>
     public double MeasureKnownTermCoverage(string query, BigramIndex index, int totalSections)
     {
@@ -120,11 +112,7 @@ public sealed class RelevanceGate(DocsMcpOptions options)
     /// <param name="index">倒排索引</param>
     /// <returns>应当从统计中剔除的词条集合</returns>
     /// <remarks>
-    /// 「路由为什么没有动词」切出的 <c>由为</c>、<c>么没</c>、<c>有动</c> 在语料里都是零命中，
-    /// 但它们不是「文档没讲的概念」，只是分词器在两个词之间切出来的碎片。
-    /// 判别方式：语料不认识它，可它在同一段连续中文里紧挨着一个语料认识的二元词——
-    /// 真正陌生的概念（「红烧肉」的 <c>红烧</c>、<c>烧肉</c>）左右都是同样陌生的碎片，不会被误剔。
-    /// 不做这一步，上面那条查询的覆盖率只有 0.484，比不相关查询还低，判据直接失效。
+    /// 伪影指语料不认识、但在同一段连续中文里与语料认识的二元词相邻的二元词。
     /// </remarks>
     private HashSet<string> FindBoundaryArtifacts(string query, BigramIndex index)
     {
@@ -165,7 +153,7 @@ public sealed class RelevanceGate(DocsMcpOptions options)
     /// <param name="artifacts">收集结果</param>
     private void CollectRunArtifacts(ReadOnlySpan<char> run, BigramIndex index, HashSet<string> artifacts)
     {
-        // 只有一个二元词时无从判断左右邻接，一律不当作伪影
+        // 少于两个二元词时不收集伪影
         if (run.Length < 3)
         {
             return;

@@ -55,15 +55,7 @@ public class SynonymExpanderTests
     /// 纯拉丁术语按词条匹配而非子串
     /// </summary>
     /// <remarks>
-    /// 这条钉的是 <c>SynonymExpander.Mentions</c> 里那个「含中文走子串、纯拉丁走词条」的分支。
-    /// 「Redis」内含子串「di」，退回子串匹配的话整组依赖注入术语都会被扩展进来，
-    /// 把依赖注入文档推向一个问 Redis 的查询的首屏。其余几条测试用的都是中文术语，
-    /// 删掉那个分支照样全绿，所以必须单独有这一条。
-    /// <para>
-    /// 正反两个方向缺一不可：只断言「Redis 不误触发」的话，把拉丁分支改成恒 <c>false</c>
-    /// ——即 DI、MCP、API 这类词条**永远匹配不上**、术语表的拉丁词条整体静默失效——
-    /// 这条断言照样成立。所以下面必须同时断言「DI 确实触发」。
-    /// </para>
+    /// 验证 <c>SynonymExpander.Mentions</c> 的拉丁术语分支：Redis 不触发依赖注入术语组，独立成词的 DI 触发。
     /// </remarks>
     [Fact]
     public void 拉丁术语按词条匹配而非子串()

@@ -11,9 +11,7 @@ namespace XiHan.Framework.Docs.Mcp.Search;
 /// 按框架术语表扩展查询词
 /// </summary>
 /// <remarks>
-/// 纯字面匹配无法处理「换句话说」的提问，例如问「怎么避免重复消费」与文档中的「收件箱去重」字面零重叠。
-/// 术语表用几十行 JSON 精准补掉这个缺口。扩展词权重折半，避免淹没用户的原始意图。
-/// 术语表是增强而非必需：文件缺失或格式损坏时降级为不扩展，服务照常。
+/// 查询提到术语组中的任一术语时，把同组其余术语按半权加入；术语表缺失或格式损坏时不做扩展。
 /// </remarks>
 public sealed class SynonymExpander
 {
@@ -113,11 +111,7 @@ public sealed class SynonymExpander
     /// <param name="member">术语</param>
     /// <returns>提到时为 true</returns>
     /// <remarks>
-    /// 中文没有词边界，只能按子串判断；纯拉丁术语则必须按词条匹配。
-    /// 否则「Redis」会因为内含子串「di」而触发依赖注入术语组，
-    /// 把「Redis 事件总线怎么配」的结果推向依赖注入文档——实测时依赖注入文档确实被顶到了第三名。
-    /// 这条分支由 <c>SynonymExpanderTests.拉丁术语按词条匹配而非子串</c> 钉住：
-    /// 把下面的中文判断去掉、全部退回子串匹配，那条测试会红。
+    /// 含中文的术语按子串匹配查询串，纯拉丁术语按词条匹配。
     /// </remarks>
     private static bool Mentions(string query, HashSet<string> queryTerms, string member)
     {

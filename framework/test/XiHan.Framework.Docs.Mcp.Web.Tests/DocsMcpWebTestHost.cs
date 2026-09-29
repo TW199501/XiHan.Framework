@@ -23,13 +23,7 @@ namespace XiHan.Framework.Docs.Mcp.Web.Tests;
 /// 用真实 Kestrel 起一个文档 MCP Server，供用例发真实 HTTP 请求
 /// </summary>
 /// <remarks>
-/// 绑 127.0.0.1:0（临时端口）而不是固定端口：CI 上并发跑测试时固定端口会互相抢占，
-/// 而且本机也常有别的进程占着。用例之间不共享宿主，避免一个用例的配置影响另一个。
-/// <para>
-/// 装配走的是产品代码的两个扩展方法 <c>AddXiHanDocsMcpWeb</c> 与 <c>MapXiHanDocsMcp</c>，
-/// 和 <c>Program.cs</c> 调的是同一对——fail-closed 判定就写在这两个方法里，
-/// 所以这里的断言按得住的正是真实的那份逻辑。
-/// </para>
+/// 绑定 127.0.0.1:0 临时端口，每个用例使用独立宿主；装配调用 <c>AddXiHanDocsMcpWeb</c> 与 <c>MapXiHanDocsMcp</c>。
 /// </remarks>
 internal sealed class DocsMcpWebTestHost : IAsyncDisposable
 {
@@ -79,7 +73,7 @@ internal sealed class DocsMcpWebTestHost : IAsyncDisposable
     {
         var builder = WebApplication.CreateBuilder();
 
-        // 清掉默认配置源：本机 appsettings.json 与 XiHan__Docs__Mcp__* 环境变量都不该左右用例判定
+        // 清除默认配置源，只使用内存配置
         builder.Configuration.Sources.Clear();
         builder.Configuration.AddInMemoryCollection(settings);
 
@@ -98,8 +92,7 @@ internal sealed class DocsMcpWebTestHost : IAsyncDisposable
         }
         catch
         {
-            // 配置校验不通过时宿主起不来，此处把它清掉再把异常抛给用例；
-            // 不清的话每条「配错应当拒绝启动」的用例都会漏一个 WebApplication
+            // 启动失败时释放宿主后重新抛出
             await app.DisposeAsync();
             throw;
         }
@@ -126,7 +119,7 @@ internal sealed class DocsMcpWebTestHost : IAsyncDisposable
             Content = new StringContent(InitializePayload, Encoding.UTF8, "application/json")
         };
 
-        // 流式 HTTP 传输要求两种媒体类型都被接受，缺一会被判 406 而不是进到处理器
+        // 同时接受 JSON 与 SSE 两种媒体类型
         request.Headers.Accept.ParseAdd("application/json");
         request.Headers.Accept.ParseAdd("text/event-stream");
 
@@ -134,7 +127,7 @@ internal sealed class DocsMcpWebTestHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// 发送一条 MCP initialize 请求，只读响应头不读流，避免 SSE 长连接把用例挂住
+    /// 发送一条 MCP initialize 请求，只读响应头不读流
     /// </summary>
     /// <param name="configure">在发送前追加请求头，可为空</param>
     /// <returns>响应，调用方负责释放</returns>
@@ -150,9 +143,7 @@ internal sealed class DocsMcpWebTestHost : IAsyncDisposable
     /// 手写 HTTP/1.1 报文直发套接字，发一条 MCP initialize 请求，返回状态码
     /// </summary>
     /// <remarks>
-    /// 为什么不用 <see cref="HttpClient"/>：同名请求头添两次时，<see cref="HttpClient"/> 会在发出前
-    /// 折成一行逗号分隔的值，服务端拿到的 <c>StringValues</c> 只有一个元素——那样就测不到
-    /// 「服务端拿到两个值该怎么办」。手写报文才能把两行同名头真的送上线。
+    /// 直接写套接字以发送多行同名请求头；<see cref="HttpClient"/> 会把同名请求头合并为一行。
     /// </remarks>
     /// <param name="extraHeaderLines">追加的请求头行，形如 <c>X-Api-Key: value</c></param>
     /// <returns>响应状态码</returns>
@@ -183,7 +174,7 @@ internal sealed class DocsMcpWebTestHost : IAsyncDisposable
         await stream.WriteAsync(payload, token);
         await stream.FlushAsync(token);
 
-        // 只读状态行；200 时后面是 SSE 长流，读全了会把用例挂住
+        // 只读取状态行
         using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
         var statusLine = await reader.ReadLineAsync(token);
 

@@ -11,38 +11,15 @@ using XiHan.Framework.Docs.Mcp.Tools;
 namespace XiHan.Framework.Docs.Mcp.Tests;
 
 /// <summary>
-/// 黄金查询集：跑真实文档，确保检索质量不随权重调整而退化
+/// 黄金查询集：在真实文档上验证检索排序与相关性截断
 /// </summary>
-/// <remarks>
-/// 这组断言是唯一能防止「越调越差」的机制。若某条断言失效，先确认是文档改动
-/// 还是排序规则退化——两者都需要人工判断，不要直接放宽断言了事。
-/// <para>
-/// 正例与负例缺一不可：只有正例的话，检索只能证明「找得到东西」，
-/// 无法证明「找不到时知道自己找不到」——把相关性截断整段删掉，一组纯正例照样全绿。
-/// </para>
-/// </remarks>
 public class GoldenQueryTests
 {
     private static readonly Lazy<GoldenFixture> Shared = new(BuildFixture);
 
     /// <summary>
-    /// 明确不在文档范围内的查询，必须拿到显式否认而不是一堆蹭词的章节
+    /// 不在文档范围内的查询得到显式否认
     /// </summary>
-    /// <remarks>
-    /// 断言的是否认文案本身而不是「结果为空」：中文 bigram 在「怎么」「配置」这类
-    /// 高频片段上必然与文档有交集，`hits.Count == 0` 在真实语料上几乎不会发生，
-    /// 断言空集合等于什么都没测。
-    /// <para>
-    /// 标定时实测的是 18 条不相关查询，这里列出的 12 条全部通过——但不要把这读成
-    /// 「截断判据完美」。已知会漏过的那条以 Skip 的形式留在列表里，不是被悄悄剔除的。
-    /// 另有两点局限同样属于判据本身而非实现缺陷：
-    /// <c>Nginx 的反向代理怎么写</c>（覆盖率 0.760，实际被挡住）的分类有争议——
-    /// 框架确实有网关模块，返回 `docs/guide/gateway.md` 不算离谱，所以不写成断言；
-    /// 以及判据对查询长度敏感，一个未知专有名词大致只扣 0.15–0.25 的覆盖率，
-    /// 查询写得够长时，同一个未知词就压不到阈值以下了。
-    /// 这两点都是词法判据的固有天花板，只能靠语义模型解决，而那是设计明确排除的非目标。
-    /// </para>
-    /// </remarks>
     /// <param name="query">查询串</param>
     [Theory]
     [InlineData("量子纠缠的宏观表现")]
@@ -59,10 +36,7 @@ public class GoldenQueryTests
     [InlineData("曦寒框架支持 GraphQL 吗")]
     [InlineData(
         "Vue 的响应式原理是什么",
-        Skip = "已知漏过（覆盖率 1.000）：查询里每个词条在语料中都出现过——文档站基于 VitePress，"
-            + "「响应式」「响应」这类 bigram 在满是「统一响应」的语料里都是常见词。"
-            + "判据的前提是「查询里有语料不认识的词」，这条一个都没有，属词法判据的天花板，"
-            + "只能靠语义模型解决。留在这里是为了让局限和代码放在一起，而不是只写在报告里。")]
+        Skip = "已知漏过（覆盖率 1.000）：查询中每个词条在语料中都出现过。")]
     public void 无关查询得到显式否认(string query)
     {
         var result = Shared.Value.Tools.SearchDocs(query, source: null, limit: 5);
@@ -75,11 +49,7 @@ public class GoldenQueryTests
     /// 每条查询的期望命中文件必须出现在前三名
     /// </summary>
     /// <remarks>
-    /// <c>模块的生命周期钩子有哪些</c> 在 <see cref="相关查询不被截断误杀"/> 里期望的是
-    /// <c>docs/guide/lifecycle.md</c>，与这里的 <c>docs/guide/modularity.md</c> 不同——
-    /// 这不是复制粘贴错误，请不要「修正」其中一条。这条查询横跨两篇真实存在的文档，
-    /// 两个 Theory 钉的也是两件事：这里钉 <c>SectionScorer.Rank</c> 的前三名（排序），
-    /// 那里钉 <c>SearchDocs</c> 过了相关性截断之后的前五条（截断）。
+    /// 验证 <c>SectionScorer.Rank</c> 的前三名；同一查询在 <see cref="相关查询不被截断误杀"/> 中期望的文件不同。
     /// </remarks>
     /// <param name="query">查询串</param>
     /// <param name="expectedPathFragment">期望命中的路径片段</param>
@@ -87,7 +57,6 @@ public class GoldenQueryTests
     [InlineData("分布式事件什么时候发出去", "docs/guide/event-bus.md")]
     [InlineData("动态 API 路由为什么没有动词", "docs/guide/dynamic-api.md")]
     [InlineData("ILocalEventBus", "eventbus")]
-    // 与「相关查询不被截断误杀」里同一条查询期望 lifecycle.md 并不矛盾，见本方法的 remarks
     [InlineData("模块的生命周期钩子有哪些", "docs/guide/modularity.md")]
     [InlineData("多租户怎么隔离数据", "docs/guide/multi-tenancy.md")]
     [InlineData("怎么配置缓存过期时间", "docs/guide/caching.md")]
@@ -122,11 +91,7 @@ public class GoldenQueryTests
     /// 相关查询不能被相关性截断误杀，必须拿到带出处的正文
     /// </summary>
     /// <remarks>
-    /// <c>模块的生命周期钩子有哪些</c> 在 <see cref="期望文件出现在前三名"/> 里期望的是
-    /// <c>docs/guide/modularity.md</c>，与这里的 <c>docs/guide/lifecycle.md</c> 不同——
-    /// 这不是复制粘贴错误，请不要「修正」其中一条。这条查询横跨两篇真实存在的文档，
-    /// 两个 Theory 钉的也是两件事：那里钉 <c>SectionScorer.Rank</c> 的前三名（排序），
-    /// 这里钉 <c>SearchDocs</c> 过了相关性截断之后的前五条（截断）。
+    /// 验证 <c>SearchDocs</c> 经相关性截断后的前五条；同一查询在 <see cref="期望文件出现在前三名"/> 中期望的文件不同。
     /// </remarks>
     /// <param name="query">查询串</param>
     /// <param name="expectedPathFragment">期望命中的路径片段</param>
@@ -134,7 +99,6 @@ public class GoldenQueryTests
     [InlineData("分布式事件什么时候发出去", "docs/guide/event-bus.md")]
     [InlineData("动态 API 路由为什么没有动词", "docs/guide/dynamic-api.md")]
     [InlineData("ILocalEventBus", "eventbus")]
-    // 与「期望文件出现在前三名」里同一条查询期望 modularity.md 并不矛盾，见本方法的 remarks
     [InlineData("模块的生命周期钩子有哪些", "docs/guide/lifecycle.md")]
     [InlineData("多租户怎么隔离数据", "docs/guide/multi-tenancy.md")]
     [InlineData("怎么配置缓存过期时间", "docs/guide/caching.md")]
@@ -151,12 +115,10 @@ public class GoldenQueryTests
     }
 
     /// <summary>
-    /// 截断判据在正负例之间留有余量，把标定结果钉在代码里
+    /// 相关与不相关查询的覆盖率与阈值之间保留余量
     /// </summary>
     /// <remarks>
-    /// 阈值本身写在 <see cref="DocsMcpOptions.MinKnownTermCoverage"/>。
-    /// 这条断言检查的是「阈值两侧还有多少空间」——一旦有人调窄了间隔，
-    /// 即使正负例侥幸还没翻车，这里也会先红。
+    /// 阈值见 <see cref="DocsMcpOptions.MinKnownTermCoverage"/>；相关查询最低覆盖率不低于 0.95，不相关查询最高覆盖率不高于 0.85。
     /// </remarks>
     [Fact]
     public void 截断判据在正负例之间留有余量()
@@ -199,7 +161,7 @@ public class GoldenQueryTests
     }
 
     /// <summary>
-    /// 索引规模符合预期，防止来源枚举被意外破坏
+    /// 索引覆盖四类来源且章节数符合预期
     /// </summary>
     [Fact]
     public void 索引覆盖四类来源()

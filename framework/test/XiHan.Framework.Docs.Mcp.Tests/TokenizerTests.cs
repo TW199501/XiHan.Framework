@@ -22,7 +22,7 @@ public class TokenizerTests
     }
 
     /// <summary>
-    /// 单个中文字符不产生词条，避免噪声
+    /// 单个中文字符不产生词条
     /// </summary>
     [Fact]
     public void 单字中文被丢弃()

@@ -9,9 +9,7 @@ namespace XiHan.Framework.Docs.Mcp.Web.Tests;
 /// 启动期配置校验：配错的部署必须在开始服务之前就失败
 /// </summary>
 /// <remarks>
-/// 全部用例都走真实的宿主启动路径（<see cref="DocsMcpWebTestHost.StartAsync"/> → <c>app.StartAsync()</c>），
-/// 而不是直接 new 一个校验器来调：直接调只能证明校验器自己的判断对，证明不了它真的挂进了启动流程。
-/// 「配错了但照样起来了」正是本组要挡的失败模式。
+/// 全部用例经 <see cref="DocsMcpWebTestHost.StartAsync"/> 走真实的宿主启动路径。
 /// </remarks>
 public class OptionsValidationTests
 {
@@ -46,8 +44,7 @@ public class OptionsValidationTests
                 new KeyValuePair<string, string?>("XiHan:Docs:Mcp:ApiKey", ValidApiKey),
                 new KeyValuePair<string, string?>(键, 值)));
 
-        // 只断言「抛了」不够：抛的可能是别的原因。消息必须点名到底是哪个设置项配错了，
-        // 否则运维拿着一条 OptionsValidationException 还是不知道该改哪一行。
+        // 异常消息点名配错的设置项
         var expected = $"XiHan:Docs:Mcp:{应出现在消息里的设置名}";
 
         Assert.True(
@@ -58,10 +55,6 @@ public class OptionsValidationTests
     /// <summary>
     /// 短密钥必须被拒绝，且消息要说清最短要多少、怎么生成
     /// </summary>
-    /// <remarks>
-    /// 15 与 16 两条一起测：只测 15 的话，把下限改成任意大于 15 的数都还是绿的，
-    /// 断言不到「16」这个具体门槛。
-    /// </remarks>
     [Theory]
     [InlineData("123456789012345")]
     [InlineData("short")]
@@ -76,7 +69,7 @@ public class OptionsValidationTests
         Assert.Contains("XiHan:Docs:Mcp:ApiKey", exception.Message, StringComparison.Ordinal);
         Assert.Contains("16", exception.Message, StringComparison.Ordinal);
 
-        // 光说「太短」没用，得给出一条能直接粘贴执行的生成命令
+        // 消息附带密钥生成命令
         Assert.Contains("openssl rand -base64 32", exception.Message, StringComparison.Ordinal);
     }
 
@@ -93,10 +86,6 @@ public class OptionsValidationTests
     /// <summary>
     /// 未启用的部署即便其余配置全是非法值，也必须干干净净地起来
     /// </summary>
-    /// <remarks>
-    /// 仓库里提交的默认配置就是「关闭且没有密钥」。若校验不看 <c>IsExposable</c> 一律执行，
-    /// 默认配置自己就会启动失败——那是把 fail-closed 变成 fail-always。
-    /// </remarks>
     [Fact]
     public async Task 未启用时即便配置非法也照常启动()
     {
@@ -141,10 +130,6 @@ public class OptionsValidationTests
     /// <summary>
     /// token 允许的特殊字符不该被误判成非法
     /// </summary>
-    /// <remarks>
-    /// 这一条是上面那批拒绝用例的对照组：没有它，把校验写成「只允许字母数字与短横线」
-    /// 也能让全部拒绝用例变绿，而那会拒掉一堆合法的请求头名。
-    /// </remarks>
     [Theory]
     [InlineData("X-Api-Key")]
     [InlineData("X_Api_Key")]

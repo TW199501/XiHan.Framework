@@ -19,14 +19,14 @@ try
 }
 catch (DocsRootNotFoundException ex)
 {
-    // stdout 是 MCP 协议通道，错误信息只能走 stderr
+    // 错误信息写入 stderr
     await Console.Error.WriteLineAsync(ex.Message);
     return 1;
 }
 
 var builder = Host.CreateApplicationBuilder(args);
 
-// 所有日志强制写入 stderr：写入 stdout 会插进 JSON-RPC 流中破坏连接
+// 所有日志写入 stderr
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
 

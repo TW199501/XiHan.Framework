@@ -9,10 +9,8 @@ namespace XiHan.Framework.Docs.Mcp.Web.Tests;
 /// 端点鉴权：两种放行写法与四种拒绝情形
 /// </summary>
 /// <remarks>
-/// 被测的 <c>McpApiKeyEndpointFilter</c> 不是本项目的文件，而是
-/// <c>framework/src/XiHan.Framework.Web.Mcp/Filters/McpApiKeyEndpointFilter.cs</c> 经 csproj 的
-/// <c>&lt;Compile Link&gt;</c> 编进来的同一份源码。所以下面这几条——请求头写法、Bearer 回退、多值请求头——
-/// 按住的是两个程序集共用的那一份实现，而不是一份副本。
+/// 被测的 <c>McpApiKeyEndpointFilter</c> 源文件经 csproj 的 <c>&lt;Compile Link&gt;</c>
+/// 链接自 <c>framework/src/XiHan.Framework.Web.Mcp/Filters/McpApiKeyEndpointFilter.cs</c>。
 /// </remarks>
 public class ApiKeyAuthTests : IAsyncLifetime
 {
@@ -96,9 +94,6 @@ public class ApiKeyAuthTests : IAsyncLifetime
     /// <summary>
     /// 手写报文的对照组：单个正确密钥必须放行
     /// </summary>
-    /// <remarks>
-    /// 没有这一条的话，下面那条多值用例拿到 401 也说明不了问题——可能只是手写的报文本身不合法。
-    /// </remarks>
     /// <returns>异步任务</returns>
     [Fact]
     public async Task 手写报文单个正确密钥可放行()
@@ -112,12 +107,8 @@ public class ApiKeyAuthTests : IAsyncLifetime
     /// 同一请求上真的送两行 X-Api-Key，其中一行是对的
     /// </summary>
     /// <remarks>
-    /// 服务端拿到的 <c>StringValues</c> 有两个元素，<c>ToString()</c> 会用逗号拼成一个串，
-    /// 与真密钥不等，因此必须 401。这条挡的是「多塞一个正确值就能混过去」这类绕过尝试——
-    /// 若把读取改成 <c>FirstOrDefault()</c>，第一行的正确值就会被单独取出来放行，本条即变红。
-    /// <para>
-    /// 必须手写报文：<see cref="HttpClient"/> 会在发出前把同名头折成一行，两行头根本上不了线。
-    /// </para>
+    /// 两行同名请求头的 <c>StringValues</c> 经 <c>ToString()</c> 以逗号拼接后与密钥不等，返回 401。
+    /// 用手写报文发送两行请求头。
     /// </remarks>
     /// <returns>异步任务</returns>
     [Fact]
