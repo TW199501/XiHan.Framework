@@ -1,0 +1,25 @@
+docs/packages/traffic-sqlsugar.md
+  s_94057b8e5cf9b6::t_7ff52e8064fc5b 82
+framework/src/XiHan.Framework.Traffic.SqlSugar/Extensions/DependencyInjection/XiHanTrafficSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_6c5f9ab08cc9e7 44-49
+framework/src/XiHan.Framework.Traffic.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_3c52ea0993bf98 19
+framework/test/XiHan.Framework.Traffic.SqlSugar.Tests/TrafficSqlSugarOptionsTests.cs
+  s_94057b8e5cf9b6::t_7ecbe34bfadd50 1-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "da42bd23cfc75c33f15156218848a0798bda06bf",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
