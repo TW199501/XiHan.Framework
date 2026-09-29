@@ -17,6 +17,7 @@ internal static class TestEntityTypes
     [
         typeof(SysWorkflowDefinition),
         typeof(SysWorkflowInstance),
-        typeof(SysWorkflowNodeInstance)
+        typeof(SysWorkflowNodeInstance),
+        typeof(SysWorkflowBookmark)
     ];
 }
