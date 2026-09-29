@@ -17,4 +17,9 @@ public class XiHanTasksSqlSugarOptions
     /// 后台作业租约时长，领取后超过该时长仍未删除或更新的作业可被重新领取
     /// </summary>
     public TimeSpan BackgroundJobLeaseTimeout { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// 运行中任务实例的宽限期，开始时间加任务超时再加宽限期之后，实例不再视为运行中
+    /// </summary>
+    public TimeSpan RunningInstanceGracePeriod { get; set; } = TimeSpan.FromMinutes(1);
 }
