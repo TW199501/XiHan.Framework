@@ -129,6 +129,44 @@ public class InboxStateTests
     }
 
     /// <summary>
+    /// 已完结的记录不会被延后重试回退
+    /// </summary>
+    [Fact]
+    public async Task 已完结的记录不会被延后重试回退()
+    {
+        using var context = new InboxTestContext();
+        var info = NewEvent();
+        await context.Inbox.EnqueueAsync(info);
+        Assert.Single(await context.Inbox.GetWaitingEventsAsync(10));
+        await context.Inbox.MarkAsProcessedAsync(info.Id);
+
+        await context.Inbox.RetryLaterAsync(info.Id, 5, null);
+
+        var stored = await FindAsync(context, info.Id);
+
+        Assert.Equal(SysEventInbox.StatusProcessed, stored.Status);
+        Assert.Equal(0, stored.RetryCount);
+        Assert.NotNull(stored.HandledTime);
+    }
+
+    /// <summary>
+    /// 已丢弃的记录不会被再次标记为已处理
+    /// </summary>
+    [Fact]
+    public async Task 已丢弃的记录不会被再次标记为已处理()
+    {
+        using var context = new InboxTestContext();
+        var info = NewEvent();
+        await context.Inbox.EnqueueAsync(info);
+        Assert.Single(await context.Inbox.GetWaitingEventsAsync(10));
+        await context.Inbox.MarkAsDiscardAsync(info.Id);
+
+        await context.Inbox.MarkAsProcessedAsync(info.Id);
+
+        Assert.Equal(SysEventInbox.StatusDiscarded, (await FindAsync(context, info.Id)).Status);
+    }
+
+    /// <summary>
     /// 对不存在的标识更新状态不抛异常
     /// </summary>
     [Fact]
@@ -160,6 +198,7 @@ public class InboxStateTests
         await context.Inbox.EnqueueAsync(discardedOld);
         await context.Inbox.EnqueueAsync(processedRecent);
         await context.Inbox.EnqueueAsync(pendingOld);
+        Assert.Equal(4, (await context.Inbox.GetWaitingEventsAsync(10)).Count);
 
         await context.Inbox.MarkAsProcessedAsync(processedOld.Id);
         await context.Inbox.MarkAsDiscardAsync(discardedOld.Id);
@@ -195,6 +234,7 @@ public class InboxStateTests
         using var context = new InboxTestContext(retentionPeriod: TimeSpan.FromDays(7));
         var first = NewEvent("msg-expired");
         await context.Inbox.EnqueueAsync(first);
+        Assert.Single(await context.Inbox.GetWaitingEventsAsync(10));
         await context.Inbox.MarkAsProcessedAsync(first.Id);
 
         var old = DateTimeOffset.UtcNow.AddDays(-30);
@@ -226,6 +266,7 @@ public class InboxStateTests
         await context.Inbox.EnqueueAsync(processed);
         await context.Inbox.EnqueueAsync(retried);
         await context.Inbox.EnqueueAsync(discarded);
+        Assert.Equal(3, (await context.Inbox.GetWaitingEventsAsync(10)).Count);
 
         using (context.CurrentTenant.Change(InboxTestContext.TenantId))
         {

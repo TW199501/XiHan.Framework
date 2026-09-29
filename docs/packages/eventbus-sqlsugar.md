@@ -116,6 +116,8 @@ public class YourAppModule : XiHanModule
 | 1 个 | 该库，与业务数据同一个事务 |
 | 多于 1 个 | 抛 `InvalidOperationException` |
 
+当前租户使用独立于平台的数据库布局（库隔离）时，入箱在解析落点之前就抛 `InvalidOperationException`。判断方式是比较当前租户与平台（`ICurrentTenant.Change(null)`）下 `GetCurrentLayoutConfigIds()` 的主库。
+
 ### 收件箱入箱与去重
 
 收件箱在收到消息时入箱，此时没有业务工作单元，也没有「业务所在的库」。`SqlSugarEventInbox` 的全部读写都切换到无租户上下文，落在宿主布局的主库——与同样无租户上下文的处理循环读写同一个库。
@@ -164,7 +166,7 @@ public class YourAppModule : XiHanModule
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `ClaimTimeout` | `TimeSpan` | `00:05:00` | 领取超时，超过该时长仍未完结的已领取记录可被重新领取，收发件箱共用 |
+| `ClaimTimeout` | `TimeSpan` | `00:05:00` | 领取超时，超过该时长仍未完结的已领取记录可被重新领取，收发件箱共用；必须大于零，启动时校验 |
 | `InboxRetentionPeriod` | `TimeSpan` | `7.00:00:00` | 收件箱已处理与已丢弃记录的保留期，也是去重窗口 |
 
 轮询间隔、批量大小、收件箱最大重试次数与重试延迟属于 [EventBus](./eventbus) 的 `XiHan:EventBus:EventBoxes`，本包不改动。
@@ -191,7 +193,10 @@ public class YourAppModule : XiHanModule
 - **`IEventOutbox` / `IEventInbox` 的生命周期由单例改为作用域**。框架内没有构造函数注入这两个接口的地方，不会产生被捕获依赖；应用若自行把它们注入单例，需要改为从作用域解析。
 - **`GetWaitingEventsAsync` 是领取不是查询**。调用后记录已被标记为已领取，不要在别处当作只读查询复用。
 - **`filter` 参数未支持**。传入非空值会抛 `NotSupportedException`，而不是静默忽略。
-- **租户独立库不在范围内**。发件箱的发送循环只遍历默认布局；收件箱的全部记录都在宿主布局主库。
+- **租户独立库下入箱会抛异常**。发件箱的发送循环只遍历平台布局，写入租户独立库的事件永远不会被投递，因此入箱时若当前租户的数据库布局与平台布局的主库不同，`EnqueueAsync` 抛 `InvalidOperationException`（fail-closed）。字段隔离与行隔离的租户与平台共用主库，不受影响；收件箱的全部记录都在宿主布局主库。
+- **发件箱投递失败要等满 `ClaimTimeout` 才重试，且没有次数上限**。投递失败的记录保持已领取状态，直到领取超时才会被重新领取；发件箱没有重试计数，会一直重试下去。
+- **配额 `maxCount / 库数` 在积压集中于单一库时会压低吞吐**。每库领取量按库数均分，积压全在一个库里时，单次领取量只有 `maxCount` 除以库数。
+- **业务实体在模块库又开启 `EnableDiffLog` 时，不要在同一工作单元内以 `onUnitOfWorkComplete: false` 发布分布式事件**。差异日志写入器经 `GetCurrentClient()` 把主库也登记进工作单元，登记变成两个库（业务模块库加主库），发件箱入箱随即抛「登记了多个数据库连接」的异常。避开方式：事件改在工作单元完成时发布（`onUnitOfWorkComplete: true`，此时不经过发件箱），或该类实体不开差异日志。
 
 ## 扩展点 / 自定义
 

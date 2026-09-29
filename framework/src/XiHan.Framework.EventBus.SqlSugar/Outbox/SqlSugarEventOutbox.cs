@@ -10,6 +10,7 @@ using XiHan.Framework.EventBus.Abstractions.Distributed;
 using XiHan.Framework.EventBus.SqlSugar.Entities;
 using XiHan.Framework.EventBus.SqlSugar.Mapping;
 using XiHan.Framework.EventBus.SqlSugar.Options;
+using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.Framework.EventBus.SqlSugar.Outbox;
 
@@ -19,6 +20,7 @@ namespace XiHan.Framework.EventBus.SqlSugar.Outbox;
 public class SqlSugarEventOutbox : IEventOutbox
 {
     private readonly ISqlSugarClientResolver _clientResolver;
+    private readonly ICurrentTenant _currentTenant;
     private readonly ILogger<SqlSugarEventOutbox> _logger;
     private readonly XiHanSqlSugarEventBoxOptions _options;
 
@@ -26,14 +28,17 @@ public class SqlSugarEventOutbox : IEventOutbox
     /// 构造函数
     /// </summary>
     /// <param name="clientResolver">客户端解析器</param>
+    /// <param name="currentTenant">当前租户</param>
     /// <param name="options">收发件箱存储配置</param>
     /// <param name="logger">日志器</param>
     public SqlSugarEventOutbox(
         ISqlSugarClientResolver clientResolver,
+        ICurrentTenant currentTenant,
         IOptions<XiHanSqlSugarEventBoxOptions> options,
         ILogger<SqlSugarEventOutbox> logger)
     {
         _clientResolver = clientResolver;
+        _currentTenant = currentTenant;
         _options = options.Value;
         _logger = logger;
     }
@@ -46,9 +51,42 @@ public class SqlSugarEventOutbox : IEventOutbox
     {
         ArgumentNullException.ThrowIfNull(outgoingEvent);
 
+        EnsureSharedLayout();
+
         var client = ResolveEnqueueClient();
 
         await client.Insertable(EventOutboxMapper.ToEntity(outgoingEvent)).ExecuteCommandAsync();
+    }
+
+    /// <summary>
+    /// 确认当前租户与平台使用同一套数据库布局
+    /// </summary>
+    /// <remarks>
+    /// 发送循环只遍历平台布局，写入租户独立布局的事件不会被投递，因此当前布局与平台布局的主库不同时拒绝入箱。
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">当前租户使用独立于平台的数据库布局</exception>
+    private void EnsureSharedLayout()
+    {
+        if (_currentTenant.Id is not > 0)
+        {
+            return;
+        }
+
+        var currentLayout = _clientResolver.GetCurrentLayoutConfigIds();
+
+        IReadOnlyList<string> platformLayout;
+        using (_currentTenant.Change(null))
+        {
+            platformLayout = _clientResolver.GetCurrentLayoutConfigIds();
+        }
+
+        if (currentLayout.Count == 0 || platformLayout.Count == 0 ||
+            !string.Equals(currentLayout[0], platformLayout[0], StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"发件箱不支持租户独立库：当前租户 {_currentTenant.Id} 使用独立于平台的数据库布局，" +
+                "写入其中的事件不会被发送循环投递。请改用共享库的隔离方式，或不要在该租户上下文中发布分布式事件。");
+        }
     }
 
     /// <summary>

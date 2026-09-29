@@ -11,6 +11,7 @@ namespace XiHan.Framework.EventBus.SqlSugar.Entities;
 /// 发件箱实体
 /// </summary>
 [SugarTable("sys_event_outbox")]
+[SugarIndex("ix_sys_event_outbox_status", nameof(SysEventOutbox.Status), OrderByType.Asc, nameof(SysEventOutbox.CreatedTime), OrderByType.Asc)]
 [TableInitialization(IncludeModuleConnections = true)]
 public class SysEventOutbox : SugarEntity<Guid>
 {

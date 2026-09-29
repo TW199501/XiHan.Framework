@@ -30,8 +30,12 @@ public static class XiHanSqlSugarEventBusServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.Configure<XiHanSqlSugarEventBoxOptions>(
-            configuration.GetSection(XiHanSqlSugarEventBoxOptions.SectionName));
+        services.AddOptions<XiHanSqlSugarEventBoxOptions>()
+            .Bind(configuration.GetSection(XiHanSqlSugarEventBoxOptions.SectionName))
+            .Validate(
+                options => options.ClaimTimeout > TimeSpan.Zero && options.InboxRetentionPeriod > TimeSpan.Zero,
+                "事件收发件箱配置无效：ClaimTimeout 与 InboxRetentionPeriod 必须大于零。")
+            .ValidateOnStart();
 
         services.Configure<XiHanDistributedEventBusOptions>(options =>
         {

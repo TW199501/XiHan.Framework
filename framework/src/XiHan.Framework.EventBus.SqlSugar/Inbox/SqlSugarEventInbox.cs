@@ -188,7 +188,7 @@ public class SqlSugarEventInbox : IEventInbox
                     ClaimToken = null,
                     ClaimTime = null
                 })
-                .Where(item => item.BasicId == id)
+                .Where(item => item.BasicId == id && item.Status == SysEventInbox.StatusClaimed)
                 .ExecuteCommandAsync();
         }
     }
@@ -250,7 +250,7 @@ public class SqlSugarEventInbox : IEventInbox
                     ClaimTime = null,
                     HandledTime = now
                 })
-                .Where(item => item.BasicId == id)
+                .Where(item => item.BasicId == id && item.Status == SysEventInbox.StatusClaimed)
                 .ExecuteCommandAsync();
         }
     }

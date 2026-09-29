@@ -96,6 +96,7 @@ public class OutboxConcurrencyTests
 
         return new SqlSugarEventOutbox(
             resolver,
+            new FakeCurrentTenant(),
             Microsoft.Extensions.Options.Options.Create(new XiHanSqlSugarEventBoxOptions
             {
                 ClaimTimeout = TimeSpan.FromMinutes(5)

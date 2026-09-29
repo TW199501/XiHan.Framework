@@ -199,6 +199,44 @@ public class OutboxEnqueueTests
         Assert.Equal(0, await context.ModuleClient.Queryable<SysEventOutbox>().CountAsync());
     }
 
+    /// <summary>
+    /// 当前布局与平台布局不同时入箱抛异常且不写库
+    /// </summary>
+    [Fact]
+    public async Task 当前布局与平台布局不同时入箱抛异常且不写库()
+    {
+        using var context = new OutboxTestContext();
+        context.Resolver.CurrentLayoutSelector = () =>
+            context.CurrentTenant.Id is { } tenantId and > 0 ? ["Tenant_" + tenantId] : [OutboxTestContext.MainConfigId];
+
+        using (context.CurrentTenant.Change(1001))
+        {
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => context.Outbox.EnqueueAsync(NewEvent()));
+
+            Assert.Contains("独立库", error.Message);
+        }
+
+        Assert.Equal(0, await context.Client.Queryable<SysEventOutbox>().CountAsync());
+    }
+
+    /// <summary>
+    /// 租户与平台共用同一布局时入箱照常
+    /// </summary>
+    [Fact]
+    public async Task 租户与平台共用同一布局时入箱照常()
+    {
+        using var context = new OutboxTestContext();
+        var info = NewEvent();
+
+        using (context.CurrentTenant.Change(1001))
+        {
+            await context.Outbox.EnqueueAsync(info);
+        }
+
+        Assert.Equal(1, await context.Client.Queryable<SysEventOutbox>().CountAsync());
+    }
+
     private static OutgoingEventInfo NewEvent()
     {
         return new OutgoingEventInfo(Guid.NewGuid(), "Order.Created", [1, 2, 3], DateTime.UtcNow);

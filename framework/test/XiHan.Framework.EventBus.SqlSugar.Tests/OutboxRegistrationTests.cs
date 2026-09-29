@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using XiHan.Framework.EventBus.Abstractions.Distributed;
 using XiHan.Framework.EventBus.Distributed;
+using XiHan.Framework.EventBus.SqlSugar.Options;
 using XiHan.Framework.EventBus.SqlSugar.Extensions.DependencyInjection;
 using XiHan.Framework.EventBus.SqlSugar.Outbox;
 
@@ -47,6 +48,63 @@ public class OutboxRegistrationTests
 
         Assert.Equal(typeof(SqlSugarEventOutbox), descriptor.ImplementationType);
         Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
+    }
+
+    /// <summary>
+    /// 领取超时不为正时读取选项抛出校验异常
+    /// </summary>
+    [Fact]
+    public void 领取超时不为正时读取选项抛出校验异常()
+    {
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["XiHan:EventBus:SqlSugar:ClaimTimeout"] = "00:00:00"
+            })
+            .Build();
+
+        services.AddXiHanSqlSugarEventBus(configuration);
+
+        var options = services.BuildServiceProvider().GetRequiredService<IOptions<XiHanSqlSugarEventBoxOptions>>();
+
+        Assert.Throws<OptionsValidationException>(() => options.Value);
+    }
+
+    /// <summary>
+    /// 收件箱保留期不为正时读取选项抛出校验异常
+    /// </summary>
+    [Fact]
+    public void 收件箱保留期不为正时读取选项抛出校验异常()
+    {
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["XiHan:EventBus:SqlSugar:InboxRetentionPeriod"] = "-00:00:01"
+            })
+            .Build();
+
+        services.AddXiHanSqlSugarEventBus(configuration);
+
+        var options = services.BuildServiceProvider().GetRequiredService<IOptions<XiHanSqlSugarEventBoxOptions>>();
+
+        Assert.Throws<OptionsValidationException>(() => options.Value);
+    }
+
+    /// <summary>
+    /// 默认配置通过校验
+    /// </summary>
+    [Fact]
+    public void 默认配置通过校验()
+    {
+        var services = new ServiceCollection();
+
+        services.AddXiHanSqlSugarEventBus(new ConfigurationBuilder().Build());
+
+        var options = services.BuildServiceProvider().GetRequiredService<IOptions<XiHanSqlSugarEventBoxOptions>>();
+
+        Assert.True(options.Value.ClaimTimeout > TimeSpan.Zero);
     }
 
     /// <summary>

@@ -67,8 +67,11 @@ internal sealed class OutboxTestContext : IDisposable
 
         Resolver = new StubClientResolver(Clients, configIds, MainConfigId);
 
+        CurrentTenant = new FakeCurrentTenant();
+
         Outbox = new SqlSugarEventOutbox(
             Resolver,
+            CurrentTenant,
             Microsoft.Extensions.Options.Options.Create(new XiHanSqlSugarEventBoxOptions
             {
                 ClaimTimeout = claimTimeout ?? TimeSpan.FromMinutes(5)
@@ -85,6 +88,11 @@ internal sealed class OutboxTestContext : IDisposable
     /// 可编程的客户端解析器
     /// </summary>
     public StubClientResolver Resolver { get; }
+
+    /// <summary>
+    /// 当前租户
+    /// </summary>
+    public FakeCurrentTenant CurrentTenant { get; }
 
     /// <summary>
     /// 被测发件箱
@@ -169,6 +177,11 @@ internal sealed class StubClientResolver : ISqlSugarClientResolver
     public Func<string>? CurrentConfigIdSelector { get; set; }
 
     /// <summary>
+    /// 当前布局的连接配置标识选择器，为空时使用构造函数传入的连接配置标识
+    /// </summary>
+    public Func<IReadOnlyList<string>>? CurrentLayoutSelector { get; set; }
+
+    /// <summary>
     /// 获取当前客户端
     /// </summary>
     /// <returns>当前库的客户端</returns>
@@ -226,7 +239,7 @@ internal sealed class StubClientResolver : ISqlSugarClientResolver
     /// <returns>连接配置标识集合</returns>
     public IReadOnlyList<string> GetCurrentLayoutConfigIds()
     {
-        return _configIds;
+        return CurrentLayoutSelector?.Invoke() ?? _configIds;
     }
 
     /// <summary>
