@@ -1,0 +1,21 @@
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Abstractions/IJobStore.cs
+  s_94057b8e5cf9b6::t_dc7f8726d4830c 16-18
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Executor/JobExecutorTests.cs
+  s_94057b8e5cf9b6::t_0c204c7a0fa659 346-369
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "58ed9fd8a87627cec9e1f4bbae3d07248460df2a",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
