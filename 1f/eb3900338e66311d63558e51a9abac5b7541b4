@@ -1,0 +1,16 @@
+framework/src/XiHan.Framework.Workflow.SqlSugar/Mapping/WorkflowBookmarkMapper.cs
+  h_be8240d2cfaa4b 1-62
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowBookmarkMapperTests.cs
+  h_be8240d2cfaa4b 1-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1feb3900338e66311d63558e51a9abac5b7541b4",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
