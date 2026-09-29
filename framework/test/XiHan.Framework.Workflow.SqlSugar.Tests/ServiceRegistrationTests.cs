@@ -83,6 +83,41 @@ public class ServiceRegistrationTests
         Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
+    /// <summary>
+    /// 书签存储被替换为作用域实现
+    /// </summary>
+    /// <param name="registerSqlSugarFirst">是否先注册本包</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void 书签存储被替换为作用域实现(bool registerSqlSugarFirst)
+    {
+        var services = CreateServices(registerSqlSugarFirst);
+
+        var descriptor = Assert.Single(services, item => item.ServiceType == typeof(IWorkflowBookmarkStore));
+        Assert.Equal(typeof(SqlSugarWorkflowBookmarkStore), descriptor.ImplementationType);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
+    }
+
+    /// <summary>
+    /// 三个默认存储全部被替换
+    /// </summary>
+    [Fact]
+    public void 三个默认存储全部被替换()
+    {
+        var services = CreateServices(registerSqlSugarFirst: false);
+
+        var storeTypes = services
+            .Where(item => item.ServiceType == typeof(IWorkflowDefinitionStore)
+                || item.ServiceType == typeof(IWorkflowInstanceStore)
+                || item.ServiceType == typeof(IWorkflowBookmarkStore))
+            .Select(item => item.ImplementationType)
+            .ToList();
+
+        Assert.Equal(3, storeTypes.Count);
+        Assert.All(storeTypes, type => Assert.Equal("XiHan.Framework.Workflow.SqlSugar.Stores", type?.Namespace));
+    }
+
     private static IServiceCollection CreateServices(bool registerSqlSugarFirst)
     {
         var services = new ServiceCollection();
