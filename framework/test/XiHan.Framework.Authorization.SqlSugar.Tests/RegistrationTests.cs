@@ -6,9 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 using XiHan.Framework.Authorization.Extensions.DependencyInjection;
 using XiHan.Framework.Authorization.Permissions;
+using XiHan.Framework.Authorization.Policies;
 using XiHan.Framework.Authorization.Roles;
 using XiHan.Framework.Authorization.SqlSugar.Extensions.DependencyInjection;
 using XiHan.Framework.Authorization.SqlSugar.Permissions;
+using XiHan.Framework.Authorization.SqlSugar.Policies;
 using XiHan.Framework.Authorization.SqlSugar.Roles;
 using XiHan.Framework.Core.Modularity;
 using XiHan.Framework.Data;
@@ -29,6 +31,7 @@ public class RegistrationTests
     [InlineData(typeof(IPermissionStore), typeof(SqlSugarPermissionStore))]
     [InlineData(typeof(IRoleStore), typeof(SqlSugarRoleStore))]
     [InlineData(typeof(IPermissionChecker), typeof(SqlSugarPermissionChecker))]
+    [InlineData(typeof(IPolicyStore), typeof(SqlSugarPolicyStore))]
     public void 契约被顶替为SqlSugar实现(Type serviceType, Type implementationType)
     {
         var services = BuildServices();

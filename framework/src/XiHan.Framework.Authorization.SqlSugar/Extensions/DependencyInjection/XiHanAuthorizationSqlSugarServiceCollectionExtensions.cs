@@ -4,8 +4,10 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.Framework.Authorization.Permissions;
+using XiHan.Framework.Authorization.Policies;
 using XiHan.Framework.Authorization.Roles;
 using XiHan.Framework.Authorization.SqlSugar.Permissions;
+using XiHan.Framework.Authorization.SqlSugar.Policies;
 using XiHan.Framework.Authorization.SqlSugar.Roles;
 
 namespace XiHan.Framework.Authorization.SqlSugar.Extensions.DependencyInjection;
@@ -26,9 +28,9 @@ public static class XiHanAuthorizationSqlSugarServiceCollectionExtensions
 
         services.Replace(ServiceDescriptor.Scoped<IPermissionStore, SqlSugarPermissionStore>());
         services.TryAddScoped<SqlSugarPermissionStore>();
-
         services.Replace(ServiceDescriptor.Scoped<IRoleStore, SqlSugarRoleStore>());
         services.Replace(ServiceDescriptor.Scoped<IPermissionChecker, SqlSugarPermissionChecker>());
+        services.Replace(ServiceDescriptor.Scoped<IPolicyStore, SqlSugarPolicyStore>());
 
         return services;
     }
