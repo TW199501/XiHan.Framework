@@ -1,0 +1,33 @@
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_4dba8c2da117da 34,104
+framework/src/XiHan.Framework.Authorization.SqlSugar/Entities/SysAuthzPermission.cs
+  s_94057b8e5cf9b6::t_4630449c7c207b 1-80
+framework/src/XiHan.Framework.Authorization.SqlSugar/Entities/SysAuthzRolePermission.cs
+  s_94057b8e5cf9b6::t_57a328a8ff69ae 1-49
+framework/src/XiHan.Framework.Authorization.SqlSugar/Entities/SysAuthzUserPermission.cs
+  s_94057b8e5cf9b6::t_ec11b2caf8bc05 1-49
+framework/src/XiHan.Framework.Authorization.SqlSugar/XiHan.Framework.Authorization.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_a479f96273acd5 1-21
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/AuthorizationTestContext.cs
+  s_94057b8e5cf9b6::t_1ccd6cc09e9640 1-221
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/EntityConventionTests.cs
+  s_94057b8e5cf9b6::t_4f4c4690792bb4 1-166
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/XiHan.Framework.Authorization.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_820a29175e0af7 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7ec5ccab8c98fc59fc9aca550552ffdb559a73cd",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
