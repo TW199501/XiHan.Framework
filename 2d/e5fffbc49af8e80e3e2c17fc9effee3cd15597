@@ -1,0 +1,31 @@
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_293e3c3cc794c4 65,137
+framework/src/XiHan.Framework.Settings.SqlSugar/Entities/SysSetting.cs
+  s_94057b8e5cf9b6::t_cccb14cb8e97bf 1-58
+framework/src/XiHan.Framework.Settings.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_0f1c17b2744793 1-58
+framework/src/XiHan.Framework.Settings.SqlSugar/XiHan.Framework.Settings.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_808e11a17c3565 1-21
+framework/src/XiHan.Framework.Settings.SqlSugar/XiHanSettingsSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_a1ed00b0625b45 1-22
+framework/test/XiHan.Framework.Settings.SqlSugar.Tests/EntityMappingTests.cs
+  s_94057b8e5cf9b6::t_558f2f623543c6 1-163
+framework/test/XiHan.Framework.Settings.SqlSugar.Tests/XiHan.Framework.Settings.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_6d2354e3a80d8b 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2de5fffbc49af8e80e3e2c17fc9effee3cd15597",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
