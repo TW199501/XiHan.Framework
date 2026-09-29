@@ -1,0 +1,23 @@
+framework/src/XiHan.Framework.Authentication.SqlSugar/Users/SqlSugarUserStore.cs
+  s_94057b8e5cf9b6::t_a8d751263b3b92 19-20,27,36,40-41,46,95-97,99-102,104-154,160-162,165-168,170-198,205-207,209-218,222,225-226,228-244,251-252,254-270,276-278,280-282,284-306,313-315,317-326,400-422,432-438
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/AuthenticationTestContext.cs
+  s_94057b8e5cf9b6::t_31ec2a03d3af35 78
+framework/test/XiHan.Framework.Authentication.SqlSugar.Tests/UserStoreWriteTests.cs
+  s_94057b8e5cf9b6::t_ee1df43cc984c9 1-364
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2ad2df6d6706f7f372aec99c105b0b45b3db8aa8",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
