@@ -1,0 +1,23 @@
+docs/.vitepress/config.ts
+  s_94057b8e5cf9b6::t_dc636a5ae14dcd 148
+docs/packages/authorization-sqlsugar.md
+  s_94057b8e5cf9b6::t_207a21bbf0ad40 1-200
+docs/packages/index.md
+  s_94057b8e5cf9b6::t_4140f3f0ddbcfe 67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ced4b983b0450f13d7f157c2d613945af9cc9db5",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
