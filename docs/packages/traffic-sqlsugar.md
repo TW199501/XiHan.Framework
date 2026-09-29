@@ -79,7 +79,7 @@ public class YourAppModule : XiHanModule
 
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `RefreshInterval` | `00:00:30` | 缓存刷新间隔 |
+| `RefreshInterval` | `00:00:30` | 缓存刷新间隔，必须大于零，否则启动校验失败 |
 
 ## 主要 API / 类型
 

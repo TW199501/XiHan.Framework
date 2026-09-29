@@ -41,7 +41,12 @@ public static class XiHanTrafficSqlSugarServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.Configure<XiHanTrafficSqlSugarOptions>(configuration.GetSection(XiHanTrafficSqlSugarOptions.SectionName));
+        services.AddOptions<XiHanTrafficSqlSugarOptions>()
+            .Bind(configuration.GetSection(XiHanTrafficSqlSugarOptions.SectionName))
+            .Validate(
+                options => options.RefreshInterval > TimeSpan.Zero,
+                "流量治理 SqlSugar 配置无效：RefreshInterval 必须大于零。")
+            .ValidateOnStart();
 
         return services.AddXiHanTrafficSqlSugar();
     }

@@ -16,7 +16,7 @@
 
 ## 配置与约定
 
-配置节 `XiHan:Traffic:SqlSugar`，`RefreshInterval` 控制缓存刷新间隔，默认 30 秒。
+配置节 `XiHan:Traffic:SqlSugar`，`RefreshInterval` 控制缓存刷新间隔，默认 30 秒，必须大于零，否则启动校验失败。
 
 表名 `sys_gray_rule`；主键 `Basic_Id` 即规则的 `RuleId`（`string`，由应用层赋值，非自增）。不分表、不做多库路由。
 
