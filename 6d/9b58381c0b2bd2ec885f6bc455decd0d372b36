@@ -1,0 +1,19 @@
+.superpowers/plans/2026-09-30-review-e26-fixes.md
+  s_94057b8e5cf9b6::t_6c26ac6a0388a7 1-384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6d9b58381c0b2bd2ec885f6bc455decd0d372b36",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
