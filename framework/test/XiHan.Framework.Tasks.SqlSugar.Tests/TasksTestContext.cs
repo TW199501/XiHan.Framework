@@ -10,6 +10,7 @@ using XiHan.Framework.Tasks.SqlSugar.BackgroundJobs;
 using XiHan.Framework.Tasks.SqlSugar.Clients;
 using XiHan.Framework.Tasks.SqlSugar.Entities;
 using XiHan.Framework.Tasks.SqlSugar.Options;
+using XiHan.Framework.Tasks.SqlSugar.ScheduledJobs;
 
 namespace XiHan.Framework.Tasks.SqlSugar.Tests;
 
@@ -36,7 +37,7 @@ internal sealed class TasksTestContext : IDisposable
             DbType = DbType.Sqlite,
             IsAutoCloseConnection = true
         });
-        Client.CodeFirst.InitTables(typeof(SysBackgroundJob));
+        Client.CodeFirst.InitTables(typeof(SysBackgroundJob), typeof(SysJobInstance), typeof(SysJobHistory));
 
         Tenant = new CurrentTenant(AsyncLocalCurrentTenantAccessor.Instance);
         Client.Aop.DataExecuting = (_, _) => ExecutingTenantIds.Add(Tenant.Id);
@@ -53,13 +54,14 @@ internal sealed class TasksTestContext : IDisposable
 
         Clock = new FakeClock(BaseTime);
 
-        BackgroundJobStore = new SqlSugarBackgroundJobStore(
-            Accessor,
-            Clock,
-            Microsoft.Extensions.Options.Options.Create(new XiHanTasksSqlSugarOptions
-            {
-                BackgroundJobLeaseTimeout = leaseTimeout ?? TimeSpan.FromMinutes(5)
-            }));
+        var options = Microsoft.Extensions.Options.Options.Create(new XiHanTasksSqlSugarOptions
+        {
+            BackgroundJobLeaseTimeout = leaseTimeout ?? TimeSpan.FromMinutes(5),
+            RunningInstanceGracePeriod = TimeSpan.FromMinutes(1)
+        });
+
+        BackgroundJobStore = new SqlSugarBackgroundJobStore(Accessor, Clock, options);
+        JobStore = new SqlSugarJobStore(Accessor, options);
     }
 
     /// <summary>
@@ -96,6 +98,11 @@ internal sealed class TasksTestContext : IDisposable
     /// 被测后台作业存储
     /// </summary>
     public SqlSugarBackgroundJobStore BackgroundJobStore { get; }
+
+    /// <summary>
+    /// 被测定时任务存储
+    /// </summary>
+    public SqlSugarJobStore JobStore { get; }
 
     /// <summary>
     /// 每次触发数据执行事件时的租户标识
