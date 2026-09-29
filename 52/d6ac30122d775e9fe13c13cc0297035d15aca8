@@ -1,0 +1,25 @@
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_3cc8f8551cf6bd 76
+framework/src/XiHan.Framework.Upgrade.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_214845772888fc 1-45
+framework/src/XiHan.Framework.Upgrade.SqlSugar/XiHan.Framework.Upgrade.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_bb07dbaa1c2556 1-21
+framework/src/XiHan.Framework.Upgrade.SqlSugar/XiHanUpgradeSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_bcda9d36178985 1-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "52d6ac30122d775e9fe13c13cc0297035d15aca8",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
