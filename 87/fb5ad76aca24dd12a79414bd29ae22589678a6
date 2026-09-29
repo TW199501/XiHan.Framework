@@ -1,0 +1,33 @@
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_cd51236058a6de 67,141
+framework/src/XiHan.Framework.Tasks.SqlSugar/Extensions/DependencyInjection/XiHanTasksSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_7d1f0e42fcef98 1-33
+framework/src/XiHan.Framework.Tasks.SqlSugar/Options/XiHanTasksSqlSugarOptions.cs
+  s_94057b8e5cf9b6::t_2a92c40f279f58 1-20
+framework/src/XiHan.Framework.Tasks.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_10524bfae94f11 1-32
+framework/src/XiHan.Framework.Tasks.SqlSugar/XiHan.Framework.Tasks.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_0db0a9551b4b35 1-21
+framework/src/XiHan.Framework.Tasks.SqlSugar/XiHanTasksSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_c6cc8a0c7a3066 1-34
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHan.Framework.Tasks.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_700546f8bbb91b 1-11
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHanTasksSqlSugarOptionsTests.cs
+  s_94057b8e5cf9b6::t_21a5da2db43f5f 1-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "87fb5ad76aca24dd12a79414bd29ae22589678a6",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
