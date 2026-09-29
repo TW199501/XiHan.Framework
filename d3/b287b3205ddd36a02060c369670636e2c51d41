@@ -1,0 +1,27 @@
+framework/src/XiHan.Framework.Authorization.SqlSugar/Roles/SqlSugarRoleStore.cs
+  s_94057b8e5cf9b6::t_4f01cad2ce56d1 1-429
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/AuthorizationTestContext.cs
+  s_94057b8e5cf9b6::t_9dc30adb92695a 8,74-82
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/RoleDeletionTests.cs
+  s_94057b8e5cf9b6::t_0b264df0da2500 1-136
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/RoleStoreTests.cs
+  s_94057b8e5cf9b6::t_a3eafb3c69b0cb 1-237
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/UserRoleTests.cs
+  s_94057b8e5cf9b6::t_226e1f5600deea 1-171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d3b287b3205ddd36a02060c369670636e2c51d41",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
