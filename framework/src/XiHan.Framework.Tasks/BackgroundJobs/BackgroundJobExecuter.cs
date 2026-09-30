@@ -42,13 +42,15 @@ public class BackgroundJobExecuter : IBackgroundJobExecuter
             ?? throw new BackgroundJobExecutionException(
                 $"作业处理器 {context.JobType.Name} 未实现 IAsyncBackgroundJob<TArgs>");
 
-        var method = jobInterface.GetMethod(nameof(IAsyncBackgroundJob<object>.ExecuteAsync))
+        var method = jobInterface.GetMethod(
+            nameof(IAsyncBackgroundJob<object>.ExecuteAsync),
+            [jobInterface.GetGenericArguments()[0], typeof(CancellationToken)])
             ?? throw new BackgroundJobExecutionException(
                 $"作业处理器 {context.JobType.Name} 缺少 ExecuteAsync 方法");
 
         try
         {
-            var result = method.Invoke(job, [context.JobArgs]);
+            var result = method.Invoke(job, [context.JobArgs, context.CancellationToken]);
             if (result is Task task)
             {
                 await task;
@@ -56,13 +58,29 @@ public class BackgroundJobExecuter : IBackgroundJobExecuter
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)
         {
-            _logger.LogError(ex.InnerException, "后台作业执行失败：{JobType}", context.JobType.Name);
-            throw new BackgroundJobExecutionException($"后台作业执行失败：{context.JobType.Name}", ex.InnerException);
+            throw CreateExecutionException(context, ex.InnerException);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "后台作业执行失败：{JobType}", context.JobType.Name);
-            throw new BackgroundJobExecutionException($"后台作业执行失败：{context.JobType.Name}", ex);
+            throw CreateExecutionException(context, ex);
         }
+    }
+
+    /// <summary>
+    /// 记录处理器异常并包装为 <see cref="BackgroundJobExecutionException"/>；上下文令牌已取消且异常为取消异常时按信息级别记录
+    /// </summary>
+    /// <param name="context">执行上下文</param>
+    /// <param name="exception">处理器抛出的异常</param>
+    /// <returns>包装后的异常</returns>
+    private BackgroundJobExecutionException CreateExecutionException(BackgroundJobExecutionContext context, Exception exception)
+    {
+        if (exception is OperationCanceledException && context.CancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("后台作业已按取消令牌停止：{JobType}", context.JobType.Name);
+            return new BackgroundJobExecutionException($"后台作业已取消：{context.JobType.Name}", exception);
+        }
+
+        _logger.LogError(exception, "后台作业执行失败：{JobType}", context.JobType.Name);
+        return new BackgroundJobExecutionException($"后台作业执行失败：{context.JobType.Name}", exception);
     }
 }

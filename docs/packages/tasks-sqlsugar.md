@@ -13,7 +13,7 @@
 
 本包把两者都落到数据表：
 
-- **后台作业**：入队与业务同事务；N 个实例同时轮询，同一个作业只会被一个实例领走
+- **后台作业**：入队与业务同事务；N 个实例同时轮询，同一个作业只会被一个实例领走；执行中逐作业续租，失去租约的实例不会覆盖新持有者的结果；支持重试与取消管理
 - **定时任务**：每次执行的实例与历史落库，可按任务名分页查询；执行途中崩溃遗留的「运行中」记录在超时后自动失效，不会让不允许并发的任务永久停摆
 
 ## 何时使用
@@ -76,9 +76,25 @@ public class YourAppModule : XiHanModule
 | `Is_Abandoned` | `bool` | 是否已放弃 |
 | `Priority` | `int` | 优先级，值越大越优先 |
 | `Claim_Token` | `string(64)`，可空 | 领取令牌 |
-| `Claim_Time` | `DateTime`，可空 | 领取时刻，用于租约超时释放 |
+| `Claim_Time` | `DateTime`，可空 | 领取或最近一次续租的时刻，用于租约超时释放 |
+| `Is_Cancellation_Requested` | `bool`，可空 | 是否已请求取消，空值与 `false` 均表示未请求 |
 
 后台作业的时间与 `IClock.Now` 同一口径。
+
+`Is_Cancellation_Requested` 是后加的可空列。框架的 `DbInitializer` 不修改已存在的表：新安装直接建出含该列的表，无需处理；若 `sys_background_job` 已由本包早期版本建立，需经 `IDbSchemaUpgrader`（见 [Data](./data)）或手工补一个可空布尔列 `Is_Cancellation_Requested`。各库示例如下，没有存在性检查的写法要先确认列不存在，以便重复执行：
+
+```sql
+-- MySQL：先查 information_schema.COLUMNS 确认列不存在再执行
+ALTER TABLE sys_background_job ADD COLUMN Is_Cancellation_Requested TINYINT(1) NULL;
+-- SQL Server：自带存在性检查
+IF COL_LENGTH('sys_background_job', 'Is_Cancellation_Requested') IS NULL ALTER TABLE sys_background_job ADD Is_Cancellation_Requested BIT NULL;
+-- PostgreSQL：自带存在性检查（列名按 SqlSugar 默认的自动小写）
+ALTER TABLE sys_background_job ADD COLUMN IF NOT EXISTS is_cancellation_requested BOOLEAN NULL;
+-- SQLite：先用 PRAGMA table_info(sys_background_job) 确认列不存在再执行
+ALTER TABLE sys_background_job ADD COLUMN Is_Cancellation_Requested BIT NULL;
+```
+
+直接调用 SqlSugar `CodeFirst.InitTables` 的宿主会自动补这一列，不改动既有数据。
 
 ### `sys_job_instance`
 
@@ -106,13 +122,53 @@ public class YourAppModule : XiHanModule
 
 第 2 步的每行 `UPDATE` 是原子的，两个并发领取者只有一个能让某行在可领取状态下被改写。候选全被抢走时另选一批重试，最多三轮。
 
-执行成功后 Worker 删除作业；失败或放弃后 Worker 回写作业，租约随之结束；进程在执行途中退出时，租约在超时后过期、作业重新可领取。
+领取时每个作业的 `LeaseExpiresAt` 为领取时刻加 `BackgroundJobLeaseTimeout`。进程在执行途中退出时，租约在超时后过期、作业重新可领取。
 
 本包不依赖 Worker 的分布式锁：未配置 Redis 时该锁只在进程内互斥。
+
+### 后台作业的租约
+
+本存储声明 `SupportsJobLease`，Worker 因此对每个作业走租约路径：执行前按令牌续租确认租约，执行中按续租间隔续租，结束后按令牌删除或回写。租约时长由 `BackgroundJobLeaseTimeout` 决定；续租间隔取主包的 `XiHan:BackgroundJobs:JobLeaseRenewalIntervalSeconds`（默认取租约时长的四分之一），主包的 `JobLeaseDurationSeconds` 只作用于进程内存储。
+
+每一步都是带主键（与令牌）条件的 `UPDATE` 或 `DELETE`，时间比较在 SQL 条件里完成：
+
+| 操作 | 条件 | 效果 |
+| --- | --- | --- |
+| 续租 | 主键与 `Claim_Token` 匹配，`Claim_Time` 不早于「当前时间减租约时长」 | `Claim_Time` 推进到当前时间，返回的租约携带最新的取消请求标记 |
+| 按令牌完成 | 主键与 `Claim_Token` 匹配 | 删除作业；不看租约是否到期，令牌被新的领取换掉即未命中 |
+| 按令牌回写 | 主键与 `Claim_Token` 匹配 | 写入尝试次数、下次执行时间、上次尝试时间、放弃与取消标记，清空令牌与领取时刻 |
+| 释放租约 | 主键与 `Claim_Token` 匹配 | 清空令牌与领取时刻，作业立即可被再次领取 |
+
+续租未命中（租约已过期或已被另一实例领走）时，Worker 取消本地执行且不回写结果。
+
+按令牌回写不会覆盖已登记的取消请求：取消标记取存储值与回写值的并集，并集为真时作业一律标记放弃。放弃的作业保留在表中。
+
+同一轮领到的作业领取时刻相同，尚未执行到的作业不续租。一轮耗时超过租约时长时，这些作业在执行前的确认续租会失败而被跳过，等下一轮或由另一实例领取，不会被本实例重复执行。Worker 因停机或锁续期失败提前结束一轮时，按令牌释放已领取但未执行的作业。
+
+### 后台作业的管理
+
+本存储声明 `SupportsJobManagement`，主包的 `IBackgroundJobManagementService` 经授权后调用下列操作，重复调用是幂等的：
+
+| 操作 | 结果 |
+| --- | --- |
+| 重试 | 已放弃的作业：清除放弃与取消标记、尝试次数归零、下次执行时间设为当前时间、结束租约，返回 `Rescheduled`；未放弃返回 `NoChange`；不存在返回 `NotFound` |
+| 取消 | 持有有效租约且未登记请求：登记取消请求，返回 `CancellationRequested`，由持有租约的 Worker 在续租时得知并协作停止；其余未放弃的作业：标记放弃并结束租约，返回 `Cancelled`；已放弃或已登记请求返回 `NoChange`；不存在返回 `NotFound` |
+
+取消分两步条件更新；两步都未命中而作业仍未放弃且未登记请求时（两步之间作业恰被领取或释放），重新执行，最多三轮。取消是协作式的，不强制终止正在执行的代码。被取消的作业保留在表中，可以再重试。
 
 ### 定时任务的运行中实例
 
 不允许并发的任务在触发前会查询「是否有运行中实例」。执行途中进程退出会留下一条永远是「运行中」的记录。本包为运行中实例记录截止时刻（开始时间 + 任务超时 + 宽限期），查询只认截止时刻未到的实例。任务超时小于等于 0（不限时）时截止时刻为 `9999-12-31`，实例在被显式结束之前一直算运行中。
+
+### 定时任务的分批清理
+
+主包的 [`JobHistoryCleanupService`](./tasks) 启用后（`XiHan:Tasks:ScheduledJobs:HistoryCleanupEnabled = true`），按 `HistoryRetentionDays` 算出截止时间，逐批调用本存储的 `CleanupHistoryAsync(cutoff, batchSize, ct)`。每一批：
+
+1. 查出开始时间早于截止时间的执行历史，最多 `batchSize` 条主键，按主键删除
+2. 查出待清理的任务实例，最多 `batchSize` 条主键，按主键删除：成功、失败或已取消且完成时间早于截止时间的实例，以及运行截止时刻早于截止时间的遗留运行中实例
+3. 返回两类合计删除数
+
+等待中实例与运行截止时刻未到截止时间的运行中实例不删除。时间比较在 SQL 内完成；执行历史的 `Started_At`、任务实例的 `Completed_At` 上有索引，遗留运行中实例的查询不走索引。取消令牌在每类操作前检查。
 
 ## 配置
 
@@ -120,11 +176,11 @@ public class YourAppModule : XiHanModule
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `BackgroundJobLeaseTimeout` | `TimeSpan` | `00:05:00` | 后台作业租约时长，必须大于零，否则启动校验失败 |
+| `BackgroundJobLeaseTimeout` | `TimeSpan` | `00:05:00` | 后台作业租约时长，必须大于零，否则启动校验失败；领取与每次续租都把租约延长到当前时间加该时长 |
 | `RunningInstanceGracePeriod` | `TimeSpan` | `00:01:00` | 运行中任务实例的宽限期 |
 | `MaxClaimBatchSize` | `int` | `50` | 单次领取的作业数量上限，必须大于零，否则启动校验失败 |
 
-实际领取数量取调用方请求数量与 `MaxClaimBatchSize` 的较小者。一轮领到的作业共用同一个租约，Worker 又串行执行这一轮的全部作业，因此该上限限制了共用一个租约的作业数，也就限制了一轮耗时超过租约的风险。
+实际领取数量取调用方请求数量与 `MaxClaimBatchSize` 的较小者。一轮领到的作业领取时刻相同，Worker 又串行执行这一轮的全部作业，该上限限制了一轮里排在后面、租约可能在执行前过期的作业数。
 
 ## 主要 API / 类型
 
@@ -141,14 +197,19 @@ public class YourAppModule : XiHanModule
 ## 注意事项与最佳实践
 
 - **后台作业的执行语义是至少一次**。作业处理器必须幂等。
-- **租约要大于一轮的执行耗时**。未配置 Redis 的多实例部署下，一轮耗时超过租约时，尚未执行到的作业可能被另一实例重复领取。调大 `BackgroundJobLeaseTimeout`，或调小 `XiHan:BackgroundJobs:MaxJobFetchCount`。
-- **提前结束的一轮不会释放租约**。Worker 因停机或锁续期失败提前结束一轮时，已领取但未执行的作业要等租约过期才会被再次领取。
+- **执行中的作业靠续租保持租约**。续租间隔要明显小于租约时长；续租失败的作业会被取消本地执行且不回写。一轮里尚未执行到的作业不续租，租约过期后会被跳过、留到下一轮，调小 `XiHan:BackgroundJobs:MaxJobFetchCount` 可减少这种情况。
+- **提前结束的一轮会释放租约**。Worker 因停机或锁续期失败提前结束一轮时，按令牌释放已领取但未执行的作业。
+- **取消是协作式的**。执行中的作业只登记取消请求，作业处理器要响应取消令牌才会停止。
 - **SQL Server 未开启 RCSI 时，领取会被未提交的入队事务阻塞**。默认的已提交读隔离下，未提交的入队事务持有的行锁会让领取的查询等待；在库上开启 `READ_COMMITTED_SNAPSHOT`（RCSI）可避免。
 - **`GetWaitingJobsAsync` 是领取不是查询**。调用后作业已被盖上令牌，不要在别处当作只读查询复用，也不要在事务型工作单元里调用它。
-- **执行记录只增不减**。框架不会自动清理，需应用定期调用 `IJobStore.CleanupHistoryAsync`；它同时清掉运行截止时刻早于保留期的遗留运行中实例。放弃的后台作业同样需要应用自行清理。
+- **执行记录默认只增不减**。主包的历史清理服务默认关闭；启用后按批清理，未启用时需应用定期调用 `IJobStore.CleanupHistoryAsync`。两种方式都会清掉运行截止时刻早于截止时间的遗留运行中实例。放弃的后台作业（含被取消的）保留在表中，需要应用自行清理。
 - **运行中实例对所有节点可见**。多节点共用一个库时，不允许并发的任务在节点之间也互斥。
 - **不限时的任务要留意遗留实例**。任务超时小于等于 0 时，运行中实例在被显式结束之前一直算运行中；这类任务若不允许并发、又在执行途中崩溃，会一直被跳过。用 `IJobStore.UpdateJobStatusAsync(实例标识, JobStatus.Failed)` 清除，遗留实例的 `Running_Deadline` 为 `9999-12-31`。
 - **跨库写入不是一个事务**。业务数据在模块库或租户独立库时，作业的入队与业务各自提交。
+- **MySQL 不要开启 `UseAffectedRows=true`**。开启后同一秒内的续租因列值未变返回 0 行，被判为失去租约；保持 MySqlConnector 的默认（返回匹配行数）。
+- **租约恰在到期那一刻仍可续租**。本存储以「`Claim_Time` 不早于当前时间减租约时长」判定有效，与领取的过期判定一致；进程内存储在这一刻已不可续租。
+- **多实例的时钟需要同步**。租约判定用各实例自己的当前时间，时钟偏差大于续租间隔时，作业可能被另一实例提前重新领取。
+- **取消最多重试三轮**。两步条件更新之间作业恰被领取或释放时重新执行，三轮仍无法判定时返回 `NoChange`。
 - **两个存储的生命周期仍是单例**，与主包一致。之后调用 `UseRedisBackgroundJobStore()` 或 `XiHanJobBuilder.UseStore<T>()` 会覆盖本包。
 
 ## 扩展点 / 自定义
