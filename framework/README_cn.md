@@ -205,7 +205,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   Web 核心
 │   │   ├── XiHan.Framework.Web.Api/       #   动态 API
 │   │   └── ...                            #   其他模块
-│   ├── test/                              # 测试（src 下每个项目一一对应，共 79 个单测工程）
+│   ├── test/                              # 测试（src 下每个项目一一对应，共 83 个单测工程）
 │   │   ├── XiHan.Framework.Utils.Tests/   #   工具测试
 │   │   ├── XiHan.Framework.Core.Tests/    #   内核测试
 │   │   └── ...                            #   其余按 <项目名>.Tests 一一对应
