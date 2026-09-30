@@ -1,13 +1,13 @@
 # 模块总览
 
-XiHan.Framework 由 **76 个 NuGet 包**组成，按分层组织。本册是**参考手册**——每个包一页，写完整的 API 清单与配置项全表。
+XiHan.Framework 由 **78 个 NuGet 包**组成，按分层组织。本册是**参考手册**——每个包一页，写完整的 API 清单与配置项全表。
 
 ::: tip 先看指南还是先看这里
 文档分两册，解决的问题不同：
 
 | 你的问题 | 去哪 |
 | --- | --- |
-| 「**我要做 X**」——数据访问、事务、认证、缓存、多租户… | [开发指南](../guide/modularity)（38 章，按能力域组织） |
+| 「**我要做 X**」——数据访问、事务、认证、缓存、多租户… | [开发指南](../guide/modularity)（39 章，按能力域组织） |
 | 「**这个包有什么**」——完整 API、全部配置项、类型清单 | **本册** |
 
 指南章节末尾都会链到对应的包页。不确定从哪开始就先读[快速上手](../quickstart)。
@@ -74,6 +74,8 @@ DDD 分层与应用服务契约。
 | [MultiTenancy](./multitenancy) | 多租户：租户解析中间件、数据隔离、租户配置管理、生命周期 |
 | [Settings](./settings) | 设置管理：设置定义提供者模式、动态配置、多来源（租户级别） |
 | [Settings.SqlSugar](./settings-sqlsugar) | 设置管理持久化：`ISettingStore` 的 SqlSugar 落库实现 |
+| [Quotas](./quotas) | 租户用量配额：政策与账本分离，预留—提交—释放三段式 |
+| [Quotas.SqlSugar](./quotas-sqlsugar) | 配额账本持久化：唯一索引去重 + 条件更新扣额，多实例共享额度 |
 | [Validation.Abstractions](./validation-abstractions) | 校验抽象：校验异常与错误承载接口 |
 | [Validation](./validation) | 数据校验：当前为薄占位，核心类型在抽象包 |
 
