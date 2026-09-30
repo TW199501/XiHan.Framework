@@ -1,0 +1,21 @@
+docs/packages/web-api.md
+  s_94057b8e5cf9b6::t_1cb81bcf0f9066 349-439
+framework/src/XiHan.Framework.Web.Api/README.md
+  s_94057b8e5cf9b6::t_3b0c214d01227b 27-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d056316ac9a81ecc9911623cab67b53847dfea1a",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
