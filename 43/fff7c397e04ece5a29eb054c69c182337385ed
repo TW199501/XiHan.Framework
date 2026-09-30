@@ -1,0 +1,23 @@
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxTenantHost.cs
+  s_5cc31262f00faf::t_8c5824b8603e7a 1-291
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxTenantTargetConcurrencyTests.cs
+  s_5cc31262f00faf::t_390db25788f25d 1-93
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxTenantTargetIntegrationTests.cs
+  s_5cc31262f00faf::t_3a19961ff75000 1-169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "43fff7c397e04ece5a29eb054c69c182337385ed",
+  "prompts": {},
+  "sessions": {
+    "s_5cc31262f00faf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad840826679649947",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
