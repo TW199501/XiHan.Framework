@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using XiHan.Framework.Core.Modularity;
+using XiHan.Framework.MultiTenancy.Abstractions;
 using XiHan.Framework.Quotas.Abstractions;
 using XiHan.Framework.Quotas.Extensions.DependencyInjection;
 using XiHan.Framework.Quotas.Options;
@@ -34,6 +35,11 @@ public class RegistrationTests
         var provider = services.BuildServiceProvider();
         Assert.IsType<DefaultQuotaPolicyProvider>(provider.GetRequiredService<IQuotaPolicyProvider>());
         Assert.IsType<DefaultQuotaStore>(provider.GetRequiredService<IQuotaStore>());
+
+        // 配额服务按请求解析，才能承接持久化实现的按请求连接；它需要当前租户，故只断言登记不解析
+        Assert.Equal(
+            ServiceLifetime.Scoped,
+            Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaService)).Lifetime);
     }
 
     /// <summary>
@@ -65,6 +71,7 @@ public class RegistrationTests
 
         Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaPolicyProvider));
         Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaStore));
+        Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaService));
     }
 
     /// <summary>
@@ -108,27 +115,28 @@ public class RegistrationTests
     }
 
     /// <summary>
-    /// 模块只声明时间模块为依赖
+    /// 模块只声明租户抽象与时间模块为依赖
     /// </summary>
     [Fact]
-    public void 模块只声明时间模块为依赖()
+    public void 模块只声明租户抽象与时间模块为依赖()
     {
         var dependsOn = (DependsOnAttribute[])typeof(XiHanQuotasModule)
             .GetCustomAttributes(typeof(DependsOnAttribute), inherit: true);
 
         var declared = dependsOn.SelectMany(static attribute => attribute.DependedTypes).ToArray();
 
-        Assert.Equal([typeof(XiHanTimingModule)], declared);
+        Assert.Equal([typeof(XiHanMultiTenancyAbstractionsModule), typeof(XiHanTimingModule)], declared);
     }
 
     /// <summary>
-    /// 配额模块不引用授权、Web 与 ORM 程序集
+    /// 配额模块不引用授权、Web、ORM 与多租户实现程序集
     /// </summary>
     /// <remarks>
     /// 只能挡住「新增引用且被使用」的提交：未使用的程序集引用不会写进引用表。
+    /// 多租户只允许依赖抽象包，功能开关与租户存储在实现包里，配额不该牵连进来。
     /// </remarks>
     [Fact]
-    public void 配额模块不引用授权与Web与ORM程序集()
+    public void 配额模块不引用授权与Web与ORM与多租户实现程序集()
     {
         var referenced = Array.ConvertAll(
             typeof(XiHanQuotasModule).Assembly.GetReferencedAssemblies(),
@@ -139,5 +147,7 @@ public class RegistrationTests
         Assert.DoesNotContain("XiHan.Framework.Web.Core", referenced);
         Assert.DoesNotContain("XiHan.Framework.Data", referenced);
         Assert.DoesNotContain("SqlSugar", referenced);
+        Assert.DoesNotContain("XiHan.Framework.MultiTenancy", referenced);
+        Assert.DoesNotContain("XiHan.Framework.Settings", referenced);
     }
 }

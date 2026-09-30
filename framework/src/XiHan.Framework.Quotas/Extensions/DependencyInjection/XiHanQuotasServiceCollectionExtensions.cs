@@ -4,9 +4,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using XiHan.Framework.Quotas.Abstractions;
 using XiHan.Framework.Quotas.Options;
 using XiHan.Framework.Quotas.Providers;
-using XiHan.Framework.Quotas.Abstractions;
+using XiHan.Framework.Quotas.Services;
 using XiHan.Framework.Quotas.Stores;
 
 namespace XiHan.Framework.Quotas.Extensions.DependencyInjection;
@@ -21,8 +22,8 @@ public static class XiHanQuotasServiceCollectionExtensions
     /// </summary>
     /// <remarks>
     /// 选项基础设施由本扩展自己登记，不依赖其它模块先 <c>AddOptions</c>；非法选项在启动校验期即失败，
-    /// 不必等到首次解析存储才暴露。全部服务以 <c>TryAddSingleton</c> 注册安全默认实现，
-    /// 应用注册自己的实现即替换默认项。
+    /// 不必等到首次解析存储才暴露。政策与存储以 <c>TryAddSingleton</c> 注册安全默认实现，
+    /// 应用注册自己的实现即替换默认项；配额服务注册为 Scoped，便于持久化实现按请求解析数据库连接。
     /// 租户功能开关不由本模块提供，复用 XiHan.Framework.MultiTenancy 的 ITenantFeatureChecker。
     /// </remarks>
     /// <param name="services">服务集合</param>
@@ -51,6 +52,7 @@ public static class XiHanQuotasServiceCollectionExtensions
 
         services.TryAddSingleton<IQuotaPolicyProvider, DefaultQuotaPolicyProvider>();
         services.TryAddSingleton<IQuotaStore, DefaultQuotaStore>();
+        services.TryAddScoped<IQuotaService, QuotaService>();
 
         return services;
     }

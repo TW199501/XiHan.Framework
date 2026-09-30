@@ -3,6 +3,7 @@
 
 using XiHan.Framework.Core.Extensions.DependencyInjection;
 using XiHan.Framework.Core.Modularity;
+using XiHan.Framework.MultiTenancy.Abstractions;
 using XiHan.Framework.Quotas.Extensions.DependencyInjection;
 using XiHan.Framework.Timing;
 
@@ -14,9 +15,11 @@ namespace XiHan.Framework.Quotas;
 /// <remarks>
 /// 在应用模块上 <c>[DependsOn(typeof(XiHanQuotasModule))]</c> 即启用。
 /// 本模块只定义用量配额的契约，并注册一律拒绝的安全默认实现；政策来源与持久化由应用替换。
-/// 租户功能开关不在本模块，由 XiHan.Framework.MultiTenancy 的 ITenantFeatureChecker 提供。
+/// 租户功能开关不在本模块，由 XiHan.Framework.MultiTenancy 的 ITenantFeatureChecker 提供；
+/// 使用者权限由 XiHan.Framework.Authorization 提供，三者必须各自检查。
 /// </remarks>
 [DependsOn(
+    typeof(XiHanMultiTenancyAbstractionsModule),
     typeof(XiHanTimingModule)
 )]
 public class XiHanQuotasModule : XiHanModule

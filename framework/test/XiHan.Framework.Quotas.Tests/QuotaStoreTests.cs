@@ -26,9 +26,9 @@ public class QuotaStoreTests
 
         Assert.True(result.Allowed);
         Assert.Equal(QuotaReserveStatus.Reserved, result.Status);
-        Assert.Equal(0, result.Usage.Committed);
-        Assert.Equal(3, result.Usage.Reserved);
-        Assert.Equal(7, result.Usage.Remaining);
+        Assert.Equal(0, UsageOf(result).Committed);
+        Assert.Equal(3, UsageOf(result).Reserved);
+        Assert.Equal(7, UsageOf(result).Remaining);
     }
 
     /// <summary>
@@ -64,7 +64,7 @@ public class QuotaStoreTests
 
         Assert.True(replay.Allowed);
         Assert.Equal(QuotaReserveStatus.Replayed, replay.Status);
-        Assert.Equal(4, replay.Usage.Reserved);
+        Assert.Equal(4, UsageOf(replay).Reserved);
     }
 
     /// <summary>
@@ -80,7 +80,7 @@ public class QuotaStoreTests
 
         Assert.False(conflict.Allowed);
         Assert.Equal(QuotaReserveStatus.Conflict, conflict.Status);
-        Assert.Equal(4, conflict.Usage.Reserved);
+        Assert.Equal(4, UsageOf(conflict).Reserved);
     }
 
     /// <summary>
@@ -263,9 +263,9 @@ public class QuotaStoreTests
             new QuotaReserveRequest(1001, "quota", "op-2", 1, Limited(3)));
 
         Assert.Equal(QuotaReserveStatus.Exceeded, downgraded.Status);
-        Assert.Equal(10, downgraded.Usage.Committed);
-        Assert.Equal(3, downgraded.Usage.Limit);
-        Assert.Equal(0, downgraded.Usage.Remaining);
+        Assert.Equal(10, UsageOf(downgraded).Committed);
+        Assert.Equal(3, UsageOf(downgraded).Limit);
+        Assert.Equal(0, UsageOf(downgraded).Remaining);
 
         var settled = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
 
@@ -315,7 +315,7 @@ public class QuotaStoreTests
         var followUp = await store.ReserveAsync(new QuotaReserveRequest(1001, "quota", "op-3", 1, policy));
 
         Assert.True(followUp.Allowed);
-        Assert.Equal(2, followUp.Usage.Committed);
+        Assert.Equal(2, UsageOf(followUp).Committed);
     }
 
     /// <summary>
@@ -395,8 +395,8 @@ public class QuotaStoreTests
 
         Assert.True(first.Allowed);
         Assert.True(second.Allowed);
-        Assert.Null(second.Usage.Limit);
-        Assert.Null(second.Usage.Remaining);
+        Assert.Null(UsageOf(second).Limit);
+        Assert.Null(UsageOf(second).Remaining);
     }
 
     /// <summary>
@@ -441,7 +441,7 @@ public class QuotaStoreTests
         var afterEvict = await store.ReserveAsync(Reserve(1001, "op-3", 1));
 
         Assert.True(afterEvict.Allowed);
-        Assert.Equal(0, afterEvict.Usage.Committed);
+        Assert.Equal(0, UsageOf(afterEvict).Committed);
     }
 
     /// <summary>
@@ -458,10 +458,10 @@ public class QuotaStoreTests
 
         Assert.Equal(QuotaReserveStatus.Unlimited, first.Status);
         Assert.True(first.Allowed);
-        Assert.Null(first.Usage.Limit);
-        Assert.Equal(0, first.Usage.Reserved);
-        Assert.Equal(0, second.Usage.Committed);
-        Assert.Equal(0, second.Usage.Reserved);
+        Assert.Null(UsageOf(first).Limit);
+        Assert.Equal(0, UsageOf(first).Reserved);
+        Assert.Equal(0, UsageOf(second).Committed);
+        Assert.Equal(0, UsageOf(second).Reserved);
     }
 
     /// <summary>
@@ -482,7 +482,7 @@ public class QuotaStoreTests
 
         Assert.True(withinLimit.Allowed);
         Assert.Equal(QuotaReserveStatus.Exceeded, overLimit.Status);
-        Assert.Equal(10, overLimit.Usage.Committed);
+        Assert.Equal(10, UsageOf(overLimit).Committed);
     }
 
     /// <summary>
@@ -543,7 +543,7 @@ public class QuotaStoreTests
             new QuotaReserveRequest(1001, "quota", "op-2", 5_000_000_000_000_000_000, huge));
 
         Assert.Equal(QuotaReserveStatus.Exceeded, second.Status);
-        Assert.Equal(6_000_000_000_000_000_000, second.Usage.Committed);
+        Assert.Equal(6_000_000_000_000_000_000, UsageOf(second).Committed);
     }
 
     /// <summary>
@@ -725,7 +725,7 @@ public class QuotaStoreTests
 
         Assert.Equal(expected.Reservation!.PeriodStart, actual.Reservation!.PeriodStart);
         Assert.Equal(expected.Reservation.ExpiresAt, actual.Reservation.ExpiresAt);
-        Assert.Equal(expected.Usage.Reserved, actual.Usage.Reserved);
+        Assert.Equal(UsageOf(expected).Reserved, UsageOf(actual).Reserved);
     }
 
     /// <summary>
@@ -767,7 +767,7 @@ public class QuotaStoreTests
         Assert.Equal(QuotaSettlementStatus.NotFound, late.Status);
         Assert.Null(late.Reservation);
         Assert.Null(late.Usage);
-        Assert.Equal(1, evicting.Usage.Committed + evicting.Usage.Reserved);
+        Assert.Equal(1, UsageOf(evicting).Committed + UsageOf(evicting).Reserved);
     }
 
     /// <summary>
@@ -788,8 +788,8 @@ public class QuotaStoreTests
         var lateCommit = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
 
         Assert.True(followUp.Allowed);
-        Assert.Equal(10, followUp.Usage.Reserved);
-        Assert.Equal(0, followUp.Usage.Committed);
+        Assert.Equal(10, UsageOf(followUp).Reserved);
+        Assert.Equal(0, UsageOf(followUp).Committed);
         Assert.Equal(QuotaSettlementStatus.Expired, lateCommit.Status);
     }
 
@@ -808,7 +808,7 @@ public class QuotaStoreTests
 
         Assert.Equal(1, results.Count(item => item.Status == QuotaReserveStatus.Reserved));
         Assert.Equal(15, results.Count(item => item.Status == QuotaReserveStatus.Replayed));
-        Assert.Equal(3, results[^1].Usage.Reserved);
+        Assert.Equal(3, UsageOf(results[^1]).Reserved);
     }
 
     /// <summary>
@@ -968,6 +968,16 @@ public class QuotaStoreTests
     {
         return new DefaultQuotaStore(
             new TestClock(kind), Microsoft.Extensions.Options.Options.Create(new XiHanQuotasOptions()));
+    }
+
+    /// <summary>
+    /// 取预留结果的用量快照，缺失即让测试失败而不是静默通过
+    /// </summary>
+    /// <param name="result">预留结果</param>
+    /// <returns>用量快照</returns>
+    private static QuotaUsage UsageOf(QuotaReserveResult result)
+    {
+        return result.Usage ?? throw new InvalidOperationException("预留结果未回报用量快照。");
     }
 
     /// <summary>

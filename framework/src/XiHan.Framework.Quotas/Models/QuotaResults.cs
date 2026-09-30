@@ -37,7 +37,13 @@ public enum QuotaReserveStatus
     /// <summary>
     /// 显式无限额政策，不记账直接放行
     /// </summary>
-    Unlimited = 5
+    Unlimited = 5,
+
+    /// <summary>
+    /// 该租户没有这条配额项的政策，未占用配额。由政策提供环节产生，存储实现不返回它；
+    /// 缺政策不等于无限额
+    /// </summary>
+    UnknownPolicy = 6
 }
 
 /// <summary>
@@ -51,9 +57,13 @@ public sealed class QuotaReserveResult
     /// <param name="status">结果状态</param>
     /// <param name="reservation">预留记录</param>
     /// <param name="usage">用量快照</param>
-    public QuotaReserveResult(QuotaReserveStatus status, QuotaReservation? reservation, QuotaUsage usage)
+    public QuotaReserveResult(QuotaReserveStatus status, QuotaReservation? reservation, QuotaUsage? usage)
     {
-        ArgumentNullException.ThrowIfNull(usage);
+        if (status != QuotaReserveStatus.UnknownPolicy && usage is null)
+        {
+            throw new ArgumentNullException(
+                nameof(usage), "除缺政策外的每种结果都必须回报用量快照，避免用零用量冒充未知。");
+        }
 
         Status = status;
         Reservation = reservation;
@@ -71,9 +81,9 @@ public sealed class QuotaReserveResult
     public QuotaReservation? Reservation { get; }
 
     /// <summary>
-    /// 本次判定后的所属周期用量快照
+    /// 本次判定后的所属周期用量快照；判定根本没走到能确定周期的那一步（如缺政策）时为 null
     /// </summary>
-    public QuotaUsage Usage { get; }
+    public QuotaUsage? Usage { get; }
 
     /// <summary>
     /// 是否放行
@@ -137,6 +147,12 @@ public sealed class QuotaSettlementResult
     /// <param name="usage">用量快照</param>
     public QuotaSettlementResult(QuotaSettlementStatus status, QuotaReservation? reservation, QuotaUsage? usage)
     {
+        if (status != QuotaSettlementStatus.NotFound && usage is null)
+        {
+            throw new ArgumentNullException(
+                nameof(usage), "除未找到外的每种结算都必须回报用量快照，避免用零用量冒充未知。");
+        }
+
         Status = status;
         Reservation = reservation;
         Usage = usage;
