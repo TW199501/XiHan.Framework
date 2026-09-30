@@ -1,0 +1,39 @@
+docs/packages/tasks-sqlsugar.md
+  s_974b32a33fb93c::t_17edace7a06748 84-97,209-212
+framework/src/XiHan.Framework.Tasks.SqlSugar/README.md
+  s_fa95a8f5948695::t_07a56014644c97 48-52,56-68
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobLeaseTests.cs
+  s_7d4bd2e5a98aaf::t_12674667bb6016 325,328
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b87e2960ae69d92bcf718bc320554ae8955e51db",
+  "prompts": {},
+  "sessions": {
+    "s_7d4bd2e5a98aaf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a39de079df8241e70",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_974b32a33fb93c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a4f3ea468088fa246",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_fa95a8f5948695": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ab2c89250d787d95b",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
