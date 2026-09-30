@@ -1,0 +1,33 @@
+docs/guide/tasks.md
+  s_7d4bd2e5a98aaf::t_d8864fe2d9e826 262-326,481,509-511,518-519
+docs/packages/tasks.md
+  s_7d4bd2e5a98aaf::t_f49f2f0480c320 85,152-155,159-165,196-219,265-266
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Abstractions/IBackgroundJobStore.cs
+  s_7d4bd2e5a98aaf::t_7641e0dd773608 100-102
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/BackgroundJobExecuter.cs
+  s_7d4bd2e5a98aaf::t_e38757869e6acd 61,65,68-85
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/BackgroundJobWorker.cs
+  s_7d4bd2e5a98aaf::t_63ca954f79bb3d 152-162,262-265,393,519-534
+framework/src/XiHan.Framework.Tasks/README.md
+  s_7d4bd2e5a98aaf::t_6dea9bda125b58 10-11,22-39,49-74,79-80,87
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/BackgroundJobExecuterCancellationTests.cs
+  s_7d4bd2e5a98aaf::t_a6c3c4945acf1c 5,62-94,102,141-189
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/BackgroundJobWorkerLeaseTests.cs
+  s_7d4bd2e5a98aaf::t_ff154128c3d6c2 430-530
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "08d054eda1248eec6c71173613bcf18c3ad7df00",
+  "prompts": {},
+  "sessions": {
+    "s_7d4bd2e5a98aaf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a39de079df8241e70",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
