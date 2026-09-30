@@ -1,0 +1,65 @@
+AGENTS.md
+  s_79e0b4ece13e38::t_6005911c88ada1 97
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/Contracts/MySqlTestCollection.cs
+  s_3d4bfdff5ff021::t_d48547e874b7fe 1-16
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/Contracts/MySqlTestEnvironment.cs
+  s_3d4bfdff5ff021::t_fc680604f1a7e3 1-25
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/Contracts/SqlSugarInboxContractFixture.cs
+  s_3d4bfdff5ff021::t_853de978b91252 1-161
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/Contracts/SqlSugarInboxContractTests.cs
+  s_3d4bfdff5ff021::t_343a0d9e6bc488 1-44
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/Contracts/SqlSugarOutboxContractFixture.cs
+  s_3d4bfdff5ff021::t_e3884f08b18eb1 1-159
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/Contracts/SqlSugarOutboxContractTests.cs
+  s_3d4bfdff5ff021::t_a157cb738b166a 1-44
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/InboxConcurrencyTests.cs
+  s_1f02830958a1f1::t_d815c8559df397 19
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxConcurrencyTests.cs
+  s_1f02830958a1f1::t_a2707f7802043e 19
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/XiHan.Framework.EventBus.SqlSugar.Tests.csproj
+  s_1f02830958a1f1::t_6ac83896008fb7 9
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobConcurrencyTests.cs
+  s_1f02830958a1f1::t_3c4df205dcd614 22
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/Contracts/MySqlTestCollection.cs
+  s_3d4bfdff5ff021::t_1497895bb78056 1-16
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/Contracts/MySqlTestEnvironment.cs
+  s_3d4bfdff5ff021::t_100f3b2ef11e29 1-25
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/Contracts/SqlSugarBackgroundJobContractFixture.cs
+  s_3d4bfdff5ff021::t_04246127f89208 1-184
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/Contracts/SqlSugarBackgroundJobStoreContractTests.cs
+  s_3d4bfdff5ff021::t_f619b352df1d77 1-44
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHan.Framework.Tasks.SqlSugar.Tests.csproj
+  s_1f02830958a1f1::t_8ca8a31edf9023 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e306e338a88b9ce78a58d9038e86ebc56aedfaad",
+  "prompts": {},
+  "sessions": {
+    "s_1f02830958a1f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac8af68eee3761ab5",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_3d4bfdff5ff021": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a018fa27029474c86",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_79e0b4ece13e38": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2cbd0695b6128e7c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
