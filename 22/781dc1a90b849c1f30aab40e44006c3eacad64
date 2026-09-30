@@ -1,0 +1,111 @@
+docs/guide/workflow.md
+  s_94057b8e5cf9b6::t_638fd3ad2626d7 37,381-383,386-388,391-392,450
+docs/packages/workflow-sqlsugar.md
+  s_94057b8e5cf9b6::t_b6f65ecf8bf083 1-141
+docs/packages/workflow.md
+  s_94057b8e5cf9b6::t_8cf73cce55e074 55,306
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_9419afa6e890a3 73,152
+framework/src/XiHan.Framework.Workflow.SqlSugar/Entities/SysWorkflowBookmark.cs
+  s_94057b8e5cf9b6::t_0fd83ed4d0fba9 1-95
+framework/src/XiHan.Framework.Workflow.SqlSugar/Entities/SysWorkflowDefinition.cs
+  s_94057b8e5cf9b6::t_958020286a78e3 1-116
+framework/src/XiHan.Framework.Workflow.SqlSugar/Entities/SysWorkflowInstance.cs
+  s_94057b8e5cf9b6::t_15c02feb85702f 1-155
+framework/src/XiHan.Framework.Workflow.SqlSugar/Entities/SysWorkflowNodeInstance.cs
+  s_94057b8e5cf9b6::t_d9fe29645e3117 1-122
+framework/src/XiHan.Framework.Workflow.SqlSugar/Extensions/DependencyInjection/XiHanWorkflowSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_7ee0fe05603c46 1-41
+framework/src/XiHan.Framework.Workflow.SqlSugar/Extensions/DependencyInjection/XiHanWorkflowSqlSugarServiceProviderExtensions.cs
+  s_94057b8e5cf9b6::t_13417a18792b1b 1-39
+framework/src/XiHan.Framework.Workflow.SqlSugar/Mapping/WorkflowBookmarkMapper.cs
+  s_94057b8e5cf9b6::t_297ccb79db398a 1-62
+framework/src/XiHan.Framework.Workflow.SqlSugar/Mapping/WorkflowDefinitionMapper.cs
+  s_94057b8e5cf9b6::t_b7de0083d65177 1-70
+framework/src/XiHan.Framework.Workflow.SqlSugar/Mapping/WorkflowInstanceMapper.cs
+  s_94057b8e5cf9b6::t_78f4bc61962c98 1-82
+framework/src/XiHan.Framework.Workflow.SqlSugar/Mapping/WorkflowJsonColumn.cs
+  s_94057b8e5cf9b6::t_40daaa6da529f6 1-45
+framework/src/XiHan.Framework.Workflow.SqlSugar/Mapping/WorkflowNodeInstanceMapper.cs
+  s_94057b8e5cf9b6::t_b10f92fdd311ba 1-82
+framework/src/XiHan.Framework.Workflow.SqlSugar/Options/XiHanWorkflowSqlSugarOptions.cs
+  s_94057b8e5cf9b6::t_700d4a5e1d2a5f 1-20
+framework/src/XiHan.Framework.Workflow.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_ba27e9b1355857 1-90
+framework/src/XiHan.Framework.Workflow.SqlSugar/Stores/SqlSugarWorkflowBookmarkStore.cs
+  s_94057b8e5cf9b6::t_1847ed3e1cb7f4 1-231
+framework/src/XiHan.Framework.Workflow.SqlSugar/Stores/SqlSugarWorkflowDefinitionStore.cs
+  s_94057b8e5cf9b6::t_c0b2ae25e4ffe8 1-179
+framework/src/XiHan.Framework.Workflow.SqlSugar/Stores/SqlSugarWorkflowInstanceStore.cs
+  s_94057b8e5cf9b6::t_0e97030e39c642 1-241
+framework/src/XiHan.Framework.Workflow.SqlSugar/Stores/WorkflowSqlSugarExecutor.cs
+  s_94057b8e5cf9b6::t_8fb16e6c50a801 1-77
+framework/src/XiHan.Framework.Workflow.SqlSugar/XiHan.Framework.Workflow.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_b09389f2411063 1-21
+framework/src/XiHan.Framework.Workflow.SqlSugar/XiHanWorkflowSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_0f47b43adfea06 1-45
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/DistributedLockWarningTests.cs
+  s_94057b8e5cf9b6::t_75fd180bf5a364 1-114
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/EngineTestDoubles.cs
+  s_94057b8e5cf9b6::t_f936c17f3b86dc 1-215
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/RendezvousBookmarkStore.cs
+  s_94057b8e5cf9b6::t_e7d100de9fa3a5 1-185
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/ServiceRegistrationTests.cs
+  s_94057b8e5cf9b6::t_2c077f1dc85ab4 1-139
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/SqlSugarWorkflowBookmarkStoreTests.cs
+  s_94057b8e5cf9b6::t_da37a4a5fe19bd 1-260
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/SqlSugarWorkflowDefinitionStoreTests.cs
+  s_94057b8e5cf9b6::t_758d027e15b1e3 1-275
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/SqlSugarWorkflowInstanceStoreTests.cs
+  s_94057b8e5cf9b6::t_bb3e44f5912609 1-369
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/TestDoubles.cs
+  s_94057b8e5cf9b6::t_9e570eb9ad439d 1-146
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/TestEntityTypes.cs
+  s_94057b8e5cf9b6::t_60b389ccd88ba4 1-23
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowBookmarkEntityTests.cs
+  s_94057b8e5cf9b6::t_61c5ff75368fda 1-55
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowBookmarkMapperTests.cs
+  s_94057b8e5cf9b6::t_d5d037ef281182 1-66
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowBookmarkMatchingMySqlTests.cs
+  s_94057b8e5cf9b6::t_da41d483cab479 1-66
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowBookmarkRaceMySqlTests.cs
+  s_94057b8e5cf9b6::t_e7229ca3bdae0d 1-122
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowDefinitionEntityTests.cs
+  s_94057b8e5cf9b6::t_49953d7ff3ae69 1-49
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowDefinitionMapperTests.cs
+  s_94057b8e5cf9b6::t_a9d724fd19ef26 1-161
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowEngineEndToEndTests.cs
+  s_94057b8e5cf9b6::t_6d085dcba2aeda 1-218
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowEngineTestHost.cs
+  s_94057b8e5cf9b6::t_2e2c49afa8f956 1-136
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowEntityConventionTests.cs
+  s_94057b8e5cf9b6::t_4c202ca974d98a 1-84
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowInstanceEntityTests.cs
+  s_94057b8e5cf9b6::t_622f918ca70374 1-55
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowInstanceMapperTests.cs
+  s_94057b8e5cf9b6::t_1b900bd6f7f0bd 1-201
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowIsolationMySqlTests.cs
+  s_94057b8e5cf9b6::t_d1fc7d0219b8f7 1-90
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowSqlSugarExecutorTests.cs
+  s_94057b8e5cf9b6::t_1e46ca134991bf 1-126
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/WorkflowTestDatabase.cs
+  s_94057b8e5cf9b6::t_10320af1c870e8 1-154
+framework/test/XiHan.Framework.Workflow.SqlSugar.Tests/XiHan.Framework.Workflow.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_8b0f29d4364d7f 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "22781dc1a90b849c1f30aab40e44006c3eacad64",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
