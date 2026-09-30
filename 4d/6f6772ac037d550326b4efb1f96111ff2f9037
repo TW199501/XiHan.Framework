@@ -1,0 +1,16 @@
+framework/src/XiHan.Framework.Quotas/Extensions/DependencyInjection/XiHanQuotasServiceCollectionExtensions.cs
+  h_be8240d2cfaa4b 23-25,34-36,39,42-51
+framework/test/XiHan.Framework.Quotas.Tests/RegistrationTests.cs
+  h_be8240d2cfaa4b 4,6,8,10,70-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4d6f6772ac037d550326b4efb1f96111ff2f9037",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
