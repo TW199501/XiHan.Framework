@@ -99,6 +99,24 @@ public sealed class QuotaPolicy
     }
 
     /// <summary>
+    /// 计算某个计量周期的结束时刻
+    /// </summary>
+    /// <param name="periodStart">由 <see cref="ResolvePeriodStart"/> 得到的周期起始 UTC 时刻</param>
+    /// <returns>周期结束的 UTC 时刻；<see cref="QuotaPeriod.None"/> 返回 <see cref="DateTimeOffset.MaxValue"/>，表示累计型没有周期边界</returns>
+    /// <exception cref="ArgumentOutOfRangeException">计量周期不是已定义的枚举值</exception>
+    public DateTimeOffset ResolvePeriodEnd(DateTimeOffset periodStart)
+    {
+        return Period switch
+        {
+            QuotaPeriod.None => DateTimeOffset.MaxValue,
+            QuotaPeriod.Day => periodStart.AddDays(1),
+            QuotaPeriod.Week => periodStart.AddDays(7),
+            QuotaPeriod.Month => periodStart.AddMonths(1),
+            _ => throw new ArgumentOutOfRangeException(nameof(periodStart), Period, "计量周期不是已定义的值。")
+        };
+    }
+
+    /// <summary>
     /// 校验政策版本并返回原值
     /// </summary>
     /// <param name="version">政策版本</param>

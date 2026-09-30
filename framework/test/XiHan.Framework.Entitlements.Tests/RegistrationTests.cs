@@ -2,15 +2,19 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Microsoft.Extensions.DependencyInjection;
+using XiHan.Framework.Core.Modularity;
 using XiHan.Framework.Entitlements.Extensions.DependencyInjection;
 using XiHan.Framework.Entitlements.Features.Abstractions;
 using XiHan.Framework.Entitlements.Providers;
 using XiHan.Framework.Entitlements.Quotas.Abstractions;
+using XiHan.Framework.Entitlements.Quotas.Stores;
+using XiHan.Framework.Timing;
+using XiHan.Framework.Timing.Extensions.DependencyInjection;
 
 namespace XiHan.Framework.Entitlements.Tests;
 
 /// <summary>
-/// 功能授权与配额政策注册测试
+/// 功能授权、配额政策与配额存储的注册测试
 /// </summary>
 public class RegistrationTests
 {
@@ -21,14 +25,14 @@ public class RegistrationTests
     public void 默认注册安全拒绝实现()
     {
         var services = new ServiceCollection();
+        services.AddXiHanTiming();
 
         services.AddXiHanEntitlements();
 
-        var provider = services.BuildServiceProvider().GetRequiredService<IFeatureEntitlementProvider>();
-        var policyProvider = services.BuildServiceProvider().GetRequiredService<IQuotaPolicyProvider>();
-
-        Assert.IsType<DefaultFeatureEntitlementProvider>(provider);
-        Assert.IsType<DefaultQuotaPolicyProvider>(policyProvider);
+        var provider = services.BuildServiceProvider();
+        Assert.IsType<DefaultFeatureEntitlementProvider>(provider.GetRequiredService<IFeatureEntitlementProvider>());
+        Assert.IsType<DefaultQuotaPolicyProvider>(provider.GetRequiredService<IQuotaPolicyProvider>());
+        Assert.IsType<DefaultQuotaStore>(provider.GetRequiredService<IQuotaStore>());
     }
 
     /// <summary>
@@ -47,10 +51,10 @@ public class RegistrationTests
     }
 
     /// <summary>
-    /// 重复注册不产生重复的政策来源
+    /// 重复注册不产生重复的注册项
     /// </summary>
     [Fact]
-    public void 重复注册不产生重复的政策来源()
+    public void 重复注册不产生重复的注册项()
     {
         var services = new ServiceCollection();
 
@@ -59,17 +63,20 @@ public class RegistrationTests
 
         Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IFeatureEntitlementProvider));
         Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaPolicyProvider));
+        Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaStore));
     }
 
     /// <summary>
-    /// 模块声明只依赖核心模块
+    /// 模块只声明时间模块为依赖
     /// </summary>
     [Fact]
-    public void 模块声明只依赖核心模块()
+    public void 模块只声明时间模块为依赖()
     {
-        var dependsOn = typeof(XiHanEntitlementsModule)
-            .GetCustomAttributes(typeof(XiHan.Framework.Core.Modularity.DependsOnAttribute), inherit: true);
+        var dependsOn = (DependsOnAttribute[])typeof(XiHanEntitlementsModule)
+            .GetCustomAttributes(typeof(DependsOnAttribute), inherit: true);
 
-        Assert.Empty(dependsOn);
+        var declared = dependsOn.SelectMany(static attribute => attribute.DependedTypes).ToArray();
+
+        Assert.Equal([typeof(XiHanTimingModule)], declared);
     }
 }

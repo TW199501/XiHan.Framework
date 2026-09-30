@@ -1,8 +1,10 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using XiHan.Framework.Core.Extensions.DependencyInjection;
 using XiHan.Framework.Core.Modularity;
 using XiHan.Framework.Entitlements.Extensions.DependencyInjection;
+using XiHan.Framework.Timing;
 
 namespace XiHan.Framework.Entitlements;
 
@@ -13,6 +15,9 @@ namespace XiHan.Framework.Entitlements;
 /// 在应用模块上 <c>[DependsOn(typeof(XiHanEntitlementsModule))]</c> 即启用。
 /// 本模块只定义功能授权与用量配额的契约，并注册一律拒绝的安全默认实现；政策来源与持久化由应用替换。
 /// </remarks>
+[DependsOn(
+    typeof(XiHanTimingModule)
+)]
 public class XiHanEntitlementsModule : XiHanModule
 {
     /// <summary>
@@ -21,6 +26,8 @@ public class XiHanEntitlementsModule : XiHanModule
     /// <param name="context">服务配置上下文</param>
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
-        context.Services.AddXiHanEntitlements();
+        var services = context.Services;
+
+        services.AddXiHanEntitlements(services.GetConfiguration());
     }
 }

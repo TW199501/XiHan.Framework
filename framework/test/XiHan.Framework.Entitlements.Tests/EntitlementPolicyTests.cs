@@ -153,6 +153,49 @@ public class EntitlementPolicyTests
     }
 
     /// <summary>
+    /// 按 UTC ISO 自然周对齐计量周期起点，起点恒为星期一
+    /// </summary>
+    [Theory]
+    [InlineData(2026, 9, 28, 2026, 9, 28)]
+    [InlineData(2026, 9, 30, 2026, 9, 28)]
+    [InlineData(2026, 10, 4, 2026, 9, 28)]
+    [InlineData(2026, 10, 5, 2026, 10, 5)]
+    [InlineData(2026, 9, 27, 2026, 9, 21)]
+    public void 周周期按UTCISO周一起点对齐(
+        int year, int month, int day, int expectedYear, int expectedMonth, int expectedDay)
+    {
+        var policy = QuotaPolicy.Limited(10, QuotaPeriod.Week, "v1");
+        var now = new DateTimeOffset(year, month, day, 12, 0, 0, TimeSpan.Zero);
+
+        var start = policy.ResolvePeriodStart(now);
+
+        Assert.Equal(new DateTimeOffset(expectedYear, expectedMonth, expectedDay, 0, 0, 0, TimeSpan.Zero), start);
+        Assert.Equal(DayOfWeek.Monday, start.DayOfWeek);
+    }
+
+    /// <summary>
+    /// 周期结束比起始正好多一个完整周期
+    /// </summary>
+    [Fact]
+    public void 周期结束比起始多一个完整周期()
+    {
+        var day = QuotaPolicy.Limited(10, QuotaPeriod.Day, "v1");
+        var week = QuotaPolicy.Limited(10, QuotaPeriod.Week, "v1");
+        var month = QuotaPolicy.Limited(10, QuotaPeriod.Month, "v1");
+        var none = QuotaPolicy.Limited(10, QuotaPeriod.None, "v1");
+        var now = new DateTimeOffset(2026, 9, 30, 8, 0, 0, TimeSpan.Zero);
+
+        var dayStart = day.ResolvePeriodStart(now);
+        var weekStart = week.ResolvePeriodStart(now);
+        var monthStart = month.ResolvePeriodStart(now);
+
+        Assert.Equal(TimeSpan.FromDays(1), day.ResolvePeriodEnd(dayStart) - dayStart);
+        Assert.Equal(TimeSpan.FromDays(7), week.ResolvePeriodEnd(weekStart) - weekStart);
+        Assert.Equal(new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero), month.ResolvePeriodEnd(monthStart));
+        Assert.Equal(DateTimeOffset.MaxValue, none.ResolvePeriodEnd(none.ResolvePeriodStart(now)));
+    }
+
+    /// <summary>
     /// 按 UTC 自然日对齐计量周期起点
     /// </summary>
     [Fact]
