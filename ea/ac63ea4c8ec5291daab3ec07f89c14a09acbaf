@@ -1,0 +1,23 @@
+framework/src/XiHan.Framework.Web.Api.SqlSugar/Idempotency/SqlSugarIdempotencyStore.cs
+  s_d7865709efdd70::t_e5807041a136fb 18-19,49-50,94-95,110-111,129-130,142
+framework/test/XiHan.Framework.Web.Api.SqlSugar.Tests/Idempotency/IdempotencyStoreTestContext.cs
+  s_d7865709efdd70::t_446687551b7216 21-22,62-64
+framework/test/XiHan.Framework.Web.Api.SqlSugar.Tests/Idempotency/SqlSugarIdempotencyStoreTests.cs
+  s_d7865709efdd70::t_8d9c17ef2acd60 4,199-232
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "eaac63ea4c8ec5291daab3ec07f89c14a09acbaf",
+  "prompts": {},
+  "sessions": {
+    "s_d7865709efdd70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2cc20933541d6b87",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
