@@ -309,6 +309,46 @@ public class QuotaStoreTests
     }
 
     /// <summary>
+    /// 到期后无人再触碰的预留不永久占用条目上限
+    /// </summary>
+    /// <remarks>
+    /// 日周期政策下，周期滚到次日就不再触碰前一天的桶；
+    /// 该桶里到期未结算的预留必须被全局清扫回收，否则条目上限会被僵尸记录永久占满。
+    /// </remarks>
+    [Fact]
+    public async Task 到期未结算的预留不永久占用条目上限()
+    {
+        var store = CreateStore(static options => options.MaxTrackedReservations = 1);
+        await store.ReserveAsync(new QuotaReserveRequest(
+            1001, "quota", "op-1", 10, Limited(10), TimeSpan.FromMinutes(1)));
+
+        _clock.Advance(TimeSpan.FromDays(1).Add(TimeSpan.FromMinutes(5)));
+        var followUp = await store.ReserveAsync(Reserve(1001, "op-2", 10));
+
+        Assert.True(followUp.Allowed);
+    }
+
+    /// <summary>
+    /// 到期后无人再触碰的预留不永久占用桶上限
+    /// </summary>
+    [Fact]
+    public async Task 到期未结算的预留不永久占用桶上限()
+    {
+        var store = CreateStore(static options =>
+        {
+            options.MaxTrackedBuckets = 1;
+            options.MaxTrackedReservations = 100;
+        });
+        await store.ReserveAsync(new QuotaReserveRequest(
+            1001, "quota", "op-1", 10, Limited(10), TimeSpan.FromMinutes(1)));
+
+        _clock.Advance(TimeSpan.FromDays(1).Add(TimeSpan.FromMinutes(5)));
+        var followUp = await store.ReserveAsync(Reserve(1001, "op-2", 10));
+
+        Assert.True(followUp.Allowed);
+    }
+
+    /// <summary>
     /// 去重记录在保留期内仍判冲突，过保留期后同标识可另起预留
     /// </summary>
     [Fact]

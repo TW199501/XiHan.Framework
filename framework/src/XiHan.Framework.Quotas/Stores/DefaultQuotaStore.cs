@@ -108,7 +108,7 @@ public class DefaultQuotaStore : IQuotaStore
             ReclaimBucket(bucket!, utcNow);
             if (_operations.Count >= _options.MaxTrackedReservations)
             {
-                DropRetiredEverywhere(utcNow);
+                ReclaimEverywhere(utcNow);
             }
 
             if (_operations.Count >= _options.MaxTrackedReservations)
@@ -344,8 +344,9 @@ public class DefaultQuotaStore : IQuotaStore
     /// <param name="utcNow">当前 UTC 时刻</param>
     private static void Expire(TrackedReservation tracked, DateTimeOffset utcNow)
     {
+        // 到期时刻才是预留真正进入终态的时刻：清扫可能远晚于它发生，用当前时刻会变相延长保留期
+        tracked.SettledUtc = tracked.Reservation.ExpiresAt;
         tracked.Reservation = tracked.Reservation.WithState(QuotaReservationState.Expired);
-        tracked.SettledUtc = utcNow;
         tracked.Bucket.Reserved -= tracked.Reservation.Amount;
         tracked.Bucket.LastTouchedUtc = utcNow;
     }
@@ -413,14 +414,18 @@ public class DefaultQuotaStore : IQuotaStore
     }
 
     /// <summary>
-    /// 回收所有桶内超出保留期的去重记录
+    /// 回收所有桶：先让到期预留过期，再丢弃超出保留期的去重记录
     /// </summary>
     /// <param name="utcNow">当前 UTC 时刻</param>
-    private void DropRetiredEverywhere(DateTimeOffset utcNow)
+    /// <remarks>
+    /// 必须两步都做：只丢不转会让「到期但无人再结算」的记录永远停在预留中状态，
+    /// 既不能被丢弃，也会让它所属的桶永远过不了驱逐判定。
+    /// </remarks>
+    private void ReclaimEverywhere(DateTimeOffset utcNow)
     {
         foreach (var bucket in _buckets.Values)
         {
-            DropRetired(bucket, utcNow);
+            ReclaimBucket(bucket, utcNow);
         }
     }
 
@@ -476,6 +481,8 @@ public class DefaultQuotaStore : IQuotaStore
         var evicted = false;
         foreach (var pair in _buckets.ToArray())
         {
+            // 先回收该桶：桶里若还留着到期未转终态的预留，驱逐判定会永远为假
+            ReclaimBucket(pair.Value, utcNow);
             if (!IsRetiredBucket(pair.Value, utcNow))
             {
                 continue;
