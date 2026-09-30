@@ -1,0 +1,37 @@
+docs/packages/eventbus-abstractions.md
+  s_94057b8e5cf9b6::t_52495007050dcf 41,110-114
+framework/src/XiHan.Framework.EventBus.Abstractions/README.md
+  s_94057b8e5cf9b6::t_0f05181e9b27f6 10-16,36
+framework/src/XiHan.Framework.EventBus.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_9a2f80ec80ae78 12-13,47,49,57-77,99-119,122-123
+framework/src/XiHan.Framework.EventBus/README.md
+  s_94057b8e5cf9b6::t_dc8c87f2536784 10-11,20-29
+docs/packages/eventbus-sqlsugar.md
+  s_873e87d2a0d2fe::t_d66c3572251ff6 111,113,115-118,120-140,165,173-246,274-276,286,293,295,299-300
+docs/packages/eventbus.md
+  s_873e87d2a0d2fe::t_ab386a976fb751 38,61,65-82,105-106,123-126,138-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3cfdc1c4b7f7610d70d26c0d26810fd3686f028d",
+  "prompts": {},
+  "sessions": {
+    "s_873e87d2a0d2fe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aeef5d2a2e6b09a1b",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
