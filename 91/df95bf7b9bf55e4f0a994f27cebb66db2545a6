@@ -1,0 +1,31 @@
+docs/packages/tasks-sqlsugar.md
+  s_974b32a33fb93c::t_9e5b3b6df5a3e4 117-126,158
+framework/src/XiHan.Framework.Tasks.SqlSugar/ScheduledJobs/SqlSugarJobStore.cs
+  s_fa95a8f5948695::t_d028863c7f4e28 261-340
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/JobStoreBatchCleanupTests.cs
+  s_fa95a8f5948695::t_174d459ffc7813 1-185
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "91df95bf7b9bf55e4f0a994f27cebb66db2545a6",
+  "prompts": {},
+  "sessions": {
+    "s_974b32a33fb93c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a4f3ea468088fa246",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_fa95a8f5948695": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ab2c89250d787d95b",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
