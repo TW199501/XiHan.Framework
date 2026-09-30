@@ -130,7 +130,7 @@ public class OperationLogWriter : IOperationLogWriter, IScopedDependency
 这是唯一不经 HTTP 层的一类，走的是 SqlSugar 原生 `Aop.OnDiffLogEvent`。要产生记录，**三个条件缺一不可**：
 
 1. 配置 `XiHan:Data:SqlSugarCore:EnableDiffLog = true`（默认 `false`，不开则 AOP 根本不挂）；
-2. 应用实现并注册 `IEntityDiffLogWriter`；
+2. DI 里有真实的 `IEntityDiffLogWriter`——引用 [XiHan.Framework.Auditing.SqlSugar](../packages/auditing-sqlsugar) 即自带落库写入器，或自行实现并注册；
 3. 写操作走框架仓储——仓储的 Insert / Update / Delete 已经内建 `.EnableDiffLogEvent(typeof(TEntity))`，业务代码不用改。
 
 裸 SQL、直接用 `ISqlSugarClient` 绕过仓储的写入**不会**产生变更记录。
@@ -151,28 +151,39 @@ public class OperationLogWriter : IOperationLogWriter, IScopedDependency
 public class EntityDiffLogWriter : IEntityDiffLogWriter, IScopedDependency
 {
     private readonly ISqlSugarClientResolver _clientResolver;
+    private readonly IDistributedIdGenerator<long> _idGenerator;
 
-    public EntityDiffLogWriter(ISqlSugarClientResolver clientResolver)
+    public EntityDiffLogWriter(
+        ISqlSugarClientResolver clientResolver,
+        IDistributedIdGenerator<long> idGenerator)
     {
         _clientResolver = clientResolver;
+        _idGenerator = idGenerator;
     }
 
     public async Task WriteAsync(EntityDiffLogRecord record, CancellationToken cancellationToken = default)
     {
-        // 必须用当前工作单元的连接，与业务写在同一事务里
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // 主键是雪花 ID（非自增），CreatedTime 是分表字段，两者都得写入器自己赋
+        var entity = new SysDiffLog(_idGenerator.NextId())
+        {
+            CreatedTime = DateTimeOffset.UtcNow,
+            OperationType = record.OperationType,
+            EntityType = record.EntityType,
+            EntityId = record.EntityId,
+            BeforeData = record.BeforeData,
+            AfterData = record.AfterData,
+            ChangedFields = record.ChangedFields,
+            UserId = record.UserId,
+            TenantId = record.TenantId
+        };
+
+        // 必须用当前工作单元的连接（与业务写在同一事务里），且分表插入要带 .SplitTable()
         await _clientResolver.GetCurrentClient()
-            .Insertable(new SysDiffLog
-            {
-                OperationType = record.OperationType,
-                EntityType = record.EntityType,
-                EntityId = record.EntityId,
-                BeforeData = record.BeforeData,
-                AfterData = record.AfterData,
-                ChangedFields = record.ChangedFields,
-                UserId = record.UserId,
-                TenantId = record.TenantId
-            })
-            .ExecuteCommandAsync(cancellationToken);
+            .Insertable(entity)
+            .SplitTable()
+            .ExecuteCommandAsync();
     }
 }
 ```
@@ -329,7 +340,7 @@ public class HttpEntityAuditContextProvider : IEntityAuditContextProvider, IScop
 | 现象 | 原因 |
 | --- | --- |
 | 日志页面恒空 | 写入器没注册，默认空实现把记录丢掉了 |
-| 数据变更日志恒空 | `EnableDiffLog` 没开（默认 `false`），或 `IEntityDiffLogWriter` 没实现 |
+| 数据变更日志恒空 | `EnableDiffLog` 没开（默认 `false`），或既未引用 `XiHan.Framework.Auditing.SqlSugar` 也未自行注册 `IEntityDiffLogWriter` 实现 |
 | 登录日志一条没有 | 框架不采集登录日志，要自己调 `ILoginLogPipeline` |
 | 接口日志一条没有 | 只在请求携带开放接口安全头时才采集 |
 | GET 请求没有操作日志 | 过滤器有意跳过 GET / HEAD / OPTIONS |
