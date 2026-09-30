@@ -1,0 +1,35 @@
+framework/src/XiHan.Framework.EventBus/Distributed/EventBoxOutboxSenderHostedService.cs
+  s_b41ebe38befeda::t_1ee1b2034cf8f1 97
+framework/src/XiHan.Framework.EventBus/Distributed/OutboxDeliveryTargetScanner.cs
+  s_68ced7fbd7c504::t_f4dd6f15668ecd 83,106,112,132,134-137,139-142,144-165,167-170,172-175,177-180,182-186
+framework/test/XiHan.Framework.EventBus.Tests/Distributed/OutboxDeliveryTargetScannerTests.cs
+  s_68ced7fbd7c504::t_7470b8bee963cd 151-248
+framework/test/XiHan.Framework.EventBus.Tests/Distributed/OutboxTargetFakes.cs
+  s_68ced7fbd7c504::t_a24cdaaa08ee2f 180-184,207-210
+framework/test/XiHan.Framework.EventBus.Tests/Extensions/DependencyInjection/XiHanEventBusServiceCollectionExtensionsTests.cs
+  s_b41ebe38befeda::t_00628817e687a9 143-156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9bdb911d205c4b9872001740895c8f50838868cb",
+  "prompts": {},
+  "sessions": {
+    "s_68ced7fbd7c504": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2c313248573fcb1c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_b41ebe38befeda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a935df8441d52a180",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
