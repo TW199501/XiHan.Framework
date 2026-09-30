@@ -174,6 +174,139 @@ public class ProjectDependencyGraphValidatorTests
         Assert.Equal(ArchitectureViolationKind.UnknownProject, violation.Kind);
     }
 
+    /// <summary>
+    /// 多条回边的强连通分量只报告一条含最短环路径的违规
+    /// </summary>
+    [Fact]
+    public void 多回边的环只报告最短路径()
+    {
+        var graph = new ProjectDependencyGraph(
+            [Source("A", 6), Source("B", 6), Source("C", 6)],
+            [new ProjectEdge("A", "B"), new ProjectEdge("B", "C"), new ProjectEdge("C", "A"), new ProjectEdge("A", "C")]);
+
+        var violation = Assert.Single(ProjectDependencyGraphValidator.Validate(graph, NoExceptions));
+
+        Assert.Equal(ArchitectureViolationKind.Cycle, violation.Kind);
+        Assert.Contains("A → C → A", violation.Message);
+    }
+
+    /// <summary>
+    /// 互不相连的两个环各报告一条
+    /// </summary>
+    [Fact]
+    public void 互不相连的两个环各报告一条()
+    {
+        var graph = new ProjectDependencyGraph(
+            [Source("A", 6), Source("B", 6), Source("C", 6), Source("D", 6)],
+            [new ProjectEdge("A", "B"), new ProjectEdge("B", "A"), new ProjectEdge("C", "D"), new ProjectEdge("D", "C")]);
+
+        var violations = ProjectDependencyGraphValidator.Validate(graph, NoExceptions);
+
+        Assert.Equal(2, violations.Count);
+        Assert.All(violations, item => Assert.Equal(ArchitectureViolationKind.Cycle, item.Kind));
+        Assert.Contains(violations, item => item.Message.Contains("A → B → A"));
+        Assert.Contains(violations, item => item.Message.Contains("C → D → C"));
+    }
+
+    /// <summary>
+    /// 项目引用自身时按环报告
+    /// </summary>
+    [Fact]
+    public void 自环报告为环()
+    {
+        var graph = new ProjectDependencyGraph([Source("A", 6)], [new ProjectEdge("A", "A")]);
+
+        var violation = Assert.Single(ProjectDependencyGraphValidator.Validate(graph, NoExceptions));
+
+        Assert.Equal(ArchitectureViolationKind.Cycle, violation.Kind);
+        Assert.Contains("A → A", violation.Message);
+    }
+
+    /// <summary>
+    /// 菱形依赖不是环
+    /// </summary>
+    [Fact]
+    public void 菱形依赖不报告()
+    {
+        var graph = new ProjectDependencyGraph(
+            [Source("A", 6), Source("B", 6), Source("C", 6), Source("D", 6)],
+            [new ProjectEdge("A", "B"), new ProjectEdge("A", "C"), new ProjectEdge("B", "D"), new ProjectEdge("C", "D")]);
+
+        Assert.Empty(ProjectDependencyGraphValidator.Validate(graph, NoExceptions));
+    }
+
+    /// <summary>
+    /// 例外清单登记了同层引用时报告过期
+    /// </summary>
+    [Fact]
+    public void 例外清单登记同层引用报告过期()
+    {
+        var graph = new ProjectDependencyGraph([Source("A", 6), Source("B", 6)], [new ProjectEdge("A", "B")]);
+        var policy = new DependencyPolicy([new DependencyException("A", "B", "测试")]);
+
+        var violation = Assert.Single(ProjectDependencyGraphValidator.Validate(graph, policy));
+
+        Assert.Equal(ArchitectureViolationKind.StaleException, violation.Kind);
+    }
+
+    /// <summary>
+    /// 契约包引用兄弟实现包时报告
+    /// </summary>
+    [Fact]
+    public void 契约包引用兄弟实现包报告()
+    {
+        var graph = new ProjectDependencyGraph(
+            [Source("EventBus.Abstractions", 6), Source("EventBus.Kafka", 6)],
+            [new ProjectEdge("EventBus.Abstractions", "EventBus.Kafka")]);
+
+        var violation = Assert.Single(ProjectDependencyGraphValidator.Validate(graph, NoExceptions));
+
+        Assert.Equal(ArchitectureViolationKind.AbstractionsReferencesImplementation, violation.Kind);
+    }
+
+    /// <summary>
+    /// 契约包引用其他契约包不报告
+    /// </summary>
+    [Fact]
+    public void 契约包引用其他契约包不报告()
+    {
+        var graph = new ProjectDependencyGraph(
+            [Source("EventBus.Abstractions", 6), Source("MultiTenancy.Abstractions", 6)],
+            [new ProjectEdge("EventBus.Abstractions", "MultiTenancy.Abstractions")]);
+
+        Assert.Empty(ProjectDependencyGraphValidator.Validate(graph, NoExceptions));
+    }
+
+    /// <summary>
+    /// 向上引用的说明指向例外清单所在类型
+    /// </summary>
+    [Fact]
+    public void 向上引用说明指向例外清单类型()
+    {
+        var graph = new ProjectDependencyGraph(
+            [Source("Core", 3), Source("Web", 7)],
+            [new ProjectEdge("Core", "Web")]);
+
+        var violation = Assert.Single(ProjectDependencyGraphValidator.Validate(graph, NoExceptions));
+
+        Assert.Contains("FrameworkDependencyPolicy 的例外清单登记理由", violation.Message);
+    }
+
+    /// <summary>
+    /// 环的说明给出修正方向
+    /// </summary>
+    [Fact]
+    public void 环的说明给出修正方向()
+    {
+        var graph = new ProjectDependencyGraph(
+            [Source("A", 6), Source("B", 6)],
+            [new ProjectEdge("A", "B"), new ProjectEdge("B", "A")]);
+
+        var violation = Assert.Single(ProjectDependencyGraphValidator.Validate(graph, NoExceptions));
+
+        Assert.EndsWith("请移除环上的一条引用或把共用类型下沉到更低层。", violation.Message);
+    }
+
     private static ProjectNode Source(string name, int rank)
     {
         return new ProjectNode(name, ProjectArea.Source, new ProjectLayer(rank, $"Layer{rank}"));

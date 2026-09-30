@@ -15,7 +15,7 @@ internal static class ProjectDependencyGraphValidator
     /// </summary>
     /// <remarks>
     /// 只校验源码项目发出的引用：同层与向下引用合法，向上引用须登记例外；
-    /// 源码项目只能引用源码项目；契约包不得引用自身的实现包；
+    /// 源码项目只能引用源码项目；契约包不得引用自身或兄弟实现包；
     /// 例外清单中不再是向上引用的条目报告为过期；循环依赖一律报告，例外清单不能豁免。
     /// </remarks>
     /// <param name="graph">依赖图</param>
@@ -68,7 +68,7 @@ internal static class ProjectDependencyGraphValidator
             {
                 violations.Add(new ArchitectureViolation(
                     ArchitectureViolationKind.AbstractionsReferencesImplementation,
-                    $"{edge.From} 引用了自身的实现包 {edge.To}，请把所需类型移入契约包或让实现包引用契约包。"));
+                    $"{edge.From} 引用了自身或兄弟实现包 {edge.To}，请把所需类型移入契约包或让实现包引用契约包。"));
             }
 
             if (IsUpward(from, to) && !policy.Allows(edge))
@@ -76,7 +76,7 @@ internal static class ProjectDependencyGraphValidator
                 violations.Add(new ArchitectureViolation(
                     ArchitectureViolationKind.UpwardReference,
                     $"{edge.From}（第 {from.Layer!.Rank} 层 {from.Layer.FolderName}）引用了上层的 {edge.To}（第 {to.Layer!.Rank} 层 {to.Layer.FolderName}），"
-                    + $"请把所需契约下沉到第 {from.Layer.Rank} 层或以下，或在依赖例外清单登记理由。"));
+                    + $"请把所需契约下沉到第 {from.Layer.Rank} 层或以下，或在 FrameworkDependencyPolicy 的例外清单登记理由。"));
             }
         }
 
@@ -99,7 +99,7 @@ internal static class ProjectDependencyGraphValidator
         {
             violations.Add(new ArchitectureViolation(
                 ArchitectureViolationKind.Cycle,
-                $"检测到循环依赖：{string.Join(" → ", cycle)}；例外清单不能豁免循环依赖。"));
+                $"检测到循环依赖：{string.Join(" → ", cycle)}；例外清单不能豁免循环依赖；请移除环上的一条引用或把共用类型下沉到更低层。"));
         }
 
         return violations;
@@ -112,8 +112,15 @@ internal static class ProjectDependencyGraphValidator
 
     private static bool IsAbstractionsToOwnImplementation(ProjectEdge edge)
     {
-        return edge.From.EndsWith(AbstractionsSuffix, StringComparison.Ordinal)
-            && string.Equals(edge.From[..^AbstractionsSuffix.Length], edge.To, StringComparison.Ordinal);
+        if (!edge.From.EndsWith(AbstractionsSuffix, StringComparison.Ordinal)
+            || edge.To.EndsWith(AbstractionsSuffix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var baseName = edge.From[..^AbstractionsSuffix.Length];
+        return string.Equals(baseName, edge.To, StringComparison.Ordinal)
+            || edge.To.StartsWith(baseName + ".", StringComparison.Ordinal);
     }
 
     private static bool IsSource(ProjectDependencyGraph graph, string name)

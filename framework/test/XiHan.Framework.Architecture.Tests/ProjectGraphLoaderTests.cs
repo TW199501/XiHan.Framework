@@ -70,6 +70,40 @@ public class ProjectGraphLoaderTests : IDisposable
     }
 
     /// <summary>
+    /// 引用的 csproj 不存在时只产生依赖边，由校验器报告为未知项目
+    /// </summary>
+    [Fact]
+    public void 引用不存在的项目只加边不加节点()
+    {
+        Write("src/Broken/Broken.csproj", Project("""<ProjectReference Include="..\Missing\Missing.csproj" />"""));
+
+        var graph = ProjectGraphLoader.Load(_root);
+
+        Assert.Contains(new ProjectEdge("Broken", "Missing"), graph.Edges);
+        Assert.DoesNotContain("Missing", graph.Projects.Keys);
+
+        var violations = ProjectDependencyGraphValidator.Validate(graph, new DependencyPolicy([]));
+        Assert.Contains(violations, item => item.Kind == ArchitectureViolationKind.UnknownProject && item.Message.Contains("Missing"));
+        Assert.DoesNotContain(violations, item => item.Kind == ArchitectureViolationKind.UnregisteredLayer && item.Message.Contains("Missing"));
+    }
+
+    /// <summary>
+    /// 引用路径大小写与实际文件不同时，依赖边仍使用实际项目名
+    /// </summary>
+    [Fact]
+    public void 引用路径大小写不同时边使用实际项目名()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS(), "仅在文件系统不区分大小写时有意义");
+
+        Write("src/Core/Core.csproj", Project("""<ProjectReference Include="..\utils\UTILS.csproj" />"""));
+
+        var graph = ProjectGraphLoader.Load(_root);
+
+        Assert.Contains(new ProjectEdge("Core", "Utils"), graph.Edges);
+        Assert.DoesNotContain(graph.Edges, item => item.To == "UTILS");
+    }
+
+    /// <summary>
     /// 删除临时目录
     /// </summary>
     public void Dispose()

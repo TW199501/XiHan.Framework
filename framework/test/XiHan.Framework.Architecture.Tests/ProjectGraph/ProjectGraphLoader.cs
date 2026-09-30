@@ -45,7 +45,9 @@ internal static partial class ProjectGraphLoader
     /// </summary>
     /// <remarks>
     /// 项目集合为 slnx 登记的项目、src 下的全部 csproj 以及它们递归引用到的项目；
-    /// 分层取 slnx 的 /1.src/&lt;序号&gt;.&lt;层名&gt;/ 目录；OutputItemType 为 Analyzer 的项目引用不计入依赖边。
+    /// 分层取 slnx 的 /1.src/&lt;序号&gt;.&lt;层名&gt;/ 目录；OutputItemType 为 Analyzer 的项目引用不计入依赖边；
+    /// 引用的 csproj 不存在时只产生依赖边、不产生节点；项目名取文件系统中的实际文件名；
+    /// 不求值 Condition，不读取 props/targets 中的 ProjectReference。
     /// </remarks>
     /// <param name="frameworkDirectory">framework 目录</param>
     /// <returns>项目依赖图</returns>
@@ -53,6 +55,7 @@ internal static partial class ProjectGraphLoader
     {
         var root = Path.GetFullPath(frameworkDirectory);
         var layers = new Dictionary<string, ProjectLayer?>(StringComparer.OrdinalIgnoreCase);
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         var solution = XDocument.Load(Path.Combine(root, SolutionFileName));
         foreach (var project in solution.Descendants("Project"))
@@ -64,7 +67,7 @@ internal static partial class ProjectGraphLoader
             }
 
             var folderName = (string?)project.Parent?.Attribute("Name");
-            layers[ToFullPath(root, relativePath)] = ParseLayer(folderName);
+            layers[Register(names, ToFullPath(root, relativePath))] = ParseLayer(folderName);
         }
 
         var sourceDirectory = Path.Combine(root, "src");
@@ -72,7 +75,7 @@ internal static partial class ProjectGraphLoader
         {
             foreach (var file in Directory.EnumerateFiles(sourceDirectory, "*.csproj", SearchOption.AllDirectories))
             {
-                layers.TryAdd(Path.GetFullPath(file), null);
+                layers.TryAdd(Register(names, Path.GetFullPath(file)), null);
             }
         }
 
@@ -86,7 +89,7 @@ internal static partial class ProjectGraphLoader
                 continue;
             }
 
-            var from = Path.GetFileNameWithoutExtension(file);
+            var from = names[file];
             var directory = Path.GetDirectoryName(file) ?? root;
             var references = XDocument.Load(file)
                 .Descendants()
@@ -101,17 +104,24 @@ internal static partial class ProjectGraphLoader
                 }
 
                 var target = ToFullPath(directory, include);
-                if (layers.TryAdd(target, null))
+                if (!File.Exists(target))
                 {
-                    pending.Enqueue(target);
+                    edges.Add(new ProjectEdge(from, Path.GetFileNameWithoutExtension(target)));
+                    continue;
                 }
 
-                edges.Add(new ProjectEdge(from, Path.GetFileNameWithoutExtension(target)));
+                var key = Register(names, target);
+                if (layers.TryAdd(key, null))
+                {
+                    pending.Enqueue(key);
+                }
+
+                edges.Add(new ProjectEdge(from, names[key]));
             }
         }
 
         var nodes = layers.Select(pair => new ProjectNode(
-            Path.GetFileNameWithoutExtension(pair.Key),
+            names[pair.Key],
             GetArea(root, pair.Key),
             pair.Value));
 
@@ -137,6 +147,31 @@ internal static partial class ProjectGraphLoader
         return new ProjectLayer(
             int.Parse(match.Groups["rank"].Value, System.Globalization.CultureInfo.InvariantCulture),
             match.Groups["name"].Value);
+    }
+
+    private static string Register(Dictionary<string, string> names, string path)
+    {
+        var resolved = ResolveActualPath(path);
+        names.TryAdd(resolved, Path.GetFileNameWithoutExtension(resolved));
+        return resolved;
+    }
+
+    private static string ResolveActualPath(string path)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (directory is null || !Directory.Exists(directory))
+        {
+            return path;
+        }
+
+        var fileName = Path.GetFileName(path);
+        var actual = Directory.EnumerateFiles(directory)
+            .Select(Path.GetFileName)
+            .Where(name => string.Equals(name, fileName, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(name => string.Equals(name, fileName, StringComparison.Ordinal) ? 0 : 1)
+            .FirstOrDefault();
+
+        return actual is null ? path : Path.Combine(directory, actual);
     }
 
     private static bool IsAnalyzerReference(XElement reference)
