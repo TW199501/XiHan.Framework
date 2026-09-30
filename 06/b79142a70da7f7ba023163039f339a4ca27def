@@ -1,0 +1,75 @@
+framework/src/XiHan.Framework.EventBus.SqlSugar/Outbox/SqlSugarEventOutbox.cs
+  s_94057b8e5cf9b6::t_a71c352eb8adce 14-15,32,51,58-59,69,140-166,180,459
+framework/src/XiHan.Framework.EventBus.Abstractions/Distributed/IOutboxDeliveryTargetProvider.cs
+  s_816f96bbdfb65e::t_745acb28b30b16 18-20,30-32
+framework/src/XiHan.Framework.EventBus.Abstractions/Distributed/ITenantScopedEventOutbox.cs
+  s_816f96bbdfb65e::t_f7620b99dac6ac 10
+framework/src/XiHan.Framework.EventBus.SqlSugar/Outbox/AsyncLocalSqlSugarOutboxConnectionScope.cs
+  s_68ced7fbd7c504::t_bf38a8237ea546 24
+framework/src/XiHan.Framework.EventBus.SqlSugar/Outbox/ISqlSugarOutboxConnectionScope.cs
+  s_68ced7fbd7c504::t_e2196d14e264a6 23
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxSourceTests.cs
+  s_46b3956b968a55::t_f2274e2ff3ac61 37-42,44,46-47,68
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxTargetEnqueueTests.cs
+  s_a8913adcfb482d::t_71e8c19a37ea7d 172,174-175,231,235,243-294
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxTestContext.cs
+  s_e93980ce8f1f5c::t_0fdabbd2888477 10,109-113,175-176
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/StubTargetProvider.cs
+  s_a8913adcfb482d::t_cefdb21c40493f 29-38,72-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "06b79142a70da7f7ba023163039f339a4ca27def",
+  "prompts": {},
+  "sessions": {
+    "s_46b3956b968a55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a7da380f52d40321c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_68ced7fbd7c504": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2c313248573fcb1c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_816f96bbdfb65e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a24faa234a3405349",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_a8913adcfb482d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2ae5ea23e2d08737",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_e93980ce8f1f5c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5d2b9b0b9052fbe4",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
