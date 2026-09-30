@@ -1,0 +1,27 @@
+docs/packages/traffic-sqlsugar.md
+  s_94057b8e5cf9b6::t_ed7c629e9c8e0f 112
+docs/.vitepress/config.ts
+  s_94057b8e5cf9b6::t_3b2aa9dd2be15c 198
+framework/README.md
+  s_94057b8e5cf9b6::t_8b9e33df897383 114
+docs/packages/index.md
+  s_94057b8e5cf9b6::t_74e6152739fd8a 112
+framework/README_cn.md
+  s_94057b8e5cf9b6::t_844b35b2784d1f 114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "86ed910868bc39dfdd9cf6915780211f41e681cd",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
