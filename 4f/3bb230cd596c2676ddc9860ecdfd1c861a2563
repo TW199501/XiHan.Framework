@@ -1,0 +1,21 @@
+AGENTS.md
+  s_1f02830958a1f1::t_4c843b364e7edf 82
+framework/.editorconfig
+  s_1f02830958a1f1::t_04edcd4d3f81b6 39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4f3bb230cd596c2676ddc9860ecdfd1c861a2563",
+  "prompts": {},
+  "sessions": {
+    "s_1f02830958a1f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac8af68eee3761ab5",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
