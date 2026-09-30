@@ -1,0 +1,19 @@
+docs/quickstart.md
+  s_79e0b4ece13e38::t_89702449e2fb06 20-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2e6d631089ce3a9094b683ca54a852e81c90fe6c",
+  "prompts": {},
+  "sessions": {
+    "s_79e0b4ece13e38": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2cbd0695b6128e7c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
