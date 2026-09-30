@@ -1,0 +1,19 @@
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/DefaultBackgroundJobStore.cs
+  s_8dc7ce9b4187cb::t_9b819eb6ebca16 131-135,151-155,202,218-219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "5f867b10a15ac980c18154e644311598b8324990",
+  "prompts": {},
+  "sessions": {
+    "s_8dc7ce9b4187cb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad8f664bf5a48aa6c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
