@@ -1,0 +1,102 @@
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using XiHan.Framework.Architecture.Tests.ProjectGraph;
+
+namespace XiHan.Framework.Architecture.Tests;
+
+/// <summary>
+/// 依赖图读取测试
+/// </summary>
+public class ProjectGraphLoaderTests : IDisposable
+{
+    private readonly string _root = Path.Combine(Path.GetTempPath(), $"xihan_arch_{Guid.NewGuid():N}");
+
+    /// <summary>
+    /// 构造函数，在临时目录写出一个最小的仓库结构
+    /// </summary>
+    public ProjectGraphLoaderTests()
+    {
+        Write(ProjectGraphLoader.SolutionFileName,
+            """
+            <Solution>
+              <Folder Name="/1.src/1.Common/">
+                <Project Path="src/Utils/Utils.csproj" />
+                <Project Path="src/Analyzers/Analyzers.csproj" />
+              </Folder>
+              <Folder Name="/1.src/3.Core/">
+                <Project Path="src/Core/Core.csproj" />
+              </Folder>
+              <Folder Name="/2.tests/1.UnitTests/">
+                <Project Path="test/Core.Tests/Core.Tests.csproj" />
+              </Folder>
+            </Solution>
+            """);
+        Write("src/Analyzers/Analyzers.csproj", Project());
+        Write("src/Utils/Utils.csproj", Project("""<ProjectReference Include="..\Analyzers\Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />"""));
+        Write("src/Core/Core.csproj", Project("""<ProjectReference Include="..\Utils\Utils.csproj" />"""));
+        Write("src/Orphan/Orphan.csproj", Project());
+        Write("test/Core.Tests/Core.Tests.csproj", Project("""<ProjectReference Include="..\..\src\Core\Core.csproj" />"""));
+    }
+
+    /// <summary>
+    /// 分层取自 slnx 目录，分析器引用不计入依赖边
+    /// </summary>
+    [Fact]
+    public void 读取分层与引用且不计入分析器引用()
+    {
+        var graph = ProjectGraphLoader.Load(_root);
+
+        Assert.Equal(new ProjectLayer(3, "Core"), graph.Projects["Core"].Layer);
+        Assert.Equal(new ProjectLayer(1, "Common"), graph.Projects["Utils"].Layer);
+        Assert.Equal(ProjectArea.Test, graph.Projects["Core.Tests"].Area);
+        Assert.Null(graph.Projects["Core.Tests"].Layer);
+        Assert.Contains(new ProjectEdge("Core", "Utils"), graph.Edges);
+        Assert.Contains(new ProjectEdge("Core.Tests", "Core"), graph.Edges);
+        Assert.DoesNotContain(new ProjectEdge("Utils", "Analyzers"), graph.Edges);
+    }
+
+    /// <summary>
+    /// src 下未登记到 slnx 的项目也会读入，且没有分层
+    /// </summary>
+    [Fact]
+    public void 未登记到解决方案的源码项目没有分层()
+    {
+        var graph = ProjectGraphLoader.Load(_root);
+
+        var orphan = graph.Projects["Orphan"];
+        Assert.Equal(ProjectArea.Source, orphan.Area);
+        Assert.Null(orphan.Layer);
+    }
+
+    /// <summary>
+    /// 删除临时目录
+    /// </summary>
+    public void Dispose()
+    {
+        if (Directory.Exists(_root))
+        {
+            Directory.Delete(_root, recursive: true);
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    private static string Project(string references = "")
+    {
+        return $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <ItemGroup>
+                {references}
+              </ItemGroup>
+            </Project>
+            """;
+    }
+
+    private void Write(string relativePath, string content)
+    {
+        var path = Path.Combine(_root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, content);
+    }
+}
