@@ -1,0 +1,57 @@
+framework/src/XiHan.Framework.Tasks/README.md
+  s_6298021088b677::t_0753ad5fde7273 18-19,32
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Abstractions/IJobStore.cs
+  s_94057b8e5cf9b6::t_1fb8e53db0421f 60-79
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Configuration/XiHanJobOptions.cs
+  s_94057b8e5cf9b6::t_c846069e0d1848 41-60
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Configuration/XiHanJobOptionsValidator.cs
+  s_46b3956b968a55::t_3bf7950d4b1754 1-42
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_9db5f06bd0bd8d 7,53-54,83
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Hosting/JobHistoryCleanupService.cs
+  s_46b3956b968a55::t_d4f80e5f4b47f5 1-118
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Store/DefaultJobStore.cs
+  s_46b3956b968a55::t_1d4275b6c2de08 169-228
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionExtensionsTests.cs
+  s_46b3956b968a55::t_bbb005cf4d7193 110-111
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionRegistrationIdempotencyTests.cs
+  s_46b3956b968a55::t_3538f4fd053e57 94-95
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Hosting/JobHistoryCleanupServiceTests.cs
+  s_46b3956b968a55::t_4bbbc57720a3c0 1-363
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Store/DefaultJobStoreCleanupTests.cs
+  s_46b3956b968a55::t_bbe44f8b1ea684 1-200
+framework/test/XiHan.Framework.Tasks.Tests/XiHan.Framework.Tasks.Tests.csproj
+  s_46b3956b968a55::t_c9ee7b2ac78183 11-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3b030f21117552461307a0adf5132c56d4d36766",
+  "prompts": {},
+  "sessions": {
+    "s_46b3956b968a55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a7da380f52d40321c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_6298021088b677": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ae0e6bea004f0efec",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
