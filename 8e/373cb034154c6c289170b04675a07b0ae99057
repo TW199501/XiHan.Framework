@@ -1,0 +1,33 @@
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Abstractions/AsyncBackgroundJob.cs
+  s_6298021088b677::t_c868d8d415eeae 31-41
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Abstractions/IBackgroundJob.cs
+  s_6298021088b677::t_6b04c207bff541 23-33
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/BackgroundJobExecuter.cs
+  s_5cc31262f00faf::t_d0370e6d3e6c90 45-47,53
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/BackgroundJobExecuterCancellationTests.cs
+  s_6298021088b677::t_c108e9dffbcf4f 1-108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "8e373cb034154c6c289170b04675a07b0ae99057",
+  "prompts": {},
+  "sessions": {
+    "s_5cc31262f00faf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad840826679649947",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_6298021088b677": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ae0e6bea004f0efec",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
