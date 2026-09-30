@@ -1,0 +1,37 @@
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_5946cd58e5c4c0 76,144
+framework/src/XiHan.Framework.Web.Api.SqlSugar/Entities/SysIdempotencyRecord.cs
+  s_d9ae46f5172989::t_0fbd5fc9adfdea 1-143
+framework/src/XiHan.Framework.Web.Api.SqlSugar/XiHan.Framework.Web.Api.SqlSugar.csproj
+  s_d9ae46f5172989::t_7137e1713b965c 1-24
+framework/src/XiHan.Framework.Web.Api.SqlSugar/XiHanWebApiSqlSugarModule.cs
+  s_d9ae46f5172989::t_1fb1a4397e7035 1-21
+framework/test/XiHan.Framework.Web.Api.SqlSugar.Tests/SysIdempotencyRecordTests.cs
+  s_d9ae46f5172989::t_8f31df8b382902 1-88
+framework/test/XiHan.Framework.Web.Api.SqlSugar.Tests/XiHan.Framework.Web.Api.SqlSugar.Tests.csproj
+  s_d9ae46f5172989::t_87f459b8f5c7a0 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7f5b26dc2f5b0014f0afab869c71d1dc476b3b4a",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_d9ae46f5172989": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a418b3a60e951c417",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
