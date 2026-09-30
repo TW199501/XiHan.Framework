@@ -1,0 +1,37 @@
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Abstractions/IBackgroundJobStore.cs
+  s_8dc7ce9b4187cb::t_31f19952b7e8b7 14,57-133
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/DefaultBackgroundJobStore.cs
+  s_8dc7ce9b4187cb::t_d2c055e41a980d 5-6,9,20,25,29,33,35,39,43-69,95,97,100-123,136,142-144,153-341
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Models/BackgroundJobInfo.cs
+  s_8dc7ce9b4187cb::t_53a47ac6bc1137 65-79
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Models/BackgroundJobLease.cs
+  s_8dc7ce9b4187cb::t_a2aa4dbaffc7a8 1-13
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Models/BackgroundJobManagementAuditEntry.cs
+  s_8dc7ce9b4187cb::t_1daa788e7aec94 1-13
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Models/BackgroundJobManagementOperation.cs
+  s_8dc7ce9b4187cb::t_952cd65133883f 1-20
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Models/BackgroundJobManagementResult.cs
+  s_8dc7ce9b4187cb::t_2e0e6db3ab194c 1-20
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Models/BackgroundJobManagementStatus.cs
+  s_8dc7ce9b4187cb::t_8ab1c446283a11 1-45
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Options/BackgroundJobWorkerOptions.cs
+  s_8dc7ce9b4187cb::t_b710aa59ec5efd 65-74
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/DefaultBackgroundJobStoreLeaseTests.cs
+  s_8dc7ce9b4187cb::t_1f2443307e11d2 1-389
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fe828efe058ab792bc76f3e36b345223acad9f39",
+  "prompts": {},
+  "sessions": {
+    "s_8dc7ce9b4187cb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad8f664bf5a48aa6c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
