@@ -1,6 +1,7 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Options;
 using XiHan.Framework.Quotas.Options;
 using XiHan.Framework.Quotas.Abstractions;
@@ -111,7 +112,7 @@ public class DefaultQuotaStore : IQuotaStore
                     QuotaReserveStatus.CapacityExhausted, null, new QuotaUsage(request.Policy.Limit, 0, 0)));
             }
 
-            ReclaimBucket(bucket!, utcNow);
+            ReclaimBucket(bucket, utcNow);
             if (_operations.Count >= _options.MaxTrackedReservations)
             {
                 ReclaimEverywhere(utcNow);
@@ -120,7 +121,7 @@ public class DefaultQuotaStore : IQuotaStore
             if (_operations.Count >= _options.MaxTrackedReservations)
             {
                 return Task.FromResult(new QuotaReserveResult(
-                    QuotaReserveStatus.CapacityExhausted, null, Snapshot(bucket!, request.Policy.Limit)));
+                    QuotaReserveStatus.CapacityExhausted, null, Snapshot(bucket, request.Policy.Limit)));
             }
 
             var limit = request.Policy.Limit;
@@ -128,7 +129,7 @@ public class DefaultQuotaStore : IQuotaStore
             {
                 // 只把本次预留量与「剩余量」比，不让三项相加：相加会在 long.MaxValue 附近环绕成负数而超额放行。
                 // 已提交与已预留的和受本桶上限约束（无限额不参与累加），因此这里不会溢出。
-                var used = bucket!.Committed + bucket.Reserved;
+                var used = bucket.Committed + bucket.Reserved;
                 var remaining = used >= bounded ? 0 : bounded - used;
                 if (request.Amount > remaining)
                 {
@@ -142,7 +143,7 @@ public class DefaultQuotaStore : IQuotaStore
             var reservation = new QuotaReservation(
                 request.TenantId,
                 request.QuotaKey,
-                bucket!.PeriodStart,
+                bucket.PeriodStart,
                 request.OperationId,
                 request.Amount,
                 request.Policy.Version,
@@ -389,7 +390,8 @@ public class DefaultQuotaStore : IQuotaStore
     /// <param name="bucket">新建的桶</param>
     /// <returns>新建成功返回 true；配额桶数量已达上限且无可回收桶时返回 false</returns>
     private bool TryCreateBucket(
-        QuotaReserveRequest request, DateTimeOffset periodStart, DateTimeOffset utcNow, out Bucket? bucket)
+        QuotaReserveRequest request, DateTimeOffset periodStart, DateTimeOffset utcNow,
+        [NotNullWhen(true)] out Bucket? bucket)
     {
         bucket = null;
         if (_buckets.Count >= _options.MaxTrackedBuckets && !EvictRetiredBuckets(utcNow))

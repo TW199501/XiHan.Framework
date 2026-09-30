@@ -94,7 +94,7 @@ public sealed class QuotaPolicy
             QuotaPeriod.Day => new DateTimeOffset(midnight, TimeSpan.Zero),
             QuotaPeriod.Week => new DateTimeOffset(midnight.AddDays(-(6 + (int)utc.DayOfWeek) % 7), TimeSpan.Zero),
             QuotaPeriod.Month => new DateTimeOffset(new DateTime(utc.Year, utc.Month, 1, 0, 0, 0, DateTimeKind.Utc), TimeSpan.Zero),
-            _ => throw new ArgumentOutOfRangeException(nameof(utcNow), Period, "计量周期不是已定义的值。")
+            _ => throw new ArgumentOutOfRangeException(nameof(Period), Period, "计量周期不是已定义的值。")
         };
     }
 
@@ -112,7 +112,7 @@ public sealed class QuotaPolicy
             QuotaPeriod.Day => periodStart.AddDays(1),
             QuotaPeriod.Week => periodStart.AddDays(7),
             QuotaPeriod.Month => periodStart.AddMonths(1),
-            _ => throw new ArgumentOutOfRangeException(nameof(periodStart), Period, "计量周期不是已定义的值。")
+            _ => throw new ArgumentOutOfRangeException(nameof(Period), Period, "计量周期不是已定义的值。")
         };
     }
 
