@@ -1,0 +1,39 @@
+framework/src/XiHan.Framework.EventBus.SqlSugar/Outbox/SqlSugarEventOutbox.cs
+  s_94057b8e5cf9b6::t_48b7c1dfffadfc 20-24,31-36,135-137,168-170,173,175,177,179,181-210,212-213,297-299,308,314-349,356,364-393
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxSourceTests.cs
+  s_46b3956b968a55::t_619c770704241b 1-170
+framework/test/XiHan.Framework.EventBus.SqlSugar.Tests/OutboxTestContext.cs
+  s_e93980ce8f1f5c::t_339be2591dbb4f 14,29,37,41-42,44-45,58-59,61-63,70-78,117-152,172-193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "77d865a09f37f98bcc9867d7949ce48b655c8773",
+  "prompts": {},
+  "sessions": {
+    "s_46b3956b968a55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a7da380f52d40321c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_e93980ce8f1f5c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5d2b9b0b9052fbe4",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
