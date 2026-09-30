@@ -555,6 +555,26 @@ public class QuotaStoreTests
     }
 
     /// <summary>
+    /// 记录全部过保留期后，累计型空桶不再占用桶上限
+    /// </summary>
+    [Fact]
+    public async Task 空的累计型桶可被驱逐()
+    {
+        var store = CreateStore(static options =>
+        {
+            options.MaxTrackedBuckets = 1;
+            options.NonPeriodicTombstoneRetention = TimeSpan.FromHours(1);
+        });
+        var unlimited = QuotaPolicy.Unlimited("v1");
+        await store.ReserveAsync(new QuotaReserveRequest(1001, "quota-a", "op-1", 1, unlimited));
+
+        _clock.Advance(TimeSpan.FromHours(2));
+        var other = await store.ReserveAsync(new QuotaReserveRequest(1001, "quota-b", "op-2", 1, unlimited));
+
+        Assert.True(other.Allowed);
+    }
+
+    /// <summary>
     /// 日周期与月周期在每月一日不共用同一个桶
     /// </summary>
     /// <remarks>

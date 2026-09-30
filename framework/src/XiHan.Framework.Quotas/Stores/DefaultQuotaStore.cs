@@ -538,10 +538,16 @@ public class DefaultQuotaStore : IQuotaStore
     /// <param name="utcNow">当前 UTC 时刻</param>
     /// <returns>可整体丢弃返回 true</returns>
     /// <remarks>
-    /// 周期未结束的桶仍在服务当前口径，不可丢弃；累计型桶承载跨周期不清零的已提交用量，永不丢弃。
+    /// 周期未结束的桶仍在服务当前口径，不可丢弃；累计型桶承载跨周期不清零的已提交用量，有账就不丢弃。
+    /// 但既无记录又无账目的桶不承载任何状态，随时可丢弃——否则每个累计型配额项（含无限额）都会永久占住一个桶槽位。
     /// </remarks>
     private static bool IsRetiredBucket(Bucket bucket, DateTimeOffset utcNow)
     {
+        if (bucket.Values.Count == 0 && bucket.Committed == 0 && bucket.Reserved == 0)
+        {
+            return true;
+        }
+
         if (bucket.PeriodEnd == DateTimeOffset.MaxValue || bucket.PeriodEnd > utcNow)
         {
             return false;
