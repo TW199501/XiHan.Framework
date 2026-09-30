@@ -35,6 +35,10 @@ public sealed class QuotaUsage
     /// <summary>
     /// 本周期上限，显式无限额时为 null
     /// </summary>
+    /// <remarks>
+    /// 预留与超额结果回报的是本次判定所依据的政策上限；结算结果回报的是该桶建立时记录的上限。
+    /// 同一周期内政策升降级时两者可以不同，实现不得把其中一个悄悄换成另一个。
+    /// </remarks>
     public long? Limit { get; }
 
     /// <summary>

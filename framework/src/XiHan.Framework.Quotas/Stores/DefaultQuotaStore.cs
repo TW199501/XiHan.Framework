@@ -152,7 +152,6 @@ public class DefaultQuotaStore : IQuotaStore
 
             var tracked = new TrackedReservation(reservation, bucket, limit is not null);
             bucket.Values.Add(tracked);
-            bucket.LastTouchedUtc = utcNow;
             _operations[key] = tracked;
 
             return Task.FromResult(new QuotaReserveResult(
@@ -282,8 +281,7 @@ public class DefaultQuotaStore : IQuotaStore
                     bucket.Committed += reservation.Amount;
                 }
 
-                bucket.LastTouchedUtc = utcNow;
-                return Settled(QuotaSettlementStatus.Committed, tracked);
+                    return Settled(QuotaSettlementStatus.Committed, tracked);
             case QuotaReservationState.Committed:
                 return Settled(QuotaSettlementStatus.AlreadyCommitted, tracked);
             case QuotaReservationState.Expired:
@@ -314,8 +312,7 @@ public class DefaultQuotaStore : IQuotaStore
                     bucket.Reserved -= reservation.Amount;
                 }
 
-                bucket.LastTouchedUtc = utcNow;
-                return Settled(QuotaSettlementStatus.Released, tracked);
+                    return Settled(QuotaSettlementStatus.Released, tracked);
             case QuotaReservationState.Released:
                 return Settled(QuotaSettlementStatus.AlreadyReleased, tracked);
             case QuotaReservationState.Expired:
@@ -378,7 +375,6 @@ public class DefaultQuotaStore : IQuotaStore
             tracked.Bucket.Reserved -= tracked.Reservation.Amount;
         }
 
-        tracked.Bucket.LastTouchedUtc = utcNow;
     }
 
     /// <summary>
@@ -678,11 +674,6 @@ public class DefaultQuotaStore : IQuotaStore
         /// 本桶内的跟踪记录
         /// </summary>
         public List<TrackedReservation> Values { get; } = [];
-
-        /// <summary>
-        /// 最后改动时刻
-        /// </summary>
-        public DateTimeOffset LastTouchedUtc { get; set; }
 
         /// <summary>
         /// 周期起始

@@ -264,6 +264,14 @@ public class QuotaStoreTests
 
         Assert.Equal(QuotaReserveStatus.Exceeded, downgraded.Status);
         Assert.Equal(10, downgraded.Usage.Committed);
+        Assert.Equal(3, downgraded.Usage.Limit);
+        Assert.Equal(0, downgraded.Usage.Remaining);
+
+        var settled = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
+
+        Assert.Equal(QuotaSettlementStatus.AlreadyCommitted, settled.Status);
+        Assert.Equal(10L, settled.Usage?.Committed);
+        Assert.Equal(10, settled.Usage?.Limit);
     }
 
     /// <summary>
@@ -796,7 +804,7 @@ public class QuotaStoreTests
             .Select(_ => Task.Run(() => store.ReserveAsync(Reserve(1001, "op-1", 3))))
             .ToArray();
 
-        var results = await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30));
+        var results = await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         Assert.Equal(1, results.Count(item => item.Status == QuotaReserveStatus.Reserved));
         Assert.Equal(15, results.Count(item => item.Status == QuotaReserveStatus.Replayed));
@@ -815,7 +823,7 @@ public class QuotaStoreTests
             .Select(_ => Task.Run(() => store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"))))
             .ToArray();
 
-        var results = await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30));
+        var results = await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         Assert.Equal(1, results.Count(item => item.Status == QuotaSettlementStatus.Committed));
         Assert.Equal(15, results.Count(item => item.Status == QuotaSettlementStatus.AlreadyCommitted));
