@@ -1,0 +1,29 @@
+docs/packages/tasks-sqlsugar.md
+  s_5cc31262f00faf::t_b7cdb71c88e360 16,79-80,84-85,112,116-145,158,166,170,187-189,192
+framework/src/XiHan.Framework.Tasks.SqlSugar/README.md
+  s_e7c8c51b260cad::t_7c4bf54879144c 10-11,30,32,39-44,46-48,55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9d38bf19fba0f85e93a5f719d2fd3e60ddd4c61c",
+  "prompts": {},
+  "sessions": {
+    "s_5cc31262f00faf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad840826679649947",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_e7c8c51b260cad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a9ad7c426c6c050b7",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
