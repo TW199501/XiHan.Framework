@@ -1,0 +1,69 @@
+docs/guide/auditing.md
+  s_94057b8e5cf9b6::t_6dabd316ca3b35 133,146-150,158,160-162,165,170-186,188-190,347
+docs/packages/auditing-sqlsugar.md
+  s_94057b8e5cf9b6::t_188a8074eedcbd 1-195
+docs/packages/auditing.md
+  s_94057b8e5cf9b6::t_3f65e6ef69780c 259
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_87aff33c93caa9 30,92
+framework/src/XiHan.Framework.Auditing.SqlSugar/Entities/SysAccessLog.cs
+  s_94057b8e5cf9b6::t_b2529b810100c0 1-140
+framework/src/XiHan.Framework.Auditing.SqlSugar/Entities/SysApiLog.cs
+  s_94057b8e5cf9b6::t_5aa77f4a9b2b6d 1-188
+framework/src/XiHan.Framework.Auditing.SqlSugar/Entities/SysDiffLog.cs
+  s_94057b8e5cf9b6::t_44a61d3e5b2de9 1-122
+framework/src/XiHan.Framework.Auditing.SqlSugar/Entities/SysExceptionLog.cs
+  s_94057b8e5cf9b6::t_67cdddc982e30b 1-140
+framework/src/XiHan.Framework.Auditing.SqlSugar/Entities/SysLoginLog.cs
+  s_94057b8e5cf9b6::t_c1bfcd1b8ed2e1 1-104
+framework/src/XiHan.Framework.Auditing.SqlSugar/Entities/SysOperationLog.cs
+  s_94057b8e5cf9b6::t_63d86affa675e7 1-134
+framework/src/XiHan.Framework.Auditing.SqlSugar/Extensions/DependencyInjection/XiHanAuditingSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_94a7da8614ed36 1-34
+framework/src/XiHan.Framework.Auditing.SqlSugar/Mapping/AuditingLogMapper.cs
+  s_94057b8e5cf9b6::t_3ec12beb3980d0 1-238
+framework/src/XiHan.Framework.Auditing.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_f50eb96d6fe0e1 1-62
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarAccessLogWriter.cs
+  s_94057b8e5cf9b6::t_7abd38744c26ed 1-58
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarApiLogWriter.cs
+  s_94057b8e5cf9b6::t_6458bb81e44d9e 1-58
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarEntityDiffLogWriter.cs
+  s_94057b8e5cf9b6::t_04e2243c5d0b9a 1-48
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarExceptionLogWriter.cs
+  s_94057b8e5cf9b6::t_be686137bddbfc 1-58
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarLoginLogWriter.cs
+  s_94057b8e5cf9b6::t_597bc246b219d8 1-58
+framework/src/XiHan.Framework.Auditing.SqlSugar/Writers/SqlSugarOperationLogWriter.cs
+  s_94057b8e5cf9b6::t_c73def2c2863be 1-58
+framework/src/XiHan.Framework.Auditing.SqlSugar/XiHan.Framework.Auditing.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_e7c5155c1706bb 1-21
+framework/src/XiHan.Framework.Auditing.SqlSugar/XiHanAuditingSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_433be1be675451 1-31
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/AuditingLogMapperTests.cs
+  s_94057b8e5cf9b6::t_a196ec2188e4c1 1-342
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/EntityMappingTests.cs
+  s_94057b8e5cf9b6::t_45a59aa694cd57 1-196
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/LogWriterTests.cs
+  s_94057b8e5cf9b6::t_d7918894591da2 1-599
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/TableInitializationTests.cs
+  s_94057b8e5cf9b6::t_5141ace8d9ae89 1-187
+framework/test/XiHan.Framework.Auditing.SqlSugar.Tests/XiHan.Framework.Auditing.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_7a6deeb7337d78 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ba7256795ea74448e14f94653c2103656cb7b475",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
