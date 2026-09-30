@@ -1,0 +1,41 @@
+README.md
+  s_94057b8e5cf9b6::t_16b7f25df10af5 8,20,55
+docs/guide/authorization.md
+  s_94057b8e5cf9b6::t_387f4f6f9adcf6 178-180,322
+docs/.vitepress/config.ts
+  s_94057b8e5cf9b6::t_89a2f5f9b73405 147
+docs/index.md
+  s_94057b8e5cf9b6::t_46be4829cd09c5 9,41
+docs/why.md
+  s_94057b8e5cf9b6::t_94dc4312e18d66 86,123,142,160
+framework/README.md
+  s_94057b8e5cf9b6::t_ac3e37ea9c8148 55,84,161,185,197
+framework/README_cn.md
+  s_94057b8e5cf9b6::t_f2ab290fde4c48 55,84,161,185,197
+docs/packages/index.md
+  s_94057b8e5cf9b6::t_45d4c7f04da3a9 3,65
+README_cn.md
+  s_94057b8e5cf9b6::t_f3be075d242451 8,20,55
+docs/packages/authorization-sqlsugar.md
+  s_94057b8e5cf9b6::t_036ecd13ff2a8e 1-202
+docs/packages/authorization.md
+  s_94057b8e5cf9b6::t_61bea84f11e909 185,206
+docs/introduction.md
+  s_94057b8e5cf9b6::t_c3398642f8f032 57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "08e56640c8718a752d8d6f5fb218200488e58bd2",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
