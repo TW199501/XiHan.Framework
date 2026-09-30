@@ -1,0 +1,25 @@
+framework/test/XiHan.Framework.ProviderContractTests/ContractRequirements.cs
+  s_531482cef3c767::t_bdcc17e9771539 26,39-41,46
+framework/test/XiHan.Framework.ProviderContractTests/EventBus/InboxContract.cs
+  s_531482cef3c767::t_ad48d25431fc0d 313,323-325,330
+framework/test/XiHan.Framework.ProviderContractTests/EventBus/OutboxContract.cs
+  s_531482cef3c767::t_40c3aa2d8ec0b3 211,221-223,228
+framework/test/XiHan.Framework.ProviderContractTests/Tasks/BackgroundJobStoreContract.cs
+  s_531482cef3c767::t_c8e3cd964cd406 166-170,192-194,289,299-301,306,315-332
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "814342b0058fd219256d893b0d52e6f5939a26fc",
+  "prompts": {},
+  "sessions": {
+    "s_531482cef3c767": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-abaada426127a8046",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
