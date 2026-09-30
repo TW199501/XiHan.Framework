@@ -1,0 +1,35 @@
+framework/src/XiHan.Framework.Web.Api/Idempotency/IIdempotencyStore.cs
+  s_94057b8e5cf9b6::t_a380bef2efaa48 1-49
+framework/src/XiHan.Framework.Web.Api/Idempotency/IdempotentAttribute.cs
+  s_94057b8e5cf9b6::t_5e60c555e29b1b 1-14
+framework/src/XiHan.Framework.Web.Api/Idempotency/XiHanIdempotencyOptions.cs
+  s_94057b8e5cf9b6::t_52083abee49adc 1-55
+framework/src/XiHan.Framework.Web.Api/Idempotency/IdempotencyKeyValidator.cs
+  s_94057b8e5cf9b6::t_98aca49193fd76 1-34
+framework/src/XiHan.Framework.Web.Api/Idempotency/IdempotencyAcquireStatus.cs
+  s_94057b8e5cf9b6::t_34f626fb80b7cf 1-40
+framework/src/XiHan.Framework.Web.Api/Idempotency/IdempotencyRecordKey.cs
+  s_94057b8e5cf9b6::t_86fdffad75b942 1-45
+framework/src/XiHan.Framework.Web.Api/Idempotency/StoredResponse.cs
+  s_94057b8e5cf9b6::t_14c922c480a100 1-11
+framework/src/XiHan.Framework.Web.Api/Idempotency/IdempotencyAcquireResult.cs
+  s_94057b8e5cf9b6::t_c3f82c41b592ec 1-88
+framework/test/XiHan.Framework.Web.Api.Tests/Idempotency/IdempotencyContractTests.cs
+  s_94057b8e5cf9b6::t_b7c2afa17e5937 1-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b250b655e49025ecdcabc3b42bafa2dae0013ea1",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
