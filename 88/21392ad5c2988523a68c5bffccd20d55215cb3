@@ -1,0 +1,49 @@
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Abstractions/IBackgroundJobManagementAuditor.cs
+  s_e442f8a8473fb3::t_42fb330f8a3134 1-23
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Abstractions/IBackgroundJobManagementAuthorizer.cs
+  s_4cda4c305e8cad::t_43182fbebf1002 1-24
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Abstractions/IBackgroundJobManagementService.cs
+  s_e442f8a8473fb3::t_b407d802b9cd70 1-33
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Extensions/DependencyInjection/XiHanBackgroundJobsServiceCollectionExtensions.cs
+  s_a8913adcfb482d::t_7d71923b65e325 9,37-41
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Management/BackgroundJobManagementService.cs
+  s_a8913adcfb482d::t_9c0e26dbac29b0 1-106
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Management/DenyAllBackgroundJobManagementAuthorizer.cs
+  s_e442f8a8473fb3::t_c46007fad98221 1-25
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Management/LoggingBackgroundJobManagementAuditor.cs
+  s_e442f8a8473fb3::t_420cf4e36294f1 1-30
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/Management/BackgroundJobManagementServiceTests.cs
+  s_4cda4c305e8cad::t_f9f9d1000e885f 1-582
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "8821392ad5c2988523a68c5bffccd20d55215cb3",
+  "prompts": {},
+  "sessions": {
+    "s_4cda4c305e8cad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a9a0e6a706e0b0547",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_a8913adcfb482d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2ae5ea23e2d08737",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_e442f8a8473fb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a54f423b219aefcb6",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
