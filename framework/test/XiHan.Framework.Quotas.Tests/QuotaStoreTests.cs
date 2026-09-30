@@ -519,6 +519,42 @@ public class QuotaStoreTests
     }
 
     /// <summary>
+    /// 额度判定不因 long 加法溢出而超额放行
+    /// </summary>
+    [Fact]
+    public async Task 额度判定不因long加法溢出而超额放行()
+    {
+        var store = CreateStore();
+        var huge = QuotaPolicy.Limited(long.MaxValue, QuotaPeriod.Day, "v1");
+        await store.ReserveAsync(new QuotaReserveRequest(1001, "quota", "op-1", 6_000_000_000_000_000_000, huge));
+        await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
+
+        var second = await store.ReserveAsync(
+            new QuotaReserveRequest(1001, "quota", "op-2", 5_000_000_000_000_000_000, huge));
+
+        Assert.Equal(QuotaReserveStatus.Exceeded, second.Status);
+        Assert.Equal(6_000_000_000_000_000_000, second.Usage.Committed);
+    }
+
+    /// <summary>
+    /// 用满极长上限后继续预留按超额返回且不抛异常也不产生负计数
+    /// </summary>
+    [Fact]
+    public async Task 极长上限用满后按超额返回且不产生负计数()
+    {
+        var store = CreateStore();
+        var huge = QuotaPolicy.Limited(long.MaxValue, QuotaPeriod.Day, "v1");
+        await store.ReserveAsync(new QuotaReserveRequest(1001, "quota", "op-1", long.MaxValue, huge));
+
+        var followUp = await store.ReserveAsync(new QuotaReserveRequest(1001, "quota", "op-2", 2, huge));
+        var usage = await store.FindUsageAsync(1001, "quota", huge);
+
+        Assert.Equal(QuotaReserveStatus.Exceeded, followUp.Status);
+        Assert.Equal(long.MaxValue, usage.Reserved);
+        Assert.Equal(0, usage.Committed);
+    }
+
+    /// <summary>
     /// 无记录时用量为零
     /// </summary>
     [Fact]

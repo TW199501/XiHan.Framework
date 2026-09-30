@@ -123,11 +123,19 @@ public class DefaultQuotaStore : IQuotaStore
                     QuotaReserveStatus.CapacityExhausted, null, Snapshot(bucket!, request.Policy.Limit)));
             }
 
-            var accounted = request.Policy.Limit is not null;
-            if (accounted && bucket!.Committed + bucket.Reserved + request.Amount > request.Policy.Limit)
+            var limit = request.Policy.Limit;
+            if (limit is { } bounded)
             {
-                return Task.FromResult(new QuotaReserveResult(
-                    QuotaReserveStatus.Exceeded, null, Snapshot(bucket, request.Policy.Limit)));
+                // 先饱和求和再比剩余量：三项直接相加会在 long.MaxValue 附近环绕成负数而超额放行
+                var used = SaturatingAdd(bucket!.Committed, bucket.Reserved);
+                var remaining = used >= bounded ? 0 : bounded - used;
+                if (request.Amount > remaining)
+                {
+                    return Task.FromResult(new QuotaReserveResult(
+                        QuotaReserveStatus.Exceeded, null, Snapshot(bucket, bounded)));
+                }
+
+                bucket.Reserved += request.Amount;
             }
 
             var reservation = new QuotaReservation(
@@ -140,20 +148,15 @@ public class DefaultQuotaStore : IQuotaStore
                 utcNow.Add(request.ReservationTtl ?? _options.DefaultReservationTtl),
                 QuotaReservationState.Reserved);
 
-            var tracked = new TrackedReservation(reservation, bucket, accounted);
+            var tracked = new TrackedReservation(reservation, bucket, limit is not null);
             bucket.Values.Add(tracked);
-            if (accounted)
-            {
-                bucket.Reserved += request.Amount;
-            }
-
             bucket.LastTouchedUtc = utcNow;
             _operations[key] = tracked;
 
             return Task.FromResult(new QuotaReserveResult(
-                accounted ? QuotaReserveStatus.Reserved : QuotaReserveStatus.Unlimited,
+                limit is not null ? QuotaReserveStatus.Reserved : QuotaReserveStatus.Unlimited,
                 reservation,
-                Snapshot(bucket, request.Policy.Limit)));
+                Snapshot(bucket, limit)));
         }
     }
 
@@ -557,6 +560,17 @@ public class DefaultQuotaStore : IQuotaStore
             DateTimeKind.Local => new DateTimeOffset(now.ToUniversalTime(), TimeSpan.Zero),
             _ => new DateTimeOffset(DateTime.SpecifyKind(now, DateTimeKind.Utc))
         };
+    }
+
+    /// <summary>
+    /// 非负long相加，溢出时钉在 long.MaxValue
+    /// </summary>
+    /// <param name="left">左值，非负</param>
+    /// <param name="right">右值，非负</param>
+    /// <returns>和不小于两者，溢出时为 <see cref="long.MaxValue"/></returns>
+    private static long SaturatingAdd(long left, long right)
+    {
+        return left > long.MaxValue - right ? long.MaxValue : left + right;
     }
 
     /// <summary>
