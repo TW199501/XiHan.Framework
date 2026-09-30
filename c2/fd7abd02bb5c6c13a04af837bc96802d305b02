@@ -1,0 +1,39 @@
+docs/packages/analyzers.md
+  s_79e0b4ece13e38::t_8434111bb63c69 54
+framework/src/XiHan.Framework.Analyzers/ApiUsage/XiHanApiUsageRule.cs
+  s_79e0b4ece13e38::t_44a92746fdc0e4 41
+framework/src/XiHan.Framework.Analyzers/ApiUsage/XiHanCancellationTokenForwardingAnalyzer.cs
+  s_86c242ab8689e9::t_544477b60fd02c 98
+framework/src/XiHan.Framework.Analyzers/ApiUsage/XiHanCancellationTokenForwardingCodeFixProvider.cs
+  s_86c242ab8689e9::t_428b51b27c1e58 56,98
+framework/src/XiHan.Framework.Analyzers/README.md
+  s_79e0b4ece13e38::t_097194ec3cb874 9
+framework/test/XiHan.Framework.Analyzers.Tests/ApiUsage/XiHanCancellationTokenForwardingAnalyzerTests.cs
+  s_86c242ab8689e9::t_346b989145f1d5 210,213,221,224-296
+framework/test/XiHan.Framework.Analyzers.Tests/ApiUsage/XiHanCancellationTokenForwardingCodeFixProviderTests.cs
+  s_86c242ab8689e9::t_08f6d73d976d47 4,30,44-94,109-118,140-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c2fd7abd02bb5c6c13a04af837bc96802d305b02",
+  "prompts": {},
+  "sessions": {
+    "s_79e0b4ece13e38": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2cbd0695b6128e7c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_86c242ab8689e9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5b5ced4d7315e284",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
