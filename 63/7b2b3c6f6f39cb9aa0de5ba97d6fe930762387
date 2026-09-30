@@ -1,0 +1,31 @@
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/BackgroundJobWorker.cs
+  s_4530abda7fa111::t_fbd413893dc1a5 37-40,164,166,168-169,174-192,195,197-200,275-277,303-311,339-340,366,437,449,458,583-597
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/BackgroundJobWorkerLeaseTests.cs
+  s_68ced7fbd7c504::t_9c69ac91ceb808 278-386,606-607,609
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/Fakes/LeaseAwareBackgroundJobStore.cs
+  s_68ced7fbd7c504::t_1965af8708bcaf 23,74-88,147-156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "637b2b3c6f6f39cb9aa0de5ba97d6fe930762387",
+  "prompts": {},
+  "sessions": {
+    "s_4530abda7fa111": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad9c180d8927f36c8",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_68ced7fbd7c504": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2c313248573fcb1c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
