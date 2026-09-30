@@ -1,11 +1,14 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using XiHan.Framework.Core.Modularity;
-using XiHan.Framework.Quotas.Extensions.DependencyInjection;
-using XiHan.Framework.Quotas.Providers;
 using XiHan.Framework.Quotas.Abstractions;
+using XiHan.Framework.Quotas.Extensions.DependencyInjection;
+using XiHan.Framework.Quotas.Options;
+using XiHan.Framework.Quotas.Providers;
 using XiHan.Framework.Quotas.Stores;
 using XiHan.Framework.Timing;
 using XiHan.Framework.Timing.Extensions.DependencyInjection;
@@ -62,6 +65,46 @@ public class RegistrationTests
 
         Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaPolicyProvider));
         Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaStore));
+    }
+
+    /// <summary>
+    /// 不传配置时选项基础设施由本扩展自己登记
+    /// </summary>
+    /// <remarks>
+    /// 存储需要 IOptions，不能依赖别的模块先 AddOptions；
+    /// 解析 IQuotaStore 还需要时间模块注册 IClock，那是模块声明的依赖，不属本扩展职责。
+    /// </remarks>
+    [Fact]
+    public void 不传配置也登记选项基础设施()
+    {
+        var services = new ServiceCollection();
+
+        services.AddXiHanQuotas();
+
+        var options = services.BuildServiceProvider().GetRequiredService<IOptions<XiHanQuotasOptions>>();
+
+        Assert.Equal(TimeSpan.FromMinutes(5), options.Value.DefaultReservationTtl);
+    }
+
+    /// <summary>
+    /// 非法选项在启动校验期失败
+    /// </summary>
+    [Fact]
+    public void 非法选项在启动校验期失败()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["XiHan:Quotas:MaxTrackedReservations"] = "0"
+            })
+            .Build();
+        var services = new ServiceCollection();
+
+        services.AddXiHanQuotas(configuration);
+
+        var options = services.BuildServiceProvider().GetRequiredService<IOptionsMonitor<XiHanQuotasOptions>>();
+
+        Assert.Throws<OptionsValidationException>(() => _ = options.CurrentValue);
     }
 
     /// <summary>
