@@ -1,0 +1,19 @@
+framework/test/XiHan.Framework.Quotas.Tests/QuotaStoreTests.cs
+  s_2344dfaf03f214::t_a6844187c3c6bf 521-556
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "35b889a6621b2d57d5049d58a9e067d2f8b8f490",
+  "prompts": {},
+  "sessions": {
+    "s_2344dfaf03f214": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a6bffbfdb8d042b33",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
