@@ -1,0 +1,29 @@
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Management/BackgroundJobManagementService.cs
+  s_a8913adcfb482d::t_c0e71b3e959f81 18,20-21,41,53,73-74,89,98,102
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/Management/BackgroundJobManagementServiceTests.cs
+  s_4cda4c305e8cad::t_5f56b93cd75d8e 250-339,587-700
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "422a5491c325646444169ae1f9ef28f990864cfb",
+  "prompts": {},
+  "sessions": {
+    "s_4cda4c305e8cad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a9a0e6a706e0b0547",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_a8913adcfb482d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2ae5ea23e2d08737",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
