@@ -1,0 +1,19 @@
+framework/templates/Test-XiHanTemplates.ps1
+  s_79e0b4ece13e38::t_15723ea43cbf34 85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e22db7aaa799c5b1ce2e60c84424858f3e5b53eb",
+  "prompts": {},
+  "sessions": {
+    "s_79e0b4ece13e38": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2cbd0695b6128e7c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
