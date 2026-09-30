@@ -4,7 +4,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.Framework.Core.Modularity;
 using XiHan.Framework.Entitlements.Extensions.DependencyInjection;
-using XiHan.Framework.Entitlements.Features.Abstractions;
 using XiHan.Framework.Entitlements.Providers;
 using XiHan.Framework.Entitlements.Quotas.Abstractions;
 using XiHan.Framework.Entitlements.Quotas.Stores;
@@ -14,7 +13,7 @@ using XiHan.Framework.Timing.Extensions.DependencyInjection;
 namespace XiHan.Framework.Entitlements.Tests;
 
 /// <summary>
-/// 功能授权、配额政策与配额存储的注册测试
+/// 配额政策与配额存储的注册测试
 /// </summary>
 public class RegistrationTests
 {
@@ -30,7 +29,6 @@ public class RegistrationTests
         services.AddXiHanEntitlements();
 
         var provider = services.BuildServiceProvider();
-        Assert.IsType<DefaultFeatureEntitlementProvider>(provider.GetRequiredService<IFeatureEntitlementProvider>());
         Assert.IsType<DefaultQuotaPolicyProvider>(provider.GetRequiredService<IQuotaPolicyProvider>());
         Assert.IsType<DefaultQuotaStore>(provider.GetRequiredService<IQuotaStore>());
     }
@@ -42,12 +40,13 @@ public class RegistrationTests
     public void 应用注册的政策来源不被默认实现覆盖()
     {
         var services = new ServiceCollection();
-        var custom = new StubFeatureEntitlementProvider();
-        services.AddSingleton<IFeatureEntitlementProvider>(custom);
+        services.AddSingleton<IQuotaPolicyProvider, StubQuotaPolicyProvider>();
 
         services.AddXiHanEntitlements();
 
-        Assert.Same(custom, services.BuildServiceProvider().GetRequiredService<IFeatureEntitlementProvider>());
+        Assert.Equal(
+            typeof(StubQuotaPolicyProvider),
+            services.BuildServiceProvider().GetRequiredService<IQuotaPolicyProvider>().GetType());
     }
 
     /// <summary>
@@ -61,7 +60,6 @@ public class RegistrationTests
         services.AddXiHanEntitlements();
         services.AddXiHanEntitlements();
 
-        Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IFeatureEntitlementProvider));
         Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaPolicyProvider));
         Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaStore));
     }
@@ -78,5 +76,25 @@ public class RegistrationTests
         var declared = dependsOn.SelectMany(static attribute => attribute.DependedTypes).ToArray();
 
         Assert.Equal([typeof(XiHanTimingModule)], declared);
+    }
+
+    /// <summary>
+    /// 配额模块不引用授权、Web 与 ORM 程序集
+    /// </summary>
+    /// <remarks>
+    /// 只能挡住「新增引用且被使用」的提交：未使用的程序集引用不会写进引用表。
+    /// </remarks>
+    [Fact]
+    public void 配额模块不引用授权与Web与ORM程序集()
+    {
+        var referenced = Array.ConvertAll(
+            typeof(XiHanEntitlementsModule).Assembly.GetReferencedAssemblies(),
+            static assembly => assembly.Name ?? string.Empty);
+
+        Assert.DoesNotContain("XiHan.Framework.Authorization", referenced);
+        Assert.DoesNotContain("XiHan.Framework.Authorization.SqlSugar", referenced);
+        Assert.DoesNotContain("XiHan.Framework.Web.Core", referenced);
+        Assert.DoesNotContain("XiHan.Framework.Data", referenced);
+        Assert.DoesNotContain("SqlSugar", referenced);
     }
 }

@@ -4,7 +4,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using XiHan.Framework.Entitlements.Features.Abstractions;
 using XiHan.Framework.Entitlements.Options;
 using XiHan.Framework.Entitlements.Providers;
 using XiHan.Framework.Entitlements.Quotas.Abstractions;
@@ -13,16 +12,17 @@ using XiHan.Framework.Entitlements.Quotas.Stores;
 namespace XiHan.Framework.Entitlements.Extensions.DependencyInjection;
 
 /// <summary>
-/// 曦寒功能授权与配额服务集合扩展
+/// 曦寒配额服务集合扩展
 /// </summary>
 public static class XiHanEntitlementsServiceCollectionExtensions
 {
     /// <summary>
-    /// 添加曦寒功能授权与配额服务
+    /// 添加曦寒配额服务
     /// </summary>
     /// <remarks>
     /// 全部以 <c>TryAddSingleton</c> 注册安全默认实现，应用注册自己的实现即替换默认项。
     /// 传入配置时按 <see cref="XiHanEntitlementsOptions.SectionName"/> 绑定选项。
+    /// 租户功能开关不由本模块提供，复用 XiHan.Framework.MultiTenancy 的 ITenantFeatureChecker。
     /// </remarks>
     /// <param name="services">服务集合</param>
     /// <param name="configuration">配置，为 null 时不绑定配置节</param>
@@ -36,7 +36,6 @@ public static class XiHanEntitlementsServiceCollectionExtensions
                 configuration.GetSection(XiHanEntitlementsOptions.SectionName));
         }
 
-        services.TryAddSingleton<IFeatureEntitlementProvider, DefaultFeatureEntitlementProvider>();
         services.TryAddSingleton<IQuotaPolicyProvider, DefaultQuotaPolicyProvider>();
         services.TryAddSingleton<IQuotaStore, DefaultQuotaStore>();
 

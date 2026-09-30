@@ -4,7 +4,7 @@
 namespace XiHan.Framework.Entitlements.Options;
 
 /// <summary>
-/// 曦寒功能授权与配额选项
+/// 曦寒配额选项
 /// </summary>
 public class XiHanEntitlementsOptions
 {

@@ -9,11 +9,12 @@ using XiHan.Framework.Timing;
 namespace XiHan.Framework.Entitlements;
 
 /// <summary>
-/// 曦寒框架租户功能授权与用量配额模块
+/// 曦寒框架用量配额模块
 /// </summary>
 /// <remarks>
 /// 在应用模块上 <c>[DependsOn(typeof(XiHanEntitlementsModule))]</c> 即启用。
-/// 本模块只定义功能授权与用量配额的契约，并注册一律拒绝的安全默认实现；政策来源与持久化由应用替换。
+/// 本模块只定义用量配额的契约，并注册一律拒绝的安全默认实现；政策来源与持久化由应用替换。
+/// 租户功能开关不在本模块，由 XiHan.Framework.MultiTenancy 的 ITenantFeatureChecker 提供。
 /// </remarks>
 [DependsOn(
     typeof(XiHanTimingModule)

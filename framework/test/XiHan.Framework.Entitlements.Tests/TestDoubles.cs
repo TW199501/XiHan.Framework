@@ -1,35 +1,28 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-using XiHan.Framework.Entitlements.Features;
-using XiHan.Framework.Entitlements.Features.Abstractions;
+using XiHan.Framework.Entitlements.Quotas;
+using XiHan.Framework.Entitlements.Quotas.Abstractions;
 
 namespace XiHan.Framework.Entitlements.Tests;
 
 /// <summary>
-/// 按授权集合判定的功能授权提供器测试桩
+/// 固定返回同一条政策的配额政策提供器测试桩
 /// </summary>
-internal sealed class StubFeatureEntitlementProvider : IFeatureEntitlementProvider
+internal sealed class StubQuotaPolicyProvider : IQuotaPolicyProvider
 {
     /// <summary>
-    /// 已授权的功能与租户组合，缺少条目即未授权
-    /// </summary>
-    public HashSet<(long TenantId, string FeatureKey)> Grants { get; } = [];
-
-    /// <summary>
-    /// 按授权集合判定功能是否放行
+    /// 查找政策，一律返回构造时给定的政策
     /// </summary>
     /// <param name="tenantId">租户标识</param>
-    /// <param name="featureKey">功能标识</param>
+    /// <param name="quotaKey">配额项标识</param>
     /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>授权决策</returns>
-    public Task<FeatureDecision> EvaluateAsync(
+    /// <returns>政策</returns>
+    public Task<QuotaPolicy?> FindPolicyAsync(
         long tenantId,
-        string featureKey,
+        string quotaKey,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(Grants.Contains((tenantId, featureKey))
-            ? FeatureDecision.Enabled(tenantId, featureKey, "stub")
-            : FeatureDecision.Denied(tenantId, featureKey, FeatureDenyReason.NotEntitled, "stub"));
+        return Task.FromResult<QuotaPolicy?>(QuotaPolicy.Limited(10, QuotaPeriod.Day, "stub"));
     }
 }
