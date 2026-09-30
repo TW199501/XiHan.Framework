@@ -113,6 +113,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 | `Templating` | Template rendering: Scriban engine, template registry |
 | `Tasks` | Scheduled tasks and background jobs: scheduling engine, background services, tenant awareness |
 | `Traffic` | Traffic governance: gray routing (rule engine with header / IP / percentage / tenant / user matchers); rate limiting and circuit breaking are policy interfaces only |
+| `Traffic.SqlSugar` | Gray rule persistence: SqlSugar-backed read-only `IGrayRuleRepository` with in-memory cache |
 | `Upgrade` | Upgrade engine: version store, migration execution, distributed lock, automatic check on startup |
 | `Upgrade.SqlSugar` | Upgrade version persistence: SqlSugar-backed `IUpgradeVersionStore` for version state and migration history |
 | `AI.Abstractions` | AI abstractions: agents, chat, configuration, guardrails, prompts, RAG, skills |

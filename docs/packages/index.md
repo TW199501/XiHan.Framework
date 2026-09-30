@@ -111,6 +111,7 @@ DDD 分层与应用服务契约。
 | [Templating](./templating) | 模板渲染：默认简单占位替换引擎 + 可选 Scriban、模板注册表 |
 | [Tasks](./tasks) | 定时任务：调度引擎（Cron/间隔/延迟）、后台服务基类、多租户感知 |
 | [Traffic](./traffic) | 流量治理：灰度路由（百分比/用户/租户/请求头）、限流与熔断策略接口 |
+| [Traffic.SqlSugar](./traffic-sqlsugar) | 灰度规则的 SqlSugar 只读仓储：内存缓存 + 到期自动刷新，替换内存实现 |
 | [Upgrade](./upgrade) | 升级引擎：版本存储、迁移执行、分布式锁、启动自动检查 |
 | [Upgrade.SqlSugar](./upgrade-sqlsugar) | 升级版本记录的 SqlSugar 持久化提供程序：版本状态与迁移历史落库，替换内存实现 |
 | [Script](./script) | 脚本引擎：基于 Roslyn 的 C# 动态脚本、编译校验与超时 |
