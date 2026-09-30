@@ -1,0 +1,133 @@
+README.md
+  s_46b3956b968a55::t_82e59531f90e60 8,20,55
+README_cn.md
+  s_46b3956b968a55::t_dce0cbc6e0e05e 8,20,55
+docs/.vitepress/config.ts
+  s_94057b8e5cf9b6::t_c2da7eee9ebc22 53,161-162
+docs/guide/quotas.md
+  s_94057b8e5cf9b6::t_c6609bffa37747 1-111
+docs/index.md
+  s_46b3956b968a55::t_39f6cfb5cecaa5 9,41,47
+docs/introduction.md
+  s_46b3956b968a55::t_c7fd8f701347c9 56-57
+docs/packages/index.md
+  s_46b3956b968a55::t_d47ac61ea1e4b3 3,10,77-78
+docs/packages/quotas-sqlsugar.md
+  s_94057b8e5cf9b6::t_ef2bc7b39026cb 1-128
+docs/packages/quotas.md
+  s_94057b8e5cf9b6::t_a3a4d5990bc92c 1-136
+docs/why.md
+  s_46b3956b968a55::t_3dde834382a34c 86,123,142,160
+framework/README.md
+  s_46b3956b968a55::t_996675aa51cdff 55,196,208
+framework/README_cn.md
+  s_46b3956b968a55::t_dc056a1d4f2c9f 55,196,208
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_fc0f367a3c312b 61-62,126-127
+framework/src/XiHan.Framework.Quotas.SqlSugar/Entities/SysQuotaBucket.cs
+  s_94057b8e5cf9b6::t_521c138556e3da 1-85
+framework/src/XiHan.Framework.Quotas.SqlSugar/Entities/SysQuotaReservation.cs
+  s_94057b8e5cf9b6::t_72c1db5e49e317 1-105
+framework/src/XiHan.Framework.Quotas.SqlSugar/Extensions/DependencyInjection/XiHanQuotasSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_219718a2beb351 1-43
+framework/src/XiHan.Framework.Quotas.SqlSugar/Options/XiHanQuotasSqlSugarOptions.cs
+  s_94057b8e5cf9b6::t_d2f544a047446f 1-24
+framework/src/XiHan.Framework.Quotas.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_4a6af364f919e9 1-77
+framework/src/XiHan.Framework.Quotas.SqlSugar/Stores/SqlSugarQuotaStore.cs
+  s_94057b8e5cf9b6::t_db894114aabf3f 1-759
+framework/src/XiHan.Framework.Quotas.SqlSugar/XiHan.Framework.Quotas.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_238a88800aa51a 1-22
+framework/src/XiHan.Framework.Quotas.SqlSugar/XiHanQuotasSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_5b744207b095bb 1-35
+framework/src/XiHan.Framework.Quotas/Abstractions/IQuotaPolicyProvider.cs
+  s_94057b8e5cf9b6::t_28012ace68149f 1-28
+framework/src/XiHan.Framework.Quotas/Abstractions/IQuotaService.cs
+  s_94057b8e5cf9b6::t_87465673ecca15 1-84
+framework/src/XiHan.Framework.Quotas/Abstractions/IQuotaStore.cs
+  s_94057b8e5cf9b6::t_60d937747e215c 1-84
+framework/src/XiHan.Framework.Quotas/Extensions/DependencyInjection/XiHanQuotasServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_ceae0f9d3f089d 1-59
+framework/src/XiHan.Framework.Quotas/Models/QuotaPeriod.cs
+  s_94057b8e5cf9b6::t_093ed701935e28 1-33
+framework/src/XiHan.Framework.Quotas/Models/QuotaPolicy.cs
+  s_94057b8e5cf9b6::t_e12f629b259eea 1-130
+framework/src/XiHan.Framework.Quotas/Models/QuotaReservation.cs
+  s_94057b8e5cf9b6::t_b6f7ca64c58373 1-106
+framework/src/XiHan.Framework.Quotas/Models/QuotaReservationState.cs
+  s_94057b8e5cf9b6::t_493da8ffa2a154 1-30
+framework/src/XiHan.Framework.Quotas/Models/QuotaReserveRequest.cs
+  s_94057b8e5cf9b6::t_bb0f78b4a2623a 1-75
+framework/src/XiHan.Framework.Quotas/Models/QuotaResults.cs
+  s_94057b8e5cf9b6::t_240e97c00e55e0 1-184
+framework/src/XiHan.Framework.Quotas/Models/QuotaUsage.cs
+  s_94057b8e5cf9b6::t_d8d5f6b86a77c2 1-101
+framework/src/XiHan.Framework.Quotas/Options/XiHanQuotasOptions.cs
+  s_94057b8e5cf9b6::t_86e9ca9db573c5 1-50
+framework/src/XiHan.Framework.Quotas/Providers/DefaultQuotaPolicyProvider.cs
+  s_94057b8e5cf9b6::t_85f21aba62f00e 1-37
+framework/src/XiHan.Framework.Quotas/README.md
+  s_94057b8e5cf9b6::t_81596fa1afeba4 1-121
+framework/src/XiHan.Framework.Quotas/Services/QuotaService.cs
+  s_94057b8e5cf9b6::t_c5d5f46d142ec6 1-159
+framework/src/XiHan.Framework.Quotas/Stores/DefaultQuotaStore.cs
+  s_94057b8e5cf9b6::t_bb2c936275b20e 1-698
+framework/src/XiHan.Framework.Quotas/XiHan.Framework.Quotas.csproj
+  s_94057b8e5cf9b6::t_9262e7cb8e97ae 1-22
+framework/src/XiHan.Framework.Quotas/XiHanQuotasModule.cs
+  s_94057b8e5cf9b6::t_da6a6ecdb2cb20 1-37
+framework/test/XiHan.Framework.MultiTenancy.Tests/Features/TenantFeatureCheckerTests.cs
+  s_94057b8e5cf9b6::t_ae885186c383bc 1-154
+framework/test/XiHan.Framework.Quotas.SqlSugar.Tests/QuotaTestDatabase.cs
+  s_94057b8e5cf9b6::t_bd334cf33d1d29 1-215
+framework/test/XiHan.Framework.Quotas.SqlSugar.Tests/SqlSugarQuotaStoreTests.cs
+  s_94057b8e5cf9b6::t_04d1119c863dcc 1-414
+framework/test/XiHan.Framework.Quotas.SqlSugar.Tests/TestClock.cs
+  s_94057b8e5cf9b6::t_3e3be6b1bfdba5 1-78
+framework/test/XiHan.Framework.Quotas.SqlSugar.Tests/TestDoubles.cs
+  s_94057b8e5cf9b6::t_27ed4fa25dca90 1-165
+framework/test/XiHan.Framework.Quotas.SqlSugar.Tests/TestEntities.cs
+  s_94057b8e5cf9b6::t_96e4d8d3b13f5e 1-40
+framework/test/XiHan.Framework.Quotas.SqlSugar.Tests/XiHan.Framework.Quotas.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_500cbb200a47f6 1-15
+framework/test/XiHan.Framework.Quotas.Tests/QuotaPolicyTests.cs
+  s_94057b8e5cf9b6::t_71ca20f82f3816 1-170
+framework/test/XiHan.Framework.Quotas.Tests/QuotaServiceTests.cs
+  s_94057b8e5cf9b6::t_cd04235edc309e 1-378
+framework/test/XiHan.Framework.Quotas.Tests/QuotaStoreTests.cs
+  s_94057b8e5cf9b6::t_07b95ec0cced16 1-1018
+framework/test/XiHan.Framework.Quotas.Tests/RegistrationTests.cs
+  s_94057b8e5cf9b6::t_e21ce0d9b24c6c 1-153
+framework/test/XiHan.Framework.Quotas.Tests/TestClock.cs
+  s_94057b8e5cf9b6::t_b3ab216af7f3a5 1-92
+framework/test/XiHan.Framework.Quotas.Tests/TestDoubles.cs
+  s_94057b8e5cf9b6::t_39992f68896b66 1-28
+framework/test/XiHan.Framework.Quotas.Tests/XiHan.Framework.Quotas.Tests.csproj
+  s_94057b8e5cf9b6::t_e921fd723b83dd 1-14
+framework/test/XiHan.Framework.Quotas.Tests/XiHanQuotasModuleTests.cs
+  s_94057b8e5cf9b6::t_83e8d20d4be252 1-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "8f0fe90485d5891c014aac7fea0abf728938d831",
+  "prompts": {},
+  "sessions": {
+    "s_46b3956b968a55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a7da380f52d40321c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
