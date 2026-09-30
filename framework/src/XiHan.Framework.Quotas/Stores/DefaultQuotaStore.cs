@@ -126,8 +126,9 @@ public class DefaultQuotaStore : IQuotaStore
             var limit = request.Policy.Limit;
             if (limit is { } bounded)
             {
-                // 先饱和求和再比剩余量：三项直接相加会在 long.MaxValue 附近环绕成负数而超额放行
-                var used = SaturatingAdd(bucket!.Committed, bucket.Reserved);
+                // 只把本次预留量与「剩余量」比，不让三项相加：相加会在 long.MaxValue 附近环绕成负数而超额放行。
+                // 已提交与已预留的和受本桶上限约束（无限额不参与累加），因此这里不会溢出。
+                var used = bucket!.Committed + bucket.Reserved;
                 var remaining = used >= bounded ? 0 : bounded - used;
                 if (request.Amount > remaining)
                 {
@@ -145,7 +146,7 @@ public class DefaultQuotaStore : IQuotaStore
                 request.OperationId,
                 request.Amount,
                 request.Policy.Version,
-                utcNow.Add(request.ReservationTtl ?? _options.DefaultReservationTtl),
+                AddSaturating(utcNow, request.ReservationTtl ?? _options.DefaultReservationTtl),
                 QuotaReservationState.Reserved);
 
             var tracked = new TrackedReservation(reservation, bucket, limit is not null);
@@ -565,14 +566,17 @@ public class DefaultQuotaStore : IQuotaStore
     }
 
     /// <summary>
-    /// 非负long相加，溢出时钉在 long.MaxValue
+    /// 时刻加正时长，超出可表示范围时夹到上界
     /// </summary>
-    /// <param name="left">左值，非负</param>
-    /// <param name="right">右值，非负</param>
-    /// <returns>和不小于两者，溢出时为 <see cref="long.MaxValue"/></returns>
-    private static long SaturatingAdd(long left, long right)
+    /// <param name="instant">起始时刻</param>
+    /// <param name="duration">时长，必须为正值，两侧构造已校验</param>
+    /// <returns>相加后的时刻；会越过 <see cref="DateTimeOffset.MaxValue"/> 时返回该上界</returns>
+    private static DateTimeOffset AddSaturating(DateTimeOffset instant, TimeSpan duration)
     {
-        return left > long.MaxValue - right ? long.MaxValue : left + right;
+        // 先算剩余可表示的刻度余量再比较：直接对边界做加减会在 TimeSpan 极大时自己先溢出
+        var room = DateTimeOffset.MaxValue.Ticks - instant.Ticks;
+
+        return duration.Ticks > room ? DateTimeOffset.MaxValue : instant.Add(duration);
     }
 
     /// <summary>

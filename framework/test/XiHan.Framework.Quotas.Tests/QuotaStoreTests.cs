@@ -658,6 +658,23 @@ public class QuotaStoreTests
     }
 
     /// <summary>
+    /// 超出可表示范围的预留存活时长被夹取而不抛异常
+    /// </summary>
+    [Fact]
+    public async Task 超长预留存活时长被夹取()
+    {
+        var store = CreateStore();
+
+        var result = await store.ReserveAsync(new QuotaReserveRequest(
+            1001, "quota", "op-1", 1, Limited(10), TimeSpan.MaxValue));
+        var committed = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
+
+        Assert.True(result.Allowed);
+        Assert.Equal(DateTimeOffset.MaxValue, result.Reservation!.ExpiresAt);
+        Assert.Equal(QuotaSettlementStatus.Committed, committed.Status);
+    }
+
+    /// <summary>
     /// 创建被测存储
     /// </summary>
     /// <param name="configure">选项调整</param>
