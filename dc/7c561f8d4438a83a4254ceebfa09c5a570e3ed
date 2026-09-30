@@ -1,0 +1,23 @@
+framework/test/XiHan.Framework.Architecture.Tests/ProjectDependencyGraphValidatorTests.cs
+  s_1275ee91159bea::t_161492af0bd787 177-309
+framework/test/XiHan.Framework.Architecture.Tests/ProjectGraph/ProjectGraphLoader.cs
+  s_1275ee91159bea::t_b95acd13c45f83 48-50,58,70,78,92,107,109-116,119,124,152-176
+framework/test/XiHan.Framework.Architecture.Tests/ProjectGraphLoaderTests.cs
+  s_1275ee91159bea::t_0c3184d48ecbbf 72-105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "dc7c561f8d4438a83a4254ceebfa09c5a570e3ed",
+  "prompts": {},
+  "sessions": {
+    "s_1275ee91159bea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-af3e52d535d2b5af6",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
