@@ -1,0 +1,47 @@
+docs/packages/web-api-sqlsugar.md
+  s_74801554e170b0::t_1d9e5f632bc170 21,30,34,36,47,53,102
+framework/src/XiHan.Framework.Web.Api.SqlSugar/Entities/SysIdempotencyRecord.cs
+  s_d9ae46f5172989::t_30cca581fb92e6 73,115,117
+framework/src/XiHan.Framework.Web.Api.SqlSugar/Extensions/DependencyInjection/XiHanWebApiSqlSugarServiceCollectionExtensions.cs
+  s_d7865709efdd70::t_8007795f660ef2 17-18,20,30-33
+framework/src/XiHan.Framework.Web.Api.SqlSugar/Idempotency/SqlSugarIdempotencyStore.cs
+  s_d7865709efdd70::t_8b1f745fb4c7f2 22,26-27,54,112,116-120,129,139-141,188,199,205,246
+framework/src/XiHan.Framework.Web.Api.SqlSugar/README.md
+  s_74801554e170b0::t_f748827f080818 14,23,27,29,40,46,95
+framework/test/XiHan.Framework.Web.Api.SqlSugar.Tests/Idempotency/SqlSugarIdempotencyRegistrationTests.cs
+  s_d7865709efdd70::t_11c29b50d626ea 6,38-69
+framework/test/XiHan.Framework.Web.Api.SqlSugar.Tests/Idempotency/SqlSugarIdempotencyStoreTests.cs
+  s_d7865709efdd70::t_dc974cf05d0df9 5-10,13,157-224,358,361,379,381,384-397,412-427
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "07d05b444198221b9f0ae24ee21d06ffe392510f",
+  "prompts": {},
+  "sessions": {
+    "s_74801554e170b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-abe100db06d9f655f",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_d7865709efdd70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2cc20933541d6b87",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_d9ae46f5172989": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a418b3a60e951c417",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
