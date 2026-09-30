@@ -1,0 +1,41 @@
+README.md
+  s_1f9b145d32d38a::t_29ea64fc43139a 8,20,55,187
+README_cn.md
+  s_1f9b145d32d38a::t_2762a134613d7c 8,20,55
+docs/index.md
+  s_1f9b145d32d38a::t_c19e896596eecc 9,41
+docs/introduction.md
+  s_5cc31262f00faf::t_e89a736b195779 57,79-86
+docs/packages/index.md
+  s_1f9b145d32d38a::t_ac065368aad164 3
+docs/why.md
+  s_1f9b145d32d38a::t_31370dd3c36c69 86,123,142,160
+framework/README.md
+  s_1f9b145d32d38a::t_5fc1c3f89b5a9b 55,196,208
+framework/README_cn.md
+  s_1f9b145d32d38a::t_598f37ca8915c7 55,196,208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "dd596e8eda260340305c79c37ceec8cbe3202503",
+  "prompts": {},
+  "sessions": {
+    "s_1f9b145d32d38a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a26853272434433d2",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_5cc31262f00faf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad840826679649947",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
