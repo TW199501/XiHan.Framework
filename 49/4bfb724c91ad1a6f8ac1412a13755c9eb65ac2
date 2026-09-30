@@ -1,0 +1,31 @@
+docs/guide/tasks.md
+  s_68ced7fbd7c504::t_34d7449e84da71 283-290
+docs/packages/tasks.md
+  s_e7c8c51b260cad::t_0234b0b6d752f3 85,152-153
+framework/src/XiHan.Framework.Tasks/README.md
+  s_68ced7fbd7c504::t_adf5979fe367e6 62-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "494bfb724c91ad1a6f8ac1412a13755c9eb65ac2",
+  "prompts": {},
+  "sessions": {
+    "s_68ced7fbd7c504": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2c313248573fcb1c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_e7c8c51b260cad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a9ad7c426c6c050b7",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
