@@ -6,9 +6,9 @@
     <Import Project="..\..\props\nuget.props" />
 
     <PropertyGroup>
-        <Title>XiHan.Framework.Entitlements</Title>
-        <AssemblyName>XiHan.Framework.Entitlements</AssemblyName>
-        <PackageId>XiHan.Framework.Entitlements</PackageId>
+        <Title>XiHan.Framework.Quotas</Title>
+        <AssemblyName>XiHan.Framework.Quotas</AssemblyName>
+        <PackageId>XiHan.Framework.Quotas</PackageId>
         <Description>曦寒框架用量配额模块</Description>
         <OutputType>Library</OutputType>
     </PropertyGroup>

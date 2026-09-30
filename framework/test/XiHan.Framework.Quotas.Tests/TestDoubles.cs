@@ -1,10 +1,10 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-using XiHan.Framework.Entitlements.Quotas;
-using XiHan.Framework.Entitlements.Quotas.Abstractions;
+using XiHan.Framework.Quotas;
+using XiHan.Framework.Quotas.Abstractions;
 
-namespace XiHan.Framework.Entitlements.Tests;
+namespace XiHan.Framework.Quotas.Tests;
 
 /// <summary>
 /// 固定返回同一条政策的配额政策提供器测试桩

@@ -3,7 +3,7 @@
 
 using XiHan.Framework.Timing;
 
-namespace XiHan.Framework.Entitlements.Tests;
+namespace XiHan.Framework.Quotas.Tests;
 
 /// <summary>
 /// 可拨动测试时钟

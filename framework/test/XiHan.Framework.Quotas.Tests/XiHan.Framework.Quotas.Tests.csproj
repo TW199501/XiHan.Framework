@@ -6,7 +6,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\XiHan.Framework.Core\XiHan.Framework.Core.csproj" />
-        <ProjectReference Include="..\..\src\XiHan.Framework.Entitlements\XiHan.Framework.Entitlements.csproj" />
+        <ProjectReference Include="..\..\src\XiHan.Framework.Quotas\XiHan.Framework.Quotas.csproj" />
     </ItemGroup>
 
 </Project>

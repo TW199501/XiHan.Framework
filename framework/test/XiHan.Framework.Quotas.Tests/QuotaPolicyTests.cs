@@ -1,15 +1,15 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-using XiHan.Framework.Entitlements.Providers;
-using XiHan.Framework.Entitlements.Quotas;
+using XiHan.Framework.Quotas.Providers;
+using XiHan.Framework.Quotas;
 
-namespace XiHan.Framework.Entitlements.Tests;
+namespace XiHan.Framework.Quotas.Tests;
 
 /// <summary>
 /// 配额政策契约测试
 /// </summary>
-public class EntitlementPolicyTests
+public class QuotaPolicyTests
 {
     /// <summary>
     /// 默认配额政策提供器一律返回无政策

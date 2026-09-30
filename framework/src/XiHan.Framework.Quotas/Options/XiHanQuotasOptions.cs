@@ -1,17 +1,17 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-namespace XiHan.Framework.Entitlements.Options;
+namespace XiHan.Framework.Quotas.Options;
 
 /// <summary>
 /// 曦寒配额选项
 /// </summary>
-public class XiHanEntitlementsOptions
+public class XiHanQuotasOptions
 {
     /// <summary>
     /// 配置节名称
     /// </summary>
-    public const string SectionName = "XiHan:Entitlements";
+    public const string SectionName = "XiHan:Quotas";
 
     /// <summary>
     /// 预留默认存活时长

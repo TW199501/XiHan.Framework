@@ -3,14 +3,14 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.Framework.Core.Modularity;
-using XiHan.Framework.Entitlements.Extensions.DependencyInjection;
-using XiHan.Framework.Entitlements.Providers;
-using XiHan.Framework.Entitlements.Quotas.Abstractions;
-using XiHan.Framework.Entitlements.Quotas.Stores;
+using XiHan.Framework.Quotas.Extensions.DependencyInjection;
+using XiHan.Framework.Quotas.Providers;
+using XiHan.Framework.Quotas.Abstractions;
+using XiHan.Framework.Quotas.Stores;
 using XiHan.Framework.Timing;
 using XiHan.Framework.Timing.Extensions.DependencyInjection;
 
-namespace XiHan.Framework.Entitlements.Tests;
+namespace XiHan.Framework.Quotas.Tests;
 
 /// <summary>
 /// 配额政策与配额存储的注册测试
@@ -26,7 +26,7 @@ public class RegistrationTests
         var services = new ServiceCollection();
         services.AddXiHanTiming();
 
-        services.AddXiHanEntitlements();
+        services.AddXiHanQuotas();
 
         var provider = services.BuildServiceProvider();
         Assert.IsType<DefaultQuotaPolicyProvider>(provider.GetRequiredService<IQuotaPolicyProvider>());
@@ -42,7 +42,7 @@ public class RegistrationTests
         var services = new ServiceCollection();
         services.AddSingleton<IQuotaPolicyProvider, StubQuotaPolicyProvider>();
 
-        services.AddXiHanEntitlements();
+        services.AddXiHanQuotas();
 
         Assert.Equal(
             typeof(StubQuotaPolicyProvider),
@@ -57,8 +57,8 @@ public class RegistrationTests
     {
         var services = new ServiceCollection();
 
-        services.AddXiHanEntitlements();
-        services.AddXiHanEntitlements();
+        services.AddXiHanQuotas();
+        services.AddXiHanQuotas();
 
         Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaPolicyProvider));
         Assert.Single(services, static descriptor => descriptor.ServiceType == typeof(IQuotaStore));
@@ -70,7 +70,7 @@ public class RegistrationTests
     [Fact]
     public void 模块只声明时间模块为依赖()
     {
-        var dependsOn = (DependsOnAttribute[])typeof(XiHanEntitlementsModule)
+        var dependsOn = (DependsOnAttribute[])typeof(XiHanQuotasModule)
             .GetCustomAttributes(typeof(DependsOnAttribute), inherit: true);
 
         var declared = dependsOn.SelectMany(static attribute => attribute.DependedTypes).ToArray();
@@ -88,7 +88,7 @@ public class RegistrationTests
     public void 配额模块不引用授权与Web与ORM程序集()
     {
         var referenced = Array.ConvertAll(
-            typeof(XiHanEntitlementsModule).Assembly.GetReferencedAssemblies(),
+            typeof(XiHanQuotasModule).Assembly.GetReferencedAssemblies(),
             static assembly => assembly.Name ?? string.Empty);
 
         Assert.DoesNotContain("XiHan.Framework.Authorization", referenced);

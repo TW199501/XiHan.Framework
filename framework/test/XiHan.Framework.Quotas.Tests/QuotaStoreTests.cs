@@ -1,11 +1,11 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-using XiHan.Framework.Entitlements.Options;
-using XiHan.Framework.Entitlements.Quotas;
-using XiHan.Framework.Entitlements.Quotas.Stores;
+using XiHan.Framework.Quotas.Options;
+using XiHan.Framework.Quotas;
+using XiHan.Framework.Quotas.Stores;
 
-namespace XiHan.Framework.Entitlements.Tests;
+namespace XiHan.Framework.Quotas.Tests;
 
 /// <summary>
 /// 进程内默认配额存储测试
@@ -474,9 +474,9 @@ public class QuotaStoreTests
     /// </summary>
     /// <param name="configure">选项调整</param>
     /// <returns>默认存储</returns>
-    private DefaultQuotaStore CreateStore(Action<XiHanEntitlementsOptions>? configure = null)
+    private DefaultQuotaStore CreateStore(Action<XiHanQuotasOptions>? configure = null)
     {
-        var options = new XiHanEntitlementsOptions();
+        var options = new XiHanQuotasOptions();
         configure?.Invoke(options);
 
         return new DefaultQuotaStore(_clock, Microsoft.Extensions.Options.Options.Create(options));

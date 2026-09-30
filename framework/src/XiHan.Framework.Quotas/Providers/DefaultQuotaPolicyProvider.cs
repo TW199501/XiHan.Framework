@@ -1,10 +1,10 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-using XiHan.Framework.Entitlements.Quotas;
-using XiHan.Framework.Entitlements.Quotas.Abstractions;
+using XiHan.Framework.Quotas;
+using XiHan.Framework.Quotas.Abstractions;
 
-namespace XiHan.Framework.Entitlements.Providers;
+namespace XiHan.Framework.Quotas.Providers;
 
 /// <summary>
 /// 配额政策提供器的框架默认实现

@@ -2,11 +2,11 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Microsoft.Extensions.Options;
-using XiHan.Framework.Entitlements.Options;
-using XiHan.Framework.Entitlements.Quotas.Abstractions;
+using XiHan.Framework.Quotas.Options;
+using XiHan.Framework.Quotas.Abstractions;
 using XiHan.Framework.Timing;
 
-namespace XiHan.Framework.Entitlements.Quotas.Stores;
+namespace XiHan.Framework.Quotas.Stores;
 
 /// <summary>
 /// 配额用量存储的进程内默认实现
@@ -18,8 +18,8 @@ namespace XiHan.Framework.Entitlements.Quotas.Stores;
 /// </para>
 /// <para>
 /// 周期与过期一律按 UTC 判定，取自 <see cref="IClock.Now"/> 并按其 Kind 归一化，Kind 未标注时按 UTC 处理。
-/// 记录数与桶数分别受 <see cref="XiHanEntitlementsOptions.MaxTrackedReservations"/> 与
-/// <see cref="XiHanEntitlementsOptions.MaxTrackedBuckets"/> 约束：到达上限时先回收过期预留与超出保留期的去重记录，
+/// 记录数与桶数分别受 <see cref="XiHanQuotasOptions.MaxTrackedReservations"/> 与
+/// <see cref="XiHanQuotasOptions.MaxTrackedBuckets"/> 约束：到达上限时先回收过期预留与超出保留期的去重记录，
 /// 仍放不下则按容量不足拒绝新预留，绝不驱逐仍在占用额度的活动预留。
 /// </para>
 /// <para>
@@ -30,7 +30,7 @@ namespace XiHan.Framework.Entitlements.Quotas.Stores;
 public class DefaultQuotaStore : IQuotaStore
 {
     private readonly IClock _clock;
-    private readonly XiHanEntitlementsOptions _options;
+    private readonly XiHanQuotasOptions _options;
     private readonly object _sync = new();
     private readonly Dictionary<OperationKey, TrackedReservation> _operations = [];
     private readonly Dictionary<BucketKey, Bucket> _buckets = [];
@@ -42,7 +42,7 @@ public class DefaultQuotaStore : IQuotaStore
     /// <param name="options">配额选项</param>
     /// <exception cref="ArgumentNullException">时钟或选项为 null</exception>
     /// <exception cref="ArgumentOutOfRangeException">选项中的时长或容量不是正数</exception>
-    public DefaultQuotaStore(IClock clock, IOptions<XiHanEntitlementsOptions> options)
+    public DefaultQuotaStore(IClock clock, IOptions<XiHanQuotasOptions> options)
     {
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(options);

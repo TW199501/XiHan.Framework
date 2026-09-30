@@ -1,7 +1,7 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-namespace XiHan.Framework.Entitlements.Quotas;
+namespace XiHan.Framework.Quotas;
 
 /// <summary>
 /// 配额预留请求
