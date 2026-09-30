@@ -1,0 +1,31 @@
+framework/README.md
+  s_94057b8e5cf9b6::t_86f665e57d67e3 91
+docs/guide/event-bus.md
+  s_94057b8e5cf9b6::t_51780feda3a461 242,360
+docs/.vitepress/config.ts
+  s_94057b8e5cf9b6::t_bd17e2257e5c0b 169
+docs/packages/index.md
+  s_94057b8e5cf9b6::t_886cd5de4ac141 85
+docs/packages/eventbus.md
+  s_94057b8e5cf9b6::t_6f74d60611a5ef 223
+docs/packages/eventbus-sqlsugar.md
+  s_94057b8e5cf9b6::t_47544fd465b32b 1-214
+framework/README_cn.md
+  s_94057b8e5cf9b6::t_4101a7efe7f8d3 91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "932df90a027b62d1da6385bf34c7a71a99c3091c",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
