@@ -1,0 +1,33 @@
+framework/src/XiHan.Framework.Web.Api.SqlSugar/Extensions/DependencyInjection/XiHanWebApiSqlSugarServiceCollectionExtensions.cs
+  s_d7865709efdd70::t_e3db3b093905a7 1-34
+framework/src/XiHan.Framework.Web.Api.SqlSugar/Idempotency/SqlSugarIdempotencyStore.cs
+  s_d7865709efdd70::t_d41b277a9efef3 1-245
+framework/src/XiHan.Framework.Web.Api.SqlSugar/XiHanWebApiSqlSugarModule.cs
+  s_d7865709efdd70::t_b4749b422bedb3 4,7,23-33
+framework/test/XiHan.Framework.Web.Api.SqlSugar.Tests/Idempotency/IdempotencyStoreTestContext.cs
+  s_d7865709efdd70::t_60d23de39e0969 1-197
+framework/test/XiHan.Framework.Web.Api.SqlSugar.Tests/Idempotency/ManualTimeProvider.cs
+  s_d7865709efdd70::t_0df40a1be0f22f 1-28
+framework/test/XiHan.Framework.Web.Api.SqlSugar.Tests/Idempotency/SqlSugarIdempotencyConcurrencyTests.cs
+  s_d7865709efdd70::t_21324d2233d75a 1-76
+framework/test/XiHan.Framework.Web.Api.SqlSugar.Tests/Idempotency/SqlSugarIdempotencyRegistrationTests.cs
+  s_d7865709efdd70::t_7c5a5b89efe8ac 1-49
+framework/test/XiHan.Framework.Web.Api.SqlSugar.Tests/Idempotency/SqlSugarIdempotencyStoreTests.cs
+  s_d7865709efdd70::t_e277b0909ea9e7 1-289
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ee0a5d0d7225cce721db0ca3dd413b67dff3eb1b",
+  "prompts": {},
+  "sessions": {
+    "s_d7865709efdd70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2cc20933541d6b87",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
