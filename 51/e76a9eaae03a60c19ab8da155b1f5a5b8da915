@@ -1,0 +1,22 @@
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Executor/JobExecutorTests.cs
+  s_94057b8e5cf9b6::t_76eb0134518e02 370-416,515
+  s_94057b8e5cf9b6::t_757cf1a93cf604 516-585
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Executor/JobExecutor.cs
+  s_94057b8e5cf9b6::t_5eb01b0780e2d0 56,80,106-121,123-135,137-143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "51e76a9eaae03a60c19ab8da155b1f5a5b8da915",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
