@@ -26,6 +26,12 @@ namespace XiHan.Framework.Quotas.Stores;
 /// 提交与释放按预留标识定位到它原来所属的桶，因此周期滚动后的迟到结算只改动旧桶，不污染新周期。
 /// 超额、冲突与终态不可回退都以类型化结果返回，不抛业务异常。
 /// </para>
+/// <para>
+/// 显式无限额政策不参与用量计数：它只跟踪预留记录以维持状态机与去重，桶的已提交与已预留恒不计入该记录。
+/// 因此把政策从无限额改成有限额后，用量从零点起算，无限额期间的消耗不计入新上限；
+/// 反向改成无限额时，既有记录仍按它预留当时的记账判定结算或到期释放，不会被卡住。
+/// 无限额配额的用量观测不属于配额计数器。
+/// </para>
 /// </remarks>
 public class DefaultQuotaStore : IQuotaStore
 {
@@ -117,10 +123,11 @@ public class DefaultQuotaStore : IQuotaStore
                     QuotaReserveStatus.CapacityExhausted, null, Snapshot(bucket!, request.Policy.Limit)));
             }
 
-            if (request.Policy.Limit is { } limit && bucket!.Committed + bucket.Reserved + request.Amount > limit)
+            var accounted = request.Policy.Limit is not null;
+            if (accounted && bucket!.Committed + bucket.Reserved + request.Amount > request.Policy.Limit)
             {
                 return Task.FromResult(new QuotaReserveResult(
-                    QuotaReserveStatus.Exceeded, null, Snapshot(bucket, limit)));
+                    QuotaReserveStatus.Exceeded, null, Snapshot(bucket, request.Policy.Limit)));
             }
 
             var reservation = new QuotaReservation(
@@ -133,14 +140,20 @@ public class DefaultQuotaStore : IQuotaStore
                 utcNow.Add(request.ReservationTtl ?? _options.DefaultReservationTtl),
                 QuotaReservationState.Reserved);
 
-            var tracked = new TrackedReservation(reservation, bucket);
+            var tracked = new TrackedReservation(reservation, bucket, accounted);
             bucket.Values.Add(tracked);
-            bucket.Reserved += request.Amount;
+            if (accounted)
+            {
+                bucket.Reserved += request.Amount;
+            }
+
             bucket.LastTouchedUtc = utcNow;
             _operations[key] = tracked;
 
             return Task.FromResult(new QuotaReserveResult(
-                QuotaReserveStatus.Reserved, reservation, Snapshot(bucket, request.Policy.Limit)));
+                accounted ? QuotaReserveStatus.Reserved : QuotaReserveStatus.Unlimited,
+                reservation,
+                Snapshot(bucket, request.Policy.Limit)));
         }
     }
 
@@ -258,8 +271,12 @@ public class DefaultQuotaStore : IQuotaStore
             case QuotaReservationState.Reserved:
                 tracked.Reservation = reservation.WithState(QuotaReservationState.Committed);
                 tracked.SettledUtc = utcNow;
-                bucket.Reserved -= reservation.Amount;
-                bucket.Committed += reservation.Amount;
+                if (tracked.Accounted)
+                {
+                    bucket.Reserved -= reservation.Amount;
+                    bucket.Committed += reservation.Amount;
+                }
+
                 bucket.LastTouchedUtc = utcNow;
                 return Settled(QuotaSettlementStatus.Committed, tracked);
             case QuotaReservationState.Committed:
@@ -287,7 +304,11 @@ public class DefaultQuotaStore : IQuotaStore
             case QuotaReservationState.Reserved:
                 tracked.Reservation = reservation.WithState(QuotaReservationState.Released);
                 tracked.SettledUtc = utcNow;
-                bucket.Reserved -= reservation.Amount;
+                if (tracked.Accounted)
+                {
+                    bucket.Reserved -= reservation.Amount;
+                }
+
                 bucket.LastTouchedUtc = utcNow;
                 return Settled(QuotaSettlementStatus.Released, tracked);
             case QuotaReservationState.Released:
@@ -347,7 +368,11 @@ public class DefaultQuotaStore : IQuotaStore
         // 到期时刻才是预留真正进入终态的时刻：清扫可能远晚于它发生，用当前时刻会变相延长保留期
         tracked.SettledUtc = tracked.Reservation.ExpiresAt;
         tracked.Reservation = tracked.Reservation.WithState(QuotaReservationState.Expired);
-        tracked.Bucket.Reserved -= tracked.Reservation.Amount;
+        if (tracked.Accounted)
+        {
+            tracked.Bucket.Reserved -= tracked.Reservation.Amount;
+        }
+
         tracked.Bucket.LastTouchedUtc = utcNow;
     }
 
@@ -566,7 +591,8 @@ public class DefaultQuotaStore : IQuotaStore
     /// </summary>
     /// <param name="reservation">预留记录</param>
     /// <param name="bucket">所属桶</param>
-    private sealed class TrackedReservation(QuotaReservation reservation, Bucket bucket)
+    /// <param name="accounted">预留当时是否参与用量计数</param>
+    private sealed class TrackedReservation(QuotaReservation reservation, Bucket bucket, bool accounted)
     {
         /// <summary>
         /// 预留记录
@@ -582,6 +608,11 @@ public class DefaultQuotaStore : IQuotaStore
         /// 所属桶
         /// </summary>
         public Bucket Bucket { get; } = bucket;
+
+        /// <summary>
+        /// 预留当时是否参与用量计数，结算沿用该判定而不重新取当前政策
+        /// </summary>
+        public bool Accounted { get; } = accounted;
 
         /// <summary>
         /// 本记录对应的预留标识

@@ -435,6 +435,90 @@ public class QuotaStoreTests
     }
 
     /// <summary>
+    /// 无限额政策放行但不占用用量计数
+    /// </summary>
+    [Fact]
+    public async Task 无限额政策不占用用量计数()
+    {
+        var store = CreateStore();
+        var unlimited = QuotaPolicy.Unlimited("v1");
+
+        var first = await store.ReserveAsync(new QuotaReserveRequest(1001, "quota", "op-1", 5, unlimited));
+        var second = await store.ReserveAsync(new QuotaReserveRequest(1001, "quota", "op-2", 5, unlimited));
+
+        Assert.Equal(QuotaReserveStatus.Unlimited, first.Status);
+        Assert.True(first.Allowed);
+        Assert.Null(first.Usage.Limit);
+        Assert.Equal(0, first.Usage.Reserved);
+        Assert.Equal(0, second.Usage.Committed);
+        Assert.Equal(0, second.Usage.Reserved);
+    }
+
+    /// <summary>
+    /// 无限额改成有限额后用量从零点重新计，无限额期间的消耗不计入
+    /// </summary>
+    [Fact]
+    public async Task 无限额转有限额后用量从零起算()
+    {
+        var store = CreateStore();
+        await store.ReserveAsync(new QuotaReserveRequest(
+            1001, "quota", "op-1", 100, QuotaPolicy.Unlimited("v1")));
+        await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
+
+        var limited = QuotaPolicy.Limited(10, QuotaPeriod.None, "v2");
+        var withinLimit = await store.ReserveAsync(new QuotaReserveRequest(1001, "quota", "op-2", 10, limited));
+        await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-2"));
+        var overLimit = await store.ReserveAsync(new QuotaReserveRequest(1001, "quota", "op-3", 1, limited));
+
+        Assert.True(withinLimit.Allowed);
+        Assert.Equal(QuotaReserveStatus.Exceeded, overLimit.Status);
+        Assert.Equal(10, overLimit.Usage.Committed);
+    }
+
+    /// <summary>
+    /// 有限额改成无限额后既有预留仍能正常结算，不被卡住
+    /// </summary>
+    [Fact]
+    public async Task 有限额转无限额后既有预留仍可结算()
+    {
+        var store = CreateStore();
+        await store.ReserveAsync(Reserve(1001, "op-1", 4));
+
+        var committed = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
+
+        Assert.Equal(QuotaSettlementStatus.Committed, committed.Status);
+        Assert.Equal(4, committed.Usage.Committed);
+        Assert.Equal(0, committed.Usage.Reserved);
+
+        var again = await store.ReserveAsync(
+            new QuotaReserveRequest(1001, "quota", "op-1", 4, QuotaPolicy.Unlimited("v1")));
+        Assert.Equal(QuotaReserveStatus.Replayed, again.Status);
+    }
+
+    /// <summary>
+    /// 有限额改成无限额后到期的既有预留仍能到期释放，不永久占额
+    /// </summary>
+    [Fact]
+    public async Task 有限额转无限额后到期预留仍可回收()
+    {
+        var store = CreateStore(static options => options.MaxTrackedReservations = 1);
+        await store.ReserveAsync(new QuotaReserveRequest(
+            1001, "quota", "op-1", 4, QuotaPolicy.Limited(10, QuotaPeriod.None, "v1"),
+            TimeSpan.FromMinutes(1)));
+
+        _clock.Advance(TimeSpan.FromMinutes(2));
+        var blocked = await store.ReserveAsync(
+            new QuotaReserveRequest(1001, "quota", "op-2", 4, QuotaPolicy.Unlimited("v2")));
+        Assert.Equal(QuotaReserveStatus.CapacityExhausted, blocked.Status);
+
+        _clock.Advance(TimeSpan.FromDays(1).Add(TimeSpan.FromMinutes(1)));
+        var afterReclaim = await store.ReserveAsync(
+            new QuotaReserveRequest(1001, "quota", "op-2", 4, QuotaPolicy.Unlimited("v2")));
+
+        Assert.Equal(QuotaReserveStatus.Unlimited, afterReclaim.Status);
+    }
+
+    /// <summary>
     /// 无记录时用量为零
     /// </summary>
     [Fact]
