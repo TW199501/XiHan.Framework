@@ -1,0 +1,109 @@
+framework/src/XiHan.Framework.Quotas/Abstractions/IQuotaPolicyProvider.cs
+  s_94057b8e5cf9b6::t_a047cb524fe95b 4
+framework/src/XiHan.Framework.Quotas/Abstractions/IQuotaStore.cs
+  s_92376bd6c8985a::t_3ba5c539e40546 4
+framework/src/XiHan.Framework.Quotas/Models/QuotaPolicy.cs
+  s_94057b8e5cf9b6::t_4d4582d3e78687 4
+framework/src/XiHan.Framework.Quotas/Models/QuotaReservationState.cs
+  s_2cb9278475926e::t_1756674885713f 4
+framework/src/XiHan.Framework.Quotas/Models/QuotaReserveRequest.cs
+  s_2cb9278475926e::t_464c4d0e53b96a 4
+framework/src/XiHan.Framework.Quotas/Models/QuotaResults.cs
+  s_2cb9278475926e::t_1a1b4cc703df1a 4
+framework/src/XiHan.Framework.Quotas/Models/QuotaUsage.cs
+  s_2cb9278475926e::t_a7491f673fa538 4
+framework/test/XiHan.Framework.Quotas.Tests/TestDoubles.cs
+  s_94057b8e5cf9b6::t_a22c155751efac 4-5,7
+framework/XiHan.Framework.slnx
+  s_d27204034a94ec::t_258a4380a92b78 47,124
+framework/src/XiHan.Framework.Quotas/Extensions/DependencyInjection/XiHanQuotasServiceCollectionExtensions.cs
+  s_aa98506bc701c1::t_c26e1ee6876976 7-10,12,17,24,30,35-36
+framework/src/XiHan.Framework.Quotas/Models/QuotaPeriod.cs
+  s_d27204034a94ec::t_68d1b76b6ba477 4
+framework/src/XiHan.Framework.Quotas/Models/QuotaReservation.cs
+  s_d27204034a94ec::t_4000b00bb994aa 4
+framework/src/XiHan.Framework.Quotas/Options/XiHanQuotasOptions.cs
+  s_aa98506bc701c1::t_2207656c7224ef 4,9,14
+framework/src/XiHan.Framework.Quotas/Providers/DefaultQuotaPolicyProvider.cs
+  s_d27204034a94ec::t_b3090ef14ef7be 4-5,7
+framework/src/XiHan.Framework.Quotas/Stores/DefaultQuotaStore.cs
+  s_d27204034a94ec::t_bfa2b6e495a875 5-6,9,21-22,33,45
+framework/src/XiHan.Framework.Quotas/XiHan.Framework.Quotas.csproj
+  s_d27204034a94ec::t_775fef1319def5 9-11
+framework/src/XiHan.Framework.Quotas/XiHanQuotasModule.cs
+  s_d27204034a94ec::t_f1b327d505e6af 6,9,15,22,32
+framework/test/XiHan.Framework.Quotas.Tests/QuotaPolicyTests.cs
+  s_ad00201e60ab90::t_e5c9ac1b1da5c1 4-5,7,12
+framework/test/XiHan.Framework.Quotas.Tests/QuotaStoreTests.cs
+  s_d27204034a94ec::t_b60df82f30f5a2 4-6,8,477,479
+framework/test/XiHan.Framework.Quotas.Tests/RegistrationTests.cs
+  s_ad00201e60ab90::t_6f708a06214342 6-9,13,29,45,60-61,73,91
+framework/test/XiHan.Framework.Quotas.Tests/TestClock.cs
+  s_6e00d2c44946d2::t_905fa693bb159b 6
+framework/test/XiHan.Framework.Quotas.Tests/XiHan.Framework.Quotas.Tests.csproj
+  s_d27204034a94ec::t_a7c7b5dce167db 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "cecbdbf82f4bb63b952748b70d41b97d01d51cff",
+  "prompts": {},
+  "sessions": {
+    "s_2cb9278475926e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb8aa516-acb9-47a8-8e8d-6115a93bfa1b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_6e00d2c44946d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0dab3da2-f9eb-4bd1-ab07-9e4b2850bb4a",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_92376bd6c8985a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f221-ef1d-7d30-b8f2-e024fea1796e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_aa98506bc701c1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2e5ccafddb622943",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_ad00201e60ab90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ade383cd58d38fcfb",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_d27204034a94ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a336deab2b94c2a09",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
