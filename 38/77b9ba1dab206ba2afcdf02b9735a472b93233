@@ -1,0 +1,85 @@
+docs/guide/tasks.md
+  s_94057b8e5cf9b6::t_d809045c5d7299 402-403,477
+docs/packages/tasks-sqlsugar.md
+  s_94057b8e5cf9b6::t_5e757d2bcf926b 1-168
+docs/packages/tasks.md
+  s_94057b8e5cf9b6::t_42a6138598d6d9 405,416,418,431
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_90180130be0fb6 64,133
+framework/src/XiHan.Framework.Tasks.SqlSugar/BackgroundJobs/SqlSugarBackgroundJobStore.cs
+  s_94057b8e5cf9b6::t_a390effe06a20a 1-197
+framework/src/XiHan.Framework.Tasks.SqlSugar/Clients/TasksHostClientAccessor.cs
+  s_94057b8e5cf9b6::t_26e53d868b3098 1-72
+framework/src/XiHan.Framework.Tasks.SqlSugar/Entities/SysBackgroundJob.cs
+  s_94057b8e5cf9b6::t_d823f36fe71364 1-107
+framework/src/XiHan.Framework.Tasks.SqlSugar/Entities/SysJobHistory.cs
+  s_94057b8e5cf9b6::t_e64ccc1e1f4bf2 1-129
+framework/src/XiHan.Framework.Tasks.SqlSugar/Entities/SysJobInstance.cs
+  s_94057b8e5cf9b6::t_807bedf1237b02 1-129
+framework/src/XiHan.Framework.Tasks.SqlSugar/Extensions/DependencyInjection/XiHanTasksSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_1269ee3c5829ea 1-47
+framework/src/XiHan.Framework.Tasks.SqlSugar/Mapping/BackgroundJobMapper.cs
+  s_94057b8e5cf9b6::t_0a3bc2501a1e6e 1-74
+framework/src/XiHan.Framework.Tasks.SqlSugar/Mapping/JobStoreMapper.cs
+  s_94057b8e5cf9b6::t_23df7fd1ea1743 1-262
+framework/src/XiHan.Framework.Tasks.SqlSugar/Options/XiHanTasksSqlSugarOptions.cs
+  s_94057b8e5cf9b6::t_ad3cedbf9774a7 1-30
+framework/src/XiHan.Framework.Tasks.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_69e4e947ac7c17 1-73
+framework/src/XiHan.Framework.Tasks.SqlSugar/ScheduledJobs/SqlSugarJobStore.cs
+  s_94057b8e5cf9b6::t_acba346548fd62 1-268
+framework/src/XiHan.Framework.Tasks.SqlSugar/XiHan.Framework.Tasks.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_af822f44f47a6b 1-21
+framework/src/XiHan.Framework.Tasks.SqlSugar/XiHanTasksSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_3f89a37e8f7823 1-34
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobClaimTests.cs
+  s_94057b8e5cf9b6::t_30588066c47e20 1-257
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobConcurrencyTests.cs
+  s_94057b8e5cf9b6::t_43ebefb44757ae 1-128
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobEnqueueTransactionTests.cs
+  s_94057b8e5cf9b6::t_eb984cf48567f8 1-224
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobMapperTests.cs
+  s_94057b8e5cf9b6::t_a4c6026e4a9f42 1-102
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobStoreTests.cs
+  s_94057b8e5cf9b6::t_6880aa10a90db2 1-194
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/FakeClock.cs
+  s_94057b8e5cf9b6::t_354767759d2cfd 1-76
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/JobStoreHistoryTests.cs
+  s_94057b8e5cf9b6::t_a723b9fbab7b39 1-161
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/JobStoreInstanceTests.cs
+  s_94057b8e5cf9b6::t_0a55bdef808411 1-342
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/JobStoreMapperTests.cs
+  s_94057b8e5cf9b6::t_e7a40883e3a267 1-213
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/StubClientResolver.cs
+  s_94057b8e5cf9b6::t_60af5c38f151ff 1-114
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/SysBackgroundJobTests.cs
+  s_94057b8e5cf9b6::t_d4dc325b7179f2 1-60
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/SysJobEntitiesTests.cs
+  s_94057b8e5cf9b6::t_c542bdc3e3104d 1-51
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/TasksHostClientAccessorTests.cs
+  s_94057b8e5cf9b6::t_cb48635ca3f2cb 1-107
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/TasksSqlSugarRegistrationTests.cs
+  s_94057b8e5cf9b6::t_a4c6223a501ab1 1-110
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/TasksTestContext.cs
+  s_94057b8e5cf9b6::t_a74234f3ac7fea 1-132
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHan.Framework.Tasks.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_727bbdbfba2a38 1-11
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHanTasksSqlSugarOptionsTests.cs
+  s_94057b8e5cf9b6::t_f96c18f24d6a40 1-163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3877b9ba1dab206ba2afcdf02b9735a472b93233",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
