@@ -1,0 +1,53 @@
+framework/src/XiHan.Framework.Tasks.SqlSugar/BackgroundJobs/SqlSugarBackgroundJobStore.cs
+  s_5cc31262f00faf::t_f152452d54ebdc 21-22,46-55,67,109,111,123-124,151,173,179-180,183,211-474
+framework/src/XiHan.Framework.Tasks.SqlSugar/Entities/SysBackgroundJob.cs
+  s_873e87d2a0d2fe::t_628afa88a021ab 107-112
+framework/src/XiHan.Framework.Tasks.SqlSugar/Mapping/BackgroundJobMapper.cs
+  s_873e87d2a0d2fe::t_77fe888d6aa1eb 15,36-37,42,62-64
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobLeaseConcurrencyTests.cs
+  s_7d4bd2e5a98aaf::t_062304e0f53fbd 1-150
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobLeaseTests.cs
+  s_7d4bd2e5a98aaf::t_33fba3b2ff8ef9 1-389
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/BackgroundJobManagementStoreTests.cs
+  s_6f512baaa6cbe7::t_8598374bad8d2d 1-191
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "820cf5e23d85b0671fc1c0011ce008fe3d40ccbb",
+  "prompts": {},
+  "sessions": {
+    "s_5cc31262f00faf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad840826679649947",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_6f512baaa6cbe7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac9ec7af3effda14a",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_7d4bd2e5a98aaf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a39de079df8241e70",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_873e87d2a0d2fe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aeef5d2a2e6b09a1b",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
