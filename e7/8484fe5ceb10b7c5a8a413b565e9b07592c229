@@ -1,0 +1,40 @@
+docs/guide/tasks.md
+  h_be8240d2cfaa4b 428,453-481
+docs/packages/tasks.md
+  h_be8240d2cfaa4b 117-118,201-205,245,257-260,425,427-432
+framework/src/XiHan.Framework.Tasks/README.md
+  h_be8240d2cfaa4b 18-19,32
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Abstractions/IJobStore.cs
+  h_be8240d2cfaa4b 60-79
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Configuration/XiHanJobOptions.cs
+  h_be8240d2cfaa4b 41-60
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Configuration/XiHanJobOptionsValidator.cs
+  h_be8240d2cfaa4b 1-52
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionExtensions.cs
+  h_be8240d2cfaa4b 7,53-54,83
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Hosting/JobHistoryCleanupService.cs
+  h_be8240d2cfaa4b 1-118
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Store/DefaultJobStore.cs
+  h_be8240d2cfaa4b 169-232
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionExtensionsTests.cs
+  h_be8240d2cfaa4b 110-111
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionRegistrationIdempotencyTests.cs
+  h_be8240d2cfaa4b 94-95
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Hosting/JobHistoryCleanupServiceTests.cs
+  h_be8240d2cfaa4b 1-428
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Store/DefaultJobStoreCleanupTests.cs
+  h_be8240d2cfaa4b 1-200
+framework/test/XiHan.Framework.Tasks.Tests/XiHan.Framework.Tasks.Tests.csproj
+  h_be8240d2cfaa4b 11-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e78484fe5ceb10b7c5a8a413b565e9b07592c229",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
