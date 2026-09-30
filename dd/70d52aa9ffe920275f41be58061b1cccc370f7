@@ -1,0 +1,37 @@
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/BackgroundJobWorker.cs
+  s_68ced7fbd7c504::t_1e8a16532a07c5 4,24,32,35,42-59,61-62,67,157-158,160,162,179-191,256-458,474,476-479,497-576,591-620
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/BackgroundJobWorkerLeaseTests.cs
+  s_68ced7fbd7c504::t_bd49a1b61f91a1 1-558
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/Fakes/GatedBackgroundJobExecuter.cs
+  s_68ced7fbd7c504::t_6fff4d71eb179d 1-78
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/Fakes/LeaseAwareBackgroundJobStore.cs
+  s_68ced7fbd7c504::t_f98da481794879 1-202
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/Fakes/TimerTrackingTimeProvider.cs
+  s_68ced7fbd7c504::t_ba6f455d77535e 1-66
+framework/test/XiHan.Framework.Tasks.Tests/XiHan.Framework.Tasks.Tests.csproj
+  s_fa95a8f5948695::t_07464c82d602a0 11-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "dd70d52aa9ffe920275f41be58061b1cccc370f7",
+  "prompts": {},
+  "sessions": {
+    "s_68ced7fbd7c504": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2c313248573fcb1c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_fa95a8f5948695": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ab2c89250d787d95b",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
