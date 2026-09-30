@@ -6,21 +6,35 @@ using XiHan.Framework.Timing;
 namespace XiHan.Framework.Quotas.Tests;
 
 /// <summary>
-/// 可拨动测试时钟
+/// 可拨动且可标注时间类型的测试时钟
 /// </summary>
 internal sealed class TestClock : IClock
 {
-    private DateTime _now = new(2026, 9, 30, 8, 0, 0, DateTimeKind.Utc);
+    private DateTime _utcNow = new(2026, 9, 30, 8, 0, 0, DateTimeKind.Utc);
 
     /// <summary>
-    /// 当前时间
+    /// 构造测试时钟
     /// </summary>
-    public DateTime Now => _now;
+    /// <param name="kind">Now 返回时标注的时间类型</param>
+    public TestClock(DateTimeKind kind = DateTimeKind.Utc)
+    {
+        Kind = kind;
+    }
 
     /// <summary>
-    /// 时间类型，固定 UTC
+    /// 当前时间，按 <see cref="Kind"/> 标注同一瞬时
     /// </summary>
-    public DateTimeKind Kind => DateTimeKind.Utc;
+    public DateTime Now => Kind switch
+    {
+        DateTimeKind.Utc => _utcNow,
+        DateTimeKind.Local => TimeZoneInfo.ConvertTimeFromUtc(_utcNow, TimeZoneInfo.Local),
+        _ => DateTime.SpecifyKind(_utcNow, DateTimeKind.Unspecified)
+    };
+
+    /// <summary>
+    /// 时间类型
+    /// </summary>
+    public DateTimeKind Kind { get; }
 
     /// <summary>
     /// 是否支持多时区，固定不支持
@@ -33,7 +47,7 @@ internal sealed class TestClock : IClock
     /// <param name="duration">前进时长</param>
     public void Advance(TimeSpan duration)
     {
-        _now = _now.Add(duration);
+        _utcNow = _utcNow.Add(duration);
     }
 
     /// <summary>

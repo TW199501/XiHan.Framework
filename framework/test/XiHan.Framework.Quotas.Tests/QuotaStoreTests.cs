@@ -583,6 +583,23 @@ public class QuotaStoreTests
     }
 
     /// <summary>
+    /// 超出可表示范围的预留存活时长被夹取而不抛异常
+    /// </summary>
+    [Fact]
+    public async Task 超长预留存活时长被夹取()
+    {
+        var store = CreateStore();
+
+        var result = await store.ReserveAsync(new QuotaReserveRequest(
+            1001, "quota", "op-1", 1, Limited(10), TimeSpan.MaxValue));
+        var committed = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
+
+        Assert.True(result.Allowed);
+        Assert.Equal(DateTimeOffset.MaxValue, result.Reservation!.ExpiresAt);
+        Assert.Equal(QuotaSettlementStatus.Committed, committed.Status);
+    }
+
+    /// <summary>
     /// 无记录时用量为零
     /// </summary>
     [Fact]
@@ -658,20 +675,251 @@ public class QuotaStoreTests
     }
 
     /// <summary>
-    /// 超出可表示范围的预留存活时长被夹取而不抛异常
+    /// 同一瞬时在 UTC 与本地两种标注下落进同一个桶
+    /// </summary>
+    /// <remarks>
+    /// 关系式断言，不重抄实现的换算：两台时钟给出同一瞬时、只是 Kind 标注不同，
+    /// 归一化正确就必须得到相同的周期起点与到期时刻。
+    /// </remarks>
+    /// <param name="kind">被测时钟的时间标注</param>
+    [Theory]
+    [InlineData(DateTimeKind.Local)]
+    [InlineData(DateTimeKind.Unspecified)]
+    public async Task 同一瞬时不同Kind的时钟落进同一个桶(DateTimeKind kind)
+    {
+        var reference = CreateStoreWithKind(DateTimeKind.Utc);
+        var underTest = CreateStoreWithKind(kind);
+
+        var expected = await reference.ReserveAsync(Reserve(1001, "op-1", 3));
+        var actual = await underTest.ReserveAsync(Reserve(1001, "op-1", 3));
+
+        Assert.Equal(expected.Reservation!.PeriodStart, actual.Reservation!.PeriodStart);
+        Assert.Equal(expected.Reservation.ExpiresAt, actual.Reservation.ExpiresAt);
+        Assert.Equal(expected.Usage.Reserved, actual.Usage.Reserved);
+    }
+
+    /// <summary>
+    /// 重复释放幂等且不再改动用量
     /// </summary>
     [Fact]
-    public async Task 超长预留存活时长被夹取()
+    public async Task 重复释放幂等且不再改动用量()
     {
         var store = CreateStore();
+        await store.ReserveAsync(Reserve(1001, "op-1", 4));
+        await store.ReleaseAsync(new QuotaReservationKey(1001, "quota", "op-1"));
 
-        var result = await store.ReserveAsync(new QuotaReserveRequest(
-            1001, "quota", "op-1", 1, Limited(10), TimeSpan.MaxValue));
-        var committed = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
+        var again = await store.ReleaseAsync(new QuotaReservationKey(1001, "quota", "op-1"));
 
-        Assert.True(result.Allowed);
-        Assert.Equal(DateTimeOffset.MaxValue, result.Reservation!.ExpiresAt);
-        Assert.Equal(QuotaSettlementStatus.Committed, committed.Status);
+        Assert.Equal(QuotaSettlementStatus.AlreadyReleased, again.Status);
+        Assert.Equal(0, again.Usage.Committed);
+        Assert.Equal(0, again.Usage.Reserved);
+    }
+
+    /// <summary>
+    /// 桶被驱逐后迟到结算返回未找到且不重建桶
+    /// </summary>
+    [Fact]
+    public async Task 桶被驱逐后迟到结算返回未找到()
+    {
+        var store = CreateStore(static options =>
+        {
+            options.MaxTrackedBuckets = 1;
+            options.MaxTrackedReservations = 100;
+        });
+        await store.ReserveAsync(Reserve(1001, "op-1", 6));
+        await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
+
+        _clock.Advance(TimeSpan.FromDays(2));
+        var evicting = await store.ReserveAsync(Reserve(1001, "op-2", 1));
+        var late = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
+
+        Assert.True(evicting.Allowed);
+        Assert.Equal(QuotaSettlementStatus.NotFound, late.Status);
+        Assert.Null(late.Reservation);
+        Assert.Equal(0, late.Usage.Committed);
+        Assert.Equal(1, evicting.Usage.Committed + evicting.Usage.Reserved);
+    }
+
+    /// <summary>
+    /// 预留在同一周期被下一次预留惰性归还
+    /// </summary>
+    /// <remarks>
+    /// 全程不调用提交或释放：到期预留必须在下次同桶预留时被回收，否则额度永久占用。
+    /// </remarks>
+    [Fact]
+    public async Task 到期预留在下次同桶预留时惰性归还()
+    {
+        var store = CreateStore();
+        await store.ReserveAsync(new QuotaReserveRequest(
+            1001, "quota", "op-1", 10, Limited(10), TimeSpan.FromMinutes(1)));
+
+        _clock.Advance(TimeSpan.FromMinutes(2));
+        var followUp = await store.ReserveAsync(Reserve(1001, "op-2", 10));
+        var lateCommit = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
+
+        Assert.True(followUp.Allowed);
+        Assert.Equal(10, followUp.Usage.Reserved);
+        Assert.Equal(0, followUp.Usage.Committed);
+        Assert.Equal(QuotaSettlementStatus.Expired, lateCommit.Status);
+    }
+
+    /// <summary>
+    /// 并发重试同一操作只扣一次额
+    /// </summary>
+    [Fact]
+    public async Task 并发重试同一操作只扣一次额()
+    {
+        var store = CreateStore();
+        var tasks = Enumerable.Range(0, 16)
+            .Select(_ => Task.Run(() => store.ReserveAsync(Reserve(1001, "op-1", 3))))
+            .ToArray();
+
+        var results = await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30));
+
+        Assert.Equal(1, results.Count(item => item.Status == QuotaReserveStatus.Reserved));
+        Assert.Equal(15, results.Count(item => item.Status == QuotaReserveStatus.Replayed));
+        Assert.Equal(3, results[^1].Usage.Reserved);
+    }
+
+    /// <summary>
+    /// 并发结算同一预留只提交一次
+    /// </summary>
+    [Fact]
+    public async Task 并发结算同一预留只提交一次()
+    {
+        var store = CreateStore();
+        await store.ReserveAsync(Reserve(1001, "op-1", 3));
+        var tasks = Enumerable.Range(0, 16)
+            .Select(_ => Task.Run(() => store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"))))
+            .ToArray();
+
+        var results = await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30));
+
+        Assert.Equal(1, results.Count(item => item.Status == QuotaSettlementStatus.Committed));
+        Assert.Equal(15, results.Count(item => item.Status == QuotaSettlementStatus.AlreadyCommitted));
+        Assert.Equal(3, results[^1].Usage.Committed);
+        Assert.Equal(0, results[^1].Usage.Reserved);
+    }
+
+    /// <summary>
+    /// 剩余量不为负
+    /// </summary>
+    [Fact]
+    public void 政策降级后剩余量钳位为零()
+    {
+        var usage = new QuotaUsage(3, 10, 0);
+
+        Assert.Equal(0, usage.Remaining);
+    }
+
+    /// <summary>
+    /// 存储与契约对 null 依赖与非法参数快速失败
+    /// </summary>
+    [Fact]
+    public async Task null依赖与非法参数快速失败()
+    {
+        var options = Microsoft.Extensions.Options.Options.Create(new XiHanQuotasOptions());
+        Assert.Throws<ArgumentNullException>(() => new DefaultQuotaStore(null!, options));
+        Assert.Throws<ArgumentNullException>(
+            () => new DefaultQuotaStore(new TestClock(), null!));
+
+        var store = CreateStore();
+        await Assert.ThrowsAsync<ArgumentNullException>(() => store.ReserveAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => store.CommitAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => store.ReleaseAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => store.FindUsageAsync(1001, "quota", null!));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => store.FindUsageAsync(-1, "quota", Limited(10)));
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => store.FindUsageAsync(1001, " ", Limited(10)));
+    }
+
+    /// <summary>
+    /// 配额数值入参越界快速失败
+    /// </summary>
+    /// <param name="tenantId">租户标识</param>
+    /// <param name="quotaKey">配额项标识</param>
+    /// <param name="operationId">操作标识</param>
+    /// <param name="amount">预留量</param>
+    [Theory]
+    [InlineData(-1, "quota", "op", 1)]
+    [InlineData(1001, "quota", "op", 0)]
+    [InlineData(1001, "quota", "op", -1)]
+    public void 配额数值入参越界快速失败(
+        long tenantId, string quotaKey, string operationId, long amount)
+    {
+        var policy = QuotaPolicy.Limited(10, QuotaPeriod.Day, "v1");
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => new QuotaReserveRequest(tenantId, quotaKey, operationId, amount, policy));
+    }
+
+    /// <summary>
+    /// 预留标识的租户越界快速失败
+    /// </summary>
+    [Fact]
+    public void 预留标识租户越界快速失败()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new QuotaReservationKey(-1, "quota", "op"));
+    }
+
+    /// <summary>
+    /// 配额标识空白快速失败
+    /// </summary>
+    /// <param name="tenantId">租户标识</param>
+    /// <param name="quotaKey">配额项标识</param>
+    /// <param name="operationId">操作标识</param>
+    [Theory]
+    [InlineData(1001, "", "op")]
+    [InlineData(1001, "   ", "op")]
+    [InlineData(1001, "quota", "")]
+    [InlineData(1001, "quota", "  ")]
+    public void 配额标识空白快速失败(long tenantId, string quotaKey, string operationId)
+    {
+        var policy = QuotaPolicy.Limited(10, QuotaPeriod.Day, "v1");
+
+        Assert.Throws<ArgumentException>(
+            () => new QuotaReserveRequest(tenantId, quotaKey, operationId, 1, policy));
+        Assert.Throws<ArgumentException>(() => new QuotaReservationKey(tenantId, quotaKey, operationId));
+    }
+
+    /// <summary>
+    /// 预留存活时长非正与政策缺失快速失败
+    /// </summary>
+    [Fact]
+    public void 预留时长非正与政策缺失快速失败()
+    {
+        var policy = QuotaPolicy.Limited(10, QuotaPeriod.Day, "v1");
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new QuotaReserveRequest(
+            1001, "quota", "op", 1, policy, TimeSpan.Zero));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new QuotaReserveRequest(
+            1001, "quota", "op", 1, policy, TimeSpan.FromSeconds(-1)));
+        Assert.Throws<ArgumentNullException>(() => new QuotaReserveRequest(
+            1001, "quota", "op", 1, null!));
+        Assert.Throws<ArgumentNullException>(() => new QuotaReserveResult(
+            QuotaReserveStatus.Exceeded, null, null!));
+    }
+
+    /// <summary>
+    /// 用量快照不接受负数
+    /// </summary>
+    [Fact]
+    public void 用量快照不接受负数()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new QuotaUsage(10, -1, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new QuotaUsage(10, 0, -1));
+    }
+
+    /// <summary>
+    /// 创建指定时间标注时钟驱动的存储
+    /// </summary>
+    /// <param name="kind">时间标注</param>
+    /// <returns>默认存储</returns>
+    private DefaultQuotaStore CreateStoreWithKind(DateTimeKind kind)
+    {
+        return new DefaultQuotaStore(
+            new TestClock(kind), Microsoft.Extensions.Options.Options.Create(new XiHanQuotasOptions()));
     }
 
     /// <summary>
