@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <Import Project="..\..\props\netcore.props" />
+    <Import Project="..\..\props\common.props" />
+    <Import Project="..\..\props\version.props" />
+    <Import Project="..\..\props\nuget.props" />
+
+    <PropertyGroup>
+        <Title>XiHan.Framework.Entitlements</Title>
+        <AssemblyName>XiHan.Framework.Entitlements</AssemblyName>
+        <PackageId>XiHan.Framework.Entitlements</PackageId>
+        <Description>曦寒框架租户功能授权与用量配额模块</Description>
+        <OutputType>Library</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\XiHan.Framework.Core\XiHan.Framework.Core.csproj" />
+    </ItemGroup>
+
+</Project>
