@@ -208,7 +208,7 @@ public abstract class OutboxContract
         var workers = clients.Select(client => Task.Run(async () =>
         {
             var claimedIds = new List<Guid>();
-            while (true)
+            for (var round = 0; round <= eventCount; round++)
             {
                 var batch = await client.GetWaitingEventsAsync(10, cancellationToken: cancellationToken);
                 if (batch.Count == 0)
@@ -218,11 +218,14 @@ public abstract class OutboxContract
 
                 claimedIds.AddRange(batch.Select(item => item.Id));
             }
+
+            Assert.Fail("并发领取未在预期轮数内取空，提供方可能没有标记已领取的记录。");
+            return claimedIds;
         }, cancellationToken));
 
         var claimed = (await Task.WhenAll(workers)).SelectMany(item => item).ToList();
 
-        Assert.Equal(claimed.Count, claimed.Distinct().Count());
+        Assert.Distinct(claimed);
         Assert.Equal(eventCount, claimed.Count);
     }
 

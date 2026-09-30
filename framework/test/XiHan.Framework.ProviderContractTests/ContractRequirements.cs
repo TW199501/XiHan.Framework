@@ -23,7 +23,7 @@ internal static class ContractRequirements
     /// 让已取回的记录重新对所有客户端可见
     /// </summary>
     /// <remarks>
-    /// 不做独占领取的提供方无需处理；做独占领取但不支持领取过期的提供方无法验证后续取回，跳过当前用例。
+    /// 未声明独占领取时不做处理；声明独占领取但未声明领取过期时跳过当前用例。
     /// </remarks>
     /// <typeparam name="TProvider">被测契约类型</typeparam>
     /// <param name="fixture">夹具</param>
@@ -36,12 +36,14 @@ internal static class ContractRequirements
             return;
         }
 
-        Require(fixture.Capabilities, ProviderCapabilities.ClaimExpiry);
+        Assert.SkipUnless(
+            fixture.Capabilities.HasFlag(ProviderCapabilities.ClaimExpiry),
+            "本用例需要让已领取记录重新可见，提供方未声明 ClaimExpiry 能力，跳过本契约用例。");
         await fixture.ExpireClaimsAsync();
     }
 
     /// <summary>
-    /// 把时间截到整秒，避免不同数据库的时间精度影响比较
+    /// 把时间截到整秒
     /// </summary>
     /// <param name="value">时间</param>
     /// <returns>截到整秒的 UTC 时间</returns>

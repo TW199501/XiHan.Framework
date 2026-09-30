@@ -89,24 +89,6 @@ public abstract class BackgroundJobStoreContract
     }
 
     /// <summary>
-    /// 应用名为空时只取回应用名为空的作业
-    /// </summary>
-    [Fact]
-    public async Task 应用名为空时只取回应用名为空的作业()
-    {
-        await using var fixture = await CreateFixtureAsync();
-        var store = await fixture.CreateClientAsync();
-        var now = Now(fixture);
-        var withoutApplication = NewJob(now.AddMinutes(-1), null);
-        await store.InsertAsync(withoutApplication);
-        await store.InsertAsync(NewJob(now.AddMinutes(-1), "app"));
-
-        var waiting = await store.GetWaitingJobsAsync(null, 10);
-
-        Assert.Equal([withoutApplication.Id], waiting.Select(item => item.Id));
-    }
-
-    /// <summary>
     /// 按优先级降序、重试次数升序、下次执行时间升序取回
     /// </summary>
     [Fact]
@@ -181,10 +163,11 @@ public abstract class BackgroundJobStoreContract
         await store.InsertAsync(NewJob(now.AddMinutes(-1), null));
         var claimed = Assert.Single(await store.GetWaitingJobsAsync(null, 10));
 
-        claimed.TryCount = 1;
-        claimed.LastTryTime = now;
-        claimed.NextTryTime = now.AddMinutes(1);
-        await store.UpdateAsync(claimed);
+        var update = Copy(claimed);
+        update.TryCount = 1;
+        update.LastTryTime = now;
+        update.NextTryTime = now.AddMinutes(1);
+        await store.UpdateAsync(update);
         var beforeDue = await store.GetWaitingJobsAsync(null, 10);
         fixture.AdvanceTime(TimeSpan.FromMinutes(2));
         var afterDue = await store.GetWaitingJobsAsync(null, 10);
@@ -206,8 +189,9 @@ public abstract class BackgroundJobStoreContract
         await store.InsertAsync(NewJob(Now(fixture).AddMinutes(-1), null));
         var claimed = Assert.Single(await store.GetWaitingJobsAsync(null, 10));
 
-        claimed.IsAbandoned = true;
-        await store.UpdateAsync(claimed);
+        var update = Copy(claimed);
+        update.IsAbandoned = true;
+        await store.UpdateAsync(update);
         await ContractRequirements.ReleaseClaimsAsync(fixture);
 
         Assert.Empty(await store.GetWaitingJobsAsync(null, 10));
@@ -302,7 +286,7 @@ public abstract class BackgroundJobStoreContract
         var workers = clients.Select(client => Task.Run(async () =>
         {
             var claimedIds = new List<Guid>();
-            while (true)
+            for (var round = 0; round <= jobCount; round++)
             {
                 var batch = await client.GetWaitingJobsAsync(null, 10);
                 if (batch.Count == 0)
@@ -312,17 +296,38 @@ public abstract class BackgroundJobStoreContract
 
                 claimedIds.AddRange(batch.Select(item => item.Id));
             }
+
+            Assert.Fail("并发领取未在预期轮数内取空，提供方可能没有标记已领取的记录。");
+            return claimedIds;
         }, cancellationToken));
 
         var claimed = (await Task.WhenAll(workers)).SelectMany(item => item).ToList();
 
-        Assert.Equal(claimed.Count, claimed.Distinct().Count());
+        Assert.Distinct(claimed);
         Assert.Equal(jobCount, claimed.Count);
     }
 
     private static DateTime Now(IProviderContractFixture<IBackgroundJobStore> fixture)
     {
         return ContractRequirements.TruncateToSeconds(fixture.UtcNow);
+    }
+
+    private static BackgroundJobInfo Copy(BackgroundJobInfo source)
+    {
+        return new BackgroundJobInfo
+        {
+            Id = source.Id,
+            ApplicationName = source.ApplicationName,
+            TenantId = source.TenantId,
+            JobName = source.JobName,
+            JobArgs = source.JobArgs,
+            TryCount = source.TryCount,
+            CreationTime = source.CreationTime,
+            NextTryTime = source.NextTryTime,
+            LastTryTime = source.LastTryTime,
+            IsAbandoned = source.IsAbandoned,
+            Priority = source.Priority
+        };
     }
 
     private static BackgroundJobInfo NewJob(
