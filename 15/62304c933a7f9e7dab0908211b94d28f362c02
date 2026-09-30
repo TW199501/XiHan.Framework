@@ -1,0 +1,29 @@
+README.md
+  s_74801554e170b0::t_d3e9c974d4624a 187
+docs/.vitepress/config.ts
+  s_74801554e170b0::t_38702e4f99b6d0 230
+docs/packages/web-api-sqlsugar.md
+  s_74801554e170b0::t_f180f272628eeb 1-130
+docs/packages/web-api.md
+  s_74801554e170b0::t_c84739478df3c3 404,437
+framework/src/XiHan.Framework.Web.Api.SqlSugar/README.md
+  s_74801554e170b0::t_5fda9457eddc93 1-123
+framework/src/XiHan.Framework.Web.Api/README.md
+  s_74801554e170b0::t_23860337784436 82,115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1562304c933a7f9e7dab0908211b94d28f362c02",
+  "prompts": {},
+  "sessions": {
+    "s_74801554e170b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-abe100db06d9f655f",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
