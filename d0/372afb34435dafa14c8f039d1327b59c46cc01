@@ -1,0 +1,32 @@
+framework/src/XiHan.Framework.Quotas/Abstractions/IQuotaService.cs
+  h_be8240d2cfaa4b 1-84
+framework/src/XiHan.Framework.Quotas/Extensions/DependencyInjection/XiHanQuotasServiceCollectionExtensions.cs
+  h_be8240d2cfaa4b 7,10,25-26,55
+framework/src/XiHan.Framework.Quotas/Models/QuotaResults.cs
+  h_be8240d2cfaa4b 40-46,60,62-66,84,86,150-155
+framework/src/XiHan.Framework.Quotas/Services/QuotaService.cs
+  h_be8240d2cfaa4b 1-159
+framework/src/XiHan.Framework.Quotas/XiHan.Framework.Quotas.csproj
+  h_be8240d2cfaa4b 18
+framework/src/XiHan.Framework.Quotas/XiHanQuotasModule.cs
+  h_be8240d2cfaa4b 6,18-19,22
+framework/test/XiHan.Framework.Quotas.Tests/QuotaServiceTests.cs
+  h_be8240d2cfaa4b 1-378
+framework/test/XiHan.Framework.Quotas.Tests/QuotaStoreTests.cs
+  h_be8240d2cfaa4b 29-31,67,83,266-268,318,398-399,444,461-464,485,546,728,770,791-792,811,973-982
+framework/test/XiHan.Framework.Quotas.Tests/RegistrationTests.cs
+  h_be8240d2cfaa4b 8,38-42,74,118,121,128,132,136,139,150-151
+framework/test/XiHan.Framework.Quotas.Tests/XiHan.Framework.Quotas.Tests.csproj
+  h_be8240d2cfaa4b 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d0372afb34435dafa14c8f039d1327b59c46cc01",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
