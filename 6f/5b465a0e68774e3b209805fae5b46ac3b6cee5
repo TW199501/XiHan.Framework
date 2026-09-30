@@ -1,0 +1,125 @@
+framework/templates/content/xihan-web/src/XiHanWebApp/appsettings.json
+  s_79e0b4ece13e38::t_9b93c33739f1bb 1-57
+framework/templates/content/xihan-module/src/XiHanModuleLib/FeatureNameModule.cs
+  s_79e0b4ece13e38::t_ca0e71f3e79d28 1-22
+framework/templates/content/xihan-web/test/XiHanWebApp.Tests/HealthCheckTests.cs
+  s_79e0b4ece13e38::t_6fd7ad222f72a9 1-21
+framework/templates/content/xihan-web/.template.config/dotnetcli.host.json
+  s_79e0b4ece13e38::t_2abac5382cccad 1-21
+framework/templates/content/xihan-web/src/XiHanWebApp/Data/TodoItemAppService.cs
+  s_79e0b4ece13e38::t_1c533b8db71c58 1-48
+framework/templates/content/xihan-web/test/XiHanWebApp.Tests/WebAppHostFactory.cs
+  s_1f02830958a1f1::t_957add2116ca44 1-35
+  s_1f02830958a1f1::t_03ae7ae3a80ea0 36-38
+  s_79e0b4ece13e38::t_4f2c33c755a8e0 39
+framework/templates/content/xihan-web/test/XiHanWebApp.Tests/TodoItemApiTests.cs
+  s_79e0b4ece13e38::t_f1c8595d36076c 1-65
+framework/templates/content/xihan-web/XiHanWebApp.slnx
+  s_79e0b4ece13e38::t_1f0f598d361605 1-8
+framework/templates/content/xihan-web/src/XiHanWebApp/Data/TodoItem.cs
+  s_79e0b4ece13e38::t_66847a4e35f67a 1-27
+framework/templates/content/xihan-module/.template.config/dotnetcli.host.json
+  s_1f02830958a1f1::t_8627077553e110 1-9
+framework/templates/content/xihan-module/src/XiHanModuleLib/XiHanModuleLib.csproj
+  s_79e0b4ece13e38::t_52c49f7ada575b 1-17
+framework/templates/content/xihan-web/src/XiHanWebApp/Properties/launchSettings.json
+  s_79e0b4ece13e38::t_ae6d5323e10fdf 1-15
+framework/templates/content/xihan-web/test/XiHanWebApp.Tests/XiHanWebApp.Tests.csproj
+  s_79e0b4ece13e38::t_c5616c741824c9 1-25
+framework/templates/content/xihan-module/test/XiHanModuleLib.Tests/XiHanModuleLib.Tests.csproj
+  s_1f02830958a1f1::t_257670ee121828 1-28
+framework/templates/content/xihan-web/test/XiHanWebApp.Tests/TenantApiTests.cs
+  s_79e0b4ece13e38::t_1557d27e87944f 1-52
+framework/templates/content/xihan-web/src/XiHanWebApp/XiHanWebApp.csproj
+  s_79e0b4ece13e38::t_6f0a10b8eaa444 1-20
+framework/templates/content/xihan-web/src/XiHanWebApp/WebAppHostModule.cs
+  s_79e0b4ece13e38::t_d80243bbf9e062 1-46
+framework/templates/content/xihan-web/src/XiHanWebApp/appsettings.Development.json
+  s_79e0b4ece13e38::t_de0de189b74b94 1-8
+framework/templates/content/xihan-module/src/XiHanModuleLib/Services/IFeatureNameService.cs
+  s_79e0b4ece13e38::t_1eb837839c203f 1-15
+framework/templates/content/xihan-module/global.json
+  s_1f02830958a1f1::t_788d98554ffe2b 1-9
+framework/templates/content/xihan-web/.gitignore
+  s_79e0b4ece13e38::t_c62ad4ee72e628 1-8
+framework/templates/content/xihan-web/README.md
+  s_1f02830958a1f1::t_af671ae73d702f 1-42
+framework/templates/content/xihan-web/test/XiHanWebApp.Tests/ApiResult.cs
+  s_1f02830958a1f1::t_2e13d3a298ea0b 1-51
+framework/templates/content/xihan-web/src/XiHanWebApp/MultiTenancy/TenantAppService.cs
+  s_79e0b4ece13e38::t_7d447cde164db3 1-45
+framework/templates/content/xihan-module/.template.config/template.json
+  s_79e0b4ece13e38::t_8ecad705b0d369 1-59
+framework/templates/content/xihan-web/.template.config/template.json
+  s_79e0b4ece13e38::t_7345176a9f4bf8 1-114
+framework/templates/content/xihan-module/.gitignore
+  s_1f02830958a1f1::t_16428b935baede 1-4
+framework/templates/content/xihan-module/XiHanModuleLib.slnx
+  s_1f02830958a1f1::t_525b393176140a 1-8
+framework/templates/content/xihan-web/src/XiHanWebApp/Data/TodoItemDtos.cs
+  s_79e0b4ece13e38::t_71f45f1c8382ae 1-33
+framework/templates/README.md
+  s_86c242ab8689e9::t_d3c54312f720de 1-120
+framework/templates/XiHan.Framework.Templates.csproj
+  s_86c242ab8689e9::t_2e7425ed9d1cc3 1-79
+framework/templates/content/xihan-web/src/XiHanWebApp/Program.cs
+  s_79e0b4ece13e38::t_6638c968baf8e8 1-19
+framework/templates/content/xihan-web/Directory.Build.props
+  s_79e0b4ece13e38::t_452710963dd94e 1-10
+framework/templates/content/xihan-module/src/XiHanModuleLib/Services/DefaultFeatureNameService.cs
+  s_79e0b4ece13e38::t_d26268fd7a8ee6 1-20
+framework/templates/Test-XiHanTemplates.ps1
+  s_79e0b4ece13e38::t_2509af5c9681b1 337-339
+  s_79e0b4ece13e38::t_b86595bca67b53 86-88,327-329
+  s_79e0b4ece13e38::t_c1050296638cf0 82-84
+  s_79e0b4ece13e38::t_7a88c80994c295 330-336
+  s_79e0b4ece13e38::t_b253a1b27dbfb3 1-81,89-326,340-509
+  s_79e0b4ece13e38::t_15723ea43cbf34 85
+  s_79e0b4ece13e38::t_443b5f0d832b93 510
+framework/templates/content/xihan-module/src/XiHanModuleLib/README.md
+  s_1f02830958a1f1::t_c82059c749b99b 1-51
+framework/templates/content/xihan-web/test/XiHanWebApp.Tests/HelloApiTests.cs
+  s_1f02830958a1f1::t_0f0fda5ba4b86c 1-23
+framework/templates/content/xihan-module/src/XiHanModuleLib/Options/FeatureNameOptions.cs
+  s_79e0b4ece13e38::t_2c6c9bac2d5a31 1-17
+framework/templates/content/xihan-module/src/XiHanModuleLib/Extensions/DependencyInjection/FeatureNameServiceCollectionExtensions.cs
+  s_79e0b4ece13e38::t_912d813115ae31 1-30
+framework/templates/content/xihan-web/global.json
+  s_79e0b4ece13e38::t_a6215e363f85e3 1-9
+framework/templates/content/xihan-web/src/XiHanWebApp/Services/HelloAppService.cs
+  s_79e0b4ece13e38::t_c99065e35c512a 1-21
+framework/templates/content/xihan-module/test/XiHanModuleLib.Tests/FeatureNameModuleTests.cs
+  s_79e0b4ece13e38::t_a48caf67dd6e86 1-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6f5b465a0e68774e3b209805fae5b46ac3b6cee5",
+  "prompts": {},
+  "sessions": {
+    "s_1f02830958a1f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac8af68eee3761ab5",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_79e0b4ece13e38": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2cbd0695b6128e7c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_86c242ab8689e9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5b5ced4d7315e284",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
