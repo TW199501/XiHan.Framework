@@ -1,0 +1,21 @@
+framework/src/XiHan.Framework.Quotas/Stores/DefaultQuotaStore.cs
+  s_072e6859a17306::t_8770aed5411896 107,217,404,407,417,420-421,423,602,604-609
+framework/test/XiHan.Framework.Quotas.Tests/QuotaStoreTests.cs
+  s_072e6859a17306::t_3dc85007f4c2f7 557-584
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fea5a84b8b9fb772d71ed47cdc05c3f18eaab0c4",
+  "prompts": {},
+  "sessions": {
+    "s_072e6859a17306": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a62b12f130d053e30",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
