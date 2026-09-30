@@ -1,0 +1,19 @@
+framework/src/XiHan.Framework.Analyzers/ApiUsage/XiHanApiUsageRule.cs
+  s_1f02830958a1f1::t_38658324a8b47a 30-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "5dd28c14f87357d137d0ff3e474eb204d99d4303",
+  "prompts": {},
+  "sessions": {
+    "s_1f02830958a1f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac8af68eee3761ab5",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
