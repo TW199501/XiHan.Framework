@@ -1,0 +1,18 @@
+docs/introduction.md
+  h_be8240d2cfaa4b 79-86
+framework/README.md
+  h_be8240d2cfaa4b 208
+framework/README_cn.md
+  h_be8240d2cfaa4b 208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "95562c420b0f7f991dd06b8a07a8b82bd2d37100",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
