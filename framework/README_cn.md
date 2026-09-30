@@ -95,6 +95,7 @@
 | `EventBus.SqlSugar` | 事件收发件箱 SqlSugar 持久化提供程序：发件箱按业务所在库落库，收件箱按消息标识去重，多实例领取互斥 |
 | `Workflow.Abstractions` | 工作流抽象：流程定义模型、活动契约、运行时实例与书签模型、存储端口、人工任务契约，不含执行实现 |
 | `Workflow` | 工作流引擎：图执行引擎、内置活动集、人工任务（审批）、表达式求值、定时器调度、内存存储默认实现 |
+| `Workflow.SqlSugar` | 工作流 SqlSugar 持久化提供程序：定义、实例、执行历史与书签落库，每次存储操作独立事务提交 |
 | `Castle` | AOP 动态代理：Castle DynamicProxy 集成，服务拦截器注册 |
 | `Logging` | 结构化日志：Serilog 集成、文件/控制台输出、异步写入 |
 | `Serialization` | 序列化：基于 System.Text.Json 的动态 JSON 操作、序列化选项组合 |
