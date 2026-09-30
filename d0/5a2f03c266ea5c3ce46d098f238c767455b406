@@ -1,0 +1,18 @@
+framework/src/XiHan.Framework.Quotas/Models/QuotaUsage.cs
+  h_be8240d2cfaa4b 38-41
+framework/src/XiHan.Framework.Quotas/Stores/DefaultQuotaStore.cs
+  h_be8240d2cfaa4b 284,315
+framework/test/XiHan.Framework.Quotas.Tests/QuotaStoreTests.cs
+  h_be8240d2cfaa4b 267-274,807,826
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d05a2f03c266ea5c3ce46d098f238c767455b406",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
