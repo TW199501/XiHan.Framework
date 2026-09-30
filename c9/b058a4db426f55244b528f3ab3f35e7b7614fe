@@ -1,0 +1,27 @@
+docs/packages/upgrade-sqlsugar.md
+  s_94057b8e5cf9b6::t_38877d713fd6cf 101
+framework/README.md
+  s_94057b8e5cf9b6::t_c375850992f2ca 115
+docs/packages/index.md
+  s_94057b8e5cf9b6::t_e249fffc97155a 113
+framework/README_cn.md
+  s_94057b8e5cf9b6::t_c9146ae20acc12 115
+docs/.vitepress/config.ts
+  s_94057b8e5cf9b6::t_d93edaeff54bfb 199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c9b058a4db426f55244b528f3ab3f35e7b7614fe",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
