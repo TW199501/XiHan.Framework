@@ -1,0 +1,81 @@
+framework/src/XiHan.Framework.Entitlements/Quotas/Stores/DefaultQuotaStore.cs
+  s_94057b8e5cf9b6::t_90ebe50a6bd2c5 16-99,103-107,109-116,118-119,121-128,130-139,141-353,355-358,363,365-366,368-372,374,376,381-441,443-476,478-502,504-506,508-634
+  s_94057b8e5cf9b6::t_fadbf198a46ed1 13-15
+  s_94057b8e5cf9b6::t_7376fbffa56d75 100-102
+  s_94057b8e5cf9b6::t_721f66d5ef40f4 108
+  s_94057b8e5cf9b6::t_9003e54c1cc72f 117
+  s_94057b8e5cf9b6::t_f5ecc79e29a75f 120
+  s_94057b8e5cf9b6::t_4f878255fa8f52 129
+  s_94057b8e5cf9b6::t_7a25b3075ef6cf 140
+  s_94057b8e5cf9b6::t_7785d83ed08a2b 354
+  s_94057b8e5cf9b6::t_d3115e62462ad3 359-362
+  s_94057b8e5cf9b6::t_bc71fa66b39307 364
+  s_94057b8e5cf9b6::t_49f21bca0ff0d5 367
+  s_94057b8e5cf9b6::t_042fcfbae29a58 373
+  s_94057b8e5cf9b6::t_96657c239eee77 375
+  s_94057b8e5cf9b6::t_cd61ff02641ef0 377-380
+  s_94057b8e5cf9b6::t_12a1469fcb9040 442
+  s_94057b8e5cf9b6::t_5aefa79b2f2e91 477
+  s_94057b8e5cf9b6::t_a50459b6daaecd 503
+  s_94057b8e5cf9b6::t_5748f8db31f2de 507
+  s_94057b8e5cf9b6::t_1d893f3ff8e8f8 635
+framework/src/XiHan.Framework.Entitlements/Options/XiHanEntitlementsOptions.cs
+  s_94057b8e5cf9b6::t_5a12a82fcb75a8 1-19,22-28,31-37,40,50
+  s_94057b8e5cf9b6::t_be8dd11020cbd9 20-21
+  s_94057b8e5cf9b6::t_4832081fc996fd 29-30
+  s_94057b8e5cf9b6::t_bea741d8b065ae 38-39
+  s_94057b8e5cf9b6::t_085c8b4bfa62ed 41-43,47-49
+framework/src/XiHan.Framework.Entitlements/Quotas/QuotaPolicy.cs
+  s_94057b8e5cf9b6::t_90ebe50a6bd2c5 102-118
+  s_94057b8e5cf9b6::t_5a69e96e171769 101
+framework/src/XiHan.Framework.Entitlements/Quotas/Abstractions/IQuotaStore.cs
+  s_92376bd6c8985a::t_1158c99c4a0501 1-53
+framework/src/XiHan.Framework.Entitlements/Quotas/QuotaReserveRequest.cs
+  s_2cb9278475926e::t_04d53dfd3e2039 1-75
+framework/src/XiHan.Framework.Entitlements/Quotas/QuotaResults.cs
+  s_2cb9278475926e::t_1187f8212af6c1 1-168
+framework/src/XiHan.Framework.Entitlements/Quotas/QuotaUsage.cs
+  s_2cb9278475926e::t_d33c53ef5ffada 1-91
+framework/src/XiHan.Framework.Entitlements/Extensions/DependencyInjection/XiHanEntitlementsServiceCollectionExtensions.cs
+  s_6e00d2c44946d2::t_3e4aedfda9ab2c 4,8,11,25,28,30-31,33-38,41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "50147f16bbe2ec08485007822d0b11127e4d23a5",
+  "prompts": {},
+  "sessions": {
+    "s_2cb9278475926e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb8aa516-acb9-47a8-8e8d-6115a93bfa1b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_6e00d2c44946d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0dab3da2-f9eb-4bd1-ab07-9e4b2850bb4a",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_92376bd6c8985a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f221-ef1d-7d30-b8f2-e024fea1796e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
