@@ -1,0 +1,16 @@
+framework/src/XiHan.Framework.Quotas/Stores/DefaultQuotaStore.cs
+  h_be8240d2cfaa4b 541-542,546-550
+framework/test/XiHan.Framework.Quotas.Tests/QuotaStoreTests.cs
+  h_be8240d2cfaa4b 557-576
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d32463096f68b048816b55813037847b59050da2",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
