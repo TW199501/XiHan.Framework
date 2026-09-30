@@ -51,7 +51,7 @@ dotnet add package XiHan.Framework.Analyzers
 | --- | --- | --- | --- | --- |
 | `XHFH001` | 缺少曦寒标准版权文件头 | `XiHan.FileHeader` | `Warning`（默认启用） | C# 源文件必须以标准的两行版权与 MIT 授权声明开头；缺失或不合规即触发，消息为「文件 '{0}' 缺少或未正确声明曦寒标准版权文件头」。 |
 | `XHFA001` | 避免直接 new HttpClient | `XiHan.ApiUsage` | `Info`（默认启用） | 直接创建 `HttpClient` 会绕过连接池与工厂管道，建议改用 `IHttpClientFactory` 或框架 `IHttpClientService`。 |
-| `XHFA002` | 转发取消令牌 | `XiHan.ApiUsage` | `Info`（默认启用；本仓库设为 `Warning`） | 对外可见、返回 `Task`/`ValueTask`/`IAsyncEnumerable` 且带取消令牌参数的方法，调用带可选取消令牌参数的方法时省略了该参数即触发。显式传入任何值（含 `CancellationToken.None`、`default`）不触发；Lambda、匿名方法、本地函数内的调用与生成代码不检查。提供 Code Fix：追加命名实参 `参数名: 令牌名`。 |
+| `XHFA002` | 转发取消令牌 | `XiHan.ApiUsage` | `Info`（默认启用；本仓库设为 `Warning`） | 对外可见、返回 `Task`/`ValueTask`/`IAsyncEnumerable` 且带取消令牌参数的方法，调用带可选取消令牌参数的方法时省略了该参数即触发。显式传入任何值（含 `CancellationToken.None`、`default`）不触发；Lambda、匿名方法、本地函数内的调用与生成代码不检查；只检查方法调用，不检查构造函数与隐式调用（如集合初始化器的 Add）。提供 Code Fix：追加命名实参 `参数名: 令牌名`。 |
 
 ## 主要 API / 类型
 

@@ -207,10 +207,10 @@ public class XiHanCancellationTokenForwardingAnalyzerTests
     }
 
     /// <summary>
-    /// pragma 抑制后没有未被抑制的诊断
+    /// pragma 抑制后只剩范围外的那一处未被抑制的诊断
     /// </summary>
     [Fact]
-    public async Task Pragma抑制后不报告()
+    public async Task Pragma抑制后只剩范围外的诊断()
     {
         var code = Worker(
             "    public async Task RunAsync(CancellationToken cancellationToken)",
@@ -218,9 +218,82 @@ public class XiHanCancellationTokenForwardingAnalyzerTests
             "#pragma warning disable XHFA002",
             "        await InnerAsync();",
             "#pragma warning restore XHFA002",
+            "        await InnerAsync();",
             "    }");
 
-        Assert.DoesNotContain(await AnalyzeAsync(code), item => !item.IsSuppressed);
+        var unsuppressed = (await AnalyzeAsync(code)).Where(item => !item.IsSuppressed).ToList();
+
+        Assert.Single(unsuppressed);
+    }
+
+    /// <summary>
+    /// 集合初始化器隐式调用的 Add 不报告
+    /// </summary>
+    [Fact]
+    public async Task 集合初始化器的隐式调用不报告()
+    {
+        var code = AnalyzerTestHost.Source(
+            "using System.Collections;",
+            "using System.Threading;",
+            "using System.Threading.Tasks;",
+            "namespace Demo;",
+            "public class Coll : IEnumerable",
+            "{",
+            "    public void Add(int value, CancellationToken token = default) { }",
+            "    public IEnumerator GetEnumerator() { return null!; }",
+            "}",
+            "public class Worker",
+            "{",
+            "    public async Task RunAsync(CancellationToken cancellationToken)",
+            "    {",
+            "        var coll = new Coll { 1 };",
+            "        await Task.CompletedTask;",
+            "    }",
+            "}");
+
+        Assert.Empty(await AnalyzeAsync(code));
+    }
+
+    /// <summary>
+    /// 内部接口的显式实现不对外可见，不报告
+    /// </summary>
+    [Fact]
+    public async Task 内部接口的显式实现不报告()
+    {
+        var code = AnalyzerTestHost.Source(
+            "using System.Threading;",
+            "using System.Threading.Tasks;",
+            "namespace Demo;",
+            "internal interface IWorker { Task RunAsync(CancellationToken cancellationToken); }",
+            "public class Worker : IWorker",
+            "{",
+            "    Task IWorker.RunAsync(CancellationToken cancellationToken) { return InnerAsync(); }",
+            "    private static Task InnerAsync(CancellationToken cancellationToken = default) { return Task.CompletedTask; }",
+            "}");
+
+        Assert.Empty(await AnalyzeAsync(code));
+    }
+
+    /// <summary>
+    /// 内部类型中嵌套的公开类型不对外可见，不报告
+    /// </summary>
+    [Fact]
+    public async Task 内部类型中嵌套的公开类型不报告()
+    {
+        var code = AnalyzerTestHost.Source(
+            "using System.Threading;",
+            "using System.Threading.Tasks;",
+            "namespace Demo;",
+            "internal class Outer",
+            "{",
+            "    public class Worker",
+            "    {",
+            "        public async Task RunAsync(CancellationToken cancellationToken) { await InnerAsync(); }",
+            "        private static Task InnerAsync(CancellationToken cancellationToken = default) { return Task.CompletedTask; }",
+            "    }",
+            "}");
+
+        Assert.Empty(await AnalyzeAsync(code));
     }
 
     private static string Worker(params string[] members)

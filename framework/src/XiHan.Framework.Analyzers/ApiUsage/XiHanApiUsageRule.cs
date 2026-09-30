@@ -38,7 +38,7 @@ internal static class XiHanApiUsageRule
         "转发取消令牌",
         "调用 {0} 时省略了取消令牌参数，请转发 {1}",
         Category,
-        // Info 级：直接引用分析器包的下游不被打断；本仓库在 .editorconfig 中设为 warning
+        // 默认 Info；仓库内由 .editorconfig 提升为 warning
         DiagnosticSeverity.Info,
         isEnabledByDefault: true,
         description: "对外可见的异步方法接收了取消令牌，调用带可选取消令牌参数的方法时应把它传下去；确需不可取消时显式传入 CancellationToken.None.");

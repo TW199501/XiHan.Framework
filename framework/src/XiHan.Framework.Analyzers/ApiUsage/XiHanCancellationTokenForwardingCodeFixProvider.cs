@@ -53,7 +53,7 @@ public sealed class XiHanCancellationTokenForwardingCodeFixProvider : CodeFixPro
         var invocation = root?
             .FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true)
             .FirstAncestorOrSelf<InvocationExpressionSyntax>();
-        if (root is null || invocation is null)
+        if (root is null || invocation is null || invocation.Span != diagnostic.Location.SourceSpan)
         {
             return;
         }
@@ -95,6 +95,6 @@ public sealed class XiHanCancellationTokenForwardingCodeFixProvider : CodeFixPro
     {
         return SyntaxFacts.GetKeywordKind(name) == SyntaxKind.None
             ? SyntaxFactory.IdentifierName(name)
-            : SyntaxFactory.IdentifierName(SyntaxFactory.VerbatimIdentifier(default, "@" + name, name, default));
+            : SyntaxFactory.IdentifierName(SyntaxFactory.VerbatimIdentifier(default, name, name, default));
     }
 }

@@ -95,7 +95,7 @@ public sealed class XiHanCancellationTokenForwardingAnalyzer : DiagnosticAnalyze
         }
 
         var invocation = (IInvocationOperation)context.Operation;
-        if (IsInsideNestedFunction(invocation))
+        if (invocation.IsImplicit || IsInsideNestedFunction(invocation))
         {
             return;
         }
