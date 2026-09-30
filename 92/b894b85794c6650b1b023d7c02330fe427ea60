@@ -1,0 +1,41 @@
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/Abstractions/IBackgroundJobStore.cs
+  s_5cc31262f00faf::t_b3847f545df2f5 100-102
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/BackgroundJobWorker.cs
+  s_68ced7fbd7c504::t_ece78a59c6bedb 152-166,266-269
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/BackgroundJobExecuterCancellationTests.cs
+  s_6298021088b677::t_295521793fe83e 5,62-94,102,141-189
+framework/test/XiHan.Framework.Tasks.Tests/BackgroundJobs/BackgroundJobWorkerLeaseTests.cs
+  s_68ced7fbd7c504::t_4e72dc57f3c7d9 430-458
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "92b894b85794c6650b1b023d7c02330fe427ea60",
+  "prompts": {},
+  "sessions": {
+    "s_5cc31262f00faf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad840826679649947",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_6298021088b677": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ae0e6bea004f0efec",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_68ced7fbd7c504": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2c313248573fcb1c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
