@@ -1,0 +1,43 @@
+framework/src/XiHan.Framework.EventBus/Distributed/EventBoxOutboxSenderHostedService.cs
+  s_b41ebe38befeda::t_2fd0127aec5013 16-18,96-98,107-113
+framework/src/XiHan.Framework.EventBus/Distributed/EventBoxProcessingOptions.cs
+  s_b41ebe38befeda::t_b911782fa6e861 26-40
+framework/src/XiHan.Framework.EventBus/Distributed/OutboxDeliveryTargetScanner.cs
+  s_68ced7fbd7c504::t_ddb739fc311baa 1-338
+framework/src/XiHan.Framework.EventBus/Distributed/OutboxPendingEventCounter.cs
+  s_68ced7fbd7c504::t_09d067052486e3 1-83
+framework/src/XiHan.Framework.EventBus/Extensions/DependencyInjection/XiHanEventBusServiceCollectionExtensions.cs
+  s_b41ebe38befeda::t_12b2d238b4284b 119-121
+framework/test/XiHan.Framework.EventBus.Tests/Distributed/EventBoxProcessingOptionsTests.cs
+  s_b41ebe38befeda::t_07b89b050c41b5 80-92
+framework/test/XiHan.Framework.EventBus.Tests/Distributed/OutboxDeliveryTargetScannerTests.cs
+  s_68ced7fbd7c504::t_1485f39a260e51 1-305
+framework/test/XiHan.Framework.EventBus.Tests/Distributed/OutboxTargetFakes.cs
+  s_68ced7fbd7c504::t_66a403ffc29661 1-246
+framework/test/XiHan.Framework.EventBus.Tests/Extensions/DependencyInjection/XiHanEventBusServiceCollectionExtensionsTests.cs
+  s_b41ebe38befeda::t_f43a588276a4f5 124-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "75465671a20f43a381e28323a6303a2727da3391",
+  "prompts": {},
+  "sessions": {
+    "s_68ced7fbd7c504": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2c313248573fcb1c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_b41ebe38befeda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a935df8441d52a180",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
