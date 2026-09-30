@@ -82,6 +82,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 | `Authentication` | Authentication: JWT / OAuth2 / OIDC, token factory, MFA, SSO |
 | `Authentication.SqlSugar` | SqlSugar persistence provider for authentication stores: users, refresh tokens (hash-only, reuse detection) and external-login bindings replace the in-memory defaults from `Authentication` |
 | `Authorization` | Authorization: RBAC, policy-based, claims-based |
+| `Authorization.SqlSugar` | SqlSugar persistence provider for authorization: permission, role and policy stores plus a query-based permission checker (at most two SQL statements per check) |
 | `Security` | Security and cryptography: BouncyCastle primitives, key management, password hashing, data protection |
 | `Security.SqlSugar` | Password history persistence: SqlSugar-backed `IPasswordHistoryStore` implementation |
 | `Auditing` | Audit logging: collection pipeline for operation / access / login / exception / API / entity-change logs, async queue, masking and write contracts |

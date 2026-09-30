@@ -82,6 +82,7 @@
 | `Authentication` | 认证：JWT / OAuth2 / OIDC、令牌工厂、MFA、SSO |
 | `Authentication.SqlSugar` | 认证存储 SqlSugar 提供程序：用户、刷新令牌（只存哈希、重用检测）与第三方登录绑定，以 Replace 顶替 Authentication 的内存实现 |
 | `Authorization` | 授权：RBAC、策略授权、声明授权 |
+| `Authorization.SqlSugar` | 授权存储 SqlSugar 持久化提供程序：权限、角色、策略三个存储落库，查表式权限检查器每次判定至多两条 SQL |
 | `Security` | 安全与加密：BouncyCastle 企业级密码学、密钥管理、密码哈希、数据保护 |
 | `Security.SqlSugar` | 密码历史 SqlSugar 持久化：`IPasswordHistoryStore` 的 SqlSugar 落库实现 |
 | `Auditing` | 审计日志：操作/访问/登录/异常/接口/实体变更日志的采集管道、异步队列、脱敏与写入契约 |
