@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <Import Project="..\..\props\netcore.props" />
+    <Import Project="..\..\props\common.props" />
+    <Import Project="..\..\props\version.props" />
+    <Import Project="..\..\props\nuget.props" />
+
+    <PropertyGroup>
+        <Title>XiHan.Framework.Quotas</Title>
+        <AssemblyName>XiHan.Framework.Quotas</AssemblyName>
+        <PackageId>XiHan.Framework.Quotas</PackageId>
+        <Description>曦寒框架用量配额模块</Description>
+        <OutputType>Library</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\XiHan.Framework.Core\XiHan.Framework.Core.csproj" />
+        <ProjectReference Include="..\XiHan.Framework.MultiTenancy.Abstractions\XiHan.Framework.MultiTenancy.Abstractions.csproj" />
+        <ProjectReference Include="..\XiHan.Framework.Timing\XiHan.Framework.Timing.csproj" />
+    </ItemGroup>
+
+</Project>

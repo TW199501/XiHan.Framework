@@ -58,6 +58,8 @@
     <Project Path="src/XiHan.Framework.ObjectMapping/XiHan.Framework.ObjectMapping.csproj" />
     <Project Path="src/XiHan.Framework.ObjectStorage/XiHan.Framework.ObjectStorage.csproj" />
     <Project Path="src/XiHan.Framework.Observability/XiHan.Framework.Observability.csproj" />
+    <Project Path="src/XiHan.Framework.Quotas/XiHan.Framework.Quotas.csproj" />
+    <Project Path="src/XiHan.Framework.Quotas.SqlSugar/XiHan.Framework.Quotas.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Script/XiHan.Framework.Script.csproj" />
     <Project Path="src/XiHan.Framework.SearchEngines.Abstractions/XiHan.Framework.SearchEngines.Abstractions.csproj" />
     <Project Path="src/XiHan.Framework.SearchEngines/XiHan.Framework.SearchEngines.csproj" />
@@ -121,6 +123,8 @@
     <Project Path="test/XiHan.Framework.Docs.Mcp.Web.Tests/XiHan.Framework.Docs.Mcp.Web.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Domain.Shared.Tests/XiHan.Framework.Domain.Shared.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Domain.Tests/XiHan.Framework.Domain.Tests.csproj" />
+    <Project Path="test/XiHan.Framework.Quotas.Tests/XiHan.Framework.Quotas.Tests.csproj" />
+    <Project Path="test/XiHan.Framework.Quotas.SqlSugar.Tests/XiHan.Framework.Quotas.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.Abstractions.Tests/XiHan.Framework.EventBus.Abstractions.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.Kafka.Tests/XiHan.Framework.EventBus.Kafka.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.RabbitMQ.Tests/XiHan.Framework.EventBus.RabbitMQ.Tests.csproj" />

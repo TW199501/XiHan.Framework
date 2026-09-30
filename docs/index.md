@@ -6,7 +6,7 @@ titleTemplate: 快速 轻量 高效 用心的 .NET 模块化开发框架
 hero:
   name: 曦寒开发框架
   text: .NET 现代模块化开发框架
-  tagline: 快速、轻量、高效、用心 · 77 个可独立引用的 NuGet 包
+  tagline: 快速、轻量、高效、用心 · 79 个可独立引用的 NuGet 包
   image:
     src: /images/logo.png
     alt: 曦寒开发框架
@@ -38,13 +38,13 @@ features:
 
   - title: 按需引用
     icon: 📦
-    details: 77 个包按七层组织，用什么装什么。上层包会通过 [DependsOn] 自动带上它依赖的底层，大多数包无需单独安装。
+    details: 79 个包按七层组织，用什么装什么。上层包会通过 [DependsOn] 自动带上它依赖的底层，大多数包无需单独安装。
     link: /packages/
     linkText: "浏览模块总览"
 
   - title: 企业级能力齐备
     icon: 🔐
-    details: 多租户、认证授权、工作单元与事务、缓存与分布式锁、事件总线、定时任务、工作流、审计、可观测性，按能力域分 38 章讲清楚。
+    details: 多租户、认证授权、工作单元与事务、缓存与分布式锁、事件总线、定时任务、工作流、审计、可观测性，按能力域分 39 章讲清楚。
     link: /guide/multi-tenancy
     linkText: "查看开发指南"
 
