@@ -1,0 +1,29 @@
+framework/src/XiHan.Framework.EventBus.Abstractions/Distributed/IOutboxDeliveryTargetProvider.cs
+  s_816f96bbdfb65e::t_7201237878d2bf 1-31
+framework/src/XiHan.Framework.EventBus.Abstractions/Distributed/IOutboxPendingEventCounter.cs
+  s_816f96bbdfb65e::t_165f862ff78e4f 1-22
+framework/src/XiHan.Framework.EventBus.Abstractions/Distributed/ITenantScopedEventOutbox.cs
+  s_816f96bbdfb65e::t_5e813c55f015ca 1-24
+framework/src/XiHan.Framework.EventBus.Abstractions/Distributed/OutboxDeliveryTarget.cs
+  s_816f96bbdfb65e::t_41a6ac2d95a512 1-41
+framework/src/XiHan.Framework.EventBus.Abstractions/Distributed/OutboxDeliveryTargetPage.cs
+  s_816f96bbdfb65e::t_8a126d75aa3f80 1-39
+framework/test/XiHan.Framework.EventBus.Abstractions.Tests/Distributed/OutboxDeliveryTargetTests.cs
+  s_816f96bbdfb65e::t_673f65c7307555 1-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9431e4bc4279af7db6d2645172d9f352290480cd",
+  "prompts": {},
+  "sessions": {
+    "s_816f96bbdfb65e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a24faa234a3405349",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
