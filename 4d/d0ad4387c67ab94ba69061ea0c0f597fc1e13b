@@ -1,0 +1,37 @@
+docs/guide/tasks.md
+  s_94057b8e5cf9b6::t_f974acb279b0d0 453,474
+docs/packages/tasks.md
+  s_94057b8e5cf9b6::t_e59742aa15fd20 201,203-205,245,428
+framework/src/XiHan.Framework.Tasks/README.md
+  s_94057b8e5cf9b6::t_9be2ae18bd6330 19
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Configuration/XiHanJobOptionsValidator.cs
+  s_46b3956b968a55::t_65121bec5fc77b 14-19,23-27,35,37
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Store/DefaultJobStore.cs
+  s_46b3956b968a55::t_92d3730eeebacf 199-201,205,207,209,227-232
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Hosting/JobHistoryCleanupServiceTests.cs
+  s_46b3956b968a55::t_9a3444d39bf8b6 21,25-26,144,152-155,158-159,222,226,228,234-262,291-318,323,342-353
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4dd0ad4387c67ab94ba69061ea0c0f597fc1e13b",
+  "prompts": {},
+  "sessions": {
+    "s_46b3956b968a55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a7da380f52d40321c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
