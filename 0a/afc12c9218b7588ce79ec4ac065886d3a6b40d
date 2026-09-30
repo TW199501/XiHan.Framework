@@ -1,0 +1,29 @@
+framework/src/XiHan.Framework.Web.Api/Idempotency/IdempotencyExecution.cs
+  s_94057b8e5cf9b6::t_9a96139a3965d8 1-48
+framework/src/XiHan.Framework.Web.Api/Idempotency/RequestFingerprint.cs
+  s_94057b8e5cf9b6::t_3b2af5b2e875ac 1-75
+framework/test/XiHan.Framework.Web.Api.Tests/Idempotency/IdempotencySampleController.cs
+  s_94057b8e5cf9b6::t_8ed3e2d366a0d7 1-136
+framework/test/XiHan.Framework.Web.Api.Tests/Idempotency/IdempotencyFilterTestContext.cs
+  s_94057b8e5cf9b6::t_1e9408005ba38c 1-254
+framework/test/XiHan.Framework.Web.Api.Tests/Idempotency/IdempotencyFilterTests.cs
+  s_94057b8e5cf9b6::t_b8d9a2c50dd5f0 1-235
+framework/src/XiHan.Framework.Web.Api/Filters/XiHanIdempotencyFilter.cs
+  s_94057b8e5cf9b6::t_968453cb5212c5 1-225
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "0aafc12c9218b7588ce79ec4ac065886d3a6b40d",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}

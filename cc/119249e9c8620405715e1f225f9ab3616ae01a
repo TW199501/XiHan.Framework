@@ -1,0 +1,37 @@
+framework/src/XiHan.Framework.Web.Api/Extensions/DependencyInjection/XiHanWebApiServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_81fba2a120fa5b 20,48,251-276,343-345,347-348
+framework/src/XiHan.Framework.Web.Api/Filters/XiHanUnitOfWorkFilter.cs
+  s_94057b8e5cf9b6::t_734e39d9d4e3f3 20
+framework/test/XiHan.Framework.Web.Api.Tests/XiHan.Framework.Web.Api.Tests.csproj
+  s_94057b8e5cf9b6::t_d61c0e83b09b51 8
+framework/test/XiHan.Framework.Web.Api.Tests/Idempotency/IdempotencyIntegrationTests.cs
+  s_d27204034a94ec::t_82a8f0898f1b61 1-285
+framework/test/XiHan.Framework.Web.Api.Tests/Idempotency/IdempotencyRegistrationTests.cs
+  s_d27204034a94ec::t_9ce56d456947c0 1-97
+framework/test/XiHan.Framework.Web.Api.Tests/Idempotency/IdempotencySampleController.cs
+  s_d27204034a94ec::t_985730c6f55d6d 4,89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "cc119249e9c8620405715e1f225f9ab3616ae01a",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_d27204034a94ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a336deab2b94c2a09",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
