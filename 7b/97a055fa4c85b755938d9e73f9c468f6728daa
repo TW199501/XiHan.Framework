@@ -1,0 +1,26 @@
+framework/src/XiHan.Framework.Quotas/Abstractions/IQuotaStore.cs
+  h_be8240d2cfaa4b 10,14-30,40-41,49-51,60-61,67-69,75-78
+framework/src/XiHan.Framework.Quotas/Models/QuotaReservation.cs
+  h_be8240d2cfaa4b 71-72
+framework/src/XiHan.Framework.Quotas/Models/QuotaResults.cs
+  h_be8240d2cfaa4b 27-28,69,138,151,156-157,159
+framework/src/XiHan.Framework.Quotas/Models/QuotaUsage.cs
+  h_be8240d2cfaa4b 22-26,62
+framework/src/XiHan.Framework.Quotas/Options/XiHanQuotasOptions.cs
+  h_be8240d2cfaa4b 38-39
+framework/src/XiHan.Framework.Quotas/Stores/DefaultQuotaStore.cs
+  h_be8240d2cfaa4b 249
+framework/test/XiHan.Framework.Quotas.Tests/QuotaStoreTests.cs
+  h_be8240d2cfaa4b 113-114,130-131,146,163-164,171-173,190-191,247-248,492-493,736-737,761,822-823,936-953
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7b97a055fa4c85b755938d9e73f9c468f6728daa",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
