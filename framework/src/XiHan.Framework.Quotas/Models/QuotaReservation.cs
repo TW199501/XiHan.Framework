@@ -68,7 +68,8 @@ public sealed class QuotaReservation
     public DateTimeOffset PeriodStart { get; }
 
     /// <summary>
-    /// 操作标识，与租户、配额项、周期共同构成预留标识
+    /// 操作标识。预留标识由租户、配额项与它组成，不含周期；
+    /// 周期记在 <see cref="PeriodStart"/> 上，用于把结算落回预留当时的桶
     /// </summary>
     public string OperationId { get; }
 

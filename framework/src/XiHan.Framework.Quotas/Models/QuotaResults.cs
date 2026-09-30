@@ -24,7 +24,8 @@ public enum QuotaReserveStatus
     Exceeded = 2,
 
     /// <summary>
-    /// 同一预留标识已用于不同的预留量或不同的政策版本，未占用配额
+    /// 同一预留标识已被占用且不可重开：预留量或政策版本与本请求不同，或该标识已有终态与墓碑记录。
+    /// 未占用配额，既有记录回传在 <see cref="QuotaReserveResult.Reservation"/> 供调用方区分原因
     /// </summary>
     Conflict = 3,
 
@@ -65,7 +66,7 @@ public sealed class QuotaReserveResult
     public QuotaReserveStatus Status { get; }
 
     /// <summary>
-    /// 预留记录，超额、冲突与容量不足时为 null
+    /// 预留记录：放行时为本次或既有的记录，重放与冲突回传既有记录以便区分原因，超额与容量不足时为 null
     /// </summary>
     public QuotaReservation? Reservation { get; }
 
@@ -134,10 +135,8 @@ public sealed class QuotaSettlementResult
     /// <param name="status">结算状态</param>
     /// <param name="reservation">预留记录</param>
     /// <param name="usage">用量快照</param>
-    public QuotaSettlementResult(QuotaSettlementStatus status, QuotaReservation? reservation, QuotaUsage usage)
+    public QuotaSettlementResult(QuotaSettlementStatus status, QuotaReservation? reservation, QuotaUsage? usage)
     {
-        ArgumentNullException.ThrowIfNull(usage);
-
         Status = status;
         Reservation = reservation;
         Usage = usage;
@@ -149,14 +148,15 @@ public sealed class QuotaSettlementResult
     public QuotaSettlementStatus Status { get; }
 
     /// <summary>
-    /// 预留记录，未找到时为 null
+    /// 预留记录，未找到该预留时为 null
     /// </summary>
     public QuotaReservation? Reservation { get; }
 
     /// <summary>
-    /// 本次结算后的所属周期用量快照
+    /// 本次结算后的所属周期用量快照；未找到该预留时为 null——此时无从确定它属于哪个周期，
+    /// 合成零用量会与「显式无限额」同形而被误读
     /// </summary>
-    public QuotaUsage Usage { get; }
+    public QuotaUsage? Usage { get; }
 
     /// <summary>
     /// 是否已定稿（已提交或已释放，含重复调用的幂等命中）

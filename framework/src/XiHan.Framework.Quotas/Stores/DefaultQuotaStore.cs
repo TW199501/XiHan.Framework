@@ -246,7 +246,7 @@ public class DefaultQuotaStore : IQuotaStore
             if (!_operations.TryGetValue(lookup, out var tracked))
             {
                 return Task.FromResult(new QuotaSettlementResult(
-                    QuotaSettlementStatus.NotFound, null, new QuotaUsage(null, 0, 0)));
+                    QuotaSettlementStatus.NotFound, null, null));
             }
 
             if (tracked.Reservation.State == QuotaReservationState.Reserved && tracked.Reservation.ExpiresAt <= utcNow)

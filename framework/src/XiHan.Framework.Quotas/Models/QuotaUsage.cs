@@ -19,6 +19,11 @@ public sealed class QuotaUsage
     /// <param name="reserved">已预留未定稿用量</param>
     public QuotaUsage(long? limit, long committed, long reserved)
     {
+        if (limit is { } value)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(value);
+        }
+
         ArgumentOutOfRangeException.ThrowIfNegative(committed);
         ArgumentOutOfRangeException.ThrowIfNegative(reserved);
 
@@ -54,6 +59,7 @@ public sealed class QuotaUsage
 /// <remarks>
 /// 由租户、配额项与操作标识组成，不含周期：周期在预留时确定并随预留一并保存，
 /// 因此提交或释放能命中原来那一周期，不会被周期滚动后的新桶误导。
+/// 同一标识在去重保留期内跨周期重试也只会命中同一条记录，不会在新周期另扣一笔。
 /// </remarks>
 public sealed class QuotaReservationKey
 {

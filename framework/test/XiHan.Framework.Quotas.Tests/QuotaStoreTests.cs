@@ -110,8 +110,8 @@ public class QuotaStoreTests
         var committed = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
 
         Assert.Equal(QuotaSettlementStatus.Committed, committed.Status);
-        Assert.Equal(4, committed.Usage.Committed);
-        Assert.Equal(0, committed.Usage.Reserved);
+        Assert.Equal(4L, committed.Usage?.Committed);
+        Assert.Equal(0L, committed.Usage?.Reserved);
     }
 
     /// <summary>
@@ -127,8 +127,8 @@ public class QuotaStoreTests
         var again = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
 
         Assert.Equal(QuotaSettlementStatus.AlreadyCommitted, again.Status);
-        Assert.Equal(4, again.Usage.Committed);
-        Assert.Equal(0, again.Usage.Reserved);
+        Assert.Equal(4L, again.Usage?.Committed);
+        Assert.Equal(0L, again.Usage?.Reserved);
     }
 
     /// <summary>
@@ -143,7 +143,7 @@ public class QuotaStoreTests
         var released = await store.ReleaseAsync(new QuotaReservationKey(1001, "quota", "op-1"));
 
         Assert.Equal(QuotaSettlementStatus.Released, released.Status);
-        Assert.Equal(0, released.Usage.Reserved);
+        Assert.Equal(0L, released.Usage?.Reserved);
         var followUp = await store.ReserveAsync(Reserve(1001, "op-2", 10));
         Assert.True(followUp.Allowed);
     }
@@ -160,15 +160,17 @@ public class QuotaStoreTests
 
         var releaseAfterCommit = await store.ReleaseAsync(new QuotaReservationKey(1001, "quota", "op-1"));
         Assert.Equal(QuotaSettlementStatus.TerminalConflict, releaseAfterCommit.Status);
-        Assert.Equal(4, releaseAfterCommit.Usage.Committed);
+        Assert.Equal(4L, releaseAfterCommit.Usage?.Committed);
+        Assert.Equal(QuotaReservationState.Committed, releaseAfterCommit.Reservation?.State);
 
         await store.ReserveAsync(Reserve(1001, "op-2", 3));
         await store.ReleaseAsync(new QuotaReservationKey(1001, "quota", "op-2"));
         var commitAfterRelease = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-2"));
 
         Assert.Equal(QuotaSettlementStatus.TerminalConflict, commitAfterRelease.Status);
-        Assert.Equal(4, commitAfterRelease.Usage.Committed);
-        Assert.Equal(0, commitAfterRelease.Usage.Reserved);
+        Assert.Equal(4L, commitAfterRelease.Usage?.Committed);
+        Assert.Equal(0L, commitAfterRelease.Usage?.Reserved);
+        Assert.Equal(QuotaReservationState.Released, commitAfterRelease.Reservation?.State);
     }
 
     /// <summary>
@@ -185,8 +187,8 @@ public class QuotaStoreTests
         var commit = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
 
         Assert.Equal(QuotaSettlementStatus.Expired, commit.Status);
-        Assert.Equal(0, commit.Usage.Committed);
-        Assert.Equal(0, commit.Usage.Reserved);
+        Assert.Equal(0L, commit.Usage?.Committed);
+        Assert.Equal(0L, commit.Usage?.Reserved);
 
         var retry = await store.ReserveAsync(Reserve(1001, "op-2", 10));
         Assert.True(retry.Allowed);
@@ -242,8 +244,8 @@ public class QuotaStoreTests
         var newPeriodReserve = await store.ReserveAsync(Reserve(1001, "op-2", 10));
 
         Assert.Equal(QuotaSettlementStatus.Committed, committed.Status);
-        Assert.Equal(6, committed.Usage.Committed);
-        Assert.Equal(0, currentUsage.Committed);
+        Assert.Equal(6L, committed.Usage?.Committed);
+        Assert.Equal(0L, currentUsage.Committed);
         Assert.True(newPeriodReserve.Allowed);
     }
 
@@ -487,8 +489,8 @@ public class QuotaStoreTests
         var committed = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-1"));
 
         Assert.Equal(QuotaSettlementStatus.Committed, committed.Status);
-        Assert.Equal(4, committed.Usage.Committed);
-        Assert.Equal(0, committed.Usage.Reserved);
+        Assert.Equal(4L, committed.Usage?.Committed);
+        Assert.Equal(0L, committed.Usage?.Reserved);
 
         var again = await store.ReserveAsync(
             new QuotaReserveRequest(1001, "quota", "op-1", 4, QuotaPolicy.Unlimited("v1")));
@@ -731,8 +733,8 @@ public class QuotaStoreTests
         var again = await store.ReleaseAsync(new QuotaReservationKey(1001, "quota", "op-1"));
 
         Assert.Equal(QuotaSettlementStatus.AlreadyReleased, again.Status);
-        Assert.Equal(0, again.Usage.Committed);
-        Assert.Equal(0, again.Usage.Reserved);
+        Assert.Equal(0L, again.Usage?.Committed);
+        Assert.Equal(0L, again.Usage?.Reserved);
     }
 
     /// <summary>
@@ -756,7 +758,7 @@ public class QuotaStoreTests
         Assert.True(evicting.Allowed);
         Assert.Equal(QuotaSettlementStatus.NotFound, late.Status);
         Assert.Null(late.Reservation);
-        Assert.Equal(0, late.Usage.Committed);
+        Assert.Null(late.Usage);
         Assert.Equal(1, evicting.Usage.Committed + evicting.Usage.Reserved);
     }
 
@@ -817,8 +819,8 @@ public class QuotaStoreTests
 
         Assert.Equal(1, results.Count(item => item.Status == QuotaSettlementStatus.Committed));
         Assert.Equal(15, results.Count(item => item.Status == QuotaSettlementStatus.AlreadyCommitted));
-        Assert.Equal(3, results[^1].Usage.Committed);
-        Assert.Equal(0, results[^1].Usage.Reserved);
+        Assert.Equal(3L, results[^1].Usage?.Committed);
+        Assert.Equal(0L, results[^1].Usage?.Reserved);
     }
 
     /// <summary>
@@ -929,6 +931,24 @@ public class QuotaStoreTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new QuotaUsage(10, -1, 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => new QuotaUsage(10, 0, -1));
+    }
+
+    /// <summary>
+    /// 未找到预留时不回报用量快照
+    /// </summary>
+    /// <remarks>
+    /// 合成零用量里的 Limit=null 与「显式无限额」同形，会被读成不限额；无从确定就不回报。
+    /// </remarks>
+    [Fact]
+    public async Task 未找到预留时不回报用量快照()
+    {
+        var store = CreateStore();
+
+        var result = await store.CommitAsync(new QuotaReservationKey(1001, "quota", "nope"));
+
+        Assert.Equal(QuotaSettlementStatus.NotFound, result.Status);
+        Assert.Null(result.Reservation);
+        Assert.Null(result.Usage);
     }
 
     /// <summary>
