@@ -555,6 +555,34 @@ public class QuotaStoreTests
     }
 
     /// <summary>
+    /// 日周期与月周期在每月一日不共用同一个桶
+    /// </summary>
+    /// <remarks>
+    /// 日周期与月周期的起点都是当日 00:00，每月一日两者是同一个瞬间；
+    /// 桶标识若不含计量周期，月度记录会落进日节奏的桶，被按 24 小时保留期回收。
+    /// </remarks>
+    [Fact]
+    public async Task 日周期与月周期不共用同一个桶()
+    {
+        var store = CreateStore();
+        _clock.Advance(TimeSpan.FromDays(1));
+        var daily = QuotaPolicy.Limited(10, QuotaPeriod.Day, "v1");
+        var monthly = QuotaPolicy.Limited(100, QuotaPeriod.Month, "v1");
+
+        await store.ReserveAsync(new QuotaReserveRequest(1001, "quota", "op-d", 6, daily));
+        await store.CommitAsync(new QuotaReservationKey(1001, "quota", "op-d"));
+
+        var monthReserve = await store.ReserveAsync(new QuotaReserveRequest(1001, "quota", "op-m", 100, monthly));
+        var dayUsage = await store.FindUsageAsync(1001, "quota", daily);
+        var monthUsage = await store.FindUsageAsync(1001, "quota", monthly);
+
+        Assert.True(monthReserve.Allowed);
+        Assert.Equal(6, dayUsage.Committed);
+        Assert.Equal(100, monthUsage.Reserved);
+        Assert.Equal(0, monthUsage.Committed);
+    }
+
+    /// <summary>
     /// 无记录时用量为零
     /// </summary>
     [Fact]

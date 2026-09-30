@@ -104,7 +104,7 @@ public class DefaultQuotaStore : IQuotaStore
             }
 
             var periodStart = request.Policy.ResolvePeriodStart(utcNow);
-            var bucket = FindBucket(request.TenantId, request.QuotaKey, periodStart);
+            var bucket = FindBucket(request.TenantId, request.QuotaKey, request.Policy.Period, periodStart);
             if (bucket is null && !TryCreateBucket(request, periodStart, utcNow, out bucket))
             {
                 return Task.FromResult(new QuotaReserveResult(
@@ -214,7 +214,7 @@ public class DefaultQuotaStore : IQuotaStore
         var utcNow = UtcNow();
         lock (_sync)
         {
-            var bucket = FindBucket(tenantId, quotaKey, policy.ResolvePeriodStart(utcNow));
+            var bucket = FindBucket(tenantId, quotaKey, policy.Period, policy.ResolvePeriodStart(utcNow));
             if (bucket is null)
             {
                 return Task.FromResult(new QuotaUsage(policy.Limit, 0, 0));
@@ -401,10 +401,10 @@ public class DefaultQuotaStore : IQuotaStore
             periodStart,
             periodEnd,
             request.Policy.Limit,
-            periodEnd == DateTimeOffset.MaxValue
+            request.Policy.Period == QuotaPeriod.None
                 ? _options.NonPeriodicTombstoneRetention
                 : periodEnd - periodStart);
-        _buckets[new BucketKey(request.TenantId, request.QuotaKey, periodStart)] = created;
+        _buckets[new BucketKey(request.TenantId, request.QuotaKey, request.Policy.Period, periodStart)] = created;
         bucket = created;
         return true;
     }
@@ -414,11 +414,13 @@ public class DefaultQuotaStore : IQuotaStore
     /// </summary>
     /// <param name="tenantId">租户标识</param>
     /// <param name="quotaKey">配额项标识</param>
+    /// <param name="period">计量周期</param>
     /// <param name="periodStart">周期起始</param>
     /// <returns>桶，未命中为 null</returns>
-    private Bucket? FindBucket(long tenantId, string quotaKey, DateTimeOffset periodStart)
+    private Bucket? FindBucket(
+        long tenantId, string quotaKey, QuotaPeriod period, DateTimeOffset periodStart)
     {
-        return _buckets.TryGetValue(new BucketKey(tenantId, quotaKey, periodStart), out var bucket)
+        return _buckets.TryGetValue(new BucketKey(tenantId, quotaKey, period, periodStart), out var bucket)
             ? bucket
             : null;
     }
@@ -597,8 +599,14 @@ public class DefaultQuotaStore : IQuotaStore
     /// </summary>
     /// <param name="TenantId">租户标识</param>
     /// <param name="QuotaKey">配额项标识</param>
+    /// <param name="Period">计量周期</param>
     /// <param name="PeriodStart">周期起始</param>
-    private readonly record struct BucketKey(long TenantId, string QuotaKey, DateTimeOffset PeriodStart);
+    /// <remarks>
+    /// 必须带计量周期：日周期与月周期的起点在每月一日 00:00 是同一个瞬间，
+    /// 只按起点定键会让两种节奏共用一个桶，月度记录被按日保留期回收。
+    /// </remarks>
+    private readonly record struct BucketKey(
+        long TenantId, string QuotaKey, QuotaPeriod Period, DateTimeOffset PeriodStart);
 
     /// <summary>
     /// 被跟踪的预留
