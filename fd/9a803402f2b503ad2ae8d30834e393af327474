@@ -1,0 +1,35 @@
+docs/packages/analyzers.md
+  s_79e0b4ece13e38::t_48dbe059f6c2af 102
+framework/props/common.props
+  s_1b69ad7684dfa0::t_6ca583f181b4fe 10-12,14-21
+framework/src/XiHan.Framework.Analyzers/README.md
+  s_79e0b4ece13e38::t_41b6499c77074b 31-34
+framework/src/XiHan.Framework.Analyzers/XiHan.Framework.Analyzers.csproj
+  s_1b69ad7684dfa0::t_c4cea0befbc777 23
+framework/test/XiHan.Framework.Analyzers.Tests/XiHan.Framework.Analyzers.Tests.csproj
+  s_1b69ad7684dfa0::t_32cdf2d975db89 8-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fd9a803402f2b503ad2ae8d30834e393af327474",
+  "prompts": {},
+  "sessions": {
+    "s_1b69ad7684dfa0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a788a4a1fef0f6a63",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_79e0b4ece13e38": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2cbd0695b6128e7c",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
