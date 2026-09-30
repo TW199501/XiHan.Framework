@@ -1,0 +1,22 @@
+framework/test/XiHan.Framework.Authentication.Tests/Otp/OtpServiceTests.cs
+  s_94057b8e5cf9b6::t_df83e23556cb1b 1-27
+framework/src/XiHan.Framework.Authentication/Otp/OtpService.cs
+  s_94057b8e5cf9b6::t_440ecab8d69f1b 15-19
+  s_94057b8e5cf9b6::t_02f1a35a87f7e2 129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "175b7edae8a6ebb75dce5c80d5c84ed3fd45fbbe",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
