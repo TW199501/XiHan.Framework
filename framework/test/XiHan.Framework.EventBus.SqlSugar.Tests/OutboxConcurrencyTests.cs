@@ -16,6 +16,7 @@ namespace XiHan.Framework.EventBus.SqlSugar.Tests;
 /// <remarks>
 /// 地址取环境变量 <c>XIHAN_TEST_MYSQL</c>，未设置时整类跳过。
 /// </remarks>
+[Collection("MySqlEventOutbox")]
 public class OutboxConcurrencyTests
 {
     private const string SkipReason = "未设置 XIHAN_TEST_MYSQL，跳过真实数据库并发测试。";
@@ -97,6 +98,8 @@ public class OutboxConcurrencyTests
         return new SqlSugarEventOutbox(
             resolver,
             new FakeCurrentTenant(),
+            new AsyncLocalSqlSugarOutboxConnectionScope(),
+            [],
             Microsoft.Extensions.Options.Options.Create(new XiHanSqlSugarEventBoxOptions
             {
                 ClaimTimeout = TimeSpan.FromMinutes(5)
