@@ -1,0 +1,89 @@
+docs/guide/authorization.md
+  s_94057b8e5cf9b6::t_387f4f6f9adcf6 178-180,322
+docs/packages/authorization-sqlsugar.md
+  s_94057b8e5cf9b6::t_036ecd13ff2a8e 1-203
+docs/packages/authorization.md
+  s_94057b8e5cf9b6::t_61bea84f11e909 185,206
+framework/XiHan.Framework.slnx
+  s_94057b8e5cf9b6::t_1f0aa128b370a3 32,94
+framework/src/XiHan.Framework.Authorization.SqlSugar/Entities/SysAuthzPermission.cs
+  s_94057b8e5cf9b6::t_21ee7928076dbf 1-80
+framework/src/XiHan.Framework.Authorization.SqlSugar/Entities/SysAuthzPolicy.cs
+  s_94057b8e5cf9b6::t_e1b6e7bf325e3f 1-80
+framework/src/XiHan.Framework.Authorization.SqlSugar/Entities/SysAuthzRole.cs
+  s_94057b8e5cf9b6::t_cde9be7250b6f1 1-106
+framework/src/XiHan.Framework.Authorization.SqlSugar/Entities/SysAuthzRolePermission.cs
+  s_94057b8e5cf9b6::t_5904f4628a0681 1-49
+framework/src/XiHan.Framework.Authorization.SqlSugar/Entities/SysAuthzUserPermission.cs
+  s_94057b8e5cf9b6::t_12f4906eadc3fb 1-49
+framework/src/XiHan.Framework.Authorization.SqlSugar/Entities/SysAuthzUserRole.cs
+  s_94057b8e5cf9b6::t_ef6c097274d552 1-52
+framework/src/XiHan.Framework.Authorization.SqlSugar/Extensions/DependencyInjection/XiHanAuthorizationSqlSugarServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_6eda0e1ed547fd 1-37
+framework/src/XiHan.Framework.Authorization.SqlSugar/Mapping/JsonColumn.cs
+  s_94057b8e5cf9b6::t_c78619bfecdec7 1-34
+framework/src/XiHan.Framework.Authorization.SqlSugar/Mapping/PermissionMapper.cs
+  s_94057b8e5cf9b6::t_1feef221e19420 1-55
+framework/src/XiHan.Framework.Authorization.SqlSugar/Mapping/PolicyMapper.cs
+  s_94057b8e5cf9b6::t_e5d063008feac8 1-65
+framework/src/XiHan.Framework.Authorization.SqlSugar/Mapping/RoleMapper.cs
+  s_94057b8e5cf9b6::t_16957bc25b5ef3 1-73
+framework/src/XiHan.Framework.Authorization.SqlSugar/Permissions/SqlSugarPermissionChecker.cs
+  s_94057b8e5cf9b6::t_9b0bfed93ec977 1-216
+framework/src/XiHan.Framework.Authorization.SqlSugar/Permissions/SqlSugarPermissionStore.cs
+  s_94057b8e5cf9b6::t_5528f26d5c6dfe 1-344
+framework/src/XiHan.Framework.Authorization.SqlSugar/Policies/SqlSugarPolicyStore.cs
+  s_94057b8e5cf9b6::t_db4ed2fcd414bf 1-185
+framework/src/XiHan.Framework.Authorization.SqlSugar/README.md
+  s_94057b8e5cf9b6::t_82bddb0449bb76 1-127
+framework/src/XiHan.Framework.Authorization.SqlSugar/Roles/SqlSugarRoleStore.cs
+  s_94057b8e5cf9b6::t_ff278527b25909 1-429
+framework/src/XiHan.Framework.Authorization.SqlSugar/XiHan.Framework.Authorization.SqlSugar.csproj
+  s_94057b8e5cf9b6::t_96f8e72c8edc8f 1-21
+framework/src/XiHan.Framework.Authorization.SqlSugar/XiHanAuthorizationSqlSugarModule.cs
+  s_94057b8e5cf9b6::t_6ab0b317a709c4 1-31
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/AuthorizationTestContext.cs
+  s_94057b8e5cf9b6::t_6949e23dfe6af9 1-260
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/EntityConventionTests.cs
+  s_94057b8e5cf9b6::t_7af946993dba33 1-247
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/PermissionCheckerTests.cs
+  s_94057b8e5cf9b6::t_1556f360c4f5be 1-284
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/PermissionMapperTests.cs
+  s_94057b8e5cf9b6::t_c2272eb4d5864b 1-97
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/PermissionStoreTests.cs
+  s_94057b8e5cf9b6::t_87271291969753 1-304
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/PolicyMapperTests.cs
+  s_94057b8e5cf9b6::t_a0a03f513ef1d7 1-133
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/PolicyStoreTests.cs
+  s_94057b8e5cf9b6::t_f26a1c1ea1b541 1-256
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/RegistrationTests.cs
+  s_94057b8e5cf9b6::t_3209c20b939b33 1-83
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/RoleDeletionTests.cs
+  s_94057b8e5cf9b6::t_382e56009b7dd0 1-136
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/RoleMapperTests.cs
+  s_94057b8e5cf9b6::t_3121a0e7201df8 1-102
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/RoleStoreTests.cs
+  s_94057b8e5cf9b6::t_1f9a48ab51eba5 1-237
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/TenantFilterTests.cs
+  s_94057b8e5cf9b6::t_dcd699c84bdb6f 1-133
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/UserRoleTests.cs
+  s_94057b8e5cf9b6::t_62f1e6af1b530a 1-171
+framework/test/XiHan.Framework.Authorization.SqlSugar.Tests/XiHan.Framework.Authorization.SqlSugar.Tests.csproj
+  s_94057b8e5cf9b6::t_262b450b756d1a 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3aa518db04eba12c7a387c247d184fcc90f11b73",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
