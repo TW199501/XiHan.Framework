@@ -1,0 +1,43 @@
+framework/test/XiHan.Framework.Architecture.Tests/FrameworkDependencyPolicy.cs
+  s_1f02830958a1f1::t_28f3e9ce0d9740 1-24
+framework/test/XiHan.Framework.Architecture.Tests/ProjectGraph/ProjectGraphLoader.cs
+  s_1f02830958a1f1::t_bafa6549cf4879 1-209
+framework/test/XiHan.Framework.Architecture.Tests/ProjectGraph/ProjectDependencyGraphValidator.cs
+  s_1f02830958a1f1::t_106ab2c7b461b0 1-293
+framework/test/XiHan.Framework.Architecture.Tests/ProjectGraph/ProjectGraphModels.cs
+  s_1f02830958a1f1::t_e64afcf1bbe440 1-58
+framework/test/XiHan.Framework.Architecture.Tests/ProjectGraph/DependencyPolicy.cs
+  s_1f02830958a1f1::t_5d91f3fac96d88 1-44
+framework/XiHan.Framework.slnx
+  s_1f02830958a1f1::t_3b5cce5691f651 90
+framework/test/XiHan.Framework.Architecture.Tests/ProjectGraph/ArchitectureViolation.cs
+  s_1f02830958a1f1::t_ad6f9025985c3b 1-52
+framework/test/XiHan.Framework.Architecture.Tests/XiHan.Framework.Architecture.Tests.csproj
+  s_1f02830958a1f1::t_92153c38da2dbf 1-7
+AGENTS.md
+  s_1f02830958a1f1::t_f74e5ca3b0d697 70
+framework/test/XiHan.Framework.Architecture.Tests/ProjectGraph/ProjectDependencyGraph.cs
+  s_1f02830958a1f1::t_2ed90f4f90569c 1-37
+framework/test/XiHan.Framework.Architecture.Tests/FrameworkArchitectureTests.cs
+  s_1f02830958a1f1::t_4b57958095377e 1-38
+framework/test/XiHan.Framework.Architecture.Tests/ProjectDependencyGraphValidatorTests.cs
+  s_1f02830958a1f1::t_3f18fc44be53e9 1-401
+framework/test/XiHan.Framework.Architecture.Tests/ProjectGraphLoaderTests.cs
+  s_1f02830958a1f1::t_f33aa52eb5ca24 1-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c262e4aeeea2d27effba489cfe092d0c168f699a",
+  "prompts": {},
+  "sessions": {
+    "s_1f02830958a1f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac8af68eee3761ab5",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
