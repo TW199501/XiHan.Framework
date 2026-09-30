@@ -1,0 +1,19 @@
+framework/test/XiHan.Framework.Tasks.SqlSugar.Tests/JobStoreBatchCleanupTests.cs
+  s_320a73b36d8fbb::t_e69caec8fd08a4 78,81,87,89-91,97-99,152-168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "13ede1583ba314ba0582a2bf7ad5d024f07376f2",
+  "prompts": {},
+  "sessions": {
+    "s_320a73b36d8fbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a13c47badbfa09964",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
