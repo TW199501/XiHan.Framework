@@ -1,0 +1,14 @@
+framework/test/XiHan.Framework.MultiTenancy.Tests/Features/TenantFeatureCheckerTests.cs
+  h_be8240d2cfaa4b 1-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f7e2273fbdd1176d1459eea40040f95491ef2329",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
