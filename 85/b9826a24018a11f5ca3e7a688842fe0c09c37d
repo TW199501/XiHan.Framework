@@ -1,0 +1,103 @@
+framework/test/XiHan.Framework.ProviderContractTests/ContractRequirements.cs
+  s_531482cef3c767::t_bdcc17e9771539 26-46
+  s_531482cef3c767::t_efb609aa374f8a 23-25
+  s_531482cef3c767::t_31754f90f06a66 47-49
+  s_531482cef3c767::t_71075ffba1e28e 1-22,50-54
+framework/test/XiHan.Framework.EventBus.Tests/XiHan.Framework.EventBus.Tests.csproj
+  s_1f02830958a1f1::t_b77d0e810a1cb2 9
+framework/test/XiHan.Framework.ProviderContractTests/EventBus/InboxContract.cs
+  s_531482cef3c767::t_ad48d25431fc0d 313-330
+  s_531482cef3c767::t_50502726e17b8f 310-312
+  s_531482cef3c767::t_bb7bd4991ee1c6 331-333
+  s_531482cef3c767::t_dc5e9c0df79ae8 1-309,334-343
+framework/test/XiHan.Framework.ProviderContractTests/EventBus/OutboxContract.cs
+  s_531482cef3c767::t_40c3aa2d8ec0b3 211-228
+  s_531482cef3c767::t_7cae500eb04c36 208-210
+  s_531482cef3c767::t_810d7e14a687a5 229-231
+  s_531482cef3c767::t_9203b9a563dc73 1-207,232-241
+framework/test/XiHan.Framework.ProviderContractTests/Tasks/BackgroundJobStoreContract.cs
+  s_531482cef3c767::t_c8e3cd964cd406 28,53,60,65,72,82,89,96,106,113,120,125,132,139,151,158,166-332,337-339,347-348
+  s_531482cef3c767::t_b2d1e8ca824864 25-27
+  s_531482cef3c767::t_cf94db3393faaa 29-31,50-52
+  s_531482cef3c767::t_65404f692f5853 54-59
+  s_531482cef3c767::t_1b65fa440b34cc 61-64
+  s_531482cef3c767::t_5e9f1950015acb 66-71
+  s_531482cef3c767::t_eb24ce26967237 73-75,79-81
+  s_531482cef3c767::t_68ae56e203b45f 83-88
+  s_531482cef3c767::t_900cfd7b0ce450 90-95
+  s_531482cef3c767::t_da17bf1d2434eb 97-99,103-105
+  s_531482cef3c767::t_050023c7c27656 107-112
+  s_531482cef3c767::t_09ef40cbf44929 114-119
+  s_531482cef3c767::t_f6565e8464bb1d 121-124
+  s_531482cef3c767::t_f336c2f6db23a0 126-131
+  s_531482cef3c767::t_2878b53e67cea6 133-138
+  s_531482cef3c767::t_c7014c3598de51 140-142,148-150
+  s_531482cef3c767::t_e57f5645e0cc2e 152-157
+  s_531482cef3c767::t_b1aefb592ec045 159-161,163-165
+  s_531482cef3c767::t_0452cfa0478b5c 333-336
+  s_531482cef3c767::t_2e2a6b63d7e05f 340-342,344-346
+  s_531482cef3c767::t_36b641d5829b6b 349
+  s_531482cef3c767::t_d798758d64fdd7 1-24,32-49,76-78,100-102,143-147,162,343
+framework/test/XiHan.Framework.Tasks.Tests/XiHan.Framework.Tasks.Tests.csproj
+  s_1f02830958a1f1::t_3106170d5a0a36 9
+framework/XiHan.Framework.slnx
+  s_531482cef3c767::t_b59366177000b6 127
+framework/test/XiHan.Framework.EventBus.Tests/Contracts/DefaultEventInboxContractTests.cs
+  s_3d4bfdff5ff021::t_8d08d3b8e4ca4e 1-25
+framework/test/XiHan.Framework.EventBus.Tests/Contracts/DefaultEventOutboxContractTests.cs
+  s_3d4bfdff5ff021::t_c88c92eecac8eb 1-25
+framework/test/XiHan.Framework.ProviderContractTests/IProviderContractFixture.cs
+  s_56543489bc4c74::t_49c25514a75886 1-45
+framework/test/XiHan.Framework.ProviderContractTests/InProcessContractFixture.cs
+  s_531482cef3c767::t_a732c7f531d34f 1-94
+framework/test/XiHan.Framework.ProviderContractTests/ManualClock.cs
+  s_531482cef3c767::t_2aa71cce4b8b8d 1-85
+framework/test/XiHan.Framework.ProviderContractTests/ProviderCapabilities.cs
+  s_531482cef3c767::t_6f1889ee44cf0e 1-51
+framework/test/XiHan.Framework.ProviderContractTests/README.md
+  s_56543489bc4c74::t_c964aaf698e503 1-31
+framework/test/XiHan.Framework.ProviderContractTests/XiHan.Framework.ProviderContractTests.csproj
+  s_531482cef3c767::t_faec7ef05ee0d1 1-26
+framework/test/XiHan.Framework.Tasks.Tests/Contracts/DefaultBackgroundJobStoreContractTests.cs
+  s_3d4bfdff5ff021::t_b34e84b020b27d 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "85b9826a24018a11f5ca3e7a688842fe0c09c37d",
+  "prompts": {},
+  "sessions": {
+    "s_1f02830958a1f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac8af68eee3761ab5",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_3d4bfdff5ff021": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a018fa27029474c86",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_531482cef3c767": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-abaada426127a8046",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_56543489bc4c74": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a4ba7442a80c9b68e",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
