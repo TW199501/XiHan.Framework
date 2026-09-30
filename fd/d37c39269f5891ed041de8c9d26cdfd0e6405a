@@ -1,0 +1,21 @@
+framework/test/XiHan.Framework.EventBus.Tests/XiHan.Framework.EventBus.Tests.csproj
+  s_1f02830958a1f1::t_b77d0e810a1cb2 9
+framework/test/XiHan.Framework.Tasks.Tests/XiHan.Framework.Tasks.Tests.csproj
+  s_1f02830958a1f1::t_3106170d5a0a36 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fdd37c39269f5891ed041de8c9d26cdfd0e6405a",
+  "prompts": {},
+  "sessions": {
+    "s_1f02830958a1f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac8af68eee3761ab5",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
