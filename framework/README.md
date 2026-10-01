@@ -205,7 +205,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   web core
 │   │   ├── XiHan.Framework.Web.Api/       #   dynamic APIs
 │   │   └── ...                            #   other modules
-│   ├── test/                              # tests (one per src project, 83 unit-test projects)
+│   ├── test/                              # tests (one per src project, 84 unit-test projects)
 │   │   ├── XiHan.Framework.Utils.Tests/   #   utilities tests
 │   │   ├── XiHan.Framework.Core.Tests/    #   core tests
 │   │   └── ...                            #   the rest follow <Project>.Tests
