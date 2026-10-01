@@ -1,0 +1,19 @@
+AGENTS.md
+  s_94057b8e5cf9b6::t_5d1fa9f782c6e9 134-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f24f8b8079964ce153d6b3f9c977c0fa1723378e",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
