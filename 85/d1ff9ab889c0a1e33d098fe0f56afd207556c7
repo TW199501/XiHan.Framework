@@ -1,0 +1,23 @@
+docs/packages/analyzers.md
+  s_ce3d5234d0e150::t_b87275b138a0f7 30-31,116
+docs/packages/utils.md
+  s_ce3d5234d0e150::t_cfbb9fa70422e0 8,576
+framework/src/XiHan.Framework.Analyzers/README.md
+  s_ce3d5234d0e150::t_66b84b4c640dd2 46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "85d1ff9ab889c0a1e33d098fe0f56afd207556c7",
+  "prompts": {},
+  "sessions": {
+    "s_ce3d5234d0e150": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-af2211a15334da619",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
