@@ -1,0 +1,21 @@
+docs/packages/multitenancy.md
+  s_85bab180af63b8::t_33d206ac3481be 84-90
+framework/test/XiHan.Framework.MultiTenancy.Tests/Features/TenantFeatureCheckerBoundaryTests.cs
+  s_85bab180af63b8::t_67ca2ce3d3d206 1-208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "350b62fed256c9c50f3c2be9f29e9d8ed96dbeac",
+  "prompts": {},
+  "sessions": {
+    "s_85bab180af63b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a98e8f921b0111514",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
