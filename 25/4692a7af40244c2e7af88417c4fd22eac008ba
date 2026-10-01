@@ -1,0 +1,14 @@
+.gitignore
+  h_be8240d2cfaa4b 403-404
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "254692a7af40244c2e7af88417c4fd22eac008ba",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
