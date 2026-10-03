@@ -121,6 +121,19 @@ XiHan.Framework 是面向 .NET 10 的模块化应用框架。仓库以分层模�
 - 提交前检查 `git diff --check`、相关测试和必要的 Release 构建。
 - 不推送、不发布、不创建远程 PR，除非用户明确要求。
 
+## 本 fork 的分支与 PR 流程
+
+本节只适用于 fork `TW199501/XiHan.Framework`（上游为 `XiHanFun/XiHan.Framework`），不提交给上游。完整规范见 Linear 团队文档「XiHan.Framework 分支與 PR 協作規範」：https://linear.app/elf-express/document/xihanframework-分支與-pr-協作規範-781798889edc
+
+- 远程：`origin` 是 fork，`upstream` 是上游作者的仓库。`main` 只镜像 `upstream/main`，绝不在上面提交；`dev` 是团队整合线，也是开分支的起点。
+- 每日开工先同步：`git fetch upstream`，`main` 以 `git merge --ff-only upstream/main` 前进并推到 `origin`；上游有新提交时把 `main` 合进 `dev`，验证通过后推送。
+- 工作分支从 `dev` 开，命名为 `<前缀>/[e-<Linear编号>-]<英文短名>`，前缀用 `feat/`、`bug/`、`docs/`、`chore/`、`test/`；不用中文，不用个人前缀。worktree 放在仓库同层 `../XiHan.Framework-<短名>`，不要开在仓库目录里面。
+- 进 `dev` 一律经 fork PR：`gh pr create --repo TW199501/XiHan.Framework --base dev`，fork CI 通过并经维护者审查核准后以 merge commit 合并。**代理不得自行合并或推送 `dev`**，例外只有上述每日同步与上游合并后的同步。
+- 送上游：只送维护者在 fork PR 标注「送上游」的项目。从 `upstream/main` 开 `pr/<短名>`，并立刻执行 `git config branch.pr/<短名>.pushRemote origin`，否则 `git push` 会推到作者的仓库；只 cherry-pick 该主题的提交，不改模块总数等全局计数，一个 PR 只做一件事。不要把整个 `dev` 开 PR 给上游。
+- 上游审查意见在 `pr/` 分支修改，同一修正另开分支经 fork PR 带回 `dev`；上游合并后同步 `main` 并合进 `dev`，删除 `pr/` 分支与 worktree。
+- 本地工具产物（`.superpowers/`、`.codegraph/`、`.claude/`、`.qwen/`、`.orca*/`）放在 `.git/info/exclude`，不要提交。
+- 维护者的本机私人规则在仓库外的 `../Linear.rule.md`（相对仓库根目录；主仓库与同层 worktree 都适用）。该文件存在时，开始工作前先读并遵守；与本文件冲突时以本文件为准。
+
 ## 禁止事项
 
 - 不跨层放置实现，不以“方便”绕过模块依赖。
