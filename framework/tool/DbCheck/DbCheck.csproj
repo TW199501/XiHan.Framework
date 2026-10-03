@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <Import Project="..\..\props\netcore.props" />
+    <Import Project="..\..\props\common.props" />
+    <Import Project="..\..\props\version.props" />
+
+    <PropertyGroup>
+        <Title>DbCheck</Title>
+        <AssemblyName>DbCheck</AssemblyName>
+        <Description>数据库备份与复写检查工具</Description>
+        <OutputType>Exe</OutputType>
+        <!-- 此项目为本地工具，不对外发布 NuGet 包 -->
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+</Project>
