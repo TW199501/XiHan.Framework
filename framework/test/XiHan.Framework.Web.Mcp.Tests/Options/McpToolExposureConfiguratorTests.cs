@@ -1,245 +1,152 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-using ModelContextProtocol;
-using ModelContextProtocol.Protocol;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Server;
+using XiHan.Framework.Web.Mcp.Options;
+using MsOptions = Microsoft.Extensions.Options.Options;
 
 namespace XiHan.Framework.Web.Mcp.Tests.Options;
 
 /// <summary>
-/// 工具暴露策略：允许/拒绝清单决定哪些技能能经 /mcp 被看见和被调用
+/// 工具暴露配置器：清单的合法性校验、匹配不到工具时的告警，以及两个清单都为空时不触碰选项
 /// </summary>
 /// <remarks>
-/// 每条测试同时断言 tools/list 与 tools/call。
-/// <para>
-/// 限制类断言都配一个可调用的对照工具：清单放行的那个工具仍能调用，且回显里带着它自己的技能名。
-/// </para>
+/// 清单经 /mcp 的实际裁剪效果由 <see cref="McpToolExposureEndToEndTests"/> 在真实协议往返上断言。
 /// </remarks>
 public class McpToolExposureConfiguratorTests
 {
     /// <summary>
-    /// 宿主配置的正确密钥
-    /// </summary>
-    private const string ApiKey = "tool-exposure-key";
-
-    /// <summary>
-    /// 甲工具名（同时也是技能名）
+    /// 甲工具名
     /// </summary>
     private const string AlphaTool = "xihan_test_alpha";
 
     /// <summary>
-    /// 乙工具名（同时也是技能名）
+    /// 乙工具名
     /// </summary>
     private const string BetaTool = "xihan_test_beta";
 
     /// <summary>
-    /// 甲工具名的大写写法，用来验证名字匹配区分大小写
+    /// 清单里含空白项时装配即失败，异常点出是哪个清单的第几项
     /// </summary>
-    private const string AlphaToolInWrongCase = "XIHAN_TEST_ALPHA";
+    /// <param name="listName">放入空白项的清单</param>
+    /// <param name="blank">空白项的写法</param>
+    [Theory]
+    [InlineData(nameof(XiHanMcpOptions.AllowedTools), "")]
+    [InlineData(nameof(XiHanMcpOptions.AllowedTools), "   ")]
+    [InlineData(nameof(XiHanMcpOptions.DeniedTools), "")]
+    [InlineData(nameof(XiHanMcpOptions.DeniedTools), "   ")]
+    public void PostConfigure_WithBlankEntry_ThrowsNamingTheEntry(string listName, string blank)
+    {
+        var policy = new XiHanMcpOptions();
+        var list = listName == nameof(XiHanMcpOptions.AllowedTools) ? policy.AllowedTools : policy.DeniedTools;
+        list.Add(AlphaTool);
+        list.Add(blank);
+
+        var configurator = CreateConfigurator(policy, new RecordingLogger<McpToolExposureConfigurator>());
+
+        var exception = Assert.Throws<InvalidOperationException>(() => configurator.PostConfigure(null, CreateServerOptions(AlphaTool)));
+
+        Assert.Contains($"{XiHanMcpOptions.SectionName}:{listName}:1", exception.Message, StringComparison.Ordinal);
+    }
 
     /// <summary>
-    /// 调用时传给回显技能的实参
-    /// </summary>
-    private const string CallArgument = "梅花桩";
-
-    /// <summary>
-    /// 两个清单都不配时，全部技能照旧暴露且照旧调得动（升级兼容性保证）
+    /// 两个清单都为空时不裁剪工具集、不挂过滤器、不告警
     /// </summary>
     [Fact]
-    public async Task PostConfigure_WithBothListsEmpty_ExposesEveryTool()
+    public void PostConfigure_WithBothListsEmpty_LeavesOptionsUntouched()
     {
-        await using var host = await McpTestHost.StartAsync(
-            enabled: true,
-            ApiKey,
-            new NamedEchoAiSkill(AlphaTool),
-            new NamedEchoAiSkill(BetaTool));
+        var logger = new RecordingLogger<McpToolExposureConfigurator>();
+        var options = CreateServerOptions(AlphaTool, BetaTool);
 
-        await using var session = await host.ConnectAsync("X-Api-Key", ApiKey);
+        CreateConfigurator(new XiHanMcpOptions(), logger).PostConfigure(null, options);
 
-        var names = await ListToolNamesAsync(session);
-
-        Assert.Contains(AlphaTool, names);
-        Assert.Contains(BetaTool, names);
-
-        await AssertCallableAsync(session, AlphaTool);
-        await AssertCallableAsync(session, BetaTool);
+        Assert.NotNull(options.ToolCollection);
+        Assert.Equal(2, options.ToolCollection.Count);
+        Assert.Empty(options.Filters.Request.ListToolsFilters);
+        Assert.Empty(options.Filters.Request.CallToolFilters);
+        Assert.Empty(logger.Records);
     }
 
     /// <summary>
-    /// 配了允许清单时，清单外的工具既不出现在列表里也调不动
+    /// 匹配不到任何工具的清单项记一条警告，点出每个这样的名字
     /// </summary>
     [Fact]
-    public async Task PostConfigure_WithAllowList_HidesAndBlocksToolsOutsideIt()
+    public void PostConfigure_WithUnmatchedEntries_WarnsNamingThem()
     {
-        await using var host = await McpTestHost.StartAsync(
-            enabled: true,
-            ApiKey,
-            [AlphaTool],
-            [],
-            new NamedEchoAiSkill(AlphaTool),
-            new NamedEchoAiSkill(BetaTool));
-
-        await using var session = await host.ConnectAsync("X-Api-Key", ApiKey);
-
-        var names = await ListToolNamesAsync(session);
-
-        Assert.Contains(AlphaTool, names);
-        Assert.DoesNotContain(BetaTool, names);
-
-        Assert.Null(await TryCallAsync(session, BetaTool));
-        await AssertCallableAsync(session, AlphaTool);
-    }
-
-    /// <summary>
-    /// 配了拒绝清单时，清单里的工具既不出现在列表里也调不动
-    /// </summary>
-    [Fact]
-    public async Task PostConfigure_WithDenyList_HidesAndBlocksListedTools()
-    {
-        await using var host = await McpTestHost.StartAsync(
-            enabled: true,
-            ApiKey,
-            [],
-            [BetaTool],
-            new NamedEchoAiSkill(AlphaTool),
-            new NamedEchoAiSkill(BetaTool));
-
-        await using var session = await host.ConnectAsync("X-Api-Key", ApiKey);
-
-        var names = await ListToolNamesAsync(session);
-
-        Assert.Contains(AlphaTool, names);
-        Assert.DoesNotContain(BetaTool, names);
-
-        Assert.Null(await TryCallAsync(session, BetaTool));
-        await AssertCallableAsync(session, AlphaTool);
-    }
-
-    /// <summary>
-    /// 同一个名字同时出现在两个清单里时，以拒绝为准
-    /// </summary>
-    [Fact]
-    public async Task PostConfigure_WithNameInBothLists_PrefersDeny()
-    {
-        await using var host = await McpTestHost.StartAsync(
-            enabled: true,
-            ApiKey,
-            [AlphaTool, BetaTool],
-            [BetaTool],
-            new NamedEchoAiSkill(AlphaTool),
-            new NamedEchoAiSkill(BetaTool));
-
-        await using var session = await host.ConnectAsync("X-Api-Key", ApiKey);
-
-        var names = await ListToolNamesAsync(session);
-
-        Assert.Contains(AlphaTool, names);
-        Assert.DoesNotContain(BetaTool, names);
-
-        Assert.Null(await TryCallAsync(session, BetaTool));
-        await AssertCallableAsync(session, AlphaTool);
-    }
-
-    /// <summary>
-    /// 允许清单里的名字大小写不对时不会误放行
-    /// </summary>
-    /// <remarks>
-    /// 名字按序号比较、区分大小写，大小写不匹配的名字匹配不上任何工具，于是没有工具被放行。
-    /// </remarks>
-    [Fact]
-    public async Task PostConfigure_WithMiscasedAllowEntry_StillHidesTheTool()
-    {
-        await using var host = await McpTestHost.StartAsync(
-            enabled: true,
-            ApiKey,
-            [AlphaToolInWrongCase],
-            [],
-            new NamedEchoAiSkill(AlphaTool));
-
-        await using var session = await host.ConnectAsync("X-Api-Key", ApiKey);
-
-        var names = await ListToolNamesAsync(session);
-
-        Assert.DoesNotContain(AlphaTool, names);
-        Assert.Null(await TryCallAsync(session, AlphaTool));
-    }
-
-    /// <summary>
-    /// 拒绝清单里的名字大小写不对时不会误拦截
-    /// </summary>
-    /// <remarks>
-    /// 大小写写错的拒绝清单拦不住任何工具。
-    /// </remarks>
-    [Fact]
-    public async Task PostConfigure_WithMiscasedDenyEntry_DoesNotBlockTheTool()
-    {
-        await using var host = await McpTestHost.StartAsync(
-            enabled: true,
-            ApiKey,
-            [],
-            [AlphaToolInWrongCase],
-            new NamedEchoAiSkill(AlphaTool));
-
-        await using var session = await host.ConnectAsync("X-Api-Key", ApiKey);
-
-        var names = await ListToolNamesAsync(session);
-
-        Assert.Contains(AlphaTool, names);
-        await AssertCallableAsync(session, AlphaTool);
-    }
-
-    /// <summary>
-    /// 取 tools/list 里的工具名
-    /// </summary>
-    /// <param name="session">已握手的会话</param>
-    /// <returns>工具名列表</returns>
-    private static async Task<IReadOnlyList<string>> ListToolNamesAsync(McpTestSession session)
-    {
-        var tools = await session.Client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
-
-        return [.. tools.Select(tool => tool.Name)];
-    }
-
-    /// <summary>
-    /// 调一次工具，拿回回显文本；服务端不认这个名字时返回 null
-    /// </summary>
-    /// <param name="session">已握手的会话</param>
-    /// <param name="toolName">工具名</param>
-    /// <returns>回显文本，工具不可调用时为 null</returns>
-    private static async Task<string?> TryCallAsync(McpTestSession session, string toolName)
-    {
-        try
+        var logger = new RecordingLogger<McpToolExposureConfigurator>();
+        var policy = new XiHanMcpOptions
         {
-            var result = await session.Client.CallToolAsync(
-                toolName,
-                new Dictionary<string, object?> { ["text"] = CallArgument },
-                cancellationToken: TestContext.Current.CancellationToken);
+            AllowedTools = [AlphaTool, "ghost_allowed"],
+            DeniedTools = [AlphaTool.ToUpperInvariant()]
+        };
 
-            // 工具集里没有这个名字时，服务端也可能以「错误结果」而非 JSON-RPC 错误作答，两种都算调不动
-            return result.IsError is true
-                ? null
-                : Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text;
-        }
-        catch (McpException)
-        {
-            // 名字不在工具集里，服务端回 JSON-RPC 错误，客户端把它抛成 McpException
-            return null;
-        }
+        CreateConfigurator(policy, logger).PostConfigure(null, CreateServerOptions(AlphaTool, BetaTool));
+
+        var record = Assert.Single(logger.Records);
+        Assert.Equal(LogLevel.Warning, record.Level);
+        Assert.Contains("ghost_allowed", record.Message, StringComparison.Ordinal);
+        Assert.Contains(AlphaTool.ToUpperInvariant(), record.Message, StringComparison.Ordinal);
     }
 
     /// <summary>
-    /// 断言一个工具确实调得动，且跑的是它自己那个技能
+    /// 清单项只在首次装配时核对：无状态传输每个请求都会重新装配选项，不能每次都告警
     /// </summary>
-    /// <param name="session">已握手的会话</param>
-    /// <param name="toolName">工具名</param>
-    /// <returns>断言任务</returns>
-    private static async Task AssertCallableAsync(McpTestSession session, string toolName)
+    [Fact]
+    public void PostConfigure_CalledRepeatedly_WarnsOnlyOnce()
     {
-        var text = await TryCallAsync(session, toolName);
+        var logger = new RecordingLogger<McpToolExposureConfigurator>();
+        var configurator = CreateConfigurator(new XiHanMcpOptions { DeniedTools = ["ghost_denied"] }, logger);
 
-        Assert.NotNull(text);
+        configurator.PostConfigure(null, CreateServerOptions(AlphaTool));
+        configurator.PostConfigure(null, CreateServerOptions(AlphaTool));
 
-        // 回显里带着技能名与实参，确认调用真的进了这个技能的函数体
-        Assert.Contains($"echo:{toolName}:{CallArgument}", text, StringComparison.Ordinal);
+        _ = Assert.Single(logger.Records);
+    }
+
+    /// <summary>
+    /// 清单项都匹配得上时不告警
+    /// </summary>
+    [Fact]
+    public void PostConfigure_WithAllEntriesMatched_DoesNotWarn()
+    {
+        var logger = new RecordingLogger<McpToolExposureConfigurator>();
+        var policy = new XiHanMcpOptions
+        {
+            AllowedTools = [AlphaTool, BetaTool],
+            DeniedTools = [BetaTool]
+        };
+
+        CreateConfigurator(policy, logger).PostConfigure(null, CreateServerOptions(AlphaTool, BetaTool));
+
+        Assert.Empty(logger.Records);
+    }
+
+    /// <summary>
+    /// 以给定清单构造配置器
+    /// </summary>
+    /// <param name="policy">MCP 配置</param>
+    /// <param name="logger">日志器</param>
+    /// <returns>配置器</returns>
+    private static McpToolExposureConfigurator CreateConfigurator(XiHanMcpOptions policy, ILogger<McpToolExposureConfigurator> logger)
+    {
+        return new McpToolExposureConfigurator(MsOptions.Create(policy), logger);
+    }
+
+    /// <summary>
+    /// 构造一份工具集里装着给定名字工具的 MCP 服务端选项
+    /// </summary>
+    /// <param name="toolNames">工具名</param>
+    /// <returns>MCP 服务端选项</returns>
+    private static McpServerOptions CreateServerOptions(params string[] toolNames)
+    {
+        var options = new McpServerOptions { ToolCollection = [] };
+        foreach (var toolName in toolNames)
+        {
+            options.ToolCollection.Add(McpServerTool.Create(AIFunctionFactory.Create(() => toolName, toolName)));
+        }
+
+        return options;
     }
 }
