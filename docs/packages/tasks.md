@@ -453,7 +453,7 @@ services.AddHostedService<OutboxConsumer>();
 - `AllowConcurrent=false` 依赖 `IJobStore.GetRunningInstancesAsync` + 任务锁，跨实例防并发需 Redis 分布式锁（Caching 启用 Redis）。
 - 多租户任务：优先用参数 `tenantId` 或 `JobInfo.TenantId` 指定租户；未指定时回退到当前异步上下文租户。宿主级任务令 `TenantId` 为空。
 - 后台服务的 `XiHanBackgroundServiceOptions` **默认不启用单任务超时**（`EnableTaskTimeout=false`、`TaskTimeoutMilliseconds=0`），如需超时须显式打开。
-- 默认 `DefaultJobStore` 是进程内内存存储，进程重启丢失历史；需持久化用 SqlSugar 可直接依赖 [XiHan.Framework.Tasks.SqlSugar](./tasks-sqlsugar)，或自行实现 `IJobStore`。
+- 默认 `DefaultJobStore` 是进程内内存存储，进程重启丢失历史；需持久化时由应用自行实现 `IJobStore`。
 - 历史清理默认关闭。启用后每轮以「当前时间 − `HistoryRetentionDays` 天」为截止时间，分批删除早于它的执行历史（按 `StartedAt`）与已终结实例（`Succeeded`/`Failed`/`Canceled`，按 `CompletedAt`），等待中与运行中的实例不删除；某批删除数不足批量上限即结束本轮，单轮失败只记日志，下一轮照常执行。
 - 自实现的 `IJobStore` 若未实现分批方法 `CleanupHistoryAsync(DateTimeOffset, int, CancellationToken)`，接口默认实现会换算保留天数后调用 `CleanupHistoryAsync(int)` 一次清完。
 - 启用清理时，清理数值与 `HistoryRetentionDays` 在启动时校验（`ValidateOnStart`），配置不合法会直接启动失败；未启用时不校验。
@@ -471,7 +471,7 @@ services.AddHostedService<OutboxConsumer>();
 
 ## 相关模块
 
-- [XiHan.Framework.Tasks.SqlSugar](./tasks-sqlsugar) — 后台作业、定时任务实例与执行历史的 SqlSugar 持久化存储。
+- [XiHan.Framework.Tasks.SqlSugar](./tasks-sqlsugar) — 后台作业的 SqlSugar 持久化存储。
 - [XiHan.Framework.Caching](./caching) — 分布式锁与缓存底座。
 - [XiHan.Framework.MultiTenancy](./multitenancy) — 多租户上下文来源。
 - [XiHan.Framework.Observability](./observability) — 可观测性，配合任务指标与追踪。

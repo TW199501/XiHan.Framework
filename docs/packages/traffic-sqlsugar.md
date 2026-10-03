@@ -106,7 +106,3 @@ public class YourAppModule : XiHanModule
 
 - [Traffic](./traffic)：灰度引擎、`IGrayRuleRepository` 契约与 `GrayRule` 模型
 - [Data](./data)：SqlSugar 客户端解析、建表初始化
-
-## 相关模块
-
-- [Settings.SqlSugar](./settings-sqlsugar)：同一套落库范式

@@ -464,7 +464,7 @@ services.AddXiHanTasks(config).AddMiddleware<TracingMiddleware>();
 | 任务锁提供者 | `CachingJobLockProvider` | `.UseLockProvider<MyLockProvider>()` |
 | 待执行的后台作业 | `DefaultBackgroundJobStore` | `services.UseRedisBackgroundJobStore()`，或自实现 `IBackgroundJobStore` |
 
-要落到关系库，依赖 [XiHan.Framework.Tasks.SqlSugar](../packages/tasks-sqlsugar) 的 `XiHanTasksSqlSugarModule`：任务实例、执行历史与待执行的后台作业一并换成 SqlSugar 存储，作业入队可与业务同事务。
+要落到关系库，依赖 [XiHan.Framework.Tasks.SqlSugar](../packages/tasks-sqlsugar) 的 `XiHanTasksSqlSugarModule`：待执行的后台作业换成 SqlSugar 存储，作业入队可与业务同事务。任务实例与执行历史的持久化由应用实现 `IJobStore`。
 
 框架侧用的是 `TryAdd` 语义，业务模块的 `ConfigureServices` 在框架模块之后执行，后注册者胜出。
 

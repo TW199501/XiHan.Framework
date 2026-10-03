@@ -1,6 +1,6 @@
 # 模块总览
 
-XiHan.Framework 由 **79 个 NuGet 包**组成，按分层组织。本册是**参考手册**——每个包一页，写完整的 API 清单与配置项全表。
+XiHan.Framework 由 **72 个 NuGet 包**组成，按分层组织。本册是**参考手册**——每个包一页，写完整的 API 清单与配置项全表。
 
 ::: tip 先看指南还是先看这里
 文档分两册，解决的问题不同：
@@ -60,11 +60,8 @@ DDD 分层与应用服务契约。
 | 模块 | 说明 |
 | --- | --- |
 | [Security](./security) | 安全与加密：BouncyCastle 企业级密码学、密钥管理、密码哈希、数据保护 |
-| [Security.SqlSugar](./security-sqlsugar) | 密码历史记录的 SqlSugar 持久化提供程序：按用户查询与写入密码哈希、按上限裁剪历史 |
 | [Authentication](./authentication) | 认证：JWT / OAuth2 / OIDC、令牌工厂、MFA、SSO |
-| [Authentication.SqlSugar](./authentication-sqlsugar) | 认证存储 SqlSugar 提供程序：用户、刷新令牌（只存哈希、重用检测）与第三方登录绑定落库，替换内存实现 |
 | [Authorization](./authorization) | 授权：RBAC、策略授权、声明授权 |
-| [Authorization.SqlSugar](./authorization-sqlsugar) | 授权存储 SqlSugar 提供程序：权限、角色、策略落库，查表式权限检查器每次判定至多两条 SQL |
 
 ## 5. 多租户 · 配置 · 校验
 
@@ -73,7 +70,6 @@ DDD 分层与应用服务契约。
 | [MultiTenancy.Abstractions](./multitenancy-abstractions) | 多租户抽象：租户上下文接口、解析链 |
 | [MultiTenancy](./multitenancy) | 多租户：租户解析中间件、数据隔离、租户配置管理、生命周期 |
 | [Settings](./settings) | 设置管理：设置定义提供者模式、动态配置、多来源（租户级别） |
-| [Settings.SqlSugar](./settings-sqlsugar) | 设置管理持久化：`ISettingStore` 的 SqlSugar 落库实现 |
 | [Quotas](./quotas) | 租户用量配额：政策与账本分离，预留—提交—释放三段式 |
 | [Quotas.SqlSugar](./quotas-sqlsugar) | 配额账本持久化：唯一索引去重 + 条件更新扣额，多实例共享额度 |
 | [Validation.Abstractions](./validation-abstractions) | 校验抽象：校验异常与错误承载接口 |
@@ -102,7 +98,6 @@ DDD 分层与应用服务契约。
 | [Localization](./localization) | 国际化：多语言资源文件、动态文化切换 |
 | [Logging](./logging) | 结构化日志：Serilog 集成、文件/控制台输出、异步写入 |
 | [Auditing](./auditing) | 审计日志：6 类日志记录、Channel 异步队列 + 批量消费者、脱敏器、写入器契约（默认空实现） |
-| [Auditing.SqlSugar](./auditing-sqlsugar) | 审计日志 SqlSugar 提供程序：6 类日志实体（按月分表）与写入器，替换空实现后日志落库 |
 | [Castle](./castle) | AOP 动态代理：Castle DynamicProxy 集成、服务拦截器注册 |
 | [Threading](./threading) | 并发辅助：取消令牌提供者、基于 AsyncLocal 的环境作用域 |
 | [Timing](./timing) | 时间策略：时区管理、时间抽象 |
@@ -116,15 +111,13 @@ DDD 分层与应用服务契约。
 | [VirtualFileSystem](./virtual-file-system) | 虚拟文件系统：本地目录 + 程序集嵌入资源统一挂载、内存版本快照 |
 | [Templating](./templating) | 模板渲染：默认简单占位替换引擎 + 可选 Scriban、模板注册表 |
 | [Tasks](./tasks) | 定时任务：调度引擎（Cron/间隔/延迟）、后台服务基类、多租户感知 |
-| [Tasks.SqlSugar](./tasks-sqlsugar) | 任务 SqlSugar 持久化提供程序：后台作业入队同事务、多实例领取互斥，定时任务实例与执行历史落库 |
+| [Tasks.SqlSugar](./tasks-sqlsugar) | 任务 SqlSugar 持久化提供程序：后台作业入队同事务、多实例领取互斥 |
 | [Traffic](./traffic) | 流量治理：灰度路由（百分比/用户/租户/请求头）、限流与熔断策略接口 |
 | [Traffic.SqlSugar](./traffic-sqlsugar) | 灰度规则的 SqlSugar 只读仓储：内存缓存 + 到期自动刷新，替换内存实现 |
 | [Upgrade](./upgrade) | 升级引擎：版本存储、迁移执行、分布式锁、启动自动检查 |
-| [Upgrade.SqlSugar](./upgrade-sqlsugar) | 升级版本记录的 SqlSugar 持久化提供程序：版本状态与迁移历史落库，替换内存实现 |
 | [Script](./script) | 脚本引擎：基于 Roslyn 的 C# 动态脚本、编译校验与超时 |
 | [Workflow.Abstractions](./workflow-abstractions) | 工作流抽象：流程定义模型、活动契约、书签与存储端口 |
 | [Workflow](./workflow) | 工作流引擎：图执行、17 个内置活动、人工任务（审批）、表达式、定时器 |
-| [Workflow.SqlSugar](./workflow-sqlsugar) | 工作流 SqlSugar 持久化提供程序：定义、实例、执行历史与书签落库，每次操作独立提交 |
 | [SearchEngines.Abstractions](./search-engines-abstractions) | 搜索抽象：索引/文档/检索契约，零第三方依赖 |
 | [SearchEngines](./search-engines) | 搜索默认实现：进程内引擎（开发与测试兜底） |
 | [SearchEngines.Elasticsearch](./search-engines-elasticsearch) | 搜索实现：Elasticsearch（生产推荐） |

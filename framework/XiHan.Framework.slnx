@@ -27,11 +27,8 @@
     <Project Path="src/XiHan.Framework.AI.Abstractions/XiHan.Framework.AI.Abstractions.csproj" />
     <Project Path="src/XiHan.Framework.AI/XiHan.Framework.AI.csproj" />
     <Project Path="src/XiHan.Framework.Auditing/XiHan.Framework.Auditing.csproj" />
-    <Project Path="src/XiHan.Framework.Auditing.SqlSugar/XiHan.Framework.Auditing.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Authentication/XiHan.Framework.Authentication.csproj" Id="2438269a-f231-41bf-b911-a9d5556e1bc6" />
-    <Project Path="src/XiHan.Framework.Authentication.SqlSugar/XiHan.Framework.Authentication.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Authorization/XiHan.Framework.Authorization.csproj" />
-    <Project Path="src/XiHan.Framework.Authorization.SqlSugar/XiHan.Framework.Authorization.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Bot/XiHan.Framework.Bot.csproj" />
     <Project Path="src/XiHan.Framework.Bot.DingTalk/XiHan.Framework.Bot.DingTalk.csproj" />
     <Project Path="src/XiHan.Framework.Bot.Email/XiHan.Framework.Bot.Email.csproj" />
@@ -65,9 +62,7 @@
     <Project Path="src/XiHan.Framework.SearchEngines/XiHan.Framework.SearchEngines.csproj" />
     <Project Path="src/XiHan.Framework.SearchEngines.Elasticsearch/XiHan.Framework.SearchEngines.Elasticsearch.csproj" />
     <Project Path="src/XiHan.Framework.Security/XiHan.Framework.Security.csproj" />
-    <Project Path="src/XiHan.Framework.Security.SqlSugar/XiHan.Framework.Security.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Serialization/XiHan.Framework.Serialization.csproj" />
-    <Project Path="src/XiHan.Framework.Settings.SqlSugar/XiHan.Framework.Settings.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Tasks/XiHan.Framework.Tasks.csproj" />
     <Project Path="src/XiHan.Framework.Tasks.SqlSugar/XiHan.Framework.Tasks.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Templating/XiHan.Framework.Templating.csproj" />
@@ -77,11 +72,9 @@
     <Project Path="src/XiHan.Framework.Traffic.SqlSugar/XiHan.Framework.Traffic.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Uow/XiHan.Framework.Uow.csproj" />
     <Project Path="src/XiHan.Framework.Upgrade/XiHan.Framework.Upgrade.csproj" />
-    <Project Path="src/XiHan.Framework.Upgrade.SqlSugar/XiHan.Framework.Upgrade.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.VirtualFileSystem/XiHan.Framework.VirtualFileSystem.csproj" />
     <Project Path="src/XiHan.Framework.Workflow.Abstractions/XiHan.Framework.Workflow.Abstractions.csproj" />
     <Project Path="src/XiHan.Framework.Workflow/XiHan.Framework.Workflow.csproj" />
-    <Project Path="src/XiHan.Framework.Workflow.SqlSugar/XiHan.Framework.Workflow.SqlSugar.csproj" />
   </Folder>
   <Folder Name="/1.src/7.Web/">
     <Project Path="src/XiHan.Framework.Web.Api/XiHan.Framework.Web.Api.csproj" Id="c2f22ef5-3eba-47b2-a893-b7db49e09ad9" />
@@ -102,11 +95,8 @@
     <Project Path="test/XiHan.Framework.Application.Tests/XiHan.Framework.Application.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Architecture.Tests/XiHan.Framework.Architecture.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Auditing.Tests/XiHan.Framework.Auditing.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Auditing.SqlSugar.Tests/XiHan.Framework.Auditing.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Authentication.Tests/XiHan.Framework.Authentication.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Authentication.SqlSugar.Tests/XiHan.Framework.Authentication.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Authorization.Tests/XiHan.Framework.Authorization.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Authorization.SqlSugar.Tests/XiHan.Framework.Authorization.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Bot.DingTalk.Tests/XiHan.Framework.Bot.DingTalk.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Bot.Email.Tests/XiHan.Framework.Bot.Email.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Bot.Lark.Tests/XiHan.Framework.Bot.Lark.Tests.csproj" />
@@ -149,9 +139,7 @@
     <Project Path="test/XiHan.Framework.SearchEngines.Elasticsearch.Tests/XiHan.Framework.SearchEngines.Elasticsearch.Tests.csproj" />
     <Project Path="test/XiHan.Framework.SearchEngines.Tests/XiHan.Framework.SearchEngines.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Security.Tests/XiHan.Framework.Security.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Security.SqlSugar.Tests/XiHan.Framework.Security.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Serialization.Tests/XiHan.Framework.Serialization.Tests.csproj" Id="b4569bd6-5e7d-45bf-9135-17b2c6265439" />
-    <Project Path="test/XiHan.Framework.Settings.SqlSugar.Tests/XiHan.Framework.Settings.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Settings.Tests/XiHan.Framework.Settings.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Tasks.Tests/XiHan.Framework.Tasks.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHan.Framework.Tasks.SqlSugar.Tests.csproj" />
@@ -162,7 +150,6 @@
     <Project Path="test/XiHan.Framework.Traffic.SqlSugar.Tests/XiHan.Framework.Traffic.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Uow.Tests/XiHan.Framework.Uow.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Upgrade.Tests/XiHan.Framework.Upgrade.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Upgrade.SqlSugar.Tests/XiHan.Framework.Upgrade.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Utils.Tests/XiHan.Framework.Utils.Tests.csproj" Id="e6f382f6-e361-47cd-af97-2689f3d784c8" />
     <Project Path="test/XiHan.Framework.Validation.Abstractions.Tests/XiHan.Framework.Validation.Abstractions.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Validation.Tests/XiHan.Framework.Validation.Tests.csproj" />
@@ -177,7 +164,6 @@
     <Project Path="test/XiHan.Framework.Web.RealTime.Tests/XiHan.Framework.Web.RealTime.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Workflow.Abstractions.Tests/XiHan.Framework.Workflow.Abstractions.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Workflow.Tests/XiHan.Framework.Workflow.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Workflow.SqlSugar.Tests/XiHan.Framework.Workflow.SqlSugar.Tests.csproj" />
   </Folder>
   <Folder Name="/3.samples/" />
   <Folder Name="/3.samples/1.Hosts/">

@@ -57,38 +57,6 @@ public class XiHanTasksSqlSugarOptionsTests
     }
 
     /// <summary>
-    /// 运行中实例宽限期默认一分钟
-    /// </summary>
-    [Fact]
-    public void 运行中实例宽限期默认一分钟()
-    {
-        var options = new XiHanTasksSqlSugarOptions();
-
-        Assert.Equal(TimeSpan.FromMinutes(1), options.RunningInstanceGracePeriod);
-    }
-
-    /// <summary>
-    /// 从配置节绑定宽限期
-    /// </summary>
-    [Fact]
-    public void 从配置节绑定宽限期()
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["XiHan:Tasks:SqlSugar:RunningInstanceGracePeriod"] = "00:03:00"
-            })
-            .Build();
-        var services = new ServiceCollection();
-
-        services.AddXiHanTasksSqlSugar(configuration);
-
-        using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<XiHanTasksSqlSugarOptions>>().Value;
-
-        Assert.Equal(TimeSpan.FromMinutes(3), options.RunningInstanceGracePeriod);
-    }
-    /// <summary>
     /// 领取批量上限默认五十
     /// </summary>
     [Fact]

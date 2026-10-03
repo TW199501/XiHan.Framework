@@ -1,26 +1,24 @@
 # XiHan.Framework.Tasks.SqlSugar
 
-> 后台作业与定时任务的 SqlSugar 持久化提供程序：作业入队与业务同事务、多实例领取互斥，定时任务实例与执行历史落库。替换 [Tasks](./tasks) 的进程内存储后，作业与执行记录才能跨进程重启与多实例共享。
+> 后台作业的 SqlSugar 持久化提供程序：作业入队与业务同事务、多实例领取互斥。替换 [Tasks](./tasks) 的进程内存储后，后台作业才能跨进程重启与多实例共享。
 
 - **NuGet**：`XiHan.Framework.Tasks.SqlSugar`
 - **模块类**：`XiHanTasksSqlSugarModule`
 - **所在层**：基础设施层
-- **关键依赖**：[Tasks](./tasks)（存储契约、轮询 Worker、调度器）、[Data](./data)（SqlSugar 客户端、工作单元连接登记、建表）
+- **关键依赖**：[Tasks](./tasks)（存储契约、轮询 Worker）、[Data](./data)（SqlSugar 客户端、工作单元连接登记、建表）
 
 ## 概述
 
-[Tasks](./tasks) 的后台作业与定时任务各有一个存储契约：`IBackgroundJobStore` 与 `IJobStore`。两者的默认实现都是进程内字典——进程重启即丢，多实例之间也不共享。主包另带一个基于 Redis 的后台作业存储，但定时任务没有持久化选项。
+[Tasks](./tasks) 的后台作业存储契约是 `IBackgroundJobStore`，默认实现是进程内字典——进程重启即丢，多实例之间也不共享。主包另带一个基于 Redis 的后台作业存储。
 
-本包把两者都落到数据表：
+本包把后台作业落到数据表：
 
 - **后台作业**：入队与业务同事务；N 个实例同时轮询，同一个作业只会被一个实例领走；执行中逐作业续租，失去租约的实例不会覆盖新持有者的结果；支持重试与取消管理
-- **定时任务**：每次执行的实例与历史落库，可按任务名分页查询；执行途中崩溃遗留的「运行中」记录在超时后自动失效，不会让不允许并发的任务永久停摆
 
 ## 何时使用
 
 - 后台作业不能因进程重启而丢失，或应用以多实例部署
 - 没有 Redis，或不希望后台作业的可靠性依赖 Redis
-- 需要在管理后台查询定时任务的执行历史
 - 已在用 [Data](./data)，希望作业与业务数据走同一套连接与事务
 
 ## 安装与启用
@@ -53,11 +51,11 @@ public class YourAppModule : XiHanModule
 }
 ```
 
-未开启又没有手工建表时，首次入队或首次执行定时任务即抛「表不存在」。
+未开启又没有手工建表时，首次入队即抛「表不存在」。
 
 ## 表结构
 
-三张表都**不分表**，都写在默认布局的主库。
+`sys_background_job` **不分表**，写在默认布局的主库。
 
 ### `sys_background_job`
 
@@ -96,19 +94,11 @@ ALTER TABLE sys_background_job ADD COLUMN Is_Cancellation_Requested BIT NULL;
 
 直接调用 SqlSugar `CodeFirst.InitTables` 的宿主会自动补这一列，不改动既有数据。
 
-### `sys_job_instance`
-
-每次定时任务执行一行，主键为 `JobInstance.InstanceId`。主要列：`Job_Name`、`Job_Type_Name`、`Status`、`Trigger_Type`、`Tenant_Id`、`Scheduled_At`、`Started_At`、`Completed_At`、`Duration_Milliseconds`、`Running_Deadline`、`Retry_Count`、`Execution_Node`、`Trace_Id`、`Parameters_Json`、`Error_Message`、`Stack_Trace`。时间列均为协调世界时。
-
-### `sys_job_history`
-
-每次定时任务执行一行，主键为 `JobHistory.HistoryId`。主要列：`Instance_Id`、`Job_Name`、`Status`、`Started_At`、`Completed_At`、`Duration_Milliseconds`、`Tenant_Id`、`Trigger_Type`、`Is_Success`、`Error_Message`、`Stack_Trace`、`Retry_Count`、`Execution_Node`、`Trace_Id`、`Parameters_Json`、`Remarks`。时间列均为协调世界时。
-
 ## 工作原理
 
 ### 写库位置
 
-所有写库都在宿主上下文里、对默认布局的主库进行。轮询 Worker 与调度器都运行在无租户上下文的后台作用域，只能看到宿主布局；作业若写进租户独立库，就永远不会被执行。
+所有写库都在宿主上下文里、对默认布局的主库进行。轮询 Worker 运行在无租户上下文的后台作用域，只能看到宿主布局；作业若写进租户独立库，就永远不会被执行。
 
 后台作业入队时若存在事务型工作单元，连接会登记进该工作单元，作业与业务数据同事务提交或回滚（业务也在主库时）。
 
@@ -156,20 +146,6 @@ ALTER TABLE sys_background_job ADD COLUMN Is_Cancellation_Requested BIT NULL;
 
 取消分两步条件更新；两步都未命中而作业仍未放弃且未登记请求时（两步之间作业恰被领取或释放），重新执行，最多三轮。取消是协作式的，不强制终止正在执行的代码。被取消的作业保留在表中，可以再重试。
 
-### 定时任务的运行中实例
-
-不允许并发的任务在触发前会查询「是否有运行中实例」。执行途中进程退出会留下一条永远是「运行中」的记录。本包为运行中实例记录截止时刻（开始时间 + 任务超时 + 宽限期），查询只认截止时刻未到的实例。任务超时小于等于 0（不限时）时截止时刻为 `9999-12-31`，实例在被显式结束之前一直算运行中。
-
-### 定时任务的分批清理
-
-主包的 [`JobHistoryCleanupService`](./tasks) 启用后（`XiHan:Tasks:ScheduledJobs:HistoryCleanupEnabled = true`），按 `HistoryRetentionDays` 算出截止时间，逐批调用本存储的 `CleanupHistoryAsync(cutoff, batchSize, ct)`。每一批：
-
-1. 查出开始时间早于截止时间的执行历史，最多 `batchSize` 条主键，按主键删除
-2. 查出待清理的任务实例，最多 `batchSize` 条主键，按主键删除：成功、失败或已取消且完成时间早于截止时间的实例，以及运行截止时刻早于截止时间的遗留运行中实例
-3. 返回两类合计删除数
-
-等待中实例与运行截止时刻未到截止时间的运行中实例不删除。时间比较在 SQL 内完成；执行历史的 `Started_At`、任务实例的 `Completed_At` 上有索引，遗留运行中实例的查询不走索引。取消令牌在每类操作前检查。
-
 ## 配置
 
 配置节 `XiHan:Tasks:SqlSugar`（`XiHanTasksSqlSugarOptions.SectionName`）。
@@ -177,7 +153,6 @@ ALTER TABLE sys_background_job ADD COLUMN Is_Cancellation_Requested BIT NULL;
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `BackgroundJobLeaseTimeout` | `TimeSpan` | `00:05:00` | 后台作业租约时长，必须大于零，否则启动校验失败；领取与每次续租都把租约延长到当前时间加该时长 |
-| `RunningInstanceGracePeriod` | `TimeSpan` | `00:01:00` | 运行中任务实例的宽限期 |
 | `MaxClaimBatchSize` | `int` | `50` | 单次领取的作业数量上限，必须大于零，否则启动校验失败 |
 
 实际领取数量取调用方请求数量与 `MaxClaimBatchSize` 的较小者。一轮领到的作业领取时刻相同，Worker 又串行执行这一轮的全部作业，该上限限制了一轮里排在后面、租约可能在执行前过期的作业数。
@@ -188,11 +163,10 @@ ALTER TABLE sys_background_job ADD COLUMN Is_Cancellation_Requested BIT NULL;
 | --- | --- |
 | `XiHanTasksSqlSugarModule` | 模块类，声明依赖即启用 |
 | `SqlSugarBackgroundJobStore` | `IBackgroundJobStore` 的 SqlSugar 实现，单例 |
-| `SqlSugarJobStore` | `IJobStore` 的 SqlSugar 实现，单例 |
 | `TasksHostClientAccessor` | 在宿主上下文中取默认布局主库客户端的访问器 |
-| `SysBackgroundJob` / `SysJobInstance` / `SysJobHistory` | 三个实体 |
-| `BackgroundJobMapper` / `JobStoreMapper` | 契约与实体的双向映射 |
-| `XiHanTasksSqlSugarOptions` | 租约、宽限期与领取批量上限配置 |
+| `SysBackgroundJob` | 后台作业实体 |
+| `BackgroundJobMapper` | 契约与实体的双向映射 |
+| `XiHanTasksSqlSugarOptions` | 租约与领取批量上限配置 |
 
 ## 注意事项与最佳实践
 
@@ -202,23 +176,22 @@ ALTER TABLE sys_background_job ADD COLUMN Is_Cancellation_Requested BIT NULL;
 - **取消是协作式的**。执行中的作业只登记取消请求，作业处理器要响应取消令牌才会停止。
 - **SQL Server 未开启 RCSI 时，领取会被未提交的入队事务阻塞**。默认的已提交读隔离下，未提交的入队事务持有的行锁会让领取的查询等待；在库上开启 `READ_COMMITTED_SNAPSHOT`（RCSI）可避免。
 - **`GetWaitingJobsAsync` 是领取不是查询**。调用后作业已被盖上令牌，不要在别处当作只读查询复用，也不要在事务型工作单元里调用它。
-- **执行记录默认只增不减**。主包的历史清理服务默认关闭；启用后按批清理，未启用时需应用定期调用 `IJobStore.CleanupHistoryAsync`。两种方式都会清掉运行截止时刻早于截止时间的遗留运行中实例。放弃的后台作业（含被取消的）保留在表中，需要应用自行清理。
-- **运行中实例对所有节点可见**。多节点共用一个库时，不允许并发的任务在节点之间也互斥。
-- **不限时的任务要留意遗留实例**。任务超时小于等于 0 时，运行中实例在被显式结束之前一直算运行中；这类任务若不允许并发、又在执行途中崩溃，会一直被跳过。用 `IJobStore.UpdateJobStatusAsync(实例标识, JobStatus.Failed)` 清除，遗留实例的 `Running_Deadline` 为 `9999-12-31`。
+- **放弃的作业保留在表中**。放弃的后台作业（含被取消的）不会自动清理，需要应用自行清理。
 - **跨库写入不是一个事务**。业务数据在模块库或租户独立库时，作业的入队与业务各自提交。
 - **MySQL 不要开启 `UseAffectedRows=true`**。开启后同一秒内的续租因列值未变返回 0 行，被判为失去租约；保持 MySqlConnector 的默认（返回匹配行数）。
 - **租约恰在到期那一刻仍可续租**。本存储以「`Claim_Time` 不早于当前时间减租约时长」判定有效，与领取的过期判定一致；进程内存储在这一刻已不可续租。
 - **多实例的时钟需要同步**。租约判定用各实例自己的当前时间，时钟偏差大于续租间隔时，作业可能被另一实例提前重新领取。
 - **取消最多重试三轮**。两步条件更新之间作业恰被领取或释放时重新执行，三轮仍无法判定时返回 `NoChange`。
-- **两个存储的生命周期仍是单例**，与主包一致。之后调用 `UseRedisBackgroundJobStore()` 或 `XiHanJobBuilder.UseStore<T>()` 会覆盖本包。
+- **存储的生命周期仍是单例**，与主包一致。之后调用 `UseRedisBackgroundJobStore()` 会覆盖本包。
+- **定时任务存储不在本包范围内**。`IJobStore` 的持久化由应用自行实现。
 
 ## 扩展点 / 自定义
 
-需要完全自定义存储行为时，实现 `IBackgroundJobStore` 或 `IJobStore` 并在 DI 中 `Replace`。
+需要完全自定义存储行为时，实现 `IBackgroundJobStore` 并在 DI 中 `Replace`。
 
 ## 依赖模块
 
-- [Tasks](./tasks)：存储契约、轮询 Worker、调度器与执行器
+- [Tasks](./tasks)：存储契约与轮询 Worker
 - [Data](./data)：SqlSugar 客户端解析、工作单元连接登记、建表初始化
 
 ## 相关模块
@@ -226,4 +199,3 @@ ALTER TABLE sys_background_job ADD COLUMN Is_Cancellation_Requested BIT NULL;
 - [MultiTenancy](./multitenancy)：写库期间切换到的宿主上下文
 - [Uow](./uow)：后台作业入队所参与的工作单元
 - [EventBus.SqlSugar](./eventbus-sqlsugar)：同一套条件抢占领取协议的发件箱实现
-- [Auditing.SqlSugar](./auditing-sqlsugar)：同一套落库范式的审计日志实现
