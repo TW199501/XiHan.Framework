@@ -52,7 +52,7 @@ The framework is organized into strict modular layers. Dependencies between modu
 
 ## Module Catalog
 
-79 modules, one per project under `framework/src`; package names match project names.
+72 modules, one per project under `framework/src`; package names match project names.
 
 ### Common and Core
 
@@ -80,13 +80,9 @@ The framework is organized into strict modular layers. Dependencies between modu
 | `Uow` | Unit of work: AOP interceptors manage transaction boundaries |
 | `Caching` | Hybrid caching: HybridCache (memory + Redis), caching interceptor, tenant awareness |
 | `Authentication` | Authentication: JWT / OAuth2 / OIDC, token factory, MFA, SSO |
-| `Authentication.SqlSugar` | SqlSugar persistence provider for authentication stores: users, refresh tokens (hash-only, reuse detection) and external-login bindings replace the in-memory defaults from `Authentication` |
 | `Authorization` | Authorization: RBAC, policy-based, claims-based |
-| `Authorization.SqlSugar` | SqlSugar persistence provider for authorization: permission, role and policy stores plus a query-based permission checker (at most two SQL statements per check) |
 | `Security` | Security and cryptography: BouncyCastle primitives, key management, password hashing, data protection |
-| `Security.SqlSugar` | Password history persistence: SqlSugar-backed `IPasswordHistoryStore` implementation |
 | `Auditing` | Audit logging: collection pipeline for operation / access / login / exception / API / entity-change logs, async queue, masking and write contracts |
-| `Auditing.SqlSugar` | SqlSugar persistence provider for audit logging: six month-split log entities; writers replace the empty defaults from `Auditing` |
 | `EventBus.Abstractions` | Event bus abstractions: publish/subscribe interfaces, handler pipeline |
 | `EventBus` | Event bus: local and distributed events, outbox pattern, event store (built-in implementation; brokers come from the sub-packages below) |
 | `EventBus.RabbitMQ` | RabbitMQ provider for the distributed event bus |
@@ -95,7 +91,6 @@ The framework is organized into strict modular layers. Dependencies between modu
 | `EventBus.SqlSugar` | SqlSugar persistence provider for the event outbox and inbox: the outbox is persisted in the database the business writes to, the inbox deduplicates by message id, claiming is mutually exclusive across instances |
 | `Workflow.Abstractions` | Workflow abstractions: definition model, activity contracts, runtime instance and bookmark models, storage ports, human-task contracts; no execution logic |
 | `Workflow` | Workflow engine: graph execution engine, built-in activity set, human tasks (approvals), expression evaluation, timer scheduling, in-memory store by default |
-| `Workflow.SqlSugar` | SqlSugar persistence provider for workflows: definitions, instances, execution history and bookmarks; every store call commits in its own transaction |
 | `Castle` | AOP dynamic proxy: Castle DynamicProxy integration and interceptor registration |
 | `Logging` | Structured logging: Serilog integration, file/console sinks, async writes |
 | `Serialization` | Serialization: dynamic JSON manipulation and `JsonSerializerOptions` composition on System.Text.Json |
@@ -105,7 +100,6 @@ The framework is organized into strict modular layers. Dependencies between modu
 | `MultiTenancy.Abstractions` | Multi-tenancy abstractions: tenant context interfaces, resolution chain |
 | `MultiTenancy` | Multi-tenancy: tenant resolution middleware, data isolation, tenant configuration, lifecycle |
 | `Settings` | Settings management: definition-provider pattern, dynamic configuration, multiple sources (including tenant level) |
-| `Settings.SqlSugar` | Settings persistence: SqlSugar-backed `ISettingStore` implementation |
 | `Validation.Abstractions` | Validation abstractions: the `IHasValidationErrors` contract and `XiHanValidationException` |
 | `Validation` | Validation integration entry point: currently a thin placeholder, module class only |
 | `ObjectMapping` | Object mapping: Mapster integration |
@@ -117,11 +111,10 @@ The framework is organized into strict modular layers. Dependencies between modu
 | `Timing` | Time policy: time zone management, time abstraction |
 | `Templating` | Template rendering: Scriban engine, template registry |
 | `Tasks` | Scheduled tasks and background jobs: scheduling engine, background services, tenant awareness |
-| `Tasks.SqlSugar` | SqlSugar persistence provider for tasks: background-job enqueue joins the business transaction and claiming is mutually exclusive across instances; scheduled-job instances and execution history are persisted |
+| `Tasks.SqlSugar` | SqlSugar persistence provider for tasks: background-job enqueue joins the business transaction and claiming is mutually exclusive across instances |
 | `Traffic` | Traffic governance: gray routing (rule engine with header / IP / percentage / tenant / user matchers); rate limiting and circuit breaking are policy interfaces only |
 | `Traffic.SqlSugar` | Gray rule persistence: SqlSugar-backed read-only `IGrayRuleRepository` with in-memory cache |
 | `Upgrade` | Upgrade engine: version store, migration execution, distributed lock, automatic check on startup |
-| `Upgrade.SqlSugar` | Upgrade version persistence: SqlSugar-backed `IUpgradeVersionStore` for version state and migration history |
 | `AI.Abstractions` | AI abstractions: agents, chat, configuration, guardrails, prompts, RAG, skills |
 | `AI` | AI integration: Microsoft.Extensions.AI model abstraction, Microsoft.Agents.AI agent framework, MCP protocol support |
 | `Bot` | Bot core: multi-channel dispatch pipeline, policies and templates; channels come from the sub-packages below |
@@ -193,7 +186,7 @@ Utils (zero third-party deps)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx               # solution file
-│   ├── src/                               # sources (79 modules)
+│   ├── src/                               # sources (72 modules)
 │   │   ├── XiHan.Framework.Utils/         #   utilities
 │   │   ├── XiHan.Framework.Metadata/      #   framework metadata
 │   │   ├── XiHan.Framework.Core/          #   modularity core
@@ -205,7 +198,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   web core
 │   │   ├── XiHan.Framework.Web.Api/       #   dynamic APIs
 │   │   └── ...                            #   other modules
-│   ├── test/                              # tests (one per src project, 84 unit-test projects)
+│   ├── test/                              # tests (one per src project, 76 unit-test projects)
 │   │   ├── XiHan.Framework.Utils.Tests/   #   utilities tests
 │   │   ├── XiHan.Framework.Core.Tests/    #   core tests
 │   │   └── ...                            #   the rest follow <Project>.Tests

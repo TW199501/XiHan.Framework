@@ -19,11 +19,6 @@ public class XiHanTasksSqlSugarOptions
     public TimeSpan BackgroundJobLeaseTimeout { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// 运行中任务实例的宽限期，开始时间加任务超时再加宽限期之后，实例不再视为运行中
-    /// </summary>
-    public TimeSpan RunningInstanceGracePeriod { get; set; } = TimeSpan.FromMinutes(1);
-
-    /// <summary>
     /// 单次领取的作业数量上限，实际领取数量取调用方请求数量与该值的较小者，必须大于零
     /// </summary>
     public int MaxClaimBatchSize { get; set; } = 50;

@@ -52,7 +52,7 @@
 
 ## 模块清单
 
-共 79 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
+共 72 个模块，与 `framework/src` 下的工程一一对应，包名与工程名一致。
 
 ### 公共与核心
 
@@ -80,13 +80,9 @@
 | `Uow` | 工作单元：AOP 拦截器自动管理事务边界 |
 | `Caching` | 混合缓存：HybridCache（内存 + Redis）、缓存拦截器、租户感知 |
 | `Authentication` | 认证：JWT / OAuth2 / OIDC、令牌工厂、MFA、SSO |
-| `Authentication.SqlSugar` | 认证存储 SqlSugar 提供程序：用户、刷新令牌（只存哈希、重用检测）与第三方登录绑定，以 Replace 顶替 Authentication 的内存实现 |
 | `Authorization` | 授权：RBAC、策略授权、声明授权 |
-| `Authorization.SqlSugar` | 授权存储 SqlSugar 持久化提供程序：权限、角色、策略三个存储落库，查表式权限检查器每次判定至多两条 SQL |
 | `Security` | 安全与加密：BouncyCastle 企业级密码学、密钥管理、密码哈希、数据保护 |
-| `Security.SqlSugar` | 密码历史 SqlSugar 持久化：`IPasswordHistoryStore` 的 SqlSugar 落库实现 |
 | `Auditing` | 审计日志：操作/访问/登录/异常/接口/实体变更日志的采集管道、异步队列、脱敏与写入契约 |
-| `Auditing.SqlSugar` | 审计日志 SqlSugar 提供程序：6 类日志实体按月分表，写入器以 Replace 顶替 Auditing 的空实现 |
 | `EventBus.Abstractions` | 事件总线抽象：发布/订阅接口、事件处理管道 |
 | `EventBus` | 事件总线：本地/分布式事件、Outbox 模式、事件存储（内置实现，分布式 Broker 由以下子包提供） |
 | `EventBus.RabbitMQ` | 分布式事件总线 RabbitMQ 提供程序 |
@@ -95,7 +91,6 @@
 | `EventBus.SqlSugar` | 事件收发件箱 SqlSugar 持久化提供程序：发件箱按业务所在库落库，收件箱按消息标识去重，多实例领取互斥 |
 | `Workflow.Abstractions` | 工作流抽象：流程定义模型、活动契约、运行时实例与书签模型、存储端口、人工任务契约，不含执行实现 |
 | `Workflow` | 工作流引擎：图执行引擎、内置活动集、人工任务（审批）、表达式求值、定时器调度、内存存储默认实现 |
-| `Workflow.SqlSugar` | 工作流 SqlSugar 持久化提供程序：定义、实例、执行历史与书签落库，每次存储操作独立事务提交 |
 | `Castle` | AOP 动态代理：Castle DynamicProxy 集成，服务拦截器注册 |
 | `Logging` | 结构化日志：Serilog 集成、文件/控制台输出、异步写入 |
 | `Serialization` | 序列化：基于 System.Text.Json 的动态 JSON 操作、序列化选项组合 |
@@ -105,7 +100,6 @@
 | `MultiTenancy.Abstractions` | 多租户抽象：租户上下文接口、解析链 |
 | `MultiTenancy` | 多租户：租户解析中间件、数据隔离、租户配置管理、生命周期 |
 | `Settings` | 设置管理：设置定义提供者模式、动态配置、多来源（租户级别） |
-| `Settings.SqlSugar` | 设置管理持久化：`ISettingStore` 的 SqlSugar 落库实现 |
 | `Validation.Abstractions` | 校验抽象：校验错误契约 `IHasValidationErrors` 与 `XiHanValidationException` |
 | `Validation` | 数据校验集成入口：当前为薄占位，仅模块类 |
 | `ObjectMapping` | 对象映射：Mapster 集成 |
@@ -117,11 +111,10 @@
 | `Timing` | 时间策略：时区管理、时间抽象 |
 | `Templating` | 模板渲染：Scriban 引擎、模板注册表 |
 | `Tasks` | 定时任务与后台作业：调度引擎、后台服务、多租户感知 |
-| `Tasks.SqlSugar` | 任务 SqlSugar 持久化提供程序：后台作业入队与业务同事务、多实例领取互斥，定时任务实例与执行历史落库 |
+| `Tasks.SqlSugar` | 任务 SqlSugar 持久化提供程序：后台作业入队与业务同事务、多实例领取互斥 |
 | `Traffic` | 流量治理：灰度路由（规则引擎 + Header / IP / 百分比 / 租户 / 用户 匹配器）；限流与熔断仅提供策略接口 |
 | `Traffic.SqlSugar` | 灰度规则 SqlSugar 持久化：`IGrayRuleRepository` 的只读落库实现，带内存缓存 |
 | `Upgrade` | 升级引擎：版本存储、迁移执行、分布式锁、启动自动检查 |
-| `Upgrade.SqlSugar` | 升级版本记录 SqlSugar 持久化：`IUpgradeVersionStore` 的落库实现，含版本状态与迁移历史 |
 | `AI.Abstractions` | AI 抽象层：智能体、对话、配置、护栏、提示词、RAG、技能等接口契约 |
 | `AI` | AI 集成：Microsoft.Extensions.AI 统一模型抽象、Microsoft.Agents.AI 智能体框架、MCP 协议支持 |
 | `Bot` | 机器人核心：多渠道消息分发管道、策略与模板，渠道能力由以下子包提供 |
@@ -193,7 +186,7 @@ Utils (零第三方依赖)
 XiHan.Framework/
 ├── framework/
 │   ├── XiHan.Framework.slnx              # 解决方案文件
-│   ├── src/                               # 源码（79 个模块）
+│   ├── src/                               # 源码（72 个模块）
 │   │   ├── XiHan.Framework.Utils/         #   公共工具
 │   │   ├── XiHan.Framework.Metadata/      #   框架元数据
 │   │   ├── XiHan.Framework.Core/          #   模块化核心
@@ -205,7 +198,7 @@ XiHan.Framework/
 │   │   ├── XiHan.Framework.Web.Core/      #   Web 核心
 │   │   ├── XiHan.Framework.Web.Api/       #   动态 API
 │   │   └── ...                            #   其他模块
-│   ├── test/                              # 测试（src 下每个项目一一对应，共 84 个单测工程）
+│   ├── test/                              # 测试（src 下每个项目一一对应，共 76 个单测工程）
 │   │   ├── XiHan.Framework.Utils.Tests/   #   工具测试
 │   │   ├── XiHan.Framework.Core.Tests/    #   内核测试
 │   │   └── ...                            #   其余按 <项目名>.Tests 一一对应

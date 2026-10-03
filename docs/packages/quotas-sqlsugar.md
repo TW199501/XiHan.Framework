@@ -125,4 +125,4 @@ UPDATE sys_quota_bucket
 
 ## 相关模块
 
-- [Settings.SqlSugar](./settings-sqlsugar)、[Traffic.SqlSugar](./traffic-sqlsugar)（同族持久化提供程序的写法参照）
+- [Traffic.SqlSugar](./traffic-sqlsugar)（同族持久化提供程序的写法参照）

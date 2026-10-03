@@ -310,4 +310,3 @@ if (pending == 0)
 
 - [EventBus.RabbitMQ](./eventbus-rabbitmq) / [EventBus.Kafka](./eventbus-kafka) / [EventBus.Redis](./eventbus-redis)：投递用的 Broker 提供程序，与本包正交——本包管「事件怎么存」，它们管「事件怎么发出去、怎么收进来」
 - [Uow](./uow)：发件箱入箱所参与的工作单元
-- [Auditing.SqlSugar](./auditing-sqlsugar)：同一套落库范式的审计日志实现
