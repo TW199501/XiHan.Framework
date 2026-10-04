@@ -20,14 +20,30 @@ namespace XiHan.Framework.Excel.Columns;
 /// 取属性的描述信息；两个特性都没标的属性照常成列，表头同样取描述信息，呈现项取列的默认值。
 /// </para>
 /// <para>
-/// 排序规则（同一行类型每次构建结果一致）：带 <see cref="ExcelColumnAttribute"/> 的属性先按特性
-/// <c>Order</c> 升序，同值时按声明顺序；不带该特性的属性一律排在带特性的属性之后，按声明顺序。
+/// 排序规则（同一行类型每次构建结果一致）：<see cref="ExcelColumnAttribute"/> 上显式写了非负
+/// <c>Order</c>（含 <c>0</c>）的属性排在前面，按该值升序，同值时按声明顺序；<c>Order</c> 为负数
+/// （默认 <c>-1</c>，即未指定）的属性与没有特性的属性同排在后一组，按声明顺序。
 /// 排定位置回写为每列的 <see cref="ExcelColumn.Order"/>，因此把结果再按 <c>Order</c> 升序排一次
 /// 得到的仍是同一顺序。声明顺序取反射给出的属性顺序，同一程序集内稳定。
+/// </para>
+/// <para>
+/// 列宽的缺省标记：特性上的 <c>Width</c> 是 <c>double</c>（可空数值不能作特性参数），用特性设定列宽时，
+/// <c>0</c> 表示「未指定 / 自动列宽」，构建器把它映射为列上的 <c>null</c>；非零值原样作为固定列宽。
+/// 没有特性的属性同样得到 <c>null</c>。
 /// </para>
 /// </remarks>
 public static class ExcelColumnBuilder
 {
+    /// <summary>
+    /// 特性上「未指定列顺序」的取值，负数一律按未指定处理
+    /// </summary>
+    private const int UnspecifiedOrder = -1;
+
+    /// <summary>
+    /// 特性上「未指定列宽」的取值，对应列模型上的 <c>null</c>
+    /// </summary>
+    private const double UnspecifiedWidth = 0;
+
     /// <summary>
     /// 行类型到列清单的缓存
     /// </summary>
@@ -68,7 +84,7 @@ public static class ExcelColumnBuilder
     /// </summary>
     private static IReadOnlyList<ExcelColumn> Build<TRow>()
     {
-        var entries = new List<(PropertyInfo Property, ExcelColumnAttribute? Column)>();
+        var entries = new List<(PropertyInfo Property, ExcelColumnAttribute? Column, bool OrderSpecified, int DeclaredOrder)>();
 
         foreach (var property in typeof(TRow).GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
@@ -82,23 +98,29 @@ public static class ExcelColumnBuilder
                 continue;
             }
 
-            entries.Add((property, property.GetCustomAttribute<ExcelColumnAttribute>()));
+            var column = property.GetCustomAttribute<ExcelColumnAttribute>();
+
+            // 没有特性的属性与特性未指定顺序（负数）的属性同属「未指定」，一律取 UnspecifiedOrder
+            var declaredOrder = column?.Order ?? UnspecifiedOrder;
+
+            entries.Add((property, column, declaredOrder >= 0, declaredOrder));
         }
 
         var columns = new List<ExcelColumn>(entries.Count);
         var position = 0;
 
-        // 排序键：0 组是带特性的属性（按特性 Order 升序），1 组是没有特性的属性；两组内部都保持声明顺序
-        foreach (var (property, column) in entries
-                     .OrderBy(entry => entry.Column is null ? 1 : 0)
-                     .ThenBy(entry => entry.Column?.Order ?? 0))
+        // 排序键：0 组是显式写了非负 Order 的属性（按该值升序），1 组是未指定顺序的属性；
+        // 后一组的次键取常量 0，让稳定排序保持属性的声明顺序
+        foreach (var (property, column, _, _) in entries
+                     .OrderBy(entry => entry.OrderSpecified ? 0 : 1)
+                     .ThenBy(entry => entry.OrderSpecified ? entry.DeclaredOrder : 0))
         {
             columns.Add(new ExcelColumn<TRow>
             {
                 Key = property.Name,
                 Header = column?.Header ?? property.GetDescription(),
                 Order = position++,
-                Width = column?.Width,
+                Width = MapWidth(column),
                 NumberFormat = column?.NumberFormat,
                 Alignment = column?.Alignment ?? ExcelAlignment.Auto,
                 Wrap = column?.Wrap ?? false,
@@ -107,5 +129,15 @@ public static class ExcelColumnBuilder
         }
 
         return columns.AsReadOnly();
+    }
+
+    /// <summary>
+    /// 把特性上的列宽映射为列模型的列宽，<see cref="UnspecifiedWidth"/> 映射为 <c>null</c>
+    /// </summary>
+    /// <param name="column">属性上的导出列特性，没有特性时为 <c>null</c></param>
+    /// <returns>固定列宽，或表示「未指定 / 自动列宽」的 <c>null</c></returns>
+    private static double? MapWidth(ExcelColumnAttribute? column)
+    {
+        return column is null || column.Width == UnspecifiedWidth ? null : column.Width;
     }
 }

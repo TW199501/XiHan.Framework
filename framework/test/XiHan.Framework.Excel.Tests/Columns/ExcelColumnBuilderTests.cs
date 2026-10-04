@@ -93,6 +93,20 @@ public class ExcelColumnBuilderTests
     }
 
     /// <summary>
+    /// 未指定顺序的列排在所有显式指定顺序的列之后，显式顺序含 0
+    /// </summary>
+    [Fact]
+    public void 特性列_未指定顺序的列排在显式顺序之后()
+    {
+        var columns = ExcelColumnBuilder.CreateColumns<PartlyOrderedRow>();
+
+        // 显式 Order 升序：甲(0) 乙(1)；未指定顺序的两列按声明顺序：丙 Tail
+        Assert.Equal(["甲", "乙", "丙", "Tail"], columns.Select(c => c.Header));
+        Assert.Equal([0, 1, 2, 3], columns.Select(c => c.Order));
+        Assert.Equal(["ZeroOrder", "Ordered", "Unordered", "Tail"], columns.Select(c => c.Key));
+    }
+
+    /// <summary>
     /// 特性上的呈现项映射到列，未标注的属性保持列默认值
     /// </summary>
     [Fact]
@@ -114,6 +128,19 @@ public class ExcelColumnBuilderTests
         Assert.Null(plain.FixedWidth);
         Assert.Equal(ExcelTextPadding.Right, plain.Padding);
         Assert.Equal(' ', plain.PadChar);
+    }
+
+    /// <summary>
+    /// 特性上的列宽映射到列，未写列宽时是未指定
+    /// </summary>
+    [Fact]
+    public void 特性列_特性列宽映射到列且缺省为未指定()
+    {
+        var columns = ExcelColumnBuilder.CreateColumns<AnnotatedRow>();
+
+        // Quantity 标了 Width = 20.5，Name 标了特性但没写 Width，特性上的 0 一律映射成 null
+        Assert.Equal(20.5, columns.Single(c => c.Key == nameof(AnnotatedRow.Quantity)).Width);
+        Assert.Null(columns.Single(c => c.Key == nameof(AnnotatedRow.Name)).Width);
     }
 
     /// <summary>

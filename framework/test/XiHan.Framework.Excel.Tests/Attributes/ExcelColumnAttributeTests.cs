@@ -35,15 +35,16 @@ public class ExcelColumnAttributeTests
     }
 
     /// <summary>
-    /// 未显式赋值时特性取约定默认值
+    /// 未显式赋值时特性取约定默认值，顺序与列宽都是「未指定」的标记值
     /// </summary>
     [Fact]
-    public void 特性_默认值顺序零宽度空对齐自动不换行()
+    public void 特性_默认值顺序未指定宽度未指定对齐自动不换行()
     {
         var attribute = new ExcelColumnAttribute();
 
-        Assert.Equal(0, attribute.Order);
-        Assert.Null(attribute.Width);
+        // -1 与 0 是「未指定」的标记值：可空数值不能作特性参数，所以这两个成员用非可空类型加标记值表达
+        Assert.Equal(-1, attribute.Order);
+        Assert.Equal(0, attribute.Width);
         Assert.Null(attribute.NumberFormat);
         Assert.Equal(ExcelAlignment.Auto, attribute.Alignment);
         Assert.False(attribute.Wrap);

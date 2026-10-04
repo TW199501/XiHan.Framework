@@ -37,18 +37,23 @@ public sealed class ExcelColumnAttribute : Attribute
     public string? Header { get; init; }
 
     /// <summary>
-    /// 列顺序，值小的排在前面；未显式赋值时为 0
-    /// </summary>
-    public int Order { get; init; }
-
-    /// <summary>
-    /// 列宽（工作簿单位）。为 <c>null</c> 时由提供程序按采样行自适应
+    /// 列顺序，值小的排在前面；默认 <c>-1</c> 表示未指定，未指定的列排在所有显式指定顺序的列之后
     /// </summary>
     /// <remarks>
-    /// 可空数值不是合法的特性参数类型，在标注位置写 <c>Width = ...</c> 编译器报 CS0655，
-    /// 固定列宽只能在代码里构造列对象时给出。
+    /// 只有非负值是合法的显式顺序，<c>0</c> 就是排在最前。负数（含默认的 <c>-1</c>）一律按未指定处理，
+    /// 由列构建器把这类列排在显式顺序的列之后，并保持属性的声明顺序。
     /// </remarks>
-    public double? Width { get; init; }
+    public int Order { get; init; } = -1;
+
+    /// <summary>
+    /// 列宽（工作簿单位）；默认 <c>0</c> 表示「未指定 / 自动列宽」，由提供程序按采样行自适应
+    /// </summary>
+    /// <remarks>
+    /// 用特性设定列宽时，<c>0</c> 表示「未指定 / 自动列宽」：特性的命名参数不能用可空数值类型（编译器 CS0655），
+    /// 因此这里用 <c>double</c> 并以 <c>0</c> 作缺省标记，列构建器把它映射为列模型上的 <c>null</c>。
+    /// <c>0</c> 本身不是可用的列宽，不会因此失去表达力；要设非零列宽直接写 <c>Width = 20.5</c> 这样的字面量。
+    /// </remarks>
+    public double Width { get; init; }
 
     /// <summary>
     /// Excel 数字或日期格式串（形如 <c>#,##0.00</c>、<c>yyyy-MM-dd</c>），只在 <c>.xlsx</c> 路径生效，
