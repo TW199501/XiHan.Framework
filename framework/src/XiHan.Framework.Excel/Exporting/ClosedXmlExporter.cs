@@ -24,7 +24,8 @@ namespace XiHan.Framework.Excel.Exporting;
 /// </para>
 /// <para>
 /// 行集合的元素按 <see cref="ExcelSheetSpec.RowType"/> 校验一次：取到首个非 null 元素时比对实际类型，
-/// 不符即抛，不为一次类型检查而物化整份行集合。放行异型行只会交出一份表头齐全、数据全空的档。
+/// 不符即抛，不为一次类型检查而物化整份行集合；<c>RowType</c> 本身为 null 同样抛，不跳过判定。
+/// 放行异型行只会交出一份表头齐全、数据全空的档。
 /// </para>
 /// <para>
 /// <see cref="ExcelColumn.Width"/> 是工作簿显示宽度：<c>null</c> 走自适应列宽，其余取值必须是大于 0 且不高于
@@ -47,6 +48,8 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 值域超出工作簿可表示范围的输入一律抛出而不是改写：<c>DateTime</c> 早于 1899-12-30（xlsx 的 1900 日期系统起点）
 /// 会被工作簿夹到纪元时刻、静默变成另一个日期，因此该格直接抛 <see cref="InvalidOperationException"/> 并点名行位置、
 /// 表头与列键。颜色串必须是 <c>#RGB</c> 或 <c>#RRGGBB</c>，<c>null</c> 才表示未设置——空串与非法串不会被当成「没填」。
+/// 形状过关但工作簿仍解析不了的串（全形数字、阿拉伯-印度数字之类非 ASCII 位值）同样由本类转译成框架异常，
+/// 库的 <see cref="FormatException"/> 只作内部异常保留，对外不出现未声明的类型。
 /// </para>
 /// <para>
 /// 输出流的所有权在调用方：本类只写入，绝不对传入流调用 <c>Dispose</c>，
@@ -86,15 +89,20 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <param name="sheet">表规格，列清单的顺序即写出顺序</param>
     /// <param name="cancellationToken">取消令牌，取消时不再写出后续行</param>
     /// <returns>导出结果，格式为 <see cref="ExcelFormat.Xlsx"/>，<see cref="ExcelExportResult.StylingApplied"/> 为 <c>true</c></returns>
-    /// <exception cref="ArgumentNullException"><paramref name="output"/> 或 <paramref name="sheet"/> 为 <c>null</c></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="output"/> 或 <paramref name="sheet"/> 为 <c>null</c>，
+    /// 或 <see cref="ExcelSheetSpec.RowType"/> 为 <c>null</c>（<see cref="ArgumentException.ParamName"/> 为 <c>RowType</c>；
+    /// 该属性是 <c>required</c> 非空成员，null 只会来自 <c>null!</c> 的非法声明）</exception>
     /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是大于 0 且不高于 255
     /// 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内，或
     /// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/> 为负数</exception>
-    /// <exception cref="ArgumentException"><see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串</exception>
+    /// <exception cref="ArgumentException"><see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串，
+    /// 或形状合法但工作簿解析不了（位值含非 ASCII 字符）；<see cref="Exception.InnerException"/> 为库抛出的
+    /// <see cref="FormatException"/>，<see cref="ArgumentException.ParamName"/> 为 <c>HeaderFill</c></exception>
     /// <exception cref="InvalidOperationException">行集合首个非 null 元素与
     /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是 xlsx 表示不了的日期；或某列的
-    /// <see cref="ExcelColumn.CellStyle"/> 交回了非法颜色串。三者消息都点名行位置与实际成因：行型不符者报出
-    /// 行号与期望／实际两个类型全名，后两者报出行号、表头与列键</exception>
+    /// <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串（含形状合法但解析不了的串）。三者消息都点名行位置与
+    /// 实际成因：行型不符者报出行号与期望／实际两个类型全名，后两者报出行号、表头与列键，解析不了的那类把库的
+    /// <see cref="FormatException"/> 保留为内部异常</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// 值域检查（列宽、对齐、表头底色、取样上限）全部排在写入第一格之前，非法输入不会留下半份文件。
@@ -419,14 +427,23 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// </summary>
     /// <remarks>
     /// 只判首个非 null 元素：行集合是惰性游标，为一次类型检查而物化会破坏流式契约；null 行按列的既有契约写成空格，
-    /// 本身没有类型可判。<see cref="ExcelSheetSpec.RowType"/> 为 null 时不判定——没有声明值就无从比对，
-    /// 该属性是否必须给出由调用侧定案。派生行类型按 <see cref="Type.IsInstanceOfType(object)"/> 放行。
+    /// 本身没有类型可判。派生行类型按 <see cref="Type.IsInstanceOfType(object)"/> 放行。
+    /// <see cref="ExcelSheetSpec.RowType"/> 是 <c>required</c> 非空成员，能走到 null 的只有 <c>null!</c> 这种非法状态，
+    /// 因此直接抛而不是跳过判定——跳过等于替调用方把坏声明咽下。
     /// </remarks>
     private static void ValidateRowType(ExcelSheetSpec sheet, object row, int rowIndex)
     {
         var expected = sheet.RowType;
 
-        if (expected is null || expected.IsInstanceOfType(row))
+        if (expected is null)
+        {
+            throw new ArgumentNullException(
+                nameof(ExcelSheetSpec.RowType),
+                $"{nameof(ExcelSheetSpec.RowType)} 为 null：行集合的元素没有可比对的声明类型。" +
+                "请用行类型初始化表规格（RowType = typeof(TRow)），null 是非法状态而不是「未填」。");
+        }
+
+        if (expected.IsInstanceOfType(row))
         {
             return;
         }
@@ -456,8 +473,10 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 把表级颜色串解析成工作簿颜色，非法串直接抛
     /// </summary>
     /// <remarks>
-    /// 颜色串的格式判定沿用 <see cref="ValidateHelper.IsHexColor(string)"/>（#RGB 或 #RRGGBB），不另写一份；
-    /// 至于解析本身交给 <see cref="XLColor.FromHtml(string)"/>，写出侧不改写颜色。
+    /// 两道判定：形状先由 <see cref="ValidateHelper.IsHexColor(string)"/> 把关（其字符判定是 Unicode 感知的
+    /// <c>char.IsDigit</c>，全形数字与阿拉伯-印度数字也算形状合法），再由 <see cref="XLColor.FromHtml(string)"/> 解析——
+    /// 它只认 ASCII 位。库抛的 <see cref="FormatException"/> 在这里转成框架的 <see cref="ArgumentException"/>
+    /// 并保留内部异常，对外只暴露文档化过的失败面。
     /// </remarks>
     private static XLColor ParseSheetColor(string color, string memberName)
     {
@@ -469,12 +488,28 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
                 memberName);
         }
 
-        return XLColor.FromHtml(color);
+        try
+        {
+            return XLColor.FromHtml(color);
+        }
+        catch (FormatException exception)
+        {
+            throw new ArgumentException(
+                $"{memberName}「{color}」的形状是十六进制颜色串，但工作簿解析不了这种写法（形如 #D9E1F2，" +
+                "位值只接受 ASCII 的 0-9 与 a-f）；不上底色请把该项置为 null。" +
+                $"库的解析结果：{exception.Message}",
+                memberName,
+                exception);
+        }
     }
 
     /// <summary>
     /// 把格级颜色串解析成工作簿颜色，非法串抛出并点名行列
     /// </summary>
+    /// <remarks>
+    /// 与表级同一套判定，差别只在异常形态：逐格样式的内容要取到行才知道，所以沿用格级失败体系点名行位置与列键，
+    /// 库的 <see cref="FormatException"/> 作为内部异常保留。
+    /// </remarks>
     private static XLColor ParseCellColor(string color, ExcelColumn column, string position, string memberName)
     {
         if (!ValidateHelper.IsHexColor(color))
@@ -486,7 +521,19 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
                 "不改变该项请把对应参数置为 null。");
         }
 
-        return XLColor.FromHtml(color);
+        try
+        {
+            return XLColor.FromHtml(color);
+        }
+        catch (FormatException exception)
+        {
+            throw CreateFieldFailure(
+                column,
+                position,
+                $"{memberName}「{color}」的形状是十六进制颜色串，但工作簿解析不了这种写法" +
+                $"（位值只接受 ASCII 的 0-9 与 a-f）。库的解析结果：{exception.Message}",
+                exception);
+        }
     }
 
     /// <summary>
@@ -507,6 +554,14 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <summary>
     /// 组出格级失败：外层点名行位置、表头与列键，抛出的原因留在消息尾部
     /// </summary>
-    private static InvalidOperationException CreateFieldFailure(ExcelColumn column, string position, string reason)
-        => new($"xlsx 导出无法完成：{position}的「{column.Header}」列（键 {column.Key}）。{reason}");
+    /// <param name="column">出事的列</param>
+    /// <param name="position">行位置标签</param>
+    /// <param name="reason">要写在消息尾部的原因</param>
+    /// <param name="innerException">库抛出的原始异常，转译时原样带上，不吞掉</param>
+    private static InvalidOperationException CreateFieldFailure(
+        ExcelColumn column,
+        string position,
+        string reason,
+        Exception? innerException = null)
+        => new($"xlsx 导出无法完成：{position}的「{column.Header}」列（键 {column.Key}）。{reason}", innerException);
 }

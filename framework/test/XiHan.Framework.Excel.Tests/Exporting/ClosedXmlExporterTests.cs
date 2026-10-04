@@ -599,6 +599,114 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
+    /// 形状像十六进制但用非 ASCII 数字的表头底色，抛框架自己的 ArgumentException 而不是库内异常
+    /// </summary>
+    /// <remarks>
+    /// 全形数字与阿拉伯-印度数字都过得了 <c>ValidateHelper.IsHexColor</c>（其字符判定是 Unicode 感知的
+    /// <c>char.IsDigit</c>），但 <c>XLColor.FromHtml</c> 只认 ASCII 位，会抛 <see cref="FormatException"/>。
+    /// 这条用例钉的是：这类串对外仍只暴露文档化过的 <see cref="ArgumentException"/>，且原始异常作为内部异常保留。
+    /// </remarks>
+    [Fact]
+    public async Task 非ASCII数字的表头底色抛框架异常并点名参数名()
+    {
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns = Columns,
+            Rows = new[] { new SampleRow { AwbNo = "AWB1", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) } },
+            HeaderFill = "#１２３"
+        };
+
+        var stream = new MemoryStream();
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
+
+        var failure = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            stream, spec, TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.HeaderFill), failure.ParamName);
+        Assert.Contains("#１２３", failure.Message, StringComparison.Ordinal);
+        Assert.IsType<FormatException>(failure.InnerException);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 形状像十六进制但用非 ASCII 数字的逐格样式色，抛框架自己的 InvalidOperationException 并点名行列
+    /// </summary>
+    [Fact]
+    public async Task 非ASCII数字的逐格样式色抛框架异常并点名行列()
+    {
+        var columns = new ExcelColumn<SampleRow>[]
+        {
+            new()
+            {
+                Key = nameof(SampleRow.Weight),
+                Header = "重量",
+                Value = row => row.Weight,
+                CellStyle = row => new ExcelTextStyle("#٣٣٣", null, false)
+            }
+        };
+
+        var stream = new MemoryStream();
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
+            stream, BuildSpec([new SampleRow { Weight = 1.5m }], columns), TestContext.Current.CancellationToken));
+
+        Assert.Contains("重量", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("#٣٣٣", failure.Message, StringComparison.Ordinal);
+        Assert.IsType<FormatException>(failure.InnerException);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 三位缩写颜色串照常落档，不受解析失败转译的影响
+    /// </summary>
+    [Fact]
+    public async Task 三位缩写颜色串照常落档()
+    {
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns = Columns,
+            Rows = new[] { new SampleRow { AwbNo = "AWB1", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) } },
+            HeaderFill = "#FFF"
+        };
+
+        var stream = await ExportAsync(spec);
+
+        using var workbook = Open(stream);
+        var sheet = workbook.Worksheet(1);
+        Assert.Equal("#FFFFFF", HexOf(sheet.Cell(1, 1).Style.Fill.BackgroundColor));
+        Assert.Equal(XLFillPatternValues.Solid, sheet.Cell(1, 1).Style.Fill.PatternType);
+    }
+
+    /// <summary>
+    /// RowType 为 null 的非法声明直接抛，不静默跳过行型判定
+    /// </summary>
+    [Fact]
+    public async Task RowType为null时抛而不是跳过判定()
+    {
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = null!,
+            Columns = Columns,
+            Rows = new[] { new SampleRow { AwbNo = "AWB1", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) } }
+        };
+
+        var stream = new MemoryStream();
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
+
+        var failure = await Assert.ThrowsAsync<ArgumentNullException>(async () => await exporter.ExportAsync(
+            stream, spec, TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.RowType), failure.ParamName);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
     /// 取消令牌已取消时在写出任何字节之前停止
     /// </summary>
     [Fact]
