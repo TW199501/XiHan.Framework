@@ -50,11 +50,15 @@ public interface IExcelExporter
     /// （<see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>，仅在目标格式是
     /// <see cref="ExcelFormat.Xlsx"/> 时判）；或文字档的选项组合不成立（如分隔符取换行符、
     /// 取引号字符、或免引号策略配空格分隔符，<see cref="ArgumentException.ParamName"/> 为
-    /// <c>textOptions</c>）；或 <see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串</exception>
+    /// <c>textOptions</c>）；或 <see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串（只在目标格式是
+    /// <see cref="ExcelFormat.Xlsx"/> 且走全量工作簿路径时判——流式模式根本不写表头底色，文字档也没有底色，
+    /// 那两种场合这个值不参与写出，也不报错，与「设置了但本路径不承载的选项」的既有口径一致）</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> 不在
-    /// <see cref="ExcelFormat"/> 的定义范围内；或 <see cref="ExcelSheetSpec.ExpectedRowCount"/> 为负数；
-    /// 或某列的 <see cref="ExcelColumn.Width"/> 不是大于 0 且不高于 255 的有限数、某列的
-    /// <see cref="ExcelColumn.Alignment"/> 不在定义范围内</exception>
+    /// <see cref="ExcelFormat"/> 的定义范围内；或 <see cref="ExcelSheetSpec.ExpectedRowCount"/> 为负数
+    /// （这一条不分格式：它是分派输入，任何目标格式下都不是合法的行数声明）；或某列的
+    /// <see cref="ExcelColumn.Width"/> 不是大于 0 且不高于 255 的有限数、某列的
+    /// <see cref="ExcelColumn.Alignment"/> 不在定义范围内（列设置这两条只在全量工作簿路径判——
+    /// 流式模式与文字档都不承载列宽与水平对齐，按上面的口径不判也不报错）</exception>
     /// <exception cref="InvalidOperationException">目标格式是 <see cref="ExcelFormat.Xlsx"/> 而
     /// <see cref="ExcelSheetSpec.ForceStreaming"/> 与 <see cref="ExcelSheetSpec.ExpectedRowCount"/>
     /// 两个都没给；或行集合里有某笔元素与 <see cref="ExcelSheetSpec.RowType"/> 不符；或某个行值是工作簿

@@ -244,6 +244,33 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
+    /// 负的预期行数在文字档路径同样被拒：它是分派输入，不因目标格式用不到阈值就放过
+    /// </summary>
+    /// <remarks>
+    /// 与上一条同一条判据，只是换目标格式。分派器把这项检查排在路由之前，所以 <c>Csv</c>／<c>Txt</c>
+    /// 不会因为「这两档不看行数」而交回一份写好了的档——契约里 <c>ExpectedRowCount</c> 只有「未知」与
+    /// 非负两种取值，负数在哪一档都是错的声明。
+    /// </remarks>
+    /// <param name="format">要试的文字格式</param>
+    [Theory]
+    [InlineData(ExcelFormat.Csv)]
+    [InlineData(ExcelFormat.Txt)]
+    public async Task 负预期行数在文字档路径也被拒(ExcelFormat format)
+    {
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await NewExporter().ExportAsync(
+            stream,
+            BuildSpec(Rows(1), expectedRowCount: -1),
+            format,
+            null,
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.ExpectedRowCount), failure.ParamName);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
     /// 多表恒走全量，遇到要求流式的那张表直接拒绝而不是偷偷改成全量
     /// </summary>
     [Fact]

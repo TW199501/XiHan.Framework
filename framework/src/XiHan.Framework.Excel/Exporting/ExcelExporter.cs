@@ -15,7 +15,9 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 本类只做三件事：判分派输入、选一条路径、把那条路径交回的结果原样带出。守卫一律不抄第二份——
 /// 行型一致性、列宽值域、颜色失败面、表名判据、取值可写性、文字档的分隔符禁令都长在各自的写出器里，
 /// 本类既不重判一遍，也不吞掉或改写它们交回的异常型别与消息。分派输入的检查（格式取值、列清单、
-/// 预期行数、流式表态、多表清单）是本类独有的、任何写出器都不判的东西，因此由本类在路由之前判完。
+/// 预期行数、流式表态、多表清单）是本类独有的、任何写出器都不判的东西，因此由本类在路由之前判完；
+/// 其中列清单与预期行数两条对所有目标格式生效，不等选出路径——一句错的行数声明换什么格式都还是错的。
+/// 反过来，某一项只有部分路径承载（如列宽只有全量工作簿写）时，本类不替那条不承载的路径去判它。
 /// </para>
 /// <para>
 /// 分派规则。<see cref="ExcelFormat.Csv"/> 与 <see cref="ExcelFormat.Txt"/> 一律交文字档写出器，
@@ -86,6 +88,7 @@ public sealed class ExcelExporter(
 
         cancellationToken.ThrowIfCancellationRequested();
         ValidateColumns(sheet, 1);
+        ValidateExpectedRowCount(sheet);
 
         var useStreaming = format switch
         {
@@ -153,22 +156,11 @@ public sealed class ExcelExporter(
     /// </summary>
     /// <param name="sheet">表规格</param>
     /// <returns><c>true</c> 走流式，<c>false</c> 走全量</returns>
-    /// <exception cref="ArgumentOutOfRangeException"><see cref="ExcelSheetSpec.ExpectedRowCount"/> 为负数</exception>
     /// <exception cref="InvalidOperationException"><see cref="ExcelSheetSpec.ForceStreaming"/> 与
-    /// <see cref="ExcelSheetSpec.ExpectedRowCount"/> 都没给</exception>
+    /// <see cref="ExcelSheetSpec.ExpectedRowCount"/> 都没给（<see cref="ExcelSheetSpec.ExpectedRowCount"/>
+    /// 为负数不在此判，由 <see cref="ValidateExpectedRowCount"/> 在所有格式的路由之前判掉）</exception>
     private bool ResolveStreaming(ExcelSheetSpec sheet)
     {
-        // 负数先拒：它既不是「没有行数」也不是「行数为零」，放行等于让一个不成立的数字参与比阈值
-        if (sheet.ExpectedRowCount < 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(ExcelSheetSpec.ExpectedRowCount),
-                sheet.ExpectedRowCount,
-                $"{nameof(ExcelSheetSpec.ExpectedRowCount)} 不能为负数：行数只有「未知」（置 null，" +
-                $"并靠 {nameof(ExcelSheetSpec.ForceStreaming)} 表态）与非负两种取值，" +
-                "负数不是「未填」的另一种写法。");
-        }
-
         switch (sheet.ForceStreaming)
         {
             case true:
@@ -192,6 +184,30 @@ public sealed class ExcelExporter(
                 }
 
                 return sheet.ExpectedRowCount.Value >= _options.StreamingThreshold;
+        }
+    }
+
+    /// <summary>
+    /// 在路由之前确认预期行数是一个成立的声明
+    /// </summary>
+    /// <param name="sheet">表规格</param>
+    /// <remarks>
+    /// 这一条排在格式分流之前、对所有目标格式生效：<see cref="ExcelSheetSpec.ExpectedRowCount"/> 是本类独有的
+    /// 分派输入，不是任何写出器自己的守卫，判它不算抄第二份。负数既不是「行数未知」也不是「行数为零」，
+    /// 放行等于让一个不成立的数字参与比阈值；而它即便在这张表走不到阈值判定的格式（文字档）上，
+    /// 也是一句错的声明，没有理由因为格式不关心它就放过。
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException"><see cref="ExcelSheetSpec.ExpectedRowCount"/> 为负数</exception>
+    private static void ValidateExpectedRowCount(ExcelSheetSpec sheet)
+    {
+        if (sheet.ExpectedRowCount < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(ExcelSheetSpec.ExpectedRowCount),
+                sheet.ExpectedRowCount,
+                $"{nameof(ExcelSheetSpec.ExpectedRowCount)} 不能为负数：行数只有「未知」（置 null，" +
+                $"并靠 {nameof(ExcelSheetSpec.ForceStreaming)} 表态）与非负两种取值，" +
+                "负数不是「未填」的另一种写法。");
         }
     }
 
