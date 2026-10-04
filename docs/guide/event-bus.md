@@ -357,7 +357,7 @@ public class DistributedEventLogger : ILocalEventHandler<DistributedEventSent>, 
 | 工作单元回滚了事件却发了 | 发布时传了 `onUnitOfWorkComplete: false`，或者当时根本没有工作单元 |
 | 分布式事件迟迟不到 | 走发件箱本就是异步，间隔为 `PollingIntervalMilliseconds`；默认配置还要再过一次收件箱轮询 |
 | `useOutbox: true` 但发件箱里查不到记录 | 发布点没有当前工作单元，静默退化成了直接投递 |
-| 进程重启后未投递的事件消失 | 默认事件盒是内存实现，持久化的发件箱/收件箱由应用实现 `IEventOutbox` / `IEventInbox` 提供 |
+| 进程重启后未投递的事件消失 | 默认事件盒是内存实现，换持久化实现 |
 | 换了 Broker 后某个事件收不到 | 处理器没在初始化前登记（RabbitMQ 按已登记事件名绑队列），或两端事件名不一致 |
 | 处理器里租户不对 | 事件数据没带 `TenantId`，后台线程拿不到请求上下文 |
 | 收件箱事件被丢弃 | 连续失败达到 `MaxInboxRetryCount`，已 `MarkAsDiscardAsync`，看警告日志 |
