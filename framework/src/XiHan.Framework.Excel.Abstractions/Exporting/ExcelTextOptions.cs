@@ -59,6 +59,20 @@ public sealed record ExcelTextOptions
     /// 字段分隔符。为 <c>null</c> 表示按目标格式取默认值：<c>.csv</c> 用 <c>,</c>，<c>.txt</c> 用制表符；
     /// <see cref="ExcelTextLayout.FixedWidth"/> 布局不解释本设置
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 分隔符布局下有三类取值无法成立，导出器在写出任何字节之前抛 <see cref="ArgumentException"/>
+    /// （<see cref="ArgumentException.ParamName"/> 为 <c>textOptions</c>），不代为改写也不静默降级：
+    /// <c>\r</c> 与 <c>\n</c> 本身就是行分隔符，两栏会被直接写成两行；引号字符 <c>"</c> 作分隔符时，
+    /// <see cref="ExcelTextQuote.Minimal"/>／<see cref="ExcelTextQuote.All"/> 用来包住字段的引号与分隔符成了同一个字符，
+    /// 取 <see cref="ExcelTextQuote.None"/> 时值内的引号又与分隔符不可区分；空格配 <see cref="ExcelTextQuote.None"/>
+    /// 时值内空格与分隔符不可区分。判据是「写出去就读不回来」，不是「不推荐」。
+    /// </para>
+    /// <para>
+    /// <see cref="ExcelTextLayout.FixedWidth"/> 布局按字节位置切列、根本不读本设置，因此上述取值在该布局下既不报错
+    /// 也不生效；校验因此由导出器承担而不是本类型——判据要连着布局才知道。
+    /// </para>
+    /// </remarks>
     public char? Delimiter { get; init; }
 
     /// <summary>

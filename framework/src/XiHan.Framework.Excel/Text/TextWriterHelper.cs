@@ -38,9 +38,9 @@ internal static class TextWriterHelper
     private const string Utf8BomAliasName = "utf8-bom";
 
     /// <summary>
-    /// 引号字符
+    /// 引号字符：给字段加引号与免引号策略下的分隔符判定共用这一个字符
     /// </summary>
-    private const char QuoteChar = '"';
+    internal const char QuoteChar = '"';
 
     /// <summary>
     /// 不可原样写出的字符在免引号策略下的替换字符

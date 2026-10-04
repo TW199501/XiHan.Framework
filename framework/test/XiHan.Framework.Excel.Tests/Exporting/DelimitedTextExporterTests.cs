@@ -174,6 +174,52 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
+    /// 换行符作分隔符会破坏行结构：两栏被写成两行，写出任何字节之前就拒绝
+    /// </summary>
+    [Theory]
+    [InlineData('\r')]
+    [InlineData('\n')]
+    public async Task 换行符作分隔符时抛异常且零字节(char delimiter)
+    {
+        var stream = new MemoryStream();
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            stream, BuildSpec(new SampleRow { AwbNo = "AWB1", Weight = 1.5m }), ExcelFormat.Csv,
+            new ExcelTextOptions { Delimiter = delimiter }, TestContext.Current.CancellationToken));
+
+        Assert.Contains("行结构", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("textOptions", exception.ParamName);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 引号字符本身作分隔符时三种引号策略都不成立：写出任何字节之前就拒绝
+    /// </summary>
+    /// <remarks>
+    /// 与「空格 + 不加引号」同一判据——不是替调用方兜住坏输入，而是这个组合在结构上无法成立：
+    /// Minimal／All 用来包住字段的引号与分隔符是同一个字符，None 下值内的引号又与分隔符不可区分，
+    /// 写出的档按同一策略读不回原列数。
+    /// </remarks>
+    [Theory]
+    [InlineData(ExcelTextQuote.Minimal)]
+    [InlineData(ExcelTextQuote.All)]
+    [InlineData(ExcelTextQuote.None)]
+    public async Task 引号字符作分隔符时抛异常且零字节(ExcelTextQuote quote)
+    {
+        var stream = new MemoryStream();
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            stream, BuildSpec(new SampleRow { AwbNo = "AWB1", Weight = 1.5m }), ExcelFormat.Csv,
+            new ExcelTextOptions { Delimiter = '"', Quote = quote }, TestContext.Current.CancellationToken));
+
+        Assert.Contains("引号", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("textOptions", exception.ParamName);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
     /// 空格作分隔符时其余引号策略照常工作，值内空格被引号包住
     /// </summary>
     [Fact]

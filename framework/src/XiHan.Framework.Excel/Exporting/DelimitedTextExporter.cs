@@ -36,8 +36,12 @@ namespace XiHan.Framework.Excel.Exporting;
 /// </para>
 /// <para>
 /// <see cref="ExcelTextQuote.None"/> 下值内的分隔符与换行无法原样写出，本类把它们替换为空格并记一条 Warning
-/// 日志，说明是哪一行哪一列被改写，不静默产出坏数据。空格本身作分隔符时该策略在结构上无法成立（值内空格与
-/// 分隔符不可区分，替换成空格又是 no-op，写出的档列数直接错位），本类在写出任何字节之前拒绝这一组合。
+/// 日志，说明是哪一行哪一列被改写，不静默产出坏数据。分隔符本身的取值另有三条被拒（全部排在写出任何字节之前，
+/// 判据是「这个组合写出去就读不回来」，不是「不推荐」）：空格配 <see cref="ExcelTextQuote.None"/> 时值内空格与
+/// 分隔符不可区分、替换成空格又是 no-op，列数直接错位；<c>\r</c> 与 <c>\n</c> 本身就是行分隔符，两栏会被写成两行；
+/// 引号字符 <c>"</c> 作分隔符时 <see cref="ExcelTextQuote.Minimal"/>／<see cref="ExcelTextQuote.All"/> 用来包住
+/// 字段的引号与分隔符成了同一个字符，取 <see cref="ExcelTextQuote.None"/> 时值内的引号又与分隔符不可区分。
+/// 这三类都抛出而不是代为改写。
 /// </para>
 /// <para>
 /// <see cref="ExcelTextOptions.EscapeFormulaPrefix"/> 默认开启，被加前缀的字段也与原始值不同，同属改数据；但负数
@@ -84,8 +88,11 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// 或 <see cref="ExcelSheetSpec.RowType"/> 为 <c>null</c>（<see cref="ArgumentException.ParamName"/> 为 <c>RowType</c>；
     /// 该属性是 <c>required</c> 非空成员，null 只会来自 <c>null!</c> 的非法声明，并在写出第一格之前就被拒）</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> 不是 <c>Csv</c> 或 <c>Txt</c></exception>
-    /// <exception cref="ArgumentException">编码名无法解析，<see cref="ExcelTextQuote.None"/> 与空格分隔符组合，
-    /// 或固定宽度布局下某列的补位字符是换行符、在目标编码下不是单字节</exception>
+    /// <exception cref="ArgumentException">编码名无法解析；分隔符取 <c>\r</c> 或 <c>\n</c>（本身就是行分隔符，
+    /// 两栏会被写成两行）或取引号字符 <c>"</c>（与 <see cref="ExcelTextQuote.Minimal"/>／<see cref="ExcelTextQuote.All"/>
+    /// 的引号语义冲突，取 <see cref="ExcelTextQuote.None"/> 时又与值内引号不可区分）；或
+    /// <see cref="ExcelTextQuote.None"/> 与空格分隔符组合；或固定宽度布局下某列的补位字符是换行符、在目标编码下不是单字节。
+    /// 分隔符三类的 <see cref="ArgumentException.ParamName"/> 均为 <c>textOptions</c>，且都在写出任何字节之前抛出</exception>
     /// <exception cref="InvalidOperationException">行集合里有某笔元素与 <see cref="ExcelSheetSpec.RowType"/> 不符，
     /// 消息点名行位置与期望／实际两个类型全名；或固定宽度布局下某列未设置
     /// <see cref="ExcelColumn.FixedWidth"/>、列宽不是正整数，取值转出的文本含换行，
@@ -135,6 +142,24 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
         }
 
         var delimiter = options.Delimiter ?? (format == ExcelFormat.Csv ? ',' : '\t');
+
+        // 三条分隔符拒写全部排在写出任何字节之前：它们不是「不推荐的取值」，而是写了就读不回来的取值
+        if (delimiter is '\r' or '\n')
+        {
+            throw new ArgumentException(
+                $"以「{(delimiter == '\r' ? "\\r" : "\\n")}」作分隔符会破坏行结构：这两个字符本身就是行分隔符，" +
+                "两栏会被直接写成两行，档读不回原列数却仍回报成功。请改用不会结束一行的字符作分隔符。",
+                nameof(textOptions));
+        }
+
+        if (delimiter == TextWriterHelper.QuoteChar)
+        {
+            throw new ArgumentException(
+                "以引号字符「\"」作分隔符时，引号策略无法成立：Minimal／All 用来包住字段的引号与分隔符是同一个字符，" +
+                $"取 {ExcelTextQuote.None} 时值内的引号又与分隔符不可区分，写出的档按同一策略读不回原列数。" +
+                "请改用其他字符作分隔符。",
+                nameof(textOptions));
+        }
 
         if (options.Quote == ExcelTextQuote.None && delimiter == SpaceDelimiter)
         {

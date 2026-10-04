@@ -467,6 +467,30 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
+    /// 分隔符的三条拒写在定宽布局不适用：本布局根本不读 Delimiter，换行分隔符既不报错也不生效
+    /// </summary>
+    /// <remarks>
+    /// 定宽档按字节位置切列，分隔符没有对应的解析位，因此 <c>\r</c>／<c>\n</c>／<c>"</c> 这些在分隔符布局里
+    /// 无法成立的取值，对本布局不构成坏输入。真正会被拒的是列上的补位字符取换行（与内容无关，排在预写校验里）。
+    /// </remarks>
+    [Fact]
+    public async Task 定宽布局不拒换行分隔符()
+    {
+        var spec = BuildSpec([Column(AwbWidth)], new SampleRow { AwbNo = "AWB1" });
+
+        var options = new ExcelTextOptions
+        {
+            Layout = ExcelTextLayout.FixedWidth,
+            EncodingName = "utf-8",
+            Delimiter = '\n'
+        };
+
+        var stream = (await ExportAsync(options, spec)).Stream;
+
+        Assert.Equal("提单号" + "   " + "\r\n" + "AWB1" + "        " + "\r\n", BodyOf(stream));
+    }
+
+    /// <summary>
     /// 不写表头时固定宽度只出行，行宽仍等于各列宽之和
     /// </summary>
     [Fact]
