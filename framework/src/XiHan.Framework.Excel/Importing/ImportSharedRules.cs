@@ -16,24 +16,68 @@ namespace XiHan.Framework.Excel.Importing;
 /// 只看 <c>null</c>、另一个来源把空格也算空。抽在这里，两个导入器共用一份，不再各写一遍。
 /// </para>
 /// <para>
-/// 上限取 <see cref="ExcelConstants.DefaultMaxImportRows"/> 常量而不是
-/// <c>XiHanExcelOptions.MaxImportRows</c>：两个导入器都按无参/日志器构造使用，裸选项对象进不来。
-/// 应用把配置项调得更低时要在分派器那侧生效（配置面接入是既定的后续派工项），这里只是那道不可突破的上限。
+/// 上限有两层。<see cref="ExcelConstants.DefaultMaxImportRows"/> 是框架侧不可突破的绝对上界；
+/// <see cref="XiHanExcelOptions.MaxImportRows"/> 是应用在这条界之内收紧的本次上限，
+/// 由 <see cref="ResolveHardMaxRows"/> 校验并交回，两个导入器在构造时各取一次。
+/// 请求的 <see cref="ExcelImportOptions.MaxRowCount"/> 只能落在本次上限之内，报出的也是本次上限——
+/// 应用把上限配成 2 行却被告知「不能超过 1000000 行」等于把配置当成装饰。
 /// </para>
 /// </remarks>
 internal static class ImportSharedRules
 {
     /// <summary>
-    /// 把单次导入的行数上限收敛到框架硬上限之内
+    /// 取本次生效的导入行数硬上限
     /// </summary>
-    /// <param name="requested">调用方给的上限，<c>null</c> 表示用框架硬上限</param>
+    /// <param name="options">Excel 选项，传 <c>null</c> 表示不接配置、用框架默认硬上限</param>
+    /// <returns>本次可用的行数上限</returns>
+    /// <exception cref="ArgumentOutOfRangeException">配置的上限不是正整数，或高过框架的绝对上界</exception>
+    /// <remarks>
+    /// 抛在构造点而不是等到取行：配置越界意味着这份读取器不可能按承诺工作，越早报越接近真正的成因
+    /// （选项绑定的那一刻），也不会有人把「解析服务失败」当成档的问题。越界一律抛出，不夹回上界——
+    /// 夹回等于把「配了 200 万行、实际得到 100 万行」这件事变成静默改写。
+    /// </remarks>
+    internal static int ResolveHardMaxRows(XiHanExcelOptions? options)
+    {
+        if (options is null)
+        {
+            return ExcelConstants.DefaultMaxImportRows;
+        }
+
+        var value = options.MaxImportRows;
+
+        if (value < 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(XiHanExcelOptions.MaxImportRows),
+                value,
+                $"{nameof(XiHanExcelOptions.MaxImportRows)} 必须是正整数：要按框架默认上限读就删掉这项配置，" +
+                "不要写 0，0 不是「不限制」的另一种写法。");
+        }
+
+        if (value > ExcelConstants.DefaultMaxImportRows)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(XiHanExcelOptions.MaxImportRows),
+                value,
+                $"{nameof(XiHanExcelOptions.MaxImportRows)} 不能高于框架硬上限 {ExcelConstants.DefaultMaxImportRows} 行：" +
+                "这道界挡住的是「把内存里的行数放大到无穷」，配置只能在界内收紧，不能放宽。");
+        }
+
+        return value;
+    }
+
+    /// <summary>
+    /// 把单次导入的行数上限收敛到本次生效的上限之内
+    /// </summary>
+    /// <param name="requested">调用方给的上限，<c>null</c> 表示用本次上限</param>
+    /// <param name="hardMaxRows">本次生效的上限，由 <see cref="ResolveHardMaxRows"/> 交回</param>
     /// <returns>本次实际可用的行数上限</returns>
-    /// <exception cref="ArgumentOutOfRangeException">上限高于硬上限，或不是正整数</exception>
-    internal static int ResolveMaxRowCount(int? requested)
+    /// <exception cref="ArgumentOutOfRangeException">上限高于本次上限，或不是正整数</exception>
+    internal static int ResolveMaxRowCount(int? requested, int hardMaxRows)
     {
         if (requested is null)
         {
-            return ExcelConstants.DefaultMaxImportRows;
+            return hardMaxRows;
         }
 
         var value = requested.Value;
@@ -46,13 +90,19 @@ internal static class ImportSharedRules
                 "MaxRowCount 必须是正整数；要按框架默认上限读请传 null，不要写 0。");
         }
 
-        if (value > ExcelConstants.DefaultMaxImportRows)
+        if (value > hardMaxRows)
         {
+            var cause = hardMaxRows == ExcelConstants.DefaultMaxImportRows
+                ? $"MaxRowCount 不能高于框架硬上限 {ExcelConstants.DefaultMaxImportRows} 行：" +
+                  "这道上限挡住的是「调用方把内存里的行数放大到无穷」，应用只能收紧、不能放宽。"
+                : $"MaxRowCount 不能高于本次生效的行数上限 {hardMaxRows} 行：" +
+                  $"该上限由 {nameof(XiHanExcelOptions.MaxImportRows)} 在框架硬上限之内收紧得到，" +
+                  "单次请求只能继续往里收，不能越过它。";
+
             throw new ArgumentOutOfRangeException(
                 nameof(ExcelImportOptions.MaxRowCount),
                 value,
-                $"MaxRowCount 不能高于框架硬上限 {ExcelConstants.DefaultMaxImportRows} 行：" +
-                $"这道上限挡住的是「调用方把内存里的行数放大到无穷」，应用只能收紧、不能放宽。");
+                cause);
         }
 
         return value;

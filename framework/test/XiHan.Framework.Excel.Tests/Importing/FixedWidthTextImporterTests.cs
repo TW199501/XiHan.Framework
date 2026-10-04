@@ -560,6 +560,54 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
+    /// 配置的行数上限在定宽路径同样收紧，两条导入路径认同一个上限
+    /// </summary>
+    /// <remarks>
+    /// 上限判据由两条路径共用一份，配置面也必须两边都接得上：只在容器路径生效的话，同一个收紧的配置值
+    /// 会在定宽档上读出更多的行，而这正是「按配置收紧」最想避免的方向。
+    /// </remarks>
+    [Fact]
+    public async Task 配置的行数上限在定宽路径同样收紧()
+    {
+        var importer = new FixedWidthTextImporter(new XiHanExcelOptions { MaxImportRows = 2 }, NullLogger<FixedWidthTextImporter>.Instance);
+        using var stream = ImportFixtures.Text("A\r\nB\r\nC\r\nD\r\n");
+
+        var rows = await AsyncCollector.CollectAsync(importer.ReadAsync(
+            stream, ColumnsOnly([new("A", 1)]), TestContext.Current.CancellationToken));
+
+        Assert.Equal(2, rows.Count);
+    }
+
+    /// <summary>
+    /// 配置的行数上限高于框架硬上限时构造当场抛，不夹回到上限里
+    /// </summary>
+    [Fact]
+    public void 配置的行数上限高于框架硬上限时定宽路径构造即抛()
+    {
+        var failure = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new FixedWidthTextImporter(new XiHanExcelOptions { MaxImportRows = ExcelConstants.DefaultMaxImportRows + 1 }, NullLogger<FixedWidthTextImporter>.Instance));
+
+        Assert.Equal(nameof(XiHanExcelOptions.MaxImportRows), failure.ParamName);
+    }
+
+    /// <summary>
+    /// 只给日志器的构造照旧可用，且上限仍是框架默认硬上限
+    /// </summary>
+    [Fact]
+    public async Task 只给日志器的构造仍按框架默认上限工作()
+    {
+        var importer = new FixedWidthTextImporter(NullLogger<FixedWidthTextImporter>.Instance);
+        using var stream = ImportFixtures.Text("A\r\nB\r\n");
+
+        var rows = await AsyncCollector.CollectAsync(importer.ReadAsync(
+            stream,
+            ColumnsOnly([new("A", 1)]) with { MaxRowCount = ExcelConstants.DefaultMaxImportRows },
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(2, rows.Count);
+    }
+
+    /// <summary>
     /// 读取从流起点开始且不关闭调用方的流，枚举完还能重读
     /// </summary>
     [Fact]

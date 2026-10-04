@@ -234,15 +234,15 @@ public sealed record ExcelImportOptions
     /// 放大到无穷」，属仓库级硬约束，不由单个选项对象突破。
     /// </para>
     /// <para>
-    /// 当前上限取自常量 <see cref="ExcelConstants.DefaultMaxImportRows"/> 而不是
-    /// <c>XiHanExcelOptions.MaxImportRows</c>：本导入器按无参构造使用，裸选项对象进不来。应用把配置项调得更低时要在
-    /// 分派器那侧生效（配置面接入是既定的后续派工项），本属性只是那道不可突破的上限。
+    /// 上限以<b>本次生效的那一道</b>为准：默认是 <see cref="XiHan.Framework.Excel.Abstractions.ExcelConstants.DefaultMaxImportRows"/>，应用把
+    /// <see cref="XiHan.Framework.Excel.Abstractions.XiHanExcelOptions.MaxImportRows"/> 配得更低时以配置值为准，两条导入路径同判。
+    /// 越界抛出的是生效中的那一道界，因此把上限配成 2 行时，报出的是 2 而不是框架默认值。
     /// </para>
     /// <para>
     /// 非正整数（<c>0</c> 与负数）同样抛 <see cref="ArgumentOutOfRangeException"/>：「最多读 0 行」不是合法的请求，
     /// 不静默当成「不限制」。
     /// </para>
     /// </remarks>
-    /// <exception cref="ArgumentOutOfRangeException">值大于框架硬上限，或为 <c>0</c> 与负数</exception>
+    /// <exception cref="ArgumentOutOfRangeException">值大于本次生效的行数上限，或为 <c>0</c> 与负数</exception>
     public int? MaxRowCount { get; init; }
 }

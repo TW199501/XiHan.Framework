@@ -67,10 +67,13 @@ namespace XiHan.Framework.Excel.Importing;
 /// <see cref="ExcelImportOptions.TextEncodingName"/> 不指名时走自动判别（BOM → 严格 UTF-8 试探 → Big5 回退），
 /// 自动判别只保证「按判出来的编码解不会撞到解码错误」，不保证那是原档真正的编码，已知来源编码请指名。
 /// </para>
+/// <para>
+/// 行数上限取构造时算好的那一份：只给日志器的构造用框架默认硬上限，收 <see cref="XiHanExcelOptions"/> 的那个
+/// 构造用 <see cref="XiHanExcelOptions.MaxImportRows"/> 收紧后的值。两个构造差在数字上，判定与报错文字同一份，
+/// 与容器路径也同一份；配置越出框架硬上限或不是正整数时在构造点抛出，不等第一次取行，也不夹回上限。
+/// </para>
 /// </remarks>
-/// <param name="logger">本导入器的日志器，行不足与行超长两种改写靠它留痕；传 <c>null</c> 在构造时就抛，
-/// 不允许换成「安静一点」的实现</param>
-public sealed class FixedWidthTextImporter(ILogger<FixedWidthTextImporter> logger) : IExcelImporter
+public sealed class FixedWidthTextImporter : IExcelImporter
 {
     /// <summary>
     /// 一次读入的最小缓冲字节数
@@ -87,7 +90,40 @@ public sealed class FixedWidthTextImporter(ILogger<FixedWidthTextImporter> logge
     /// </summary>
     private const byte LineFeed = (byte)'\n';
 
-    private readonly ILogger<FixedWidthTextImporter> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly ILogger<FixedWidthTextImporter> _logger;
+
+    private readonly int _hardMaxRows;
+
+    /// <summary>
+    /// 用框架默认导入行数硬上限构造定宽读取器
+    /// </summary>
+    /// <param name="logger">本导入器的日志器，传 <c>null</c> 在构造时就抛</param>
+    /// <exception cref="ArgumentNullException"><paramref name="logger"/> 为 <c>null</c></exception>
+    public FixedWidthTextImporter(ILogger<FixedWidthTextImporter> logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _hardMaxRows = ImportSharedRules.ResolveHardMaxRows(null);
+    }
+
+    /// <summary>
+    /// 用配置里的导入行数硬上限构造定宽读取器
+    /// </summary>
+    /// <param name="options">Excel 选项，只取 <see cref="XiHanExcelOptions.MaxImportRows"/> 一项</param>
+    /// <param name="logger">本导入器的日志器，传 <c>null</c> 在构造时就抛</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> 或 <paramref name="logger"/> 为 <c>null</c></exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <see cref="XiHanExcelOptions.MaxImportRows"/> 不是正整数，或高过框架硬上限
+    /// <see cref="ExcelConstants.DefaultMaxImportRows"/></exception>
+    /// <remarks>
+    /// 上限判据与容器路径共用一份，配置面也两边都接：只接一边就等于让「走哪条读取路径」决定能不能读到那么多行。
+    /// </remarks>
+    public FixedWidthTextImporter(XiHanExcelOptions options, ILogger<FixedWidthTextImporter> logger)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _hardMaxRows = ImportSharedRules.ResolveHardMaxRows(options);
+    }
 
     /// <summary>
     /// 逐行读入一份固定宽度文字档
@@ -102,7 +138,8 @@ public sealed class FixedWidthTextImporter(ILogger<FixedWidthTextImporter> logge
     /// 或 <see cref="ExcelImportOptions.TextEncodingName"/> 无法解析（<c>ParamName</c> 为 <c>TextEncodingName</c>，
     /// 内层异常保留解析失败的原话）</exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <see cref="ExcelImportOptions.MaxRowCount"/> 高于框架硬上限或不是正整数（<c>ParamName</c> 为 <c>MaxRowCount</c>）</exception>
+    /// <see cref="ExcelImportOptions.MaxRowCount"/> 高于本次生效的行数上限或不是正整数（<c>ParamName</c> 为 <c>MaxRowCount</c>；
+    /// 上限由构造本类的选项决定，默认是框架硬上限 <see cref="ExcelConstants.DefaultMaxImportRows"/> 行）</exception>
     /// <exception cref="InvalidOperationException">
     /// <list type="bullet">
     /// <item><see cref="ExcelImportOptions.FixedColumns"/> 是 <c>null</c> 或空集合：没有列位置就切不出列，
@@ -155,7 +192,7 @@ public sealed class FixedWidthTextImporter(ILogger<FixedWidthTextImporter> logge
 
         var effective = options ?? new ExcelImportOptions();
 
-        var maxRows = ImportSharedRules.ResolveMaxRowCount(effective.MaxRowCount);
+        var maxRows = ImportSharedRules.ResolveMaxRowCount(effective.MaxRowCount, _hardMaxRows);
         var layout = FixedColumnLayout.Create(effective.FixedColumns);
 
         cancellationToken.ThrowIfCancellationRequested();

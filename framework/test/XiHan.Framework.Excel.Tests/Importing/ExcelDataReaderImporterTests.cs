@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using System.Text;
+using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
 using XiHan.Framework.Excel.Abstractions.Importing;
 using XiHan.Framework.Excel.Importing;
@@ -877,11 +878,89 @@ public class ExcelDataReaderImporterTests
         Assert.Equal(4, rows[0].RowNumber);
     }
 
+    /// <summary>
+    /// 应用把 <see cref="XiHanExcelOptions.MaxImportRows" /> 配得更低时，读取器按配置值截断
+    /// </summary>
+    /// <remarks>
+    /// 这条钉的是「配置不是装饰」：本读取器的默认构造只认框架默认硬上限，收进配置后上限必须真的生效，
+    /// 否则使用者收紧上限的意图会被静默忽略，读回比预期多的行。
+    /// </remarks>
+    [Fact]
+    public async Task 配置的行数上限低于默认时按配置截断()
+    {
+        var importer = new ExcelDataReaderImporter(new XiHanExcelOptions { MaxImportRows = 2 });
+        var rows = await ReadAll(
+            importer,
+            ImportFixtures.Csv("提单号", 5),
+            new ExcelImportOptions { Format = ExcelImportFormat.Csv });
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("AWB1", rows[0].Values["提单号"]);
+    }
+
+    /// <summary>
+    /// 单次请求的行数上限高于配置上限时被拒，消息报出的是配置值而不是框架默认值
+    /// </summary>
+    [Fact]
+    public async Task 请求上限高于配置上限时被拒并报出配置值()
+    {
+        var importer = new ExcelDataReaderImporter(new XiHanExcelOptions { MaxImportRows = 2 });
+
+        var failure = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await ReadAll(
+            importer,
+            ImportFixtures.Csv("提单号", 5),
+            new ExcelImportOptions { Format = ExcelImportFormat.Csv, MaxRowCount = 3 }));
+
+        Assert.Equal(nameof(ExcelImportOptions.MaxRowCount), failure.ParamName);
+        Assert.Contains("2", failure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(HardMaxRows.ToString(CultureInfo.InvariantCulture), failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 配置的行数上限不是正整数，或高到框架硬上限之外时，构造当场就抛
+    /// </summary>
+    /// <remarks>
+    /// 配置越界属于「这份读取器根本不可能按承诺工作」，在构造点抛比等到第一次取行才抛更早，也更接近
+    /// 选项绑定的失败时机；不做「夹到上限」的静默改写。
+    /// </remarks>
+    /// <param name="maxImportRows">要配的进行数上限</param>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(ExcelConstants.DefaultMaxImportRows + 1)]
+    public void 非法的配置行数上限在构造时抛(int maxImportRows)
+    {
+        var failure = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new ExcelDataReaderImporter(new XiHanExcelOptions { MaxImportRows = maxImportRows }));
+
+        Assert.Equal(nameof(XiHanExcelOptions.MaxImportRows), failure.ParamName);
+    }
+
+    /// <summary>
+    /// 无参构造仍按框架默认硬上限工作，收配置是向后兼容的追加而不是替换
+    /// </summary>
+    [Fact]
+    public async Task 无参构造仍按框架默认硬上限工作()
+    {
+        var importer = new ExcelDataReaderImporter();
+        var rows = await ReadAll(importer, ImportFixtures.Csv("提单号", 3), new ExcelImportOptions { Format = ExcelImportFormat.Csv, MaxRowCount = HardMaxRows });
+
+        Assert.Equal(3, rows.Count);
+    }
+
     private static async Task<List<ExcelImportRow>> ReadAll(Stream input, ExcelImportOptions? options = null)
+    {
+        return await ReadAll(new ExcelDataReaderImporter(), input, options);
+    }
+
+    /// <summary>
+    /// 用指定的读取器取完一份档
+    /// </summary>
+    private static async Task<List<ExcelImportRow>> ReadAll(ExcelDataReaderImporter importer, Stream input, ExcelImportOptions? options = null)
     {
         var rows = new List<ExcelImportRow>();
 
-        await foreach (var row in new ExcelDataReaderImporter()
+        await foreach (var row in importer
             .ReadAsync(input, options, TestContext.Current.CancellationToken))
         {
             rows.Add(row);

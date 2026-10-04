@@ -39,7 +39,10 @@ public interface IExcelImporter
     /// <exception cref="ArgumentNullException"><paramref name="input"/> 为 <c>null</c></exception>
     /// <exception cref="ArgumentException"><paramref name="input"/> 不可读或不可定位</exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <see cref="ExcelImportOptions.MaxRowCount"/> 高于框架硬上限或不是正整数</exception>
+    /// <see cref="ExcelImportOptions.MaxRowCount"/> 高于本次生效的行数上限或不是正整数——上限默认是框架硬上限
+    /// <see cref="XiHan.Framework.Excel.Abstractions.ExcelConstants.DefaultMaxImportRows"/>，应用把
+    /// <see cref="XiHan.Framework.Excel.Abstractions.XiHanExcelOptions.MaxImportRows"/>
+    /// 配得更低时以配置值为准，两条读取路径同判</exception>
     /// <exception cref="InvalidOperationException">
     /// 档头判不出格式、格式给出或判出但容器读不通（伪造的档头、截断的档、损坏的簿），或
     /// <see cref="ExcelImportOptions.SheetName"/> 在本工作簿里不存在。三类都落在本类型上：

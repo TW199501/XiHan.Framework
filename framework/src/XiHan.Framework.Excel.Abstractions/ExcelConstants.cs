@@ -32,6 +32,15 @@ public static class ExcelConstants
     public const int DefaultMaxImportRows = 1_000_000;
 
     /// <summary>
+    /// 一个单元格能承载的字符数上限
+    /// </summary>
+    /// <remarks>
+    /// 这是 xlsx 自身的硬界，不是本组件自定的档位：超出的字串在工作簿里没有对应形态。两条 xlsx 写出路径
+    /// 都在取值阶段拒掉超长字串并回报本常量，不截断（截断会丢弃数据）、也不交给工作簿去抛它那句英文异常。
+    /// </remarks>
+    public const int MaxCellTextLength = 32_767;
+
+    /// <summary>
     /// 固定宽度导入的单行列宽总和硬上限（字节）
     /// </summary>
     /// <remarks>

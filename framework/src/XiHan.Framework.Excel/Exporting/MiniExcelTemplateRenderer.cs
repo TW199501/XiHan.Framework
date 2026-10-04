@@ -39,6 +39,11 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 模板流则相反——渲染库读完就把它关掉，所以一份模板流只能渲染一次，重复渲染要每次交回一份新流。
 /// </para>
 /// <para>
+/// 取消令牌在本类查两次：调用渲染库之前一次（此时输出流零字节），渲染返回之后一次。渲染库自己只在动手前查，
+/// 取消落在写出的中途或最后一段时没人再查，本类补上后一次，为的是不交出「渲染完成」这个假象；
+/// 抛出时输出流里可能已经落了内容、甚至已是一份完整的档，调用方必须丢弃它，本类不承诺失败原子性。
+/// </para>
+/// <para>
 /// 值类型按渲染库自己的形态落格：数值仍是数值格，日期落成文本格（与 <see cref="ClosedXmlExporter"/> 的日期格不同），
 /// <c>null</c> 值写空。不承诺宏、数据透视表与图表，也不写 <c>.xls</c>。
 /// </para>
@@ -51,7 +56,7 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
     /// <param name="output">输出流，本方法只写入不关闭，由调用方拥有；渲染后流位置停在末尾</param>
     /// <param name="template">模板流，必须是可定位的 xlsx 容器；渲染后由库关闭，不要复用该流</param>
     /// <param name="data">填进模板的数据，按模板里的占位符键取值，允许匿名类型、具名类型或字典</param>
-    /// <param name="cancellationToken">取消令牌，取消时不再开始渲染</param>
+    /// <param name="cancellationToken">取消令牌，取消时不再开始渲染；渲染已经动手才被观察到的取消同样抛出</param>
     /// <returns>异步任务</returns>
     /// <exception cref="ArgumentNullException"><paramref name="output"/>、<paramref name="template"/> 或
     /// <paramref name="data"/> 为 <c>null</c>，<see cref="ArgumentException.ParamName"/> 分别取参数名</exception>
@@ -60,7 +65,9 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
     /// 输出流零字节</exception>
     /// <exception cref="InvalidDataException">模板档存在但不是可用的 xlsx 容器，由渲染库抛出并原样透传；
     /// 此时输出流可能已含部分字节</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消。取消落在动手之前时
+    /// 输出流零字节；落在写出的中途或最后一段时，输出流可能已有内容、甚至已是一份完整的档，但本方法交出的是异常，
+    /// 不是「渲染完成」——调用方必须丢弃该流的内容，不承诺失败原子性</exception>
     public async Task RenderAsync(
         Stream output,
         Stream template,
@@ -98,5 +105,9 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
 
         await MiniExcel.SaveAsByTemplateAsync(output, template, data, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
+
+        // 回传结果之前再查一次：渲染库只在动手前查令牌，取消落在最后一段写出期间时没人再查，
+        // 本方法若就此返回，调用方读到的就是「渲染完成」，而产出的那份档未必收得下整个渲染
+        cancellationToken.ThrowIfCancellationRequested();
     }
 }

@@ -242,6 +242,44 @@ public class MiniExcelTemplateRendererTests
     }
 
     /// <summary>
+    /// 取消落在渲染期间时只抛异常，不交出「渲染完成」的假象
+    /// </summary>
+    /// <remarks>
+    /// 输出流的所有权在调用方，本方法不能把它关掉，能主张的只有两件事：抛出 <see cref="OperationCanceledException"/>，
+    /// 以及绝不正常返回。夹具在第一次被写入时就把令牌取消，正好落在「库已经动手写、还没写完」的那一段；
+    /// 而渲染完成后、回传之前这一窗口的取消由本类在返回前补查一次拦住，否则调用方会拿到一份没人宣告完成的档。
+    /// </remarks>
+    [Fact]
+    public async Task 渲染期间取消时抛异常而不正常返回()
+    {
+        using var source = new CancellationTokenSource();
+        using var output = new CancelOnWriteStream(source);
+        using var template = TemplateFactory.BuildInvoiceTemplate();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await new MiniExcelTemplateRenderer()
+            .RenderAsync(output, template, new { Company = "曦寒物流" }, source.Token));
+    }
+
+    /// <summary>
+    /// 取消落在渲染完成之后、回传之前这一窗口时同样抛异常，不让调用方读到「渲染已完成」
+    /// </summary>
+    /// <remarks>
+    /// 夹具把取消压到最后一次 flush，此时渲染库已经写完、自己不会再查令牌；只有本方法在返回前补查一次，
+    /// 这个窗口才不会交出成功。这与 <see cref="ClosedXmlExporter"/> 和 <see cref="DelimitedTextExporter"/>
+    /// 的回传前检查是同一条口径。
+    /// </remarks>
+    [Fact]
+    public async Task 渲染完成后回传前取消也不交出完成()
+    {
+        using var source = new CancellationTokenSource();
+        using var output = new CancelOnFlushStream(source);
+        using var template = TemplateFactory.BuildInvoiceTemplate();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await new MiniExcelTemplateRenderer()
+            .RenderAsync(output, template, new { Company = "曦寒物流" }, source.Token));
+    }
+
+    /// <summary>
     /// 模板不是 xlsx 容器时库的容器异常原样透传，且实测此时输出流没有半个字节
     /// </summary>
     [Fact]

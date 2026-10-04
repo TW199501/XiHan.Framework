@@ -1,6 +1,7 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.Globalization;
 using ClosedXML.Excel;
 using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
@@ -449,6 +450,78 @@ public class ClosedXmlExporterTests
         Assert.Contains("预计到达", failure.Message, StringComparison.Ordinal);
         Assert.Contains("键", failure.Message, StringComparison.Ordinal);
         Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 非有限数值与超长字串按框架异常拒写，理由同下一组用例
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 取值域与列宽同一条判据：工作簿的数值格只有有限十进制数，字串格另有 32767 字符的硬上限，越界的值在工作簿里
+    /// 根本没有对应形态。判据由两条 xlsx 写出路径共用的一份守卫交出，因此下面几条断的都是框架自己的
+    /// <see cref="InvalidOperationException"/> 并点名行列，而不是工作簿自己那句英文异常。
+    /// </para>
+    /// <para>
+    /// 非有限数一律抛出，不做「写成空格里装个字符串」这类改写：把 <c>NaN</c> 变成 <c>"NaN"</c> 会让读回的数值列
+    /// 多出字串，把 <c>∞</c> 夹成最大有限数会凭空造出一个数据里不存在的数。字串超长同样抛而不截断——
+    /// 截断会丢弃数据，与本组件对超宽输入的一贯取向一致。
+    /// </para>
+    /// </remarks>
+    /// <param name="value">要写进一格的双精度值</param>
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public async Task 非有限数值按框架异常拒写(double value)
+    {
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
+            .ExportAsync(stream, BuildValueSpec(value), TestContext.Current.CancellationToken));
+
+        Assert.Contains("取值", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("键 Value", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("第 1 行", failure.Message, StringComparison.Ordinal);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 单精度非有限数同样被拒
+    /// </summary>
+    [Fact]
+    public async Task 单精度非有限数值同样拒写()
+    {
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
+            .ExportAsync(new MemoryStream(), BuildValueSpec(float.NaN), TestContext.Current.CancellationToken));
+
+        Assert.Contains("取值", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 超过单元格字数上限的字串被拒，并点名上限数值而不是截断
+    /// </summary>
+    [Fact]
+    public async Task 超过单元格字数上限的字串被拒()
+    {
+        var text = new string('X', ExcelConstants.MaxCellTextLength + 1);
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
+            .ExportAsync(new MemoryStream(), BuildValueSpec(text), TestContext.Current.CancellationToken));
+
+        Assert.Contains(ExcelConstants.MaxCellTextLength.ToString(CultureInfo.InvariantCulture), failure.Message, StringComparison.Ordinal);
+        Assert.Contains("截断", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 恰好等于单元格字数上限的字串照写，边界不提前拒绝
+    /// </summary>
+    [Fact]
+    public async Task 恰好等于单元格字数上限的字串照写()
+    {
+        var stream = await ExportAsync(BuildValueSpec(new string('X', ExcelConstants.MaxCellTextLength)));
+
+        using var workbook = Open(stream);
+        Assert.Equal(ExcelConstants.MaxCellTextLength, workbook.Worksheet(1).Cell(2, 1).GetString().Length);
     }
 
     /// <summary>
@@ -906,6 +979,28 @@ public class ClosedXmlExporterTests
 
         using var workbook = Open(stream);
         return workbook.Worksheet(1).Column(1).Width;
+    }
+
+    /// <summary>
+    /// 构造只有「取值」一列、把指定值原样交出的表规格，专走单元格取值域判定
+    /// </summary>
+    private static ExcelSheetSpec BuildValueSpec(object value)
+    {
+        return new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns =
+            [
+                new ExcelColumn<SampleRow>
+                {
+                    Key = "Value",
+                    Header = "取值",
+                    Value = _ => value
+                }
+            ],
+            Rows = new[] { new SampleRow { AwbNo = "AWB1", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) } }
+        };
     }
 
     /// <summary>

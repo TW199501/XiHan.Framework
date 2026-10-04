@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using ExcelDataReader;
 using ExcelDataReader.Exceptions;
+using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
 using XiHan.Framework.Excel.Abstractions.Importing;
 
@@ -66,6 +67,12 @@ namespace XiHan.Framework.Excel.Importing;
 /// 按 <see cref="ArgumentException"/> 收口会把「编码指错」这条正当失败一并吞成容器异常。
 /// 调用方按型别分流时要认这条现实。
 /// </para>
+/// <para>
+/// 行数上限取构造时算好的那一份：无参构造用框架默认硬上限，收
+/// <see cref="XiHanExcelOptions"/> 的那个重载用 <see cref="XiHanExcelOptions.MaxImportRows"/> 收紧后的值，
+/// 两个构造的差别只在数字上，判定与报错文字同一份。配置值越出框架硬上限或不是正整数时在构造点抛出，
+/// 不等第一次取行，也不夹回上限。
+/// </para>
 /// </remarks>
 public sealed class ExcelDataReaderImporter : IExcelImporter
 {
@@ -73,6 +80,31 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// 每隔多少行检查一次取消令牌
     /// </summary>
     private const int CancellationCheckIntervalRows = 64;
+
+    private readonly int _hardMaxRows;
+
+    /// <summary>
+    /// 用框架默认导入行数硬上限构造读取器
+    /// </summary>
+    public ExcelDataReaderImporter()
+    {
+        _hardMaxRows = ImportSharedRules.ResolveHardMaxRows(null);
+    }
+
+    /// <summary>
+    /// 用配置里的导入行数硬上限构造读取器
+    /// </summary>
+    /// <param name="options">Excel 选项，只取 <see cref="XiHanExcelOptions.MaxImportRows"/> 一项</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> 为 <c>null</c></exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <see cref="XiHanExcelOptions.MaxImportRows"/> 不是正整数，或高过框架硬上限
+    /// <see cref="ExcelConstants.DefaultMaxImportRows"/></exception>
+    public ExcelDataReaderImporter(XiHanExcelOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        _hardMaxRows = ImportSharedRules.ResolveHardMaxRows(options);
+    }
 
     /// <summary>
     /// <c>.csv</c> 的默认分隔符，与导出侧同一口径
@@ -101,7 +133,8 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// 或 <see cref="ExcelImportOptions.TextEncodingName"/> 无法解析（<c>ParamName</c> 为 <c>TextEncodingName</c>，
     /// 内层异常保留解析失败的原话）</exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <see cref="ExcelImportOptions.MaxRowCount"/> 高于框架硬上限或不是正整数（<c>ParamName</c> 为 <c>MaxRowCount</c>）</exception>
+    /// <see cref="ExcelImportOptions.MaxRowCount"/> 高于本次生效的行数上限或不是正整数（<c>ParamName</c> 为 <c>MaxRowCount</c>；
+    /// 上限由构造本类的选项决定，默认是框架硬上限 <see cref="ExcelConstants.DefaultMaxImportRows"/> 行）</exception>
     /// <exception cref="InvalidOperationException">
     /// <list type="bullet">
     /// <item><see cref="ExcelImportOptions.Format"/> 为 <c>null</c> 且档头判不出格式：消息写出档头字节的可读形式
@@ -148,7 +181,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
 
         // 顺序是刻意的：上限校验排在格式判别与建立读取器之前，非法的 MaxRowCount 在一条判别不出格式的垃圾档上
         // 也要报「上限越界」而不是报「判不出格式」——调用方放大上限是请求本身的问题，与档的内容无关。
-        var maxRows = ImportSharedRules.ResolveMaxRowCount(effective.MaxRowCount);
+        var maxRows = ImportSharedRules.ResolveMaxRowCount(effective.MaxRowCount, _hardMaxRows);
 
         cancellationToken.ThrowIfCancellationRequested();
 

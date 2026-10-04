@@ -30,13 +30,15 @@ public interface IExcelTemplateRenderer
     /// <param name="output">输出流，实现只写入不关闭，由调用方拥有；渲染后流位置停在末尾</param>
     /// <param name="template">模板流，必须是可重复定位的 xlsx 容器；所有权在实现侧，渲染后不要复用该流</param>
     /// <param name="data">填进模板的数据，按模板里的占位符键取值</param>
-    /// <param name="cancellationToken">取消令牌，取消时不再开始渲染</param>
+    /// <param name="cancellationToken">取消令牌，取消时不再开始渲染；渲染已经动手才被观察到的取消同样抛出</param>
     /// <returns>异步任务</returns>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="output"/>、<paramref name="template"/> 或 <paramref name="data"/> 为 <c>null</c></exception>
     /// <exception cref="ArgumentException"><paramref name="template"/> 不可读、不可定位，或内容为空（模板档一个字节都没有）；
     /// <see cref="ArgumentException.ParamName"/> 为 <c>template</c>（内容为空时消息含「模板内容为空」）</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消。取消落在动手之前时
+    /// 输出流零字节；落在写出的中途或最后一段时输出流可能已有内容，实现交出异常而不是「渲染完成」，
+    /// 调用方必须丢弃该流的内容</exception>
     /// <remarks>
     /// <para>
     /// 输入检查全部排在调用渲染库之前：模板不可读、不可定位、内容为空这三类都由本契约的异常形态定义，

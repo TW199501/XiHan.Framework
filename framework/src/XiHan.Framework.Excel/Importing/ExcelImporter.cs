@@ -51,7 +51,10 @@ public sealed class ExcelImporter(
     /// <exception cref="ArgumentException"><paramref name="input"/> 不可读或不可定位，或
     /// <see cref="ExcelImportOptions.TextEncodingName"/> 无法解析</exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <see cref="ExcelImportOptions.MaxRowCount"/> 高于框架硬上限或不是正整数</exception>
+    /// <see cref="ExcelImportOptions.MaxRowCount"/> 高于本次生效的行数上限或不是正整数——上限默认是框架硬上限
+    /// <see cref="XiHan.Framework.Excel.Abstractions.ExcelConstants.DefaultMaxImportRows"/>，
+    /// 应用把 <see cref="XiHan.Framework.Excel.Abstractions.XiHanExcelOptions.MaxImportRows"/> 配得更低时以配置值为准，
+    /// 两条读取路径同判</exception>
     /// <exception cref="InvalidOperationException">档头判不出格式、容器读不通、表名不存在，
     /// 或列定义不成立（缺列定义、空集合、键为空或重复、宽度非正、编码是宽字节）。
     /// 抛出的具体那一格由被选中的实现决定，两条路径的异常面各自写在它们的 <see cref="ReadAsync"/> 说明里</exception>
