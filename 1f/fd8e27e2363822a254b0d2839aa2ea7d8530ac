@@ -1,0 +1,39 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/ExcelImportOptions.cs
+  s_94057b8e5cf9b6::t_19df8d3ece1bcb 1-199
+framework/src/XiHan.Framework.Excel/Importing/ExcelDataReaderImporter.cs
+  s_94057b8e5cf9b6::t_044aa182ecc32f 1-472
+framework/src/XiHan.Framework.Excel/Importing/ExcelFormatProbe.cs
+  s_94057b8e5cf9b6::t_6a2d4d3dfc0d55 1-204
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelDataReaderImporterTests.cs
+  s_94057b8e5cf9b6::t_8e3245e5ade2ef 1-745
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelFormatProbeTests.cs
+  s_94057b8e5cf9b6::t_6d3b435c817c09 1-172
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/ForwardOnlyStream.cs
+  s_94057b8e5cf9b6::t_b058c6dd438f1f 1-52
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/ImportFixtures.cs
+  s_94057b8e5cf9b6::t_768fff9c8cf15d 1-280
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/ExcelImportRow.cs
+  s_94057b8e5cf9b6::t_6a24637998003a 1-39
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/IExcelImporter.cs
+  s_94057b8e5cf9b6::t_c1b3f606b8774f 1-56
+framework/src/XiHan.Framework.Excel/Importing/TextEncodingResolver.cs
+  s_94057b8e5cf9b6::t_bbc62c362d4a2c 1-223
+framework/test/XiHan.Framework.Excel.Tests/Importing/TextEncodingResolverTests.cs
+  s_94057b8e5cf9b6::t_c73b133bfd819a 1-375
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1ffd8e27e2363822a254b0d2839aa2ea7d8530ac",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
