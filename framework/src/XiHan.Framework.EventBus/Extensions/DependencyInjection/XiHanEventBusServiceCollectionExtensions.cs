@@ -116,9 +116,6 @@ public static class XiHanEventBusServiceCollectionExtensions
         services.TryAddSingleton<IEventOutbox>(sp => sp.GetRequiredService<DefaultEventOutbox>());
         services.TryAddSingleton<IEventInbox>(sp => sp.GetRequiredService<DefaultEventInbox>());
 
-        services.TryAddSingleton<OutboxDeliveryTargetScanner>();
-        services.TryAddTransient<IOutboxPendingEventCounter, OutboxPendingEventCounter>();
-
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, EventBoxOutboxSenderHostedService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, EventBoxInboxProcessorHostedService>());
     }

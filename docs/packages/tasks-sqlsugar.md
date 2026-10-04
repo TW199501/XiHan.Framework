@@ -198,4 +198,3 @@ ALTER TABLE sys_background_job ADD COLUMN Is_Cancellation_Requested BIT NULL;
 
 - [MultiTenancy](./multitenancy)：写库期间切换到的宿主上下文
 - [Uow](./uow)：后台作业入队所参与的工作单元
-- [EventBus.SqlSugar](./eventbus-sqlsugar)：同一套条件抢占领取协议的发件箱实现

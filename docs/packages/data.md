@@ -134,7 +134,7 @@ public class MyModule : XiHanModule { }
 
 | 类型 | 说明 |
 | --- | --- |
-| `ISqlSugarClientResolver` | `GetCurrentClient()` 按当前租户解析并把连接登记进事务型 UoW；`GetClientForEntity(entityType)` / `GetClientForEntity<TEntity>()` 按实体模块数据源解析；`GetClient(configId)`、`GetAllConfigIds()`、`GetAllClients()`（初始化/种子遍历各库，含派生出的模块库）、`GetCurrentLayoutConfigIds()`（当前这一套布局有哪些库）、`GetEnlistedConfigIds()`（当前事务型 UoW 已登记了哪些库，非事务或无 UoW 返回空）、`AsTenant()` |
+| `ISqlSugarClientResolver` | `GetCurrentClient()` 按当前租户解析并把连接登记进事务型 UoW；`GetClientForEntity(entityType)` / `GetClientForEntity<TEntity>()` 按实体模块数据源解析；`GetClient(configId)`、`GetAllConfigIds()`、`GetAllClients()`（初始化/种子遍历各库，含派生出的模块库）、`GetCurrentLayoutConfigIds()`（当前这一套布局有哪些库）、`AsTenant()` |
 | `ModuleDataSourceAttribute` | 实体上声明所属模块数据源：`[ModuleDataSource("Erp")]`，标在基类上对派生实体生效；SqlSugar 原生 `[Tenant("Erp")]` 同样被识别 |
 | `PlatformDataSourceAttribute` | 实体上声明固定落平台库：`[PlatformDataSource]`，库隔离租户下不随独立库切换；与 `[ModuleDataSource]` 互斥 |
 | `IEntityModuleDataSourceResolver` | 实体落点解析器：`ResolveModuleDataSource(entityType)` 返回实体声明的模块名，未声明返回 `null`；`IsPlatformPlaced(entityType)` 判断是否固定落平台库；默认实现读特性并缓存，可 `Replace` |
