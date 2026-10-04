@@ -808,6 +808,57 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
+    /// 门控的 <c>.xls</c> 端到端读取：仓里不提交二进制档，没有 <c>XIHAN_TEST_XLS_FILE</c> 时明确跳过
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 本任务公开了 <see cref="ExcelImportFormat.Xls"/>，但夹具造不出旧版二进制工作簿——ClosedXML 只写 xlsx，
+    /// 拿 OLE 档头喂它只会撞到 <c>ArgumentException</c>（取证 <c>t8-probe-exceldreader-behavior.txt</c> 的 H7 与
+    /// <c>t8-probe2-rowcount-and-decode.txt</c> 的 O4）。于是「读 .xls」这条能力在 CI 上只有签章判别的证据、
+    /// 没有从容器里读出数据的证据。
+    /// </para>
+    /// <para>
+    /// <b>跳过不算通过。</b>这条要由持有真实 <c>.xls</c> 的人把 <c>XIHAN_TEST_XLS_FILE</c> 指过去才会执行；
+    /// 不设该变量时它是未验证项，不是绿灯。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 门控的真实xls档能读出数据行()
+    {
+        var path = Environment.GetEnvironmentVariable("XIHAN_TEST_XLS_FILE");
+
+        Assert.SkipUnless(
+            !string.IsNullOrWhiteSpace(path),
+            "需要一份真实 .xls（旧版二进制工作簿）：本仓不提交二进制档，夹具也造不出来。" +
+            "把环境变量 XIHAN_TEST_XLS_FILE 指向该档即可执行本用例；跳过不算通过。");
+
+        Assert.SkipUnless(File.Exists(path), $"XIHAN_TEST_XLS_FILE 指向的档不存在：{path}");
+
+        List<ExcelImportRow> auto;
+        List<ExcelImportRow> declared;
+
+        using (var stream = File.OpenRead(path!))
+        {
+            // 不给格式：靠 OLE 复合档头判出 Xls，再交给容器解析
+            auto = await ReadAll(stream);
+        }
+
+        using (var stream = File.OpenRead(path!))
+        {
+            declared = await ReadAll(stream, new ExcelImportOptions { Format = ExcelImportFormat.Xls });
+        }
+
+        Assert.NotEmpty(auto);
+        Assert.Equal(auto[0].Values.Keys, declared[0].Values.Keys);
+        Assert.Equal(auto[0].RowNumber, declared[0].RowNumber);
+
+        // 表头与至少一个非空取值：整份档读出一堆 null 也算「成功」的话，这条用例就没有意义
+        Assert.NotEmpty(auto[0].Values);
+        Assert.Contains(auto[0].Values.Values, value => value is not null and not "");
+        Assert.True(auto[0].RowNumber >= 2, $"第一数据行的行号应当不小于 2，实际是 {auto[0].RowNumber}。");
+    }
+
+    /// <summary>
     /// 导入器实现抽象契约，供门面与注册按接口取用
     /// </summary>
     [Fact]
