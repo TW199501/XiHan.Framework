@@ -1,0 +1,29 @@
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/AnnotatedRow.cs
+  s_94f72ef52d29c7::t_91948ad3fb0b3c 1-100
+framework/src/XiHan.Framework.Excel/Columns/ExcelColumnBuilder.cs
+  s_94057b8e5cf9b6::t_8ad8fdc657599f 1-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "26804e0ab0783fe2b19f4f9d284f51648fb72cfa",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94f72ef52d29c7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "74143f3a-816c-47bc-81d8-5952c8d89e55",
+        "model": "claude-opus-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
