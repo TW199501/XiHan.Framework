@@ -531,12 +531,15 @@ public class ClosedXmlExporterTests
     /// <para>
     /// 钉的是「能导」与「落格形态」这一对事实，不是一句取舍：工作簿没有 <c>DateOnly</c> 的格位，本类把它交给
     /// <c>XLCellValue</c> 的文本形态，所以它不参与日期格的取值域判定，早于纪元也不该被拒。
-    /// 流式路径对同一型别落日期格（见 <c>MiniExcelStreamExporterTests</c>），两条路径只承诺值不被改写、
-    /// 不承诺格位相同。日后有人把这条形态差异当成「数据损坏」而加回拒写，会先被这两条用例挡住。
+    /// 流式路径对同一型别落日期格并整段拒掉早于纪元的取值（见 <c>MiniExcelStreamExporterTests</c>），
+    /// 两条路径只承诺值不被改写、不承诺格位相同。日后有人把这条形态差异当成「数据损坏」而加回拒写，
+    /// 会先被这两条用例挡住。
     /// </para>
     /// <para>
+    /// 取的三个点：1899-12-29 是下限的前一天、1500-01-01 是中等早年、<c>0001-01-01</c> 是流式路径上
+    /// 唯一真被写出库挪走过的那一档——本路径把它交给文本形态，值原样留在文字里。
     /// 断言不比对整串文本——那是库按固定区域格式排出来的（形如 12/29/1899），改排法不算改契约；
-    /// 要紧的是它是文本格、带该年份，因此没有被夹到 1899-12-30 那一刻。
+    /// 要紧的是它是文本格、带该年份，因此没有被挪到 1899-12-30 那一刻。
     /// </para>
     /// </remarks>
     /// <param name="year">年份</param>
@@ -545,6 +548,7 @@ public class ClosedXmlExporterTests
     [Theory]
     [InlineData(1899, 12, 29)]
     [InlineData(1500, 1, 1)]
+    [InlineData(1, 1, 1)]
     public async Task 早于纪元的DateOnly在本路径落文本格并照能导出(int year, int month, int day)
     {
         var value = new DateOnly(year, month, day);
@@ -555,7 +559,7 @@ public class ClosedXmlExporterTests
         var cell = workbook.Worksheet(1).Cell(2, 1);
 
         Assert.Equal(XLDataType.Text, cell.DataType);
-        Assert.Contains(year.ToString(CultureInfo.InvariantCulture), cell.GetString(), StringComparison.Ordinal);
+        Assert.Contains(year.ToString(CultureInfo.InvariantCulture).PadLeft(4, '0'), cell.GetString(), StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -565,20 +569,30 @@ public class ClosedXmlExporterTests
     /// 与上一同一取向：本类不把这个型别送进日期格，所以日期下限判据管不到它，也不该管。
     /// 读回的是带偏移量的文本原样，因此钟表时刻与时区差都没有被静默丢掉——这与流式路径落日期格、
     /// 只保留钟表时刻不同，两条路径的格位差异由各自的文档承担。
+    /// <c>0001-01-01</c> 一档只能按零偏移量构造（<see cref="DateTimeOffset"/> 自身不接受公元 1 年再加正偏移），
+    /// 要验的是本类不把它送进日期格，与偏移量取值无关。
     /// </remarks>
-    [Fact]
-    public async Task 早于纪元的DateTimeOffset在本路径落文本格并照能导出()
+    /// <param name="year">年份</param>
+    /// <param name="month">月份</param>
+    /// <param name="day">日</param>
+    /// <param name="offsetHours">偏移小时数</param>
+    [Theory]
+    [InlineData(1899, 12, 29, 8)]
+    [InlineData(1, 1, 1, 0)]
+    public async Task 早于纪元的DateTimeOffset在本路径落文本格并照能导出(int year, int month, int day, int offsetHours)
     {
-        var value = new DateTimeOffset(1899, 12, 29, 6, 30, 0, TimeSpan.FromHours(8));
+        var value = new DateTimeOffset(year, month, day, 6, 30, 0, TimeSpan.FromHours(offsetHours));
 
         var stream = await ExportAsync(BuildValueSpec(value));
 
         using var workbook = Open(stream);
         var cell = workbook.Worksheet(1).Cell(2, 1);
 
+        var expectedOffset = (offsetHours < 0 ? "-" : "+") + Math.Abs(offsetHours).ToString("D2", CultureInfo.InvariantCulture) + ":00";
+
         Assert.Equal(XLDataType.Text, cell.DataType);
-        Assert.Contains("1899", cell.GetString(), StringComparison.Ordinal);
-        Assert.Contains("+08:00", cell.GetString(), StringComparison.Ordinal);
+        Assert.Contains(year.ToString(CultureInfo.InvariantCulture).PadLeft(4, '0'), cell.GetString(), StringComparison.Ordinal);
+        Assert.Contains(expectedOffset, cell.GetString(), StringComparison.Ordinal);
     }
 
     /// <summary>
