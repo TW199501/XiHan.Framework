@@ -1,0 +1,64 @@
+framework/src/XiHan.Framework.Excel.Abstractions/ExcelConstants.cs
+  h_be8240d2cfaa4b 34-42
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/ExcelExportResult.cs
+  h_be8240d2cfaa4b 15,50,52-53,55-59
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelExporter.cs
+  h_be8240d2cfaa4b 1-127
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelTemplateRenderer.cs
+  h_be8240d2cfaa4b 33,39-41
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/ExcelImportOptions.cs
+  h_be8240d2cfaa4b 237-239,246
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/IExcelImporter.cs
+  h_be8240d2cfaa4b 42-45
+framework/src/XiHan.Framework.Excel.Abstractions/XiHanExcelOptions.cs
+  h_be8240d2cfaa4b 19-24,40-45
+framework/src/XiHan.Framework.Excel/Exporting/ClosedXmlExporter.cs
+  h_be8240d2cfaa4b 29,56-60,62-64,115-118,135,176-177,214,380-382,387,584,597
+framework/src/XiHan.Framework.Excel/Exporting/ExcelExporter.cs
+  h_be8240d2cfaa4b 1-228
+framework/src/XiHan.Framework.Excel/Exporting/ExcelWorkbookWriteGuard.cs
+  h_be8240d2cfaa4b 1-229
+framework/src/XiHan.Framework.Excel/Exporting/MiniExcelStreamExporter.cs
+  h_be8240d2cfaa4b 1-270
+framework/src/XiHan.Framework.Excel/Exporting/MiniExcelTemplateRenderer.cs
+  h_be8240d2cfaa4b 42-46,59,68-70,108-111
+framework/src/XiHan.Framework.Excel/Extensions/DependencyInjection/XiHanExcelServiceCollectionExtensions.cs
+  h_be8240d2cfaa4b 7-9,11-14,24,30-53,66-81
+framework/src/XiHan.Framework.Excel/Importing/ExcelDataReaderImporter.cs
+  h_be8240d2cfaa4b 9,70-75,84-108,136-137,184
+framework/src/XiHan.Framework.Excel/Importing/ExcelImporter.cs
+  h_be8240d2cfaa4b 54-57
+framework/src/XiHan.Framework.Excel/Importing/FixedWidthTextImporter.cs
+  h_be8240d2cfaa4b 70-74,76,93-126,141-142,195
+framework/src/XiHan.Framework.Excel/Importing/ImportSharedRules.cs
+  h_be8240d2cfaa4b 19-23,29,31-73,75-76,80,93,95-101,105
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlExporterTests.cs
+  h_be8240d2cfaa4b 4,455-526,984-1005
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ExcelExporterDispatchTests.cs
+  h_be8240d2cfaa4b 1-582
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ExcelSheetSpecTests.cs
+  h_be8240d2cfaa4b 84-117
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelStreamExporterTests.cs
+  h_be8240d2cfaa4b 1-603
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelTemplateRendererTests.cs
+  h_be8240d2cfaa4b 244-281
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelDataReaderImporterTests.cs
+  h_be8240d2cfaa4b 6,881-950,952-959,963
+framework/test/XiHan.Framework.Excel.Tests/Importing/FixedWidthTextImporterTests.cs
+  h_be8240d2cfaa4b 562-609
+framework/test/XiHan.Framework.Excel.Tests/Registration/XiHanExcelRegistrationTests.cs
+  h_be8240d2cfaa4b 1-342
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/CancelOnFlushStream.cs
+  h_be8240d2cfaa4b 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aafdae2f666244cd4b03d06d858cf662e3183de1",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
