@@ -1,0 +1,18 @@
+framework/src/XiHan.Framework.Excel/Exporting/ExcelWorkbookWriteGuard.cs
+  h_be8240d2cfaa4b 27-37,157-159,181-220
+framework/src/XiHan.Framework.Excel/Exporting/MiniExcelStreamExporter.cs
+  h_be8240d2cfaa4b 47-51,65-73,107-111,272
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelStreamExporterTests.cs
+  h_be8240d2cfaa4b 392,396-399,402-404,407,412-419,423-424,426-428,432,435-445,447-458,463,469,473,476-477,479,481-503,507,514
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "48780c3a7d55b0155cc058c8904fa0b2643b7db8",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
