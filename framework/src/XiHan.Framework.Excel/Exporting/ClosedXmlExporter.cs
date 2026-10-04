@@ -23,16 +23,16 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 那里读到的不是调用方的声明值。
 /// </para>
 /// <para>
-/// 行集合的元素按 <see cref="ExcelSheetSpec.RowType"/> 校验：声明本身为 <c>null</c> 属于「非法声明」，
-/// 在写出第一格之前的预检里就抛，一个行元素都不取；类型比对仍落在取到首个非 null 元素的时候，不符即抛，
-/// 不为一次类型检查而物化整份行集合。放行异型行只会交出一份表头齐全、数据全空的档。
+/// 行集合的元素按 <see cref="ExcelSheetSpec.RowType"/> 逐笔校验：声明本身为 <c>null</c> 属于「非法声明」，
+/// 在写出第一格之前的预检里就抛，一个行元素都不取；类型比对落在每一行上，任何一笔不符即抛，
+/// 不为一次类型检查而物化整份行集合。只判第一笔时，后面那笔异型行经列的取值方法只会交回 <c>null</c>，
+/// 放行就是写出一份表头齐全、数据全空的档。判据与文字档路径共用 <see cref="ExcelRowTypeGuard"/>，两边不各写一份。
 /// </para>
 /// <para>
 /// <see cref="ExcelSheetSpec.SheetName"/> 的可用性在写第一格之前判：长度不超过 31（按 UTF-16 代码单元，与工作簿同一量纲，
 /// 代理对算两个）、不含工作簿不接受的字符、不以单引号开头或结尾；多表路径还要求名字互不重复，判重用
 /// <see cref="StringComparer.OrdinalIgnoreCase"/>，与 Excel 和 <see cref="ClosedXML.Excel.IXLWorksheets"/> 的口径一致。
-/// 这套判据逐条对齐工作簿的现实而不是猜测（取证见 <c>.superpowers/sdd/2026-10-04-excel/t7-probe-sheetname-charset.txt</c>
-/// 与 <c>t7-probe-sheetname-parity.txt</c>），既不比工作簿严（不误杀它肯收的名字），也不比它松，且绝不替调用方改名——
+/// 这套判据逐条对齐工作簿的实际约束：既不误杀它肯收的名字，也不放过它拒绝的名字，且不替调用方改名——
 /// 被拒的名字一律抛出，不做去空格、截断或加后缀这类静默兜底。
 /// </para>
 /// <para>
@@ -120,7 +120,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 十六进制颜色串，此时 <see cref="ArgumentException.ParamName"/> 为 <c>HeaderFill</c>。颜色串里只有「形状合法但工作簿
     /// 解析不了（位值含非 ASCII 字符）」那一条带库的 <see cref="FormatException"/> 作为内部异常，形状本身不合法的那条
     /// 没有内部异常——按异常类型与 <see cref="ArgumentException.ParamName"/> 分流，不要靠读内部异常判断成因</exception>
-    /// <exception cref="InvalidOperationException">行集合首个非 null 元素与
+    /// <exception cref="InvalidOperationException">行集合里有某笔元素与
     /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是 xlsx 表示不了的日期；或某列的
     /// <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串（含形状合法但解析不了的串）。三者消息都点名行位置与
     /// 实际成因：行型不符者报出行号与期望／实际两个类型全名，后两者报出行号、表头与列键，解析不了的那类把库的
@@ -174,7 +174,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是大于 0 且不高于 255
     /// 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内，或
     /// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/> 为负数</exception>
-    /// <exception cref="InvalidOperationException">某张表的行集合首个非 null 元素与其
+    /// <exception cref="InvalidOperationException">某张表的行集合里有某笔元素与其
     /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是 xlsx 表示不了的日期；或某列的
     /// <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
@@ -241,7 +241,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     private IXLWorksheet WriteSheet(IXLWorkbook workbook, ExcelSheetSpec sheet, CancellationToken cancellationToken)
     {
         var columns = sheet.Columns;
-        var rowType = ValidateRowTypeDeclaration(sheet);
+        var rowType = ExcelRowTypeGuard.ValidateDeclaration(sheet);
         ValidateColumns(columns);
         var headerFill = sheet.HeaderFill is null ? null : ParseSheetColor(sheet.HeaderFill, nameof(ExcelSheetSpec.HeaderFill));
         var title = string.IsNullOrWhiteSpace(sheet.Title) ? null : sheet.Title;
@@ -258,7 +258,6 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
         WriteHeaderRow(worksheet, headerRowNumber, columns, sheet.HeaderBold, headerFill);
 
         var rowIndex = 0;
-        var rowTypeChecked = false;
 
         foreach (var row in sheet.Rows)
         {
@@ -266,12 +265,8 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
 
             rowIndex++;
 
-            // 行型一致性只判首个非 null 元素，判过就不再判，行集合不物化
-            if (!rowTypeChecked && row is not null)
-            {
-                ValidateRowType(rowType, row, rowIndex);
-                rowTypeChecked = true;
-            }
+            // 每一行都判，判据与文字档路径同一份；用的就是刚取到的这一行，不物化行集合
+            ExcelRowTypeGuard.ValidateRow(rowType, row, rowIndex, "xlsx 导出");
 
             WriteDataRow(worksheet, headerRowNumber + rowIndex, columns, row, rowIndex);
         }
@@ -521,44 +516,6 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
                     $"列「{column.Header}」（键 {column.Key}）的对齐「{column.Alignment}」不在 {nameof(ExcelAlignment)} 的定义范围内。");
             }
         }
-    }
-
-    /// <summary>
-    /// 在写第一格之前确认表规格声明了行类型，交回非 null 的声明类型供逐行比对
-    /// </summary>
-    /// <remarks>
-    /// <see cref="ExcelSheetSpec.RowType"/> 是 <c>required</c> 非空成员，能走到 null 的只有 <c>null!</c> 这种非法状态。
-    /// 判定放在预检而不是逐行路径上：零行的规格也要被拒——多表路径里「一行都没有 + 声明缺失」同样是坏声明，
-    /// 只有预检这一层同时覆盖单表与多表。跳过判定等于替调用方把坏声明咽下。
-    /// </remarks>
-    private static Type ValidateRowTypeDeclaration(ExcelSheetSpec sheet)
-    {
-        return sheet.RowType ?? throw new ArgumentNullException(
-            nameof(ExcelSheetSpec.RowType),
-            $"{nameof(ExcelSheetSpec.RowType)} 为 null：行集合的元素没有可比对的声明类型。" +
-            "请用行类型初始化表规格（RowType = typeof(TRow)），null 是非法状态而不是「未填」。");
-    }
-
-    /// <summary>
-    /// 判定首个行元素的实际类型与表规格声明的 <see cref="ExcelSheetSpec.RowType"/> 是否一致
-    /// </summary>
-    /// <remarks>
-    /// 只判首个非 null 元素：行集合是惰性游标，为一次类型检查而物化会破坏流式契约；null 行按列的既有契约写成空格，
-    /// 本身没有类型可判。派生行类型按 <see cref="Type.IsInstanceOfType(object)"/> 放行。
-    /// 声明本身为 null 的情况已由 <see cref="ValidateRowTypeDeclaration"/> 在预检拦下，这里不再判第二次。
-    /// </remarks>
-    private static void ValidateRowType(Type expected, object row, int rowIndex)
-    {
-        if (expected.IsInstanceOfType(row))
-        {
-            return;
-        }
-
-        throw new InvalidOperationException(
-            $"xlsx 导出无法完成：第 {rowIndex} 行的行对象与 {nameof(ExcelSheetSpec.RowType)} 不符，" +
-            $"期望「{expected.FullName}」，实际是「{row.GetType().FullName}」。" +
-            "请给出该类型的行集合，或把 RowType 改为实际行类型——异型行经列的取值方法只会得到 null，" +
-            "放行就是交出一份表头齐全、数据全空的档。");
     }
 
     /// <summary>

@@ -137,6 +137,28 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
+    /// 固定宽度布局与分隔符布局走同一份行型守卫：第二笔异型同样抛出并点名行号
+    /// </summary>
+    [Fact]
+    public async Task 固定宽度第二笔异型时抛出并点名行号()
+    {
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns = FixedColumns,
+            Rows = new object?[] { new SampleRow { AwbNo = "AWB1" }, "不是行类型" }
+        };
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ExportAsync(
+            FixedOptions(), spec, ExcelFormat.Txt));
+
+        Assert.Contains("第 2 行", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(SampleRow), exception.Message, StringComparison.Ordinal);
+        Assert.Contains("System.String", exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// 整行字节数超过所有列宽之和时抛出，信息带该列列宽与实际字节数
     /// </summary>
     [Fact]

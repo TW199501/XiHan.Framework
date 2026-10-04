@@ -19,6 +19,11 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 序列，可以是惰性游标，导出规模不受内存里的行数限制，因此也没有流式与否的阈值判断。每行写前检查取消令牌。
 /// </para>
 /// <para>
+/// 行集合的元素按 <see cref="ExcelSheetSpec.RowType"/> 逐笔校验，判据与 xlsx 路径共用
+/// <see cref="ExcelRowTypeGuard"/>，两边不各写一份：声明为 <c>null</c> 属于非法声明，在写出第一格之前的预检里就抛；
+/// 取到的每一笔都要比对。异型行经列的取值方法只会交回 <c>null</c>，放行就是写出一份表头齐全、数据全空的档。
+/// </para>
+/// <para>
 /// 文字档没有样式概念，因此 <see cref="ExcelSheetSpec"/> 上的工作簿排版项（标题行、冻结、筛选、表头加粗与底色、
 /// 边框）与列上的宽度、对齐、换行、数字格式全部忽略且不记日志，返回值一律走
 /// <see cref="ExcelExportResult.Styled(ExcelFormat, string, string)"/>，其中「样式已落地」表示没有丢弃任何请求的
@@ -73,11 +78,14 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// <param name="textOptions">文字档选项，传 <c>null</c> 时使用 <see cref="ExcelTextOptions"/> 的默认值</param>
     /// <param name="cancellationToken">取消令牌，取消时不再写出后续行</param>
     /// <returns>导出结果，含实际写出的扩展名与内容类型</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="output"/> 或 <paramref name="sheet"/> 为 <c>null</c></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="output"/> 或 <paramref name="sheet"/> 为 <c>null</c>，
+    /// 或 <see cref="ExcelSheetSpec.RowType"/> 为 <c>null</c>（<see cref="ArgumentException.ParamName"/> 为 <c>RowType</c>；
+    /// 该属性是 <c>required</c> 非空成员，null 只会来自 <c>null!</c> 的非法声明，并在写出第一格之前就被拒）</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> 不是 <c>Csv</c> 或 <c>Txt</c></exception>
     /// <exception cref="ArgumentException">编码名无法解析，<see cref="ExcelTextQuote.None"/> 与空格分隔符组合，
     /// 或固定宽度布局下某列的补位字符是换行符、在目标编码下不是单字节</exception>
-    /// <exception cref="InvalidOperationException">固定宽度布局下某列未设置
+    /// <exception cref="InvalidOperationException">行集合里有某笔元素与 <see cref="ExcelSheetSpec.RowType"/> 不符，
+    /// 消息点名行位置与期望／实际两个类型全名；或固定宽度布局下某列未设置
     /// <see cref="ExcelColumn.FixedWidth"/>、列宽不是正整数，取值转出的文本含换行，
     /// 或内容超出列宽且 <see cref="ExcelTextOptions.Overflow"/> 为 <see cref="ExcelTextOverflow.Throw"/></exception>
     /// <exception cref="EncoderFallbackException">目标编码收不下待写出的字符（详见 <see cref="TextWriterHelper"/>）</exception>
@@ -335,6 +343,9 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
         var columns = sheet.Columns;
         var line = new StringBuilder();
 
+        // 声明级预检排在 new StreamWriter 之前：坏声明不写出任何字节，行集合一次都不被枚举
+        var rowType = ExcelRowTypeGuard.ValidateDeclaration(sheet);
+
         using var writer = new StreamWriter(output, encoding, leaveOpen: true);
 
         if (options.IncludeHeader)
@@ -363,6 +374,10 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
             cancellationToken.ThrowIfCancellationRequested();
 
             rowIndex++;
+
+            // 每一行都判行型，判据与 xlsx 路径同一份；用的就是刚取到的这一行，不物化行集合
+            ExcelRowTypeGuard.ValidateRow(rowType, row, rowIndex, "文字导出");
+
             line.Clear();
             var position = $"第 {rowIndex} 行";
 

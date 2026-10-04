@@ -103,6 +103,8 @@ public sealed class ExcelColumn<TRow> : ExcelColumn
     /// <remarks>
     /// 行集合里的 <c>null</c> 元素与异型行都是合法输入，这里返回 <c>null</c> 而不是抛异常，
     /// 让导出侧写成空单元格；数据是否应当为空由调用方在构造行集合时决定。
+    /// 框架自带的两条导出路径不会把异型行交到这里：取值之前已按 <see cref="ExcelSheetSpec.RowType"/>
+    /// 逐笔判定并抛出，因此「异型行取到 <c>null</c>」只剩调用方自己调用本方法时看得到。
     /// </remarks>
     public override object? GetValue(object? row)
         => row is TRow typed ? Value(typed) : null;

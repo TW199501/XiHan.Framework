@@ -288,6 +288,59 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
+    /// 文字档与 xlsx 共用同一份行型守卫：首笔正确、次笔异型即抛，并点名行号与两个类型
+    /// </summary>
+    /// <remarks>
+    /// 判据只有一份，措辞前缀按路径给出。断言落在异常类型、行号与两个类型名上，不断言流的字节数：
+    /// 文字档是 <c>StreamWriter</c> 边写边缓冲，第一行可能已经落盘，抛出时留下的半份档正是这条守卫要拦的结果，
+    /// 不是它要消除的现象。
+    /// </remarks>
+    [Fact]
+    public async Task 文字导出第二笔异型时抛出并点名行号()
+    {
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns = Columns,
+            Rows = new object?[] { new SampleRow { AwbNo = "AWB1" }, "不是行类型" }
+        };
+
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
+            new MemoryStream(), spec, ExcelFormat.Csv, new ExcelTextOptions(), TestContext.Current.CancellationToken));
+
+        Assert.Contains("第 2 行", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(SampleRow), exception.Message, StringComparison.Ordinal);
+        Assert.Contains("System.String", exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 文字导出沿用同一条声明级预检：<c>RowType</c> 为 null 时在写出任何字节之前抛，行集合一次都不被枚举
+    /// </summary>
+    [Fact]
+    public async Task 文字导出RowType为null时预检抛且零字节()
+    {
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = null!,
+            Columns = Columns,
+            Rows = new[] { new SampleRow { AwbNo = "AWB1" } }
+        };
+
+        var stream = new MemoryStream();
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () => await exporter.ExportAsync(
+            stream, spec, ExcelFormat.Csv, new ExcelTextOptions(), TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.RowType), exception.ParamName);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
     /// 表标题与工作簿排版项不写进文字档
     /// </summary>
     [Fact]

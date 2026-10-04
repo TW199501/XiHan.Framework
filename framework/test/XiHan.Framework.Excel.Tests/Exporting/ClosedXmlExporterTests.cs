@@ -512,10 +512,10 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
-    /// 行型一致性判的是首个非 null 元素，null 行本身按列契约写成空格
+    /// 行型一致性逐笔判定，null 行没有类型可判、本身按列契约写成空格
     /// </summary>
     [Fact]
-    public async Task 类型一致性判首个非空行()
+    public async Task 类型一致性逐笔判定且null行不判()
     {
         var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
 
@@ -545,6 +545,42 @@ public class ClosedXmlExporterTests
 
         // null 行没有类型可判，判定落在第二个元素上，行号也跟着它
         Assert.Contains("第 2 行", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 行型一致性逐笔判定：首笔正确、次笔异型时抛出并点名第二行的行号与两个类型
+    /// </summary>
+    /// <remarks>
+    /// 「只判第一笔」正是本条要拦的形态：第一笔过了就再不判，第二笔的异型行经列的取值方法只会得到 null，
+    /// 于是档落成「表头齐全、第二行全空」，结果仍写着 <c>StylingApplied=true</c>。
+    /// </remarks>
+    [Fact]
+    public async Task 第二笔异型时逐笔判定抛出并点名行号()
+    {
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns = Columns,
+            Rows = new object?[]
+            {
+                new SampleRow { AwbNo = "AWB1", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) },
+                "不是行类型"
+            }
+        };
+
+        var stream = new MemoryStream();
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
+            stream, spec, TestContext.Current.CancellationToken));
+
+        Assert.Contains("第 2 行", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(SampleRow), failure.Message, StringComparison.Ordinal);
+        Assert.Contains("System.String", failure.Message, StringComparison.Ordinal);
+
+        // 逐笔判定仍在存盘之前，抛出那一刻工作簿没有落进流里
+        Assert.Equal(0, stream.Length);
     }
 
     /// <summary>
