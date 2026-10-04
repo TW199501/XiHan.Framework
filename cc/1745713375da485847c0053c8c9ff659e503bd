@@ -1,0 +1,30 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/ExcelFixedWidthField.cs
+  h_be8240d2cfaa4b 1-34
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/ExcelImportOptions.cs
+  h_be8240d2cfaa4b 9,23-26,72-73,101-102,187-223
+framework/src/XiHan.Framework.Excel/Importing/ExcelDataReaderImporter.cs
+  h_be8240d2cfaa4b 151,224
+framework/src/XiHan.Framework.Excel/Importing/ExcelImporter.cs
+  h_be8240d2cfaa4b 1-71
+framework/src/XiHan.Framework.Excel/Importing/FixedWidthTextImporter.cs
+  h_be8240d2cfaa4b 1-572
+framework/src/XiHan.Framework.Excel/Importing/ImportSharedRules.cs
+  h_be8240d2cfaa4b 1-81
+framework/src/XiHan.Framework.Excel/Importing/TextEncodingResolver.cs
+  h_be8240d2cfaa4b 66-67,92-138
+framework/test/XiHan.Framework.Excel.Tests/Importing/FixedWidthTextImporterTests.cs
+  h_be8240d2cfaa4b 1-1288
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/AsyncCollector.cs
+  h_be8240d2cfaa4b 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cc1745713375da485847c0053c8c9ff659e503bd",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
