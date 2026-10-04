@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using ExcelDataReader;
+using ExcelDataReader.Exceptions;
 using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
 using XiHan.Framework.Excel.Abstractions.Importing;
@@ -50,14 +51,21 @@ namespace XiHan.Framework.Excel.Importing;
 /// <para>
 /// 来源不做补偿：合并单元格除左上角外的格位读回 <c>null</c>，空格子在文字档里是空字串、在工作簿里是 <c>null</c>，
 /// 公式只读回已缓存的值。样式、批注、图表与宏不解释。加密工作簿不支持（本类不传
-/// <see cref="ExcelReaderConfiguration.Password"/>），容器解不开时按库的异常形态交回。
+/// <see cref="ExcelReaderConfiguration.Password"/>）。
 /// </para>
 /// <para>
 /// 显式 <see cref="ExcelImportOptions.Format"/> 为 <see cref="ExcelImportFormat.Xls"/> 或
-/// <see cref="ExcelImportFormat.Xlsx"/> 时<u>不强判签章</u>：读取器按内容自行选容器解析器，因此档名与内容不符可以正常读；
-/// 内容是垃圾字节或截断容器时，抛的是库或 BCL 的异常（<c>HeaderException</c>、<see cref="InvalidDataException"/>、
-/// <see cref="ArgumentException"/>），本类不翻译。只有自动判别路径的「判不出来」由本类换成
-/// <see cref="InvalidOperationException"/>。
+/// <see cref="ExcelImportFormat.Xlsx"/> 时<u>不强判签章</u>：读取器按内容自行选容器解析器，因此档名与内容不符可以正常读。
+/// 容器读不通时（伪造的档头、截断的 zip、读到一半崩掉的工作簿），库的 <c>ExcelReaderException</c> 家族与
+/// <see cref="InvalidDataException"/> 由本类换成 <see cref="InvalidOperationException"/>，库原话留在内部异常里——
+/// 抽象契约在抽象包里、不引用任何第三方库，库的异常型别不能算对外承诺。「档头判不出格式」与「判得出但容器读不通」
+/// 因此落在同一个类型上。
+/// </para>
+/// <para>
+/// 一处不收口的残留：对上 OLE 档头却短到读不出目录的伪装档，会由 BCL 交回 <see cref="ArgumentException"/>，
+/// 本类<u>不</u>把它一起收掉——<see cref="DecoderFallbackException"/> 同样是 <see cref="ArgumentException"/> 的后代，
+/// 按 <see cref="ArgumentException"/> 收口会把「编码指错」这条正当失败一并吞成容器异常。
+/// 调用方按型别分流时要认这条现实。
 /// </para>
 /// </remarks>
 public sealed class ExcelDataReaderImporter : IExcelImporter
@@ -95,9 +103,14 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// 内层异常保留解析失败的原话）</exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <see cref="ExcelImportOptions.MaxRowCount"/> 高于框架硬上限或不是正整数（<c>ParamName</c> 为 <c>MaxRowCount</c>）</exception>
-    /// <exception cref="InvalidOperationException"><see cref="ExcelImportOptions.Format"/> 为 <c>null</c> 且档头判不出格式
-    /// （消息写出档头字节的可读形式并点名 HTML 表格／XML 表格这类伪装），或
-    /// <see cref="ExcelImportOptions.SheetName"/> 在本工作簿里不存在（消息列出实际表名）</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <list type="bullet">
+    /// <item><see cref="ExcelImportOptions.Format"/> 为 <c>null</c> 且档头判不出格式：消息写出档头字节的可读形式
+    /// 并点名 HTML 表格／XML 表格这类伪装；</item>
+    /// <item>格式给出或判出但容器读不通（伪造的档头、截断的档、损坏的簿）：消息点名该格式、附同一份可读档头，
+    /// 并把库原话留在内部异常；</item>
+    /// <item><see cref="ExcelImportOptions.SheetName"/> 在本工作簿里不存在：消息列出实际表名。</item>
+    /// </list></exception>
     /// <exception cref="DecoderFallbackException">文字档的实际字节在所用编码下解不开（UTF-8 一支）。
     /// 库不会为解不开的字节产出替换字符当正常数据，读档在中途停下</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
@@ -141,7 +154,11 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
         // 否则「调用方把位置留在中间」时嗅探判的是中间那段，而解析器读的是整档，两者会各说各话。
         input.Position = 0;
 
-        var format = effective.Format ?? DetectFormatOrThrow(input);
+        // 档头取一次就留着：判不出格式与容器读不通两条失败都要把同一份可读档头写进消息，
+        // 不能在异常里再读一遍流（那时位置已被解析器动过）。
+        var header = ExcelFormatProbe.ReadHeader(input, ExcelFormatProbe.HeaderByteCount);
+
+        var format = effective.Format ?? DetectFormatOrThrow(header);
         var isText = format is ExcelImportFormat.Csv or ExcelImportFormat.Txt;
 
         // 建立读取器：文字路径的分隔符与编码在这里钉死，二进制路径不读 TextEncodingName 与 Delimiter
@@ -160,20 +177,18 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
             ];
         }
 
-        using var reader = isText
-            ? ExcelReaderFactory.CreateCsvReader(input, configuration)
-            : ExcelReaderFactory.CreateReader(input, configuration);
+        using var reader = CreateReader(input, configuration, isText, format, header);
 
         if (!isText && effective.SheetName is not null)
         {
-            SelectSheet(reader, effective.SheetName);
+            SelectSheet(reader, effective.SheetName, format, header);
         }
 
         var rowNumber = 0;
         var emitted = 0;
         List<string>? keys = null;
 
-        while (reader.Read())
+        while (ReadNext(reader, format, header))
         {
             rowNumber++;
 
@@ -260,11 +275,10 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// <summary>
     /// 自动判别格式，判不出来时抛出可定位的说明
     /// </summary>
-    /// <param name="input">输入流</param>
+    /// <param name="header">已取好的档头字节</param>
     /// <exception cref="InvalidOperationException">档头不是已知签名</exception>
-    private static ExcelImportFormat DetectFormatOrThrow(Stream input)
+    private static ExcelImportFormat DetectFormatOrThrow(byte[] header)
     {
-        var header = ExcelFormatProbe.ReadHeader(input, ExcelFormatProbe.HeaderByteCount);
         var detected = ExcelFormatProbe.Detect(header);
 
         if (detected is not null)
@@ -286,12 +300,106 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     }
 
     /// <summary>
+    /// 建立读取器，容器读不通时换成框架声明过的类型
+    /// </summary>
+    /// <param name="input">输入流</param>
+    /// <param name="configuration">读取器配置</param>
+    /// <param name="isText">是否为文字档路径</param>
+    /// <param name="format">本次要读的格式</param>
+    /// <param name="header">档头字节，供消息使用</param>
+    /// <exception cref="InvalidOperationException">格式给出或判出，但容器读不通</exception>
+    private static IExcelDataReader CreateReader(
+        Stream input,
+        ExcelReaderConfiguration configuration,
+        bool isText,
+        ExcelImportFormat format,
+        byte[] header)
+    {
+        try
+        {
+            return isText
+                ? ExcelReaderFactory.CreateCsvReader(input, configuration)
+                : ExcelReaderFactory.CreateReader(input, configuration);
+        }
+        catch (Exception ex) when (IsContainerFailure(ex))
+        {
+            throw ContainerFailure(ex, format, header);
+        }
+    }
+
+    /// <summary>
+    /// 取下一行，容器读到一半崩了也换成框架声明过的类型
+    /// </summary>
+    /// <param name="reader">读取器</param>
+    /// <param name="format">本次要读的格式</param>
+    /// <param name="header">档头字节，供消息使用</param>
+    /// <exception cref="InvalidOperationException">容器读到一半崩了</exception>
+    private static bool ReadNext(IExcelDataReader reader, ExcelImportFormat format, byte[] header)
+    {
+        try
+        {
+            return reader.Read();
+        }
+        catch (Exception ex) when (IsContainerFailure(ex))
+        {
+            throw ContainerFailure(ex, format, header);
+        }
+    }
+
+    /// <summary>
+    /// 跳到下一个工作表，容器读到一半崩了同样换成框架声明过的类型
+    /// </summary>
+    /// <param name="reader">读取器</param>
+    /// <param name="format">本次要读的格式</param>
+    /// <param name="header">档头字节，供消息使用</param>
+    /// <exception cref="InvalidOperationException">容器读到一半崩了</exception>
+    private static bool AdvanceResult(IExcelDataReader reader, ExcelImportFormat format, byte[] header)
+    {
+        try
+        {
+            return reader.NextResult();
+        }
+        catch (Exception ex) when (IsContainerFailure(ex))
+        {
+            throw ContainerFailure(ex, format, header);
+        }
+    }
+
+    /// <summary>
+    /// 判断异常属于不属于容器层的失败
+    /// </summary>
+    /// <param name="ex">待判断的异常</param>
+    /// <remarks>
+    /// 只认读取器自己的 <see cref="ExcelReaderException"/> 家族（伪造档头、坏目录、加密都从这三型里出来）与容器级的
+    /// <see cref="InvalidDataException"/>。<u>绝不按 <see cref="ArgumentException"/> 收口</u>：
+    /// <see cref="DecoderFallbackException"/> 是它的后代，那样收会把「编码指错」这条正当的解码失败
+    /// 一起吞成容器异常，调用方再也看不出档是没解开还是读不通。
+    /// </remarks>
+    private static bool IsContainerFailure(Exception ex)
+        => ex is ExcelReaderException or InvalidDataException;
+
+    /// <summary>
+    /// 把容器层失败换成 <see cref="InvalidOperationException"/>，库原话留在内部异常
+    /// </summary>
+    /// <param name="original">库或 BCL 交回的原始异常</param>
+    /// <param name="format">本次要读的格式</param>
+    /// <param name="header">档头字节</param>
+    private static InvalidOperationException ContainerFailure(Exception original, ExcelImportFormat format, byte[] header)
+        => new(
+            $"按 {format} 读不通：档头 = {ExcelFormatProbe.DescribeHeader(header)}，内容不是可用的 {format} 容器" +
+            "（伪造的档头、截断的档、加密或损坏的簿都会走到这里）。库报出「" + original.Message + "」，" +
+            "原文留在内部异常里，定位容器问题要看它。",
+            original);
+
+    /// <summary>
     /// 跳到指定名称的工作表，找不到就抛并列出实际表名
     /// </summary>
     /// <param name="reader">已建立的读取器</param>
     /// <param name="sheetName">要读的工作表名</param>
-    /// <exception cref="InvalidOperationException">工作簿里没有这个名字的表</exception>
-    private static void SelectSheet(IExcelDataReader reader, string sheetName)
+    /// <param name="format">本次要读的格式</param>
+    /// <param name="header">档头字节，供消息使用</param>
+    /// <exception cref="InvalidOperationException">工作簿里没有这个名字的表，或容器读到一半崩了</exception>
+    private static void SelectSheet(IExcelDataReader reader, string sheetName, ExcelImportFormat format, byte[] header)
     {
         var seen = new List<string>();
 
@@ -304,7 +412,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
 
             seen.Add(string.IsNullOrEmpty(reader.Name) ? "(未命名)" : reader.Name);
 
-            if (!reader.NextResult())
+            if (!AdvanceResult(reader, format, header))
             {
                 throw new InvalidOperationException(
                     $"工作簿里没有名为「{sheetName}」的工作表，实际有：{string.Join("、", seen)}。" +

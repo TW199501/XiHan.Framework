@@ -35,8 +35,10 @@ public interface IExcelImporter
     /// <exception cref="ArgumentException"><paramref name="input"/> 不可读或不可定位</exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <see cref="ExcelImportOptions.MaxRowCount"/> 高于框架硬上限或不是正整数</exception>
-    /// <exception cref="InvalidOperationException">无法从档头判定格式，或
-    /// <see cref="ExcelImportOptions.SheetName"/> 在本工作簿里不存在</exception>
+    /// <exception cref="InvalidOperationException">
+    /// 档头判不出格式、格式给出或判出但容器读不通（伪造的档头、截断的档、损坏的簿），或
+    /// <see cref="ExcelImportOptions.SheetName"/> 在本工作簿里不存在。三类都落在本类型上：
+    /// 抽象契约不引用任何第三方库，实现不得把库自己的异常型别当对外承诺，库原话留在内部异常里</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// <para>

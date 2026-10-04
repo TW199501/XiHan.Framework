@@ -705,6 +705,55 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
+    /// 显式指名 xlsx 而内容不是该容器时，换成框架已声明的类型，库原话留在内部异常
+    /// </summary>
+    /// <remarks>
+    /// 抽象契约在抽象包里，它不引用 ExcelDataReader，因此库自己的异常型别不能成为对外承诺（取证
+    /// <c>t8-probe-exception-types.txt</c> 列出的三个库异常型别全部只继承 <see cref="Exception"/>）。
+    /// </remarks>
+    [Fact]
+    public async Task 指名xlsx而内容是HTML表格时转译为框架异常()
+    {
+        using var html = ImportFixtures.HtmlTable();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await ReadAll(html, new ExcelImportOptions { Format = ExcelImportFormat.Xlsx }));
+
+        Assert.NotNull(failure.InnerException);
+        Assert.Contains(ExcelImportFormat.Xlsx.ToString(), failure.Message, StringComparison.Ordinal);
+        Assert.Contains("容器", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("3C 68 74 6D 6C", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 档头真是 zip 签名但容器截断时同样转译，不把库的容器异常当契约
+    /// </summary>
+    [Fact]
+    public async Task 截断的xlsx容器转译为框架异常()
+    {
+        using var truncated = new MemoryStream([0x50, 0x4B, 0x03, 0x04, .. "junkjunkjunk"u8.ToArray()]);
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ReadAll(truncated));
+
+        Assert.NotNull(failure.InnerException);
+        Assert.Contains(ExcelImportFormat.Xlsx.ToString(), failure.Message, StringComparison.Ordinal);
+        Assert.Contains("50 4B 03 04", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 容器失败之外，编码解码失败不被转译：<c>DecoderFallbackException</c> 是 <see cref="ArgumentException"/>
+    /// 的后代，收口时绝不能连它一起吞进容器异常
+    /// </summary>
+    [Fact]
+    public async Task 解码失败不被转译成容器异常()
+    {
+        var bytes = ImportFixtures.Encode(ImportFixtures.StrictBig5, "提單號\r\nAWB1\r\n");
+
+        await Assert.ThrowsAsync<DecoderFallbackException>(async () =>
+            await ReadCsv(bytes, o => o with { TextEncodingName = "utf-8" }));
+    }
+
+    /// <summary>
     /// 导入器实现抽象契约，供门面与注册按接口取用
     /// </summary>
     [Fact]
