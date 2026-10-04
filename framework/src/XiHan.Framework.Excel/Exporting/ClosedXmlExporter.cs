@@ -98,7 +98,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     private const int MaximumSheetNameLength = 31;
 
     /// <summary>
-    /// 工作表名不接受的字符，逐个实测自工作簿而不是照抄规范文本
+    /// 工作表名不接受的字符，与工作簿的实际约束逐条对齐：既不误杀它肯收的名字，也不放过它拒绝的名字
     /// </summary>
     private static readonly char[] InvalidSheetNameCharacters = [':', '\\', '/', '?', '*', '[', ']', '\0', '\u0003'];
 
@@ -544,9 +544,8 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 逐张检查清单里的表名可用且互不重名
     /// </summary>
     /// <remarks>
-    /// 判重用 <see cref="StringComparer.OrdinalIgnoreCase"/>：Excel 的工作表名不区分大小写，
-    /// 实测工作簿也按同一口径判重（含仅大小写不同的名字），0 个分歧的比对见
-    /// <c>.superpowers/sdd/2026-10-04-excel/t7-probe-sheetname-parity.txt</c>。
+    /// 判重用 <see cref="StringComparer.OrdinalIgnoreCase"/>：Excel 的工作表名不区分大小写，工作簿也按同一口径
+    /// 判重——只有大小写不同的两个名字同样被拒，因此这里不多判也不漏判。
     /// </remarks>
     private static void ValidateSheetNames(IReadOnlyList<ExcelSheetSpec> sheets)
     {
@@ -584,10 +583,10 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 检查单张表的表名能否落进工作簿：长度、非法字符与首尾单引号
     /// </summary>
     /// <remarks>
-    /// 三条判据都取自工作簿的现实而不是规范文本（取证见 <c>t7-probe-sheetname-charset.txt</c>）：
-    /// 长度按 <see cref="string.Length"/>（UTF-16 代码单元）计，代理对占两个，实测 31 可收、32 被拒；
-    /// 非法字符是 <c>: \ / ? * [ ]</c> 加 <c>U+0000</c> 与 <c>U+0003</c>，其余 ASCII 与控制字符工作簿都肯收，
-    /// 所以我们不多拒（含竖线、尖括号、换行、全形字符的名字照样写）；首尾单引号被拒而中间的撇号被收。
+    /// 三条判据都与工作簿的实际约束逐条对齐，既不比它严（不误杀它肯收的名字），也不比它松：
+    /// 长度按 <see cref="string.Length"/>（UTF-16 代码单元）计，代理对占两个，上限 <see cref="MaximumSheetNameLength"/> 个字符；
+    /// 不接受的字符是 <c>: \ / ? * [ ]</c> 加 <c>U+0000</c> 与 <c>U+0003</c>，其余 ASCII 与控制字符工作簿都肯收，
+    /// 因此这里不多拒（含竖线、尖括号、换行、全形字符的名字照样写）；首尾单引号被拒，而中间的撇号被收。
     /// 表名为空或纯空白由 <see cref="ExcelSheetSpec.SheetName"/> 的 <c>init</c> 守卫拦下，这里不重复判。
     /// </remarks>
     private static void ValidateSheetName(string sheetName, int position)

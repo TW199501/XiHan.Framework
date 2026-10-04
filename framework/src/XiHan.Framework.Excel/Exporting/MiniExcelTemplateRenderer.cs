@@ -13,17 +13,16 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <para>
 /// 适用场景是版面已经画在模板里的单据：抬头、 logo、合并格、公式、打印区域都原样保留，本类只把占位符换成值。
 /// 占位符写成 <c>{{键名}}</c>，集合写成 <c>{{键名.子键名}}</c>；两者都区分大小写，也不接受花括号内侧带空格的写法
-/// （实测 <c>{{ Company }}</c> 解析不到值，见
-/// <c>.superpowers/sdd/2026-10-04-excel/t7-probe-miniexcel-behavior.txt</c> 的 case4）。
+/// ——<c>{{ Company }}</c> 解析不到值，键名以 <c>Company</c> 给出才成立。
 /// </para>
 /// <para>
 /// 集合占位从它所在的那一行原地起写：第一项落在占位行本身，后续项依次往下占行，模板里原本在它下方的行整体下移。
 /// 同一行的多个集合占位（如 <c>{{Items.Name}}</c> 与 <c>{{Items.Qty}}</c>）按同一项并行展开。
 /// </para>
 /// <para>
-/// 输入检查排在调用渲染库之前：三个入参为 <c>null</c> 时交回 <see cref="ArgumentNullException"/>（实测渲染库对
-/// null 模板与 null 数据直接抛 <c>NullReferenceException</c>，不能被当成契约）；模板不可读、不可定位或内容为空时
-/// 交回 <see cref="ArgumentException"/>，其中内容为空的消息固定含「模板内容为空」。
+/// 输入检查排在调用渲染库之前：三个入参为 <c>null</c> 时交回 <see cref="ArgumentNullException"/>——渲染库对
+/// null 模板与 null 数据抛出的是 <c>NullReferenceException</c>，那不构成可依赖的契约，必须由本类前移；
+/// 模板不可读、不可定位或内容为空时交回 <see cref="ArgumentException"/>，其中内容为空的消息固定含「模板内容为空」。
 /// </para>
 /// <para>
 /// 渲染库要求模板可定位（<see cref="Stream.CanSeek"/>），不可定位时它自己抛英文 <see cref="ArgumentException"/>；
@@ -32,7 +31,7 @@ namespace XiHan.Framework.Excel.Exporting;
 /// </para>
 /// <para>
 /// 模板档不是 xlsx 容器（随便一段字节、被截断的档、缺工作簿部件）时，容器异常原样透传，本类不做二次解析；
-/// 实测这种失败可能已经往输出流写过部分字节，调用方应当丢弃输出内容。空模板与只读不可定位的模板都在入口就拦下，
+/// 这种失败可能已经往输出流写过部分字节，调用方必须丢弃输出内容。空模板与只读不可定位的模板都在入口就拦下，
 /// 因此那两种失败输出流零字节。
 /// </para>
 /// <para>

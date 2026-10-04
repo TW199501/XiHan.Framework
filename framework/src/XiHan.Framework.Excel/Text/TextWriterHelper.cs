@@ -106,14 +106,14 @@ internal static class TextWriterHelper
     /// <param name="encoderShouldEmitBom">为 <c>true</c> 时前导字节写 BOM（<c>utf-8-bom</c> 预设）</param>
     /// <remarks>
     /// <para>
-    /// net10 的 <see cref="UTF8Encoding"/> 没有「构造时一次传入两侧回退」的重载，实例本身还是只读的
-    /// （给 <see cref="Encoding.EncoderFallback"/> 赋值会抛 <see cref="InvalidOperationException"/>），
-    /// 严格回退只能从 <c>throwOnInvalidBytes</c> 这个入口拿到：它为编码器配 <see cref="EncoderExceptionFallback"/>、
-    /// 为解码器配 <see cref="DecoderExceptionFallback"/>，与非 UTF-8 路径用的两个回退一致。
+    /// UTF8Encoding 的两侧严格回退只能由 <c>throwOnInvalidBytes</c> 这个构造入口取得：它为编码器配
+    /// <see cref="EncoderExceptionFallback"/>、为解码器配 <see cref="DecoderExceptionFallback"/>，与非 UTF-8 路径
+    /// 显式传入的两个回退一致。编码器与解码器都在构造时定死、实例上不可替换，因此两侧没法分开配置，
+    /// 只能一次取成两侧都严格。
     /// </para>
     /// <para>
     /// 该参数只管回退，不动前导字节：BOM 语义仍由第一个参数决定，<c>utf-8-bom</c> 与 <c>utf-8</c> 的
-    /// <see cref="Encoding.GetPreamble"/> 结果与严格化之前完全相同。
+    /// <see cref="Encoding.GetPreamble"/> 结果与回退严格化之前完全相同。
     /// </para>
     /// </remarks>
     private static UTF8Encoding StrictUtf8(bool encoderShouldEmitBom)
