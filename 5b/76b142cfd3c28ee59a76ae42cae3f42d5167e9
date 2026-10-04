@@ -1,0 +1,22 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Attributes/ExcelColumnAttribute.cs
+  h_be8240d2cfaa4b 40,42-46,49,52-54,56
+framework/src/XiHan.Framework.Excel/Columns/ExcelColumnBuilder.cs
+  h_be8240d2cfaa4b 23-25,29-33,37-46,87,101-106,112-116,123,133-142
+framework/test/XiHan.Framework.Excel.Tests/Attributes/ExcelColumnAttributeTests.cs
+  h_be8240d2cfaa4b 38,41,45-47
+framework/test/XiHan.Framework.Excel.Tests/Columns/ExcelColumnBuilderTests.cs
+  h_be8240d2cfaa4b 95-108,133-145
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/AnnotatedRow.cs
+  h_be8240d2cfaa4b 22,24,51-52,74-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5b76b142cfd3c28ee59a76ae42cae3f42d5167e9",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
