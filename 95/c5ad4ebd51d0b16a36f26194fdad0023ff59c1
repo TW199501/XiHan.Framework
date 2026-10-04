@@ -1,0 +1,22 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/ExcelTextOptions.cs
+  h_be8240d2cfaa4b 48-54
+framework/src/XiHan.Framework.Excel/Exporting/DelimitedTextExporter.cs
+  h_be8240d2cfaa4b 44-49,79,81-82,141-152,154,156-163,167-168,172,216-220,242-337,346-350,352,371-375,378,387,389-396,400-412,414-423,425-428,434-435,479-481
+framework/src/XiHan.Framework.Excel/Text/TextWriterHelper.cs
+  h_be8240d2cfaa4b 283,303,322,363,373-374,378-385,412-433
+framework/test/XiHan.Framework.Excel.Tests/Exporting/FixedWidthTextExportTests.cs
+  h_be8240d2cfaa4b 319-410
+framework/test/XiHan.Framework.Excel.Tests/Text/FixedWidthTests.cs
+  h_be8240d2cfaa4b 152-171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "95c5ad4ebd51d0b16a36f26194fdad0023ff59c1",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
