@@ -135,6 +135,7 @@ XiHan.Framework 是面向 .NET 10 的模块化应用框架。仓库以分层模�
     - `.github/workflows/claude-code-review.yml`、`.github/workflows/claude.yml`：PR 自动审查与 `@claude` 响应，未配置 `CLAUDE_CODE_OAUTH_TOKEN` 时跳过。
     - `AGENTS.md` 的本节。
     - `CLAUDE.md`：只有一行 `@AGENTS.md`。
+- 把上游合进 `dev` 遇到冲突时：`AGENTS.md` 采用上游版本，再把本节原样放回「禁止事项」之前；其余 fork 专属文件保留 fork 版本；清单以外的文件采用上游版本。
 - 框架代码与上游保持一致：应用层实现写在 XiHan.BasicApp，框架缺陷不在 fork 单独修。出现上述清单以外的差异时，先确认归属再决定移除或补进清单。
 - 本地工具产物（`.superpowers/`、`.codegraph/`、`.claude/`、`.qwen/`、`.orca*/`）放在 `.git/info/exclude`，不要提交。
 - 维护者的本机私人规则在仓库外的 `../Linear.rule.md`（相对仓库根目录；主仓库与同层 worktree 都适用）。该文件存在时，开始工作前先读并遵守；与本文件冲突时以本文件为准。
