@@ -6,7 +6,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using ExcelDataReader;
 using ExcelDataReader.Exceptions;
-using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
 using XiHan.Framework.Excel.Abstractions.Importing;
 
@@ -149,7 +148,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
 
         // 顺序是刻意的：上限校验排在格式判别与建立读取器之前，非法的 MaxRowCount 在一条判别不出格式的垃圾档上
         // 也要报「上限越界」而不是报「判不出格式」——调用方放大上限是请求本身的问题，与档的内容无关。
-        var maxRows = ResolveMaxRowCount(effective.MaxRowCount);
+        var maxRows = ImportSharedRules.ResolveMaxRowCount(effective.MaxRowCount);
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -222,7 +221,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
 
             var values = ReadValues(reader, keys, effective.TrimValues);
 
-            if (effective.SkipEmptyRows && IsEmptyRow(values))
+            if (effective.SkipEmptyRows && ImportSharedRules.IsEmptyRow(values))
             {
                 continue;
             }
@@ -235,44 +234,6 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
                 break;
             }
         }
-    }
-
-    /// <summary>
-    /// 把行数上限收敛到框架硬上限之内
-    /// </summary>
-    /// <param name="requested">调用方给的上限，<c>null</c> 表示用框架硬上限</param>
-    /// <remarks>
-    /// 硬上限取 <see cref="ExcelConstants.DefaultMaxImportRows"/> 常量：<see cref="XiHanExcelOptions.MaxImportRows"/>
-    /// 这条配置面要在分派器落地后才接得进来，本类按无参构造使用，拿不到裸选项对象。
-    /// </remarks>
-    /// <exception cref="ArgumentOutOfRangeException">上限高于硬上限，或不是正整数</exception>
-    private static int ResolveMaxRowCount(int? requested)
-    {
-        if (requested is null)
-        {
-            return ExcelConstants.DefaultMaxImportRows;
-        }
-
-        var value = requested.Value;
-
-        if (value < 1)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(ExcelImportOptions.MaxRowCount),
-                value,
-                "MaxRowCount 必须是正整数；要按框架默认上限读请传 null，不要写 0。");
-        }
-
-        if (value > ExcelConstants.DefaultMaxImportRows)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(ExcelImportOptions.MaxRowCount),
-                value,
-                $"MaxRowCount 不能高于框架硬上限 {ExcelConstants.DefaultMaxImportRows} 行：" +
-                $"这道上限挡住的是「调用方把内存里的行数放大到无穷」，应用只能收紧、不能放宽。");
-        }
-
-        return value;
     }
 
     /// <summary>
@@ -539,27 +500,6 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
         }
 
         return values;
-    }
-
-    /// <summary>
-    /// 判断整行皆空
-    /// </summary>
-    /// <param name="values">本行取值</param>
-    /// <remarks>
-    /// 「空」只看 <c>null</c> 与空字串：<see cref="ExcelImportOptions.TrimValues"/> 为 <c>true</c> 时全空格行
-    /// 已经剥成空字串，因此也算空行；为 <c>false</c> 时 <c>" "</c> 是实数据，不算空行。
-    /// </remarks>
-    private static bool IsEmptyRow(IReadOnlyDictionary<string, object?> values)
-    {
-        foreach (var value in values.Values)
-        {
-            if (value is not null && value is not "")
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /// <summary>

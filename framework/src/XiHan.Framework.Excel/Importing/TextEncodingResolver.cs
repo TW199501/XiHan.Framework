@@ -63,8 +63,8 @@ internal static class TextEncodingResolver
     /// <para>
     /// 返回的编码若 <see cref="Encoding.GetPreamble"/> 非空（指名 <c>"utf-8-bom"</c> 或档带 BOM），
     /// 需要剥除的字节数就是那段前导长度。交给 ExcelDataReader 的读档路径不必自己剥：读取器认得 BOM，
-    /// 并且 BOM 优先于 <c>FallbackEncoding</c>。自己解码的调用方（固定宽度导入）必须剥，否则会多读进一个
-    /// <c>U+FEFF</c> 或把 UTF-16 的起始字节解成控制字符。
+    /// 并且 BOM 优先于 <c>FallbackEncoding</c>。自己解码的调用方（固定宽度导入）必须剥，剥几个字节取
+    /// <see cref="GetPreambleSkipBytes"/>，否则会多读进一个 <c>U+FEFF</c> 或把 UTF-16 的起始字节解成控制字符。
     /// </para>
     /// <para>
     /// Big5 一支依赖 <c>CodePagesEncodingProvider</c> 已注册（正式路径由 <c>AddXiHanExcel</c> 完成）。未注册时
@@ -88,6 +88,53 @@ internal static class TextEncodingResolver
 
         return ResolveAutomatic(input);
     }
+
+    /// <summary>
+    /// 取这份档在指定编码下应当剥掉的前导字节数，供自己解码的调用方（固定宽度导入）复位流位置用
+    /// </summary>
+    /// <param name="encoding">由 <see cref="Resolve"/> 取到的解码编码</param>
+    /// <param name="input">文字档输入流，本方法只读档头并把流位置复原</param>
+    /// <returns>
+    /// 档头确实是该编码的前导字节时返回其长度，否则返回 <c>0</c>；<c>Big5</c> 这类没有前导字节的编码恒返回 <c>0</c>
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// 只看<u>实际字节</u>不看声明：指名为不带 BOM 的 <c>utf-8</c> 时，<see cref="Encoding.GetPreamble"/> 是空的，
+    /// 而档照样可能带 BOM——那三个字节不是数据，留着就让第一列多出一个 <c>U+FEFF</c>。因此 UTF-8 一支按
+    /// 档头是不是 <c>EF BB BF</c> 判定；其余编码按 <see cref="Encoding.GetPreamble"/> 的声明比对。
+    /// </para>
+    /// <para>
+    /// 比对不上就剥 <c>0</c> 个字节：把别人的 BOM 当成自己的前导吃掉，等于替调用方改写源档开头那几个字节。
+    /// 交给 ExcelDataReader 的那条路径不必用本方法，读取器自己认 BOM 且优先于 <c>FallbackEncoding</c>。
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="encoding"/> 或 <paramref name="input"/> 为 <c>null</c></exception>
+    /// <exception cref="ArgumentException"><paramref name="input"/> 不可读或不可定位</exception>
+    internal static int GetPreambleSkipBytes(Encoding encoding, Stream input)
+    {
+        ArgumentNullException.ThrowIfNull(encoding);
+        ArgumentNullException.ThrowIfNull(input);
+
+        // utf-8 与 utf-8-bom 解析出的编码 GetPreamble 不同（前者为空），但同一份带 BOM 的档都该剥掉那三个字节
+        var preamble = encoding.CodePage == Utf8CodePage && encoding.GetPreamble().Length == 0
+            ? Encoding.UTF8.GetPreamble()
+            : encoding.GetPreamble();
+
+        if (preamble.Length == 0)
+        {
+            return 0;
+        }
+
+        // 嗅探复用 ReadHeader：它从流的起点读，读完把位置交回调用方留下的位置
+        return ExcelFormatProbe.ReadHeader(input, preamble.Length).AsSpan().StartsWith(preamble)
+            ? preamble.Length
+            : 0;
+    }
+
+    /// <summary>
+    /// 不带 BOM 与带 BOM 的 UTF-8 共用的代码页编号
+    /// </summary>
+    private const int Utf8CodePage = 65001;
 
     /// <summary>
     /// 按调用方指名的编码名解析，规则全部交回导出侧那一份实现

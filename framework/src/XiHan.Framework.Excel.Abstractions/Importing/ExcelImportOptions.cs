@@ -6,7 +6,7 @@ using XiHan.Framework.Excel.Abstractions.Enums;
 namespace XiHan.Framework.Excel.Abstractions.Importing;
 
 /// <summary>
-/// 导入选项：来源格式、表头位置、空白处理与行数上限
+/// 导入选项：来源格式、表头位置、空白处理、固定宽度列定义与行数上限
 /// </summary>
 /// <remarks>
 /// <para>
@@ -19,6 +19,10 @@ namespace XiHan.Framework.Excel.Abstractions.Importing;
 /// <see cref="ExcelImportFormat.Csv"/>／<see cref="ExcelImportFormat.Txt"/> 生效，
 /// <see cref="SheetName"/> 只对 <see cref="ExcelImportFormat.Xls"/>／<see cref="ExcelImportFormat.Xlsx"/> 生效；
 /// 其余来源忽略这些设置，不报错也不生效。
+/// </para>
+/// <para>
+/// <see cref="FixedColumns"/> 不按来源划分而按<u>读法</u>划分：它非 <c>null</c> 就是把这份档当固定宽度文字档读，
+/// 分隔符与工作簿路径不再参与；此时 <see cref="HasHeader"/> 与 <see cref="TrimHeaders"/> 按「无表头」处理。
 /// </para>
 /// </remarks>
 public sealed record ExcelImportOptions
@@ -65,6 +69,8 @@ public sealed record ExcelImportOptions
     /// 丢弃的前导行仍占 <see cref="ExcelImportRow.RowNumber"/>：设 <c>2</c> 表示前导两行不要，
     /// 第三行作表头，第一条数据行的行号是 <c>4</c>。负值在构造时抛
     /// <see cref="ArgumentOutOfRangeException"/>。
+    /// 固定宽度路径（<see cref="FixedColumns"/> 非 <c>null</c>）里没有表头行可定位，本设置在那里收敛成
+    /// 「丢掉前导这么多行」，丢掉的行照样占行号，第一条数据行的行号是 <c>HeaderRowIndex + 1</c>。
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">给出的值为负数</exception>
     public int HeaderRowIndex
@@ -92,6 +98,8 @@ public sealed record ExcelImportOptions
     /// <remarks>
     /// <c>false</c> 时没有任何行被当作表头吃掉，键名按列序取 <c>Col1</c>、<c>Col2</c>…；
     /// <see cref="TrimHeaders"/> 在本情形下无对象可处理，不报错也不生效。
+    /// 固定宽度路径（<see cref="FixedColumns"/> 非 <c>null</c>）把本设置<u>一律按 <c>false</c> 处理</u>：
+    /// 定宽档的列名来自调用方给的列定义，源档没有可以吃掉的表头行，两种取值行为相同（见该设置的说明）。
     /// </remarks>
     public bool HasHeader { get; init; } = true;
 
@@ -175,6 +183,43 @@ public sealed record ExcelImportOptions
     /// </para>
     /// </remarks>
     public char? Delimiter { get; init; }
+
+    /// <summary>
+    /// 固定宽度文字档的列定义（键与字节宽度），默认 <c>null</c> 表示不按固定宽度切列
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 给了本设置就是请求按字节位置切列：导入侧不再按分隔符拆字段，也不认得任何表头文案。
+    /// 读分隔符档（<c>csv</c> 与工作簿）时请保持 <c>null</c>，两条路径由导入门面按「有没有列定义」这一条规则分流，
+    /// 不看 <see cref="Format"/>。
+    /// </para>
+    /// <para>
+    /// <b>本路径把 <see cref="HasHeader"/> 按「无表头」处理，两种取值行为相同</b>：列名来自开发者给的
+    /// <see cref="ExcelFixedWidthField.Key"/>，源档的每一行都是数据，第一条数据行的
+    /// <see cref="ExcelImportRow.RowNumber"/> 是 <c>1</c>，<see cref="TrimHeaders"/> 在这里没有对象可处理。
+    /// 定宽档通常就没有表头行，把表头语义套上去会凭空吃掉一条记录，而行号要留给错误报表定位。
+    /// <see cref="HeaderRowIndex"/> 在本路径<u>仍然解释</u>：它说的那几行前导内容（档头说明、生成时间戳一类）
+    /// 照旧丢掉且不参与切列，丢掉的行照样占 <see cref="ExcelImportRow.RowNumber"/>。
+    /// </para>
+    /// <para>
+    /// 宽度单位是字节，必须与写这份档用的编码一致（见 <see cref="ExcelFixedWidthField.WidthBytes"/>）。
+    /// <see cref="TextEncodingName"/> 在本路径照常生效；<see cref="Delimiter"/>、<see cref="SheetName"/>
+    /// 与 <see cref="TrimHeaders"/> 在本路径不解释，不报错也不生效。
+    /// <see cref="TrimValues"/> 与 <see cref="SkipEmptyRows"/> 照常生效，判「整行皆空」的口径与其他来源一致。
+    /// </para>
+    /// <para>
+    /// 列定义本身的合法性在<u>首次取行</u>时一次判完：清单里的空项、空字串或仅含空白的键、非正整数的宽度、
+    /// 重复的键、列宽总和超过单行缓冲上限，都抛 <see cref="InvalidOperationException"/> 并点名是哪一项或哪一列，
+    /// 不改投默认宽度、也不把多出来的列忽略掉。之所以不在 <c>init</c> 访问器里判：本设置是集合，
+    /// 逐项校验要读到列清单才做得到，而选项对象本身必须能被 <c>with</c> 原样复制。
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// 首次取行时列定义不成立：清单里有空项、<c>Key</c> 为空、宽度不是正整数、键重复，
+    /// 或列宽总和超过单行缓冲上限。集合为空的列定义同样落在这里——一列都没有的定义切不出任何取值，
+    /// 不当成「整行当一列」的降级
+    /// </exception>
+    public IReadOnlyList<ExcelFixedWidthField>? FixedColumns { get; init; }
 
     /// <summary>
     /// 单次导入最多交出多少条数据行，默认 <c>null</c> 表示取框架硬上限
