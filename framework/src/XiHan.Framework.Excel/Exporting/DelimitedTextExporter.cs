@@ -16,7 +16,9 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <remarks>
 /// <para>
 /// 逐行写入 <see cref="StreamWriter"/>，不物化整个结果集：行集合是 <see cref="ExcelSheetSpec.Rows"/> 给的非泛型
-/// 序列，可以是惰性游标，导出规模不受内存里的行数限制，因此也没有流式与否的阈值判断。每行写前检查取消令牌。
+/// 序列，可以是惰性游标，导出规模不受内存里的行数限制，因此也没有流式与否的阈值判断。取消令牌在每行写前、
+/// 整档 flush 之前与回传结果之前各检查一次：最后一笔取值期间才发生的取消由后两处拦下，此时缓冲已经落进流里，
+/// 本类只主张不交出成功结果，不主张零字节。
 /// </para>
 /// <para>
 /// 行集合的元素按 <see cref="ExcelSheetSpec.RowType"/> 逐笔校验，判据与 xlsx 路径共用
@@ -99,6 +101,10 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// 格式、取消令牌、选项组合与编码名的检查全部在写出第一个字节之前完成，这几类非法输入不会留下半份文件。
     /// 目标编码收不下字符时抛 <see cref="EncoderFallbackException"/>；已写出的字节是否为零由缓冲区决定，
     /// 这里只保证不会产出「看起来成功」的坏档。固定宽度布局的列宽与补位字符同样排在预写校验里。
+    /// </para>
+    /// <para>
+    /// 取消另在整档 flush 之前与回传结果之前各查一次（见 <see cref="WriteTextAsync"/>）：最后一笔取值期间才发生的
+    /// 取消不会有下一轮的逐行检查可拦，这两处就是它的落点。抛出时前面的行可能已经落盘，本方法不主张零字节。
     /// </para>
     /// </remarks>
     public async Task<ExcelExportResult> ExportAsync(
@@ -322,12 +328,14 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     }
 
     /// <summary>
-    /// 两种文字档布局共用的写出骨架：表头行、逐行取值、每行写前查取消令牌、行尾拼接、flush、聚合留痕与结果尾部
+    /// 两种文字档布局共用的写出骨架：表头行、逐行取值、每行写前查取消令牌、行尾拼接、flush、聚合留痕、回传前再查一次与结果尾部
     /// </summary>
     /// <remarks>
     /// 布局之间的差异只留在两个委托与 <paramref name="fieldSeparator"/> 上：<c>renderField</c> 决定一格写出什么
     /// （分隔符布局套公式前缀与引号，固定宽度布局做字节补位），<c>fieldSeparator</c> 决定格间插什么（定宽为空字串）。
     /// 行序、取消时机与聚合 Warning 的落地时机（flush 之后、返回结果之前）因此只有一份实现，不会两条路径各漂一份。
+    /// 取消检查共三处：每行写前、flush 之前、聚合留痕之后与回传结果之前。后两处抛出时缓冲已经落进流里，
+    /// 本骨架不主张零字节，只主张不交出成功结果；改写过数据时的 Warning 在抛出之前已经记下。
     /// </remarks>
     private async Task<ExcelExportResult> WriteTextAsync(
         Stream output,
@@ -397,9 +405,16 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
             await writer.WriteAsync(line.ToString().AsMemory(), cancellationToken);
         }
 
+        // 落盘之前查一次：取消落在最后一笔的取值期间时，逐行检查已经没有下一轮可拦
+        cancellationToken.ThrowIfCancellationRequested();
+
         await writer.FlushAsync(cancellationToken);
 
         reportAggregate();
+
+        // 回传结果之前再查一次：本路径的 StreamWriter 边写边缓冲，此处抛出时字节已经落进流里，
+        // 能主张的只有「不交出成功结果」，不承诺零字节
+        cancellationToken.ThrowIfCancellationRequested();
 
         return BuildTextResult(format);
     }

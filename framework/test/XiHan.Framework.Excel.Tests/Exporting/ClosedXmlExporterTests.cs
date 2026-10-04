@@ -787,6 +787,67 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
+    /// 最后一笔取值期间才取消时抛出且零字节：逐行检查没有下一轮可拦，靠的是存盘之前那一次
+    /// </summary>
+    /// <remarks>
+    /// xlsx 的落盘只发生在 <c>SaveAs</c>，取消检查排在它之前，所以这一处的取消仍然可以主张输出流零字节；
+    /// 这与文字档路径（<c>StreamWriter</c> 边写边缓冲，不保证零字节残留）是两套现实，不合并成一句承诺。
+    /// </remarks>
+    [Fact]
+    public async Task 最后一笔取值期间取消时抛且零字节()
+    {
+        using var source = new CancellationTokenSource();
+
+        var columns = new ExcelColumn<SampleRow>[]
+        {
+            new()
+            {
+                Key = nameof(SampleRow.AwbNo),
+                Header = "提单号",
+                Value = row =>
+                {
+                    // 取消发生在最后一笔的取值委托里：循环已经取到这一行，不会再有下一轮的逐行检查
+                    if (row.AwbNo == "LAST")
+                    {
+                        source.Cancel();
+                    }
+
+                    return row.AwbNo;
+                }
+            }
+        };
+
+        var spec = BuildSpec([new SampleRow { AwbNo = "AWB1" }, new SampleRow { AwbNo = "LAST" }], columns);
+        var stream = new MemoryStream();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
+            .ExportAsync(stream, spec, source.Token));
+
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 取消只在存盘之后被观察到时，档已经落盘但不回传成功结果
+    /// </summary>
+    /// <remarks>
+    /// 这一条不主张零字节——落盘已经发生，能主张的只有「不交出成功结果」。写出侧不承诺失败原子性：
+    /// 要么尚未存盘（零字节），要么整份档完整落盘而没有成功结果被交出，两者按取消被观察到的时机区分。
+    /// </remarks>
+    [Fact]
+    public async Task 存盘之后才观察到的取消不回传成功结果()
+    {
+        using var source = new CancellationTokenSource();
+
+        var spec = BuildSpec([new SampleRow { AwbNo = "AWB1", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) }]);
+        var stream = new CancelOnWriteStream(source);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
+            .ExportAsync(stream, spec, source.Token));
+
+        Assert.True(stream.Length > 0);   // 存盘已经完成，这一处的取消收不回字节
+    }
+
+    /// <summary>
     /// 构造函数拒绝空选项
     /// </summary>
     [Fact]

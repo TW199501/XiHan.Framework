@@ -576,6 +576,62 @@ public class ClosedXmlMultiSheetTests
     }
 
     /// <summary>
+    /// 前一张表最后一笔取值期间取消时，逐表检查拦住下一张表：它的行集合一次都不被枚举
+    /// </summary>
+    [Fact]
+    public async Task 前一张表末尾取消时不开始下一张表()
+    {
+        using var source = new CancellationTokenSource();
+
+        var cancellingColumns = new ExcelColumn[]
+        {
+            new ExcelColumn<SampleRow>
+            {
+                Key = nameof(SampleRow.AwbNo),
+                Header = "提单号",
+                Value = row =>
+                {
+                    // 取消落在第一张表最后一笔的取值期间：该表已经没有下一行可查
+                    if (row.AwbNo == "LAST")
+                    {
+                        source.Cancel();
+                    }
+
+                    return row.AwbNo;
+                }
+            }
+        };
+
+        var nextSheetRows = new CountingRows(1);
+        var specs = new[]
+        {
+            new ExcelSheetSpec
+            {
+                SheetName = "运单",
+                RowType = typeof(SampleRow),
+                Columns = cancellingColumns,
+                Rows = new[] { Row("AWB1", 1.5m), Row("LAST", 2.5m) }
+            },
+            new ExcelSheetSpec
+            {
+                SheetName = "汇总",
+                RowType = typeof(SampleRow),
+                Columns = WaybillColumns,
+                Rows = nextSheetRows
+            }
+        };
+
+        var stream = new MemoryStream();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
+            .ExportAllAsync(stream, specs, source.Token));
+
+        // 逐表检查排在下一张表开始之前，因此后面的表连行集合都不该被枚举
+        Assert.Equal(0, nextSheetRows.Count);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
     /// 多表路径同样检查取样上限，非法选项在写出前抛
     /// </summary>
     [Fact]

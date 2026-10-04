@@ -394,6 +394,50 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
+    /// 文字档最后一笔取值期间取消时抛出，不交出成功结果
+    /// </summary>
+    /// <remarks>
+    /// 与 xlsx 路径不同：这里的 <c>StreamWriter</c> 边写边缓冲，抛出时已落进流的字节数不保证为零，
+    /// 所以本条只断「不回报成功」，不断零字节——两套现实不合并成一句承诺。取消的落点可能是写出侧的显式检查，
+    /// 也可能是带令牌的异步写作本身，契约只要求 <see cref="OperationCanceledException" /> 家族，故用 ThrowsAny。
+    /// </remarks>
+    [Fact]
+    public async Task 文字导出最后一笔取值期间取消时不回传成功结果()
+    {
+        using var source = new CancellationTokenSource();
+
+        var columns = new ExcelColumn[]
+        {
+            new ExcelColumn<SampleRow>
+            {
+                Key = nameof(SampleRow.AwbNo),
+                Header = "提单号",
+                Value = row =>
+                {
+                    // 取消落在最后一笔的取值期间：该轮之后循环没有下一行可查
+                    if (row.AwbNo == "LAST")
+                    {
+                        source.Cancel();
+                    }
+
+                    return row.AwbNo;
+                }
+            }
+        };
+
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns = columns,
+            Rows = new[] { new SampleRow { AwbNo = "AWB1" }, new SampleRow { AwbNo = "LAST" } }
+        };
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance)
+            .ExportAsync(new MemoryStream(), spec, ExcelFormat.Csv, new ExcelTextOptions(), source.Token));
+    }
+
+    /// <summary>
     /// 取消令牌已取消时一个字节都不写
     /// </summary>
     [Fact]

@@ -63,10 +63,13 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <para>
 /// 输出流的所有权在调用方：本类只写入，绝不对传入流调用 <c>Dispose</c>，
 /// 存盘后流的位置停在末尾，调用方把位置回到 0 即可读回。整份档（单表是一张，多表是清单里全部）先在内存里建好再落盘，
-/// 因此输入非法时流里不会留下半个字节；取消发生在逐行检查处，抛出的那一刻工作簿尚未存盘，输出流同样是空的。
+/// 落盘只有 <c>SaveAs</c> 这一次：取消若在落盘之前被观察到（入口、逐行、每张表写完、存盘之前四处之一），
+/// 抛出的那一刻输出流是空的；只有存盘之后才被观察到的取消会留下一份完整的档，而交出的是异常、不是成功结果。
+/// 本类不承诺失败原子性，两种差别按取消被观察到的时机区分，不合并成一句保证。
 /// </para>
 /// <para>
-/// 写出全程同步：ClosedXML 没有异步面，写出侧不伪装 <c>async</c>、不起线程池任务，取消令牌在入口与逐行处检查。
+/// 写出全程同步：ClosedXML 没有异步面，写出侧不伪装 <c>async</c>、不起线程池任务；取消令牌在入口、逐行、
+/// 每张表写完、存盘之前与回传结果之前各检查一次，最后一笔取值期间的取消由存盘之前那一次拦下。
 /// 不写 <c>.xls</c>，也不承诺 <c>.xlsm</c> 宏、数据透视表与图表。
 /// </para>
 /// </remarks>
@@ -128,7 +131,8 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// 值域检查（表名、列宽、对齐、表头底色、取样上限、<see cref="ExcelSheetSpec.RowType"/> 声明）全部排在写入第一格之前，
-    /// 非法输入不会留下半份文件。逐行检查取消令牌；行集合按惰性枚举，取到一行才写一行。
+    /// 非法输入不会留下半份文件。行集合按惰性枚举，取到一行才写一行，逐行检查取消令牌；存盘之前与回传结果之前
+    /// 各再查一次——前者抛出时输出流仍是零字节，后者抛出时整份档已经落盘，但不会交出成功结果。
     /// </remarks>
     public Task<ExcelExportResult> ExportAsync(
         Stream output,
@@ -145,8 +149,14 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
         using var workbook = new XLWorkbook();
         WriteSheet(workbook, sheet, cancellationToken);
 
+        // 落盘之前查一次：取消落在最后一笔的取值期间时，逐行检查已经没有下一轮可拦
+        cancellationToken.ThrowIfCancellationRequested();
+
         // SaveAs 不关闭传入流，写完停在末尾
         workbook.SaveAs(output);
+
+        // 回传结果之前再查一次：只在这里被观察到的取消，档已落盘但不会交出成功结果
+        cancellationToken.ThrowIfCancellationRequested();
 
         return Task.FromResult(ExcelExportResult.Styled(
             ExcelFormat.Xlsx,
@@ -186,6 +196,11 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <para>
     /// 整份档先在内存里建好再落盘，所以任何一张表失败（包括排在后面的表名非法、行型不符、令牌取消）都不会在
     /// <paramref name="output"/> 里留下半个字节；前面那些表已经写进内存工作簿的部分随异常一起被丢弃。
+    /// 每张表写完之后查一次取消，因此某张表末尾才发生的取消不会让下一张表开始枚举行集合。
+    /// </para>
+    /// <para>
+    /// 取消落在存盘之后被观察到时，<paramref name="output"/> 里已经是一份完整的档，本方法交出异常而不是成功结果；
+    /// 这与「落盘之前抛出的失败零字节」是两种时机，写出侧不承诺失败原子性。
     /// </para>
     /// </remarks>
     public Task<ExcelExportResult> ExportAllAsync(
@@ -216,10 +231,17 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
         {
             // 逐表写出复用单表路径的全部守卫，不在这里再判一遍
             WriteSheet(workbook, sheet, cancellationToken);
+
+            // 每张表写完之后查一次：取消落在某张表最后一笔的取值期间时，下一张表连行集合都不该被枚举；
+            // 清单写完这一次就是落盘之前的最后一次
+            cancellationToken.ThrowIfCancellationRequested();
         }
 
         // SaveAs 不关闭传入流，写完停在末尾
         workbook.SaveAs(output);
+
+        // 回传结果之前再查一次：只在这里被观察到的取消，档已落盘但不会交出成功结果
+        cancellationToken.ThrowIfCancellationRequested();
 
         return Task.FromResult(ExcelExportResult.Styled(
             ExcelFormat.Xlsx,
