@@ -130,7 +130,7 @@ XiHan.Framework 是面向 .NET 10 的模块化应用框架。仓库以分层模�
 - 进 `dev` 一律经 fork PR：`gh pr create --repo TW199501/XiHan.Framework --base dev`，fork CI 通过并经维护者审查核准后以 merge commit 合并。**代理不得自行合并或推送 `dev`**，例外只有上述每日同步与上游合并后的同步。
 - 送上游：只送维护者在 fork PR 标注「送上游」的项目。从 `upstream/main` 开 `pr/<短名>`，并立刻执行 `git config branch.pr/<短名>.pushRemote origin`，否则 `git push` 会推到作者的仓库；只 cherry-pick 该主题的提交，不改模块总数等全局计数，一个 PR 只做一件事。不要把整个 `dev` 开 PR 给上游。
 - 上游审查意见在 `pr/` 分支修改，同一修正另开分支经 fork PR 带回 `dev`；上游合并后同步 `main` 并合进 `dev`，删除 `pr/` 分支与 worktree。
-- `dev` 与 `upstream/main` 只在以下 fork 专属文件上有差异；同步上游与清理时保留它们，不送上游：
+- 除以下 fork 专属文件外，`dev` 合入上游后与 `upstream/main` 一致；同步上游与清理时保留这些文件，不送上游：
     - `.coderabbit.yaml`：CodeRabbit 也审查以 `dev` 为目标的 PR。
     - `.github/workflows/claude-code-review.yml`、`.github/workflows/claude.yml`：PR 自动审查与 `@claude` 响应，未配置 `CLAUDE_CODE_OAUTH_TOKEN` 时跳过。
     - `AGENTS.md` 的本节。
