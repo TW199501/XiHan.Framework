@@ -374,7 +374,7 @@ HTTP方法(大写)
 | --- | --- |
 | 改了 `Iterations` 后老用户登不上 | 不会发生。哈希串自带参数，校验用串里的值；只有哈希串被截断/改写才失败 |
 | 调大 `SaltSize` 后 `NeedsRehash` 一直是 `false` | 它只比较 `Version` / `Iterations` / `HashAlgorithm`，改盐长需同时提升 `Version` |
-| 密码历史复用检查永远通过 | 默认存储是只读内存实现，改密后没人调 `RecordPassword`；生产要自实现 `IPasswordHistoryStore` 并在改密后写入历史 |
+| 密码历史复用检查永远通过 | 默认存储是只读内存实现，改密后没人调 `RecordPassword`；生产要自实现 `IPasswordHistoryStore` |
 | 相同明文每次加密结果一样 | 用了 `AesHelper.Encrypt(text, password)`（全零盐派生 Key/IV）；换三参重载并每条数据用新 IV |
 | RSA 加密/验签报密钥解析错误 | 公钥不是 SubjectPublicKeyInfo 编码；用 `ExportSubjectPublicKeyInfo()` 重新导出 |
 | SM2 验签恒为 false | 公钥不是曲线点编码，或私钥不是原始标量；`GenerateKeys()` 的输出格式与签名/验签期望的格式不同 |
