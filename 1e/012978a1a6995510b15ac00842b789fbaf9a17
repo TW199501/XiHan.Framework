@@ -1,0 +1,18 @@
+framework/src/XiHan.Framework.Excel/Exporting/ClosedXmlExporter.cs
+  h_be8240d2cfaa4b 1-480
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlExporterTests.cs
+  h_be8240d2cfaa4b 1-715
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/CountingRows.cs
+  h_be8240d2cfaa4b 1-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1e012978a1a6995510b15ac00842b789fbaf9a17",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
