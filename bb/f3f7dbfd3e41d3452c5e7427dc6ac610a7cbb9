@@ -1,0 +1,14 @@
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelStreamExporterTests.cs
+  h_be8240d2cfaa4b 24-27,207,209-212,227-261,664-687,752-753,756-760,766-774,781,792-797
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bbf3f7dbfd3e41d3452c5e7427dc6ac610a7cbb9",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
