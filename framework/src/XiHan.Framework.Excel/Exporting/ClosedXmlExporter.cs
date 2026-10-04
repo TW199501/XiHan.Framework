@@ -6,6 +6,7 @@ using ClosedXML.Excel;
 using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
 using XiHan.Framework.Excel.Abstractions.Exporting;
+using XiHan.Framework.Utils.Core;
 
 namespace XiHan.Framework.Excel.Exporting;
 
@@ -15,12 +16,19 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <remarks>
 /// <para>
 /// 写出顺序固定为：标题行（<see cref="ExcelSheetSpec.Title"/> 非空时占第一行并按列数合并）→ 表头行 →
-/// 逐行数据。列的写出顺序就是 <see cref="ExcelSheetSpec.Columns"/> 给出的顺序，写出侧不按
+/// 逐行数据。仅含空白的 <see cref="ExcelSheetSpec.Title"/> 视为未填，不写标题行也不抛——标题是可选项，
+/// 这一口径与 <see cref="ExcelSheetSpec.SheetName"/> 不同（表名空白由该属性在 <c>init</c> 直接抛）。
+/// 列的写出顺序就是 <see cref="ExcelSheetSpec.Columns"/> 给出的顺序，写出侧不按
 /// <see cref="ExcelColumn.Order"/> 再排一次——构建器已把排定后的位置序号回写进 <c>Order</c>，
 /// 那里读到的不是调用方的声明值。
 /// </para>
 /// <para>
-/// <see cref="ExcelColumn.Width"/> 是工作簿显示宽度：<c>null</c> 走自适应列宽，其余取值必须是有限正数。
+/// 行集合的元素按 <see cref="ExcelSheetSpec.RowType"/> 校验一次：取到首个非 null 元素时比对实际类型，
+/// 不符即抛，不为一次类型检查而物化整份行集合。放行异型行只会交出一份表头齐全、数据全空的档。
+/// </para>
+/// <para>
+/// <see cref="ExcelColumn.Width"/> 是工作簿显示宽度：<c>null</c> 走自适应列宽，其余取值必须是大于 0 且不高于
+/// 255 的有限数（超过上限会被工作簿夹成约 254.29，与负数、无穷同一口径：抛）。
 /// xlsx 路径不读 <see cref="ExcelColumn.FixedWidth"/>、<see cref="ExcelColumn.PadChar"/> 与
 /// <see cref="ExcelColumn.Padding"/>——那三项是文字档的字节宽度语义。
 /// </para>
@@ -64,6 +72,11 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// </summary>
     private const XLBorderStyleValues TableBorder = XLBorderStyleValues.Thin;
 
+    /// <summary>
+    /// xlsx 的列宽上限（按字符数计），超过它的取值会被工作簿夹成约 254.29 而不是报错
+    /// </summary>
+    private const double MaximumColumnWidth = 255.0;
+
     private readonly XiHanExcelOptions _options = options ?? throw new ArgumentNullException(nameof(options));
 
     /// <summary>
@@ -74,12 +87,14 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <param name="cancellationToken">取消令牌，取消时不再写出后续行</param>
     /// <returns>导出结果，格式为 <see cref="ExcelFormat.Xlsx"/>，<see cref="ExcelExportResult.StylingApplied"/> 为 <c>true</c></returns>
     /// <exception cref="ArgumentNullException"><paramref name="output"/> 或 <paramref name="sheet"/> 为 <c>null</c></exception>
-    /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是有限正数、
-    /// 某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内，或
+    /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是大于 0 且不高于 255
+    /// 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内，或
     /// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/> 为负数</exception>
     /// <exception cref="ArgumentException"><see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串</exception>
-    /// <exception cref="InvalidOperationException">某个行值是 xlsx 表示不了的日期，或某列的
-    /// <see cref="ExcelColumn.CellStyle"/> 交回了非法颜色串</exception>
+    /// <exception cref="InvalidOperationException">行集合首个非 null 元素与
+    /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是 xlsx 表示不了的日期；或某列的
+    /// <see cref="ExcelColumn.CellStyle"/> 交回了非法颜色串。三者消息都点名行位置与实际成因：行型不符者报出
+    /// 行号与期望／实际两个类型全名，后两者报出行号、表头与列键</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// 值域检查（列宽、对齐、表头底色、取样上限）全部排在写入第一格之前，非法输入不会留下半份文件。
@@ -134,12 +149,21 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
         WriteHeaderRow(worksheet, headerRowNumber, columns, sheet.HeaderBold, headerFill);
 
         var rowIndex = 0;
+        var rowTypeChecked = false;
 
         foreach (var row in sheet.Rows)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             rowIndex++;
+
+            // 行型一致性只判首个非 null 元素，判过就不再判，行集合不物化
+            if (!rowTypeChecked && row is not null)
+            {
+                ValidateRowType(sheet, row, rowIndex);
+                rowTypeChecked = true;
+            }
+
             WriteDataRow(worksheet, headerRowNumber + rowIndex, columns, row, rowIndex);
         }
 
@@ -370,13 +394,14 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     {
         foreach (var column in columns)
         {
-            if (column.Width is { } width && (width <= 0 || !double.IsFinite(width)))
+            if (column.Width is { } width && (width <= 0 || !double.IsFinite(width) || width > MaximumColumnWidth))
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(ExcelColumn.Width),
                     width,
-                    $"列「{column.Header}」（键 {column.Key}）的列宽 {width} 非法：xlsx 的列宽必须是有限正数，" +
-                    $"自适应列宽请把 {nameof(ExcelColumn.Width)} 置为 null（0 与负数不是「未指定」的另一种写法）。");
+                    $"列「{column.Header}」（键 {column.Key}）的列宽 {width} 非法：xlsx 的列宽必须是大于 0 且不高于 " +
+                    $"{MaximumColumnWidth.ToString(CultureInfo.InvariantCulture)} 的有限数，" +
+                    $"超出上限会被工作簿静默夹成约 254.29；自适应列宽请把 {nameof(ExcelColumn.Width)} 置为 null（0 与负数不是「未指定」的另一种写法）。");
             }
 
             if (!Enum.IsDefined(column.Alignment))
@@ -387,6 +412,30 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
                     $"列「{column.Header}」（键 {column.Key}）的对齐「{column.Alignment}」不在 {nameof(ExcelAlignment)} 的定义范围内。");
             }
         }
+    }
+
+    /// <summary>
+    /// 判定首个行元素的实际类型与表规格声明的 <see cref="ExcelSheetSpec.RowType"/> 是否一致
+    /// </summary>
+    /// <remarks>
+    /// 只判首个非 null 元素：行集合是惰性游标，为一次类型检查而物化会破坏流式契约；null 行按列的既有契约写成空格，
+    /// 本身没有类型可判。<see cref="ExcelSheetSpec.RowType"/> 为 null 时不判定——没有声明值就无从比对，
+    /// 该属性是否必须给出由调用侧定案。派生行类型按 <see cref="Type.IsInstanceOfType(object)"/> 放行。
+    /// </remarks>
+    private static void ValidateRowType(ExcelSheetSpec sheet, object row, int rowIndex)
+    {
+        var expected = sheet.RowType;
+
+        if (expected is null || expected.IsInstanceOfType(row))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"xlsx 导出无法完成：第 {rowIndex} 行的行对象与 {nameof(ExcelSheetSpec.RowType)} 不符，" +
+            $"期望「{expected.FullName}」，实际是「{row.GetType().FullName}」。" +
+            "请给出该类型的行集合，或把 RowType 改为实际行类型——异型行经列的取值方法只会得到 null，" +
+            "放行就是交出一份表头齐全、数据全空的档。");
     }
 
     /// <summary>
@@ -406,9 +455,13 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <summary>
     /// 把表级颜色串解析成工作簿颜色，非法串直接抛
     /// </summary>
+    /// <remarks>
+    /// 颜色串的格式判定沿用 <see cref="ValidateHelper.IsHexColor(string)"/>（#RGB 或 #RRGGBB），不另写一份；
+    /// 至于解析本身交给 <see cref="XLColor.FromHtml(string)"/>，写出侧不改写颜色。
+    /// </remarks>
     private static XLColor ParseSheetColor(string color, string memberName)
     {
-        if (!IsHexColor(color))
+        if (!ValidateHelper.IsHexColor(color))
         {
             throw new ArgumentException(
                 $"{memberName}「{color}」不是合法的十六进制颜色串（形如 #D9E1F2，接受 #RGB 与 #RRGGBB）；" +
@@ -424,7 +477,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// </summary>
     private static XLColor ParseCellColor(string color, ExcelColumn column, string position, string memberName)
     {
-        if (!IsHexColor(color))
+        if (!ValidateHelper.IsHexColor(color))
         {
             throw CreateFieldFailure(
                 column,
@@ -434,27 +487,6 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
         }
 
         return XLColor.FromHtml(color);
-    }
-
-    /// <summary>
-    /// 判定是否为 <c>#RGB</c> 或 <c>#RRGGBB</c> 形式的十六进制颜色串
-    /// </summary>
-    private static bool IsHexColor(string color)
-    {
-        if (color.Length != 4 && color.Length != 7 || color[0] != '#')
-        {
-            return false;
-        }
-
-        for (var index = 1; index < color.Length; index++)
-        {
-            if (!char.IsAsciiHexDigit(color[index]))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /// <summary>

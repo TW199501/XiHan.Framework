@@ -452,13 +452,14 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
-    /// 非法列宽在写出任何字节之前抛
+    /// 非法列宽在写出任何字节之前抛，信息同时点出下界与 xlsx 的 255 上限
     /// </summary>
     [Theory]
     [InlineData(0.0)]
     [InlineData(-3.0)]
     [InlineData(double.NaN)]
     [InlineData(double.PositiveInfinity)]
+    [InlineData(10000.0)]
     public async Task 非法列宽在写出前抛且不写任何字节(double width)
     {
         var columns = new ExcelColumn<SampleRow>[]
@@ -475,10 +476,75 @@ public class ClosedXmlExporterTests
         var stream = new MemoryStream();
         var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
 
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await exporter.ExportAsync(
+        var failure = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await exporter.ExportAsync(
             stream, BuildSpec([new SampleRow { AwbNo = "AWB1" }], columns), TestContext.Current.CancellationToken));
 
+        // 超过 xlsx 上限 255 的宽度会被工作簿静默夹到 254.29，与负数、无穷同一口径：一律抛，并写明上限
+        Assert.Contains("255", failure.Message, StringComparison.Ordinal);
         Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 行集合元素与 <see cref="ExcelSheetSpec.RowType"/> 不符时抛出，信息点名两个类型
+    /// </summary>
+    [Fact]
+    public async Task 异型行抛出并点名期望类型与实际类型()
+    {
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns = Columns,
+            Rows = new[] { "不是行类型" }
+        };
+
+        var stream = new MemoryStream();
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
+
+        // 异型行经 ExcelColumn<TRow>.GetValue 只会取到 null，放行就是交出一份「表头齐全、数据全空、还报成功」的档
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
+            stream, spec, TestContext.Current.CancellationToken));
+
+        Assert.Contains(nameof(SampleRow), failure.Message, StringComparison.Ordinal);
+        Assert.Contains("System.String", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("第 1 行", failure.Message, StringComparison.Ordinal);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 行型一致性判的是首个非 null 元素，null 行本身按列契约写成空格
+    /// </summary>
+    [Fact]
+    public async Task 类型一致性判首个非空行()
+    {
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
+
+        var stream = await ExportAsync(new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns = Columns,
+            Rows = new SampleRow?[] { null, new SampleRow { AwbNo = "AWB1", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) } }
+        });
+
+        using var workbook = Open(stream);
+        var sheet = workbook.Worksheet(1);
+        Assert.True(sheet.Cell(2, 1).IsEmpty());
+        Assert.Equal("AWB1", sheet.Cell(3, 1).GetString());
+
+        var mismatched = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns = Columns,
+            Rows = new object?[] { null, "不是行类型" }
+        };
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
+            new MemoryStream(), mismatched, TestContext.Current.CancellationToken));
+
+        // null 行没有类型可判，判定落在第二个元素上，行号也跟着它
+        Assert.Contains("第 2 行", failure.Message, StringComparison.Ordinal);
     }
 
     /// <summary>
