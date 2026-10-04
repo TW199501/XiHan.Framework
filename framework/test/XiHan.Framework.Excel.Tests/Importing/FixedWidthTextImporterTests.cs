@@ -4,6 +4,7 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
 using XiHan.Framework.Excel.Abstractions.Exporting;
 using XiHan.Framework.Excel.Abstractions.Importing;
@@ -34,11 +35,6 @@ namespace XiHan.Framework.Excel.Tests.Importing;
 /// </remarks>
 public class FixedWidthTextImporterTests
 {
-    /// <summary>
-    /// 框架侧导入行数硬上限，与 <c>ExcelConstants.DefaultMaxImportRows</c> 同一个数
-    /// </summary>
-    private const int HardMaxRows = 1_000_000;
-
     /// <summary>
     /// 替换字符，用来判断读回来的是不是解码失败的产物
     /// </summary>
@@ -399,15 +395,40 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// 列宽总和超过单行缓冲上限时抛，不让一份档的一行决定内存占用
+    /// 列宽总和超过硬上限时抛，不让一份档的一行决定内存占用
     /// </summary>
     [Fact]
     public async Task 定宽列宽总和超过单行缓冲上限时抛()
     {
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await Read(ImportFixtures.Utf8NoBom.GetBytes("AB\r\n"), [new("A", 1_048_576), new("B", 1)], hasHeader: false));
+            await Read(
+                ImportFixtures.Utf8NoBom.GetBytes("AB\r\n"),
+                [new("A", ExcelConstants.MaxFixedRowWidthBytes), new("B", 1)],
+                hasHeader: false));
 
         Assert.Contains("缓冲上限", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(ExcelConstants.MaxFixedRowWidthBytes), failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 列宽总和正好等于硬上限时不抛：这道界挡的是「超过」，把判据写成「达到即拒」就是把合法档也关掉一分
+    /// </summary>
+    /// <remarks>
+    /// 与上一条一起把 off-by-one 钉死：两条分别喂「总和 = 上限」与「总和 = 上限 + 1」，
+    /// 判据从 <c>&gt;</c> 漂成 <c>&gt;=</c> 时这一条立刻变红。上限那一格给到 <c>B</c> 列的 1 字节，
+    /// 所以这一档的整行列宽总和恰好是 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/>。
+    /// </remarks>
+    [Fact]
+    public async Task 定宽列宽总和正好等于硬上限时不抛()
+    {
+        var rows = await Read(
+            ImportFixtures.Utf8NoBom.GetBytes("AB\r\n"),
+            [new("A", ExcelConstants.MaxFixedRowWidthBytes - 1), new("B", 1)],
+            hasHeader: false);
+
+        Assert.Single(rows);
+        Assert.Equal("AB", rows[0].Values["A"]);
+        Assert.Equal("", rows[0].Values["B"]);
     }
 
     /// <summary>
@@ -533,7 +554,7 @@ public class FixedWidthTextImporterTests
     {
         var failure = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             await Read(ImportFixtures.Utf8NoBom.GetBytes("A\r\n"), fields: null, hasHeader: false,
-                mutate: o => o with { MaxRowCount = HardMaxRows + 1 }));
+                mutate: o => o with { MaxRowCount = ExcelConstants.DefaultMaxImportRows + 1 }));
 
         Assert.Equal(nameof(ExcelImportOptions.MaxRowCount), failure.ParamName);
     }

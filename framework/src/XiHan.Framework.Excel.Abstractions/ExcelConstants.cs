@@ -32,6 +32,17 @@ public static class ExcelConstants
     public const int DefaultMaxImportRows = 1_000_000;
 
     /// <summary>
+    /// 固定宽度导入的单行列宽总和硬上限（字节）
+    /// </summary>
+    /// <remarks>
+    /// 定宽档一行要先整行落进缓冲才能按字节切列，不设上界就等于让某一份档的一行决定本进程的内存占用，
+    /// 与「默认实现不得无界增长」冲突。取 1 MiB：常见定长记录档一行不超过数 KB，这道界挡的是列宽配错
+    /// （或恶意写宽）的请求，不影响正常档。列宽总和超过它时导入器<u>抛出</u>该上限与实际总和，
+    /// 不夹改成较小的宽度、也不截断列清单——静默改写列布局会交回一份列位错开的档。
+    /// </remarks>
+    public const int MaxFixedRowWidthBytes = 1_048_576;
+
+    /// <summary>
     /// CSV 内容类型
     /// </summary>
     public const string CsvContentType = "text/csv";

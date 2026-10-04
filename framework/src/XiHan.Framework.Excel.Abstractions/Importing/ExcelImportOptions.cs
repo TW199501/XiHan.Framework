@@ -209,15 +209,18 @@ public sealed record ExcelImportOptions
     /// </para>
     /// <para>
     /// 列定义本身的合法性在<u>首次取行</u>时一次判完：清单里的空项、空字串或仅含空白的键、非正整数的宽度、
-    /// 重复的键、列宽总和超过单行缓冲上限，都抛 <see cref="InvalidOperationException"/> 并点名是哪一项或哪一列，
-    /// 不改投默认宽度、也不把多出来的列忽略掉。之所以不在 <c>init</c> 访问器里判：本设置是集合，
-    /// 逐项校验要读到列清单才做得到，而选项对象本身必须能被 <c>with</c> 原样复制。
+    /// 重复的键、列宽总和超过单行列宽上限 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/>，都抛
+    /// <see cref="InvalidOperationException"/> 并点名是哪一项或哪一列，不改投默认宽度、也不把多出来的列忽略掉。
+    /// 之所以不在 <c>init</c> 访问器里判：本设置交出的是<u>调用方持有的</u> <see cref="IReadOnlyList{T}"/>，
+    /// <c>init</c> 里判完之后，那份清单照样可能被它背后的 <see cref="List{T}"/> 改坏（多加一列、改掉一个宽度、
+    /// 换成另一批元素），选项对象却已经带着「曾经合格」的结论往下走。判据因此必须在真要切列之前，
+    /// 按当时那份清单重新算一次，而不是相信构造时的那一眼。
     /// </para>
     /// </remarks>
     /// <exception cref="InvalidOperationException">
     /// 首次取行时列定义不成立：清单里有空项、<c>Key</c> 为空、宽度不是正整数、键重复，
-    /// 或列宽总和超过单行缓冲上限。集合为空的列定义同样落在这里——一列都没有的定义切不出任何取值，
-    /// 不当成「整行当一列」的降级
+    /// 或列宽总和超过单行列宽上限 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/>。集合为空的列定义同样落在
+    /// 这里——一列都没有的定义切不出任何取值，不当成「整行当一列」的降级
     /// </exception>
     public IReadOnlyList<ExcelFixedWidthField>? FixedColumns { get; init; }
 

@@ -4,6 +4,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Importing;
 
 namespace XiHan.Framework.Excel.Importing;
@@ -15,7 +16,7 @@ namespace XiHan.Framework.Excel.Importing;
 /// <para>
 /// 逐行惰性交出 <see cref="ExcelImportRow"/>，不物化整档：行号、<see cref="ExcelImportOptions.MaxRowCount"/>
 /// 与取消都落在行与行之间。单次枚举占用的内存不随档的大小增长，上限是「列宽总和一份 + 一块读取缓冲」，
-/// 列宽总和本身另有上界（见 <see cref="ExcelImportOptions.FixedColumns"/>）。
+/// 列宽总和本身另有硬上限 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/>。
 /// </para>
 /// <para>
 /// <b>流所有权在调用方。</b>本类只读取不关闭传入的流，枚举结束后调用方仍可复位重读。读取总是从流的<u>起点</u>
@@ -77,11 +78,6 @@ public sealed class FixedWidthTextImporter(ILogger<FixedWidthTextImporter> logge
     private const int MinimumChunkBytes = 4096;
 
     /// <summary>
-    /// 列宽总和的上界（字节）：一行必须先整行读进缓冲才能按字节切列，不设上限就是让档的大小决定内存占用
-    /// </summary>
-    private const int MaximumTotalWidthBytes = 1_048_576;
-
-    /// <summary>
     /// 行尾字符：回车
     /// </summary>
     private const byte CarriageReturn = (byte)'\r';
@@ -112,7 +108,8 @@ public sealed class FixedWidthTextImporter(ILogger<FixedWidthTextImporter> logge
     /// <item><see cref="ExcelImportOptions.FixedColumns"/> 是 <c>null</c> 或空集合：没有列位置就切不出列，
     /// 「整行当一列」不是可用的降级；</item>
     /// <item>列定义不成立：清单里有空项、键是空字串或仅含空白、宽度不是正整数、多列之间键重复、
-    /// 列宽总和超过单行缓冲上限。每类各报各的，一次只抛最先命中的那一类，并点名是第几列或哪个键；</item>
+    /// 列宽总和超过硬上限 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/>。每类各报各的，
+    /// 一次只抛最先命中的那一类，并点名是第几列或哪个键；</item>
     /// <item>解码用的编码是 UTF-16／UTF-32 这类宽字节编码：按字节分行与按字节切列都会错位。</item>
     /// </list></exception>
     /// <exception cref="DecoderFallbackException">档的实际字节在所用编码下解不开：编码指错，
@@ -291,7 +288,7 @@ public sealed class FixedWidthTextImporter(ILogger<FixedWidthTextImporter> logge
         /// 反而看不清先改哪个。校验顺序与消息里的点名方式同导出侧的固定宽度预检一致。
         /// </remarks>
         /// <exception cref="InvalidOperationException">列定义为 <c>null</c> 或空集合，键为空、宽度非正、键重复，
-        /// 或列宽总和超过单行缓冲上限</exception>
+        /// 或列宽总和超过硬上限 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/></exception>
         internal static FixedColumnLayout Create(IReadOnlyList<ExcelFixedWidthField>? columns)
         {
             if (columns is null)
@@ -381,10 +378,11 @@ public sealed class FixedWidthTextImporter(ILogger<FixedWidthTextImporter> logge
                     "分隔符路径那种加 _n 后缀的做法在这里不成立——定宽列名是开发者给的结构，不是源档文案。");
             }
 
-            if (total > MaximumTotalWidthBytes)
+            if (total > ExcelConstants.MaxFixedRowWidthBytes)
             {
                 throw new InvalidOperationException(
-                    $"固定宽度导入的列宽总和是 {total} 字节，超过单行缓冲上限 {MaximumTotalWidthBytes} 字节：" +
+                    $"固定宽度导入的列宽总和是 {total} 字节，超过单行缓冲上限 " +
+                    $"{nameof(ExcelConstants.MaxFixedRowWidthBytes)} = {ExcelConstants.MaxFixedRowWidthBytes} 字节：" +
                     "一行要先整行读进缓冲才能按字节切列，不设上界就是让档的大小决定内存占用。" +
                     "请收紧列宽，或改用分隔符布局的档。");
             }
