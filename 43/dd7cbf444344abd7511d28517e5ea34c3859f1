@@ -1,0 +1,41 @@
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/FakeLogSink.cs
+  s_94057b8e5cf9b6::t_efdd1fc2001712 1-136
+framework/src/XiHan.Framework.Excel/Text/TextWriterHelper.cs
+  s_deedf30ee268e3::t_bcaa3c8056615e 1-239
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/TestEncodingSetup.cs
+  s_1603e36146f351::t_efe8802f0237aa 1-26
+framework/test/XiHan.Framework.Excel.Tests/Text/TextWriterHelperTests.cs
+  s_deedf30ee268e3::t_f1177c5679d4bb 1-173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "43dd7cbf444344abd7511d28517e5ea34c3859f1",
+  "prompts": {},
+  "sessions": {
+    "s_1603e36146f351": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ab259f83b9fe34ffc",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_deedf30ee268e3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ac46288917e24a989",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
