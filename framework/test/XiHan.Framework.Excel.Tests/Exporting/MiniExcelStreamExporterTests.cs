@@ -348,6 +348,102 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
+    /// DateOnly 在本路径落日期格且值原样读回，早于纪元也照能导出
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 钉的是实测落格形态，不是取舍：<c>DateOnly</c> 在本路径进日期格、在全量路径进文本格，
+    /// 同一个值落成不同格位而值不被改写，所以两条路径都不拒；日期下限判据只管会被夹改的 <c>DateTime</c>。
+    /// 日后有人把这条形态差异读成「数据损坏」而给 <c>DateOnly</c> 加回拒写，会先把这几条用例弄红。
+    /// </para>
+    /// <para>
+    /// 取的三个点各挡一种改法：1899-12-29 是「早于纪元但读回仍是原日期」那一侧，
+    /// 1899-12-30 是日期下限本身，1500-01-01 证明这条界不是「凡早于纪元都出事」。
+    /// </para>
+    /// </remarks>
+    /// <param name="year">年份</param>
+    /// <param name="month">月份</param>
+    /// <param name="day">日</param>
+    [Theory]
+    [InlineData(1899, 12, 29)]
+    [InlineData(1899, 12, 30)]
+    [InlineData(1500, 1, 1)]
+    public async Task 早于纪元的DateOnly在本路径落日期格且值不变(int year, int month, int day)
+    {
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(
+            stream, BuildValueSpec(new DateOnly(year, month, day)), TestContext.Current.CancellationToken);
+
+        using var workbook = Open(stream);
+        var cell = workbook.Worksheet(1).Cell(2, 1);
+
+        Assert.True(cell.Value.IsDateTime);
+        Assert.Equal(new DateTime(year, month, day), cell.Value.GetDateTime());
+    }
+
+    /// <summary>
+    /// DateTimeOffset 在本路径落日期格且只保留钟表时刻，偏移量不随行值落格
+    /// </summary>
+    /// <remarks>
+    /// 与全量路径把 <c>DateTimeOffset</c> 落成带偏移量的文本格相对：本路径丢开偏移量，
+    /// 读回的是钟表时刻。这一条把「同值异格」写实，免得只写「形态可能不同」而让人以为偏移量还在。
+    /// </remarks>
+    [Fact]
+    public async Task 带偏移量的DateTimeOffset在本路径只保留钟表时刻()
+    {
+        var value = new DateTimeOffset(1899, 12, 29, 6, 30, 0, TimeSpan.FromHours(8));
+
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(
+            stream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        using var workbook = Open(stream);
+        var cell = workbook.Worksheet(1).Cell(2, 1);
+
+        Assert.True(cell.Value.IsDateTime);
+        Assert.Equal(new DateTime(1899, 12, 29, 6, 30, 0), cell.Value.GetDateTime());
+    }
+
+    /// <summary>
+    /// 远早于纪元的 DateOnly 与 DateTimeOffset 被写出库夹到 1899-12-30，值改了而结果照样回报完成
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>这条钉的是写出库的既有行为，不是本组件认可它。</b>本路径的日期下限判据只管 <c>DateTime</c>，
+    /// <c>DateOnly</c> 与 <c>DateTimeOffset</c> 落到日期格后，早到 0001-01-01 一类的取值被库夹到纪元时刻：
+    /// 读回的是另一个日期，返回值却仍是一份正常的降级结果，没有任何一处报出这次改写。
+    /// </para>
+    /// <para>
+    /// 写在这里是为了让这条风险在 CI 里可见，而不是留成只有读代码的人才知道的坑：要保住这类日期，
+    /// 用全量路径（落文本格、值原样读回）或先把该列转成文本。是否改成像 <c>DateTime</c> 那样连这两个型别一起拒，
+    /// 由后续任务裁定——裁定落下来时这条用例就是改动的起点，不是障碍。
+    /// </para>
+    /// </remarks>
+    /// <param name="useDateOnly">用 <c>DateOnly.MinValue</c> 还是 <c>DateTimeOffset.MinValue</c></param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task 远早于纪元的日期型别在本路径被夹到纪元时刻(bool useDateOnly)
+    {
+        object value = useDateOnly ? new DateOnly(1, 1, 1) : new DateTimeOffset(1, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        var stream = new MemoryStream();
+
+        var result = await new MiniExcelStreamExporter().ExportAsync(
+            stream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        Assert.Equal(ExcelConstants.ExtensionXlsx, result.FileExtension);
+
+        using var workbook = Open(stream);
+        var cell = workbook.Worksheet(1).Cell(2, 1);
+
+        Assert.True(cell.Value.IsDateTime);
+        Assert.Equal(new DateTime(1899, 12, 30), cell.Value.GetDateTime());
+    }
+
+    /// <summary>
     /// 非有限数值在流式路径同样被拒，不交出一份读不回的档
     /// </summary>
     /// <param name="value">要写进一格的双精度值</param>
@@ -551,6 +647,25 @@ public class MiniExcelStreamExporterTests
         Rows = rows,
         FreezeHeader = freezeHeader,
         AutoFilter = autoFilter
+    };
+
+    /// <summary>
+    /// 构造只有「取值」一列、把指定值原样交出的表规格，专走落格形态与取值域判定
+    /// </summary>
+    private static ExcelSheetSpec BuildValueSpec(object value) => new()
+    {
+        SheetName = "运单",
+        RowType = typeof(SampleRow),
+        Columns =
+        [
+            new ExcelColumn<SampleRow>
+            {
+                Key = "Value",
+                Header = "取值",
+                Value = _ => value
+            }
+        ],
+        Rows = new[] { new SampleRow { AwbNo = "AWB1", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) } }
     };
 
     /// <summary>

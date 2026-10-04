@@ -17,17 +17,19 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 且不替调用方改名：被拒的名字一律抛出，不做去空格、截断、加后缀或转义这类静默兜底。
 /// </para>
 /// <para>
-/// 单元格取值同样有硬界：日期格走 1900 日期系统，早于 <see cref="EarliestDate"/> 的日期存不进去；
-/// 数值格只有有限十进制数，<c>NaN</c> 与 <c>±∞</c> 没有对应形态；字串格的上限是
-/// <see cref="ExcelConstants.MaxCellTextLength"/> 个字符。越界的值一律抛出而不改写——把 <c>NaN</c> 写成
-/// <c>"NaN"</c> 会让读回的数值列多出字串，把 <c>∞</c> 夹成最大有限数是凭空造数，把早于纪元的日期夹到纪元时刻
-/// 会交回另一个日期，截断超长字串会丢弃数据，四种都是「交出看不出问题的坏档」。
+/// 单元格取值同样有硬界：<see cref="DateTime"/> 走 1900 日期系统，早于 <see cref="EarliestDate"/> 的日期
+/// 会被夹到纪元时刻而变成另一个日期；数值格只有有限十进制数，<c>NaN</c> 与 <c>±∞</c> 没有对应形态；
+/// 字串格的上限是 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符。越界的值一律抛出而不改写——把
+/// <c>NaN</c> 写成 <c>"NaN"</c> 会让读回的数值列多出字串，把 <c>∞</c> 夹成最大有限数是凭空造数，把早于纪元的
+/// 日期夹到纪元时刻会交回另一个日期，截断超长字串会丢弃数据，四种都是「交出看不出问题的坏档」。
 /// </para>
 /// <para>
 /// 两道判据放在一处是因为两条 xlsx 写出路径必须判同一件事：排版路径会把越界值与坏名字交给工作簿去拒，
 /// 流式路径却会把它们直接落进档里——日期被夹改、<c>NaN</c> 与超长字串写出回读不了的档、
 /// 名字里的控制字符被转义成另一个名字。分派器按行数把同一份规格送到其中一条路径，
 /// 能导与不能导的输入集合必须与走哪条无关，因此这里只留一份，两边都调它，不在各自的路径里各写一遍。
+/// 这份判据管的是「装不下」的取值；同一个值在两条路径落成不同格位（<see cref="DateOnly"/>、
+/// <see cref="byte"/>、<see cref="DateTimeOffset"/> 等）不在其列，由两条路径各自的文档说明。
 /// </para>
 /// </remarks>
 internal static class ExcelWorkbookWriteGuard
@@ -147,6 +149,10 @@ internal static class ExcelWorkbookWriteGuard
     /// <remarks>
     /// 判定按型别分派，不做「先转字符串再看不像数字」这类猜测：<c>decimal</c> 没有非有限形态，
     /// <see cref="TimeSpan"/> 与 <see cref="Guid"/> 各有工作簿自己的格位，都不在这里拒。
+    /// 日期下限只判 <see cref="DateTime"/>——它是两条路径都会落进日期格、因而可能被夹改的型别。
+    /// <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/> 不在这道判定之内：全量路径把它们落成文本格（值原样读回），
+    /// 流式路径落成日期格，属落格形态差异而非「工作簿装不下」，由两条路径各自的文档承担；
+    /// 写出库对早到 <c>0001-01-01</c> 一类的极端取值仍会夹改，那道风险写在流式写出器的文档与用例里，不由本守卫处理。
     /// 成因只写值本身，行位置与列名由调用方在抛出时拼进去。
     /// </remarks>
     internal static string? DescribeUnwritable(object? value)
@@ -154,14 +160,6 @@ internal static class ExcelWorkbookWriteGuard
         {
             DateTime date when date < EarliestDate =>
                 $"日期「{date:yyyy-MM-dd HH:mm:ss}」早于 xlsx 的 1900 日期系统能表示的最早时刻 {EarliestDate:yyyy-MM-dd}，" +
-                "工作簿会把它夹到纪元时刻并静默变成另一个日期。请给出该时刻之后的日期，或让该列取成文本。",
-
-            DateTimeOffset offset when offset.DateTime < EarliestDate =>
-                $"时刻「{offset.DateTime:yyyy-MM-dd HH:mm:ss}」早于 xlsx 的 1900 日期系统能表示的最早时刻 {EarliestDate:yyyy-MM-dd}，" +
-                "工作簿会把它夹到纪元时刻并静默变成另一个日期。请给出该时刻之后的时刻，或让该列取成文本。",
-
-            DateOnly only when only.ToDateTime(TimeOnly.MinValue) < EarliestDate =>
-                $"日期「{only:yyyy-MM-dd}」早于 xlsx 的 1900 日期系统能表示的最早时刻 {EarliestDate:yyyy-MM-dd}，" +
                 "工作簿会把它夹到纪元时刻并静默变成另一个日期。请给出该时刻之后的日期，或让该列取成文本。",
 
             double number when !double.IsFinite(number) => NotFiniteNumberMessage(number.ToString("R", System.Globalization.CultureInfo.InvariantCulture)),
@@ -189,7 +187,7 @@ internal static class ExcelWorkbookWriteGuard
     /// <param name="value">刚取出的行值，<c>null</c> 表示空格，直接放过</param>
     /// <param name="column">本列，用于消息里的表头文案与列键</param>
     /// <param name="position">行位置标签，形如「第 3 行」</param>
-    /// <exception cref="InvalidOperationException">取值是早于 1899-12-30 的日期、非有限的浮点数，
+    /// <exception cref="InvalidOperationException">取值是早于 1899-12-30 的 <see cref="DateTime"/>、非有限的浮点数，
     /// 或长于 <see cref="ExcelConstants.MaxCellTextLength"/> 的字符串；消息点名行位置、表头与列键并给出成因</exception>
     internal static void EnsureWritable(object? value, ExcelColumn column, string position)
     {

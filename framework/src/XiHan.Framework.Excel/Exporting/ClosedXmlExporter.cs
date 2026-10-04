@@ -53,15 +53,23 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 数字格式）；文本、空白、布尔与时长格不套格式。格式串原样交给 ClosedXML，写出侧不解析也不改写它。
 /// </para>
 /// <para>
-/// 值域超出工作簿可表示范围的输入一律抛出而不是改写：<c>DateTime</c>、<c>DateOnly</c> 与 <c>DateTimeOffset</c>
-/// 早于 1899-12-30（xlsx 的 1900 日期系统起点）会被工作簿夹到纪元时刻、静默变成另一个日期；<c>double</c> 与
-/// <c>float</c> 的 <c>NaN</c>、<c>±∞</c> 在数值格里没有对应形态；字串长过 32767 个字符时工作簿装不下它。
+/// 值域超出工作簿可表示范围的输入一律抛出而不是改写：<c>DateTime</c> 早于 1899-12-30（xlsx 的 1900 日期系统起点）
+/// 会被工作簿夹到纪元时刻、静默变成另一个日期；<c>double</c> 与 <c>float</c> 的 <c>NaN</c>、<c>±∞</c> 在数值格里
+/// 没有对应形态；字串长过 32767 个字符时工作簿装不下它。
 /// 三类都在该格抛 <see cref="InvalidOperationException"/> 并点名行位置、表头与列键，不改写成文本、不夹到边界值、
 /// 也不截断。颜色串必须是 <c>#RGB</c> 或 <c>#RRGGBB</c>，<c>null</c> 才表示未设置——空串与非法串不会被当成「没填」。
 /// 形状过关但工作簿仍解析不了的串（全形数字、阿拉伯-印度数字之类非 ASCII 位值）同样由本类转译成框架异常，
 /// 库的 <see cref="FormatException"/> 只作内部异常保留。这三条取值域判据与表名判据都由两条 xlsx 写出路径共用一份，
 /// 因此同一份规格走哪条路径，能导与不能导的输入集合相同。这句承诺的范围是「本类显式检查过的失败面」：
 /// 取值域、颜色解析与表名判据在内，工作簿自身的存盘失败（流不可写、容器损坏、磁盘满）不在内，那类按库的异常形态交回。
+/// </para>
+/// <para>
+/// 本类按 <see cref="ClosedXML.Excel.XLCellValue"/> 自己的口径落格，落进哪一类格子由取值的运行期型别决定：
+/// <c>DateTime</c> 落日期格，<c>decimal</c>／<c>double</c>／<c>float</c> 等落数值格，<c>bool</c> 落布尔格，
+/// <c>TimeSpan</c> 落时长格，<c>null</c> 落空格；<c>DateOnly</c>、<c>DateTimeOffset</c> 与 <c>Guid</c> 这类
+/// 工作簿没有对应格位的型别落文本格，读出的是它的文本形式而不是日期格。这与流式路径对同一些型别的落格
+/// 可以不同（例如 <c>DateOnly</c> 在流式路径落日期格），两条路径只承诺列顺序、表头文案与数值内容一致，
+/// 不承诺格位型别一致。
 /// </para>
 /// <para>
 /// 输出流的所有权在调用方：本类只写入，绝不对传入流调用 <c>Dispose</c>，
@@ -112,7 +120,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 解析不了（位值含非 ASCII 字符）」那一条带库的 <see cref="FormatException"/> 作为内部异常，形状本身不合法的那条
     /// 没有内部异常——按异常类型与 <see cref="ArgumentException.ParamName"/> 分流，不要靠读内部异常判断成因</exception>
     /// <exception cref="InvalidOperationException">行集合里有某笔元素与
-    /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是工作簿装不下的（早于 1899-12-30 的日期、
+    /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是工作簿装不下的（早于 1899-12-30 的 <c>DateTime</c>、
     /// <c>NaN</c> 或 <c>±∞</c>、长过单元格上限的字串）；或某列的 <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串
     /// （含形状合法但解析不了的串）。三者消息都点名行位置与实际成因：行型不符者报出行号与期望／实际两个类型全名，
     /// 后两者报出行号、表头与列键，解析不了的那类把库的 <see cref="FormatException"/> 保留为内部异常</exception>
@@ -173,7 +181,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内，或
     /// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/> 为负数</exception>
     /// <exception cref="InvalidOperationException">某张表的行集合里有某笔元素与其
-    /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是工作簿装不下的（早于 1899-12-30 的日期、
+    /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是工作簿装不下的（早于 1899-12-30 的 <c>DateTime</c>、
     /// <c>NaN</c> 或 <c>±∞</c>、长过单元格上限的字串）；或某列的 <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
@@ -377,7 +385,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 写一格取值并按取值类型套 Excel 格式串
     /// </summary>
     /// <remarks>
-    /// 取值先过一道可写性判定：早于 1899-12-30 的日期、非有限的浮点数与长过单元格上限的字串都会被拒，
+    /// 取值先过一道可写性判定：早于 1899-12-30 的 <c>DateTime</c>、非有限的浮点数与长过单元格上限的字串都会被拒，
     /// 工作簿对这三类要么夹改成另一个值、要么写出读不回的档。判定与流式路径共用同一份，两条路径判得一样。
     /// 取值类型决定格式串落到哪一处——数值走 <see cref="IXLStyle.NumberFormat"/>，
     /// 日期走 <see cref="IXLStyle.DateFormat"/>，其余类型套了也不改变读出值，因此不套。
