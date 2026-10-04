@@ -1,0 +1,18 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelExporter.cs
+  h_be8240d2cfaa4b 53-55,57-61
+framework/src/XiHan.Framework.Excel/Exporting/ExcelExporter.cs
+  h_be8240d2cfaa4b 18-20,91,160-161,190-213
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ExcelExporterDispatchTests.cs
+  h_be8240d2cfaa4b 246-272
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9134470d3b70c84c15962dd34dca55b952674d6c",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
