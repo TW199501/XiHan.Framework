@@ -20,9 +20,10 @@ public class DelimitedTextExporterTests
     /// 导出 csv 用预设逗号分隔与表头，并按指名的 Big5 编码写出
     /// </summary>
     /// <remarks>
-    /// 表头用繁体（提單號／預計到達）：Big5（代码页 950）不收只在简体里出现的字符，<c>单</c>、<c>号</c>、<c>预</c>、
-    /// <c>达</c> 编码不出时 .NET 的编码器以 <c>?</c> 顶替，字节层面无法原样往返。要在 Big5 档里保留简体字，
-    /// 得改用 <c>gb2312</c>／<c>gb18030</c> 或 UTF-8。
+    /// 表头取繁体（提單號／預計到達）：Big5（代码页 950）不收只在简体里出现的字符，而解析出的编码带严格回退，
+    /// 遇到收不下的字符直接抛 <see cref="EncoderFallbackException"/>（见 <c>简体表头在大五码下抛且不写任何字节</c>），
+    /// 不会像 .NET 默认的替换回退那样把坏字符安静写成 <c>?</c> 再交回一个成功结果。
+    /// 要在 Big5 档里保留简体字，得改用 <c>gb18030</c> 或 UTF-8。
     /// </remarks>
     [Fact]
     public async Task 导出csv_预设逗号表头与大五码()
@@ -43,18 +44,36 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
-    /// 导出 txt 用制表符作默认分隔符
+    /// 目标编码收不下的字符不留坏档：简体表头写 Big5 时抛出，且一个字节都没进流
+    /// </summary>
+    [Fact]
+    public async Task 简体表头在大五码下抛且不写任何字节()
+    {
+        var stream = new MemoryStream();
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        // 默认夹具的表头是简体「提单号／预计到达」，其中的简体字不在 Big5（代码页 950）的字符集里
+        await Assert.ThrowsAsync<EncoderFallbackException>(async () => await exporter.ExportAsync(
+            stream, BuildSpec(new SampleRow { AwbNo = "AWB1" }), ExcelFormat.Csv,
+            new ExcelTextOptions { EncodingName = "big5" }, TestContext.Current.CancellationToken));
+
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 导出 txt 用制表符作默认分隔符，并给出 .txt 的扩展名与内容类型
     /// </summary>
     [Fact]
     public async Task 导出txt_预设制表符()
     {
         var spec = BuildSpec(new SampleRow { AwbNo = "AWB1" });
-        var stream = new MemoryStream();
+        var (stream, result) = await ExportWithResult(new ExcelTextOptions(), ExcelFormat.Txt, spec);
 
-        await new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance)
-            .ExportAsync(stream, spec, ExcelFormat.Txt, new ExcelTextOptions(), TestContext.Current.CancellationToken);
-
-        Assert.Contains("\t", BodyOf(stream));
+        Assert.Equal(".txt", result.FileExtension);
+        Assert.Equal("text/plain", result.ContentType);
+        Assert.Equal(ExcelFormat.Txt, result.Format);
+        Assert.True(result.StylingApplied);
+        Assert.Equal("提单号\t重量\t预计到达" + "\r\n" + "AWB1\t0.00\t0001-01-01" + "\r\n", BodyOf(stream));
     }
 
     /// <summary>
@@ -130,6 +149,40 @@ public class DelimitedTextExporterTests
         Assert.Contains("A B", text);                       // 换行被替换，不是原样写出
         Assert.Contains(sink.Entries, e => e.Level == LogLevel.Warning);
         Assert.Equal(1, sink.Entries.Count(e => e.Level == LogLevel.Warning));
+    }
+
+    /// <summary>
+    /// 空格分隔符与不加引号策略是结构性非法组合，写出任何字节之前就拒绝
+    /// </summary>
+    /// <remarks>
+    /// 该组合下值内的空格与分隔符无法区分，替换成空格又是 no-op：既不报错也不留日志就产出一份列数错位的坏档，
+    /// 比抛异常伤人得多，因此按「无法确定的输入直接抛」处理，与其他非法输入同一标准。
+    /// </remarks>
+    [Fact]
+    public async Task 空格分隔符与不加引号策略抛异常()
+    {
+        var stream = new MemoryStream();
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            stream, BuildSpec(new SampleRow { AwbNo = "A B" }), ExcelFormat.Csv,
+            new ExcelTextOptions { Delimiter = ' ', Quote = ExcelTextQuote.None }, TestContext.Current.CancellationToken));
+
+        Assert.Contains("空格", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("不加引号", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 空格作分隔符时其余引号策略照常工作，值内空格被引号包住
+    /// </summary>
+    [Fact]
+    public async Task 空格分隔符在最小引号下正常工作()
+    {
+        var spec = BuildSpec(new SampleRow { AwbNo = "A B" });
+        var stream = await Export(new ExcelTextOptions { Delimiter = ' ' }, spec: spec);
+
+        Assert.Equal("提单号 重量 预计到达" + "\r\n" + "\"A B\" 0.00 0001-01-01" + "\r\n", BodyOf(stream));
     }
 
     /// <summary>
@@ -216,6 +269,41 @@ public class DelimitedTextExporterTests
 
         Assert.Contains("\r\n=1+1,", text);
         Assert.DoesNotContain("'=", text);
+    }
+
+    /// <summary>
+    /// 负数经文本格式后仍触发公式前缀，改动以一条聚合 Warning 留痕
+    /// </summary>
+    /// <remarks>
+    /// 默认开启的 <c>EscapeFormulaPrefix</c> 把 <c>-5.00</c> 写成 <c>'-5.00</c>，读回是文本而非数字，
+    /// 是防公式注入的既定代价。本条把该代价显性化：字节序列含前缀，且整份文件只记一条 Warning，内容含改写数量与首个触发的列键，
+    /// 不逐格刷日志。
+    /// </remarks>
+    [Fact]
+    public async Task 负数列的公式前缀记一条聚合Warning()
+    {
+        var sink = new FakeLogSink();
+        using var factory = LoggerFactory.Create(b => b.AddProvider(new SinkLoggerProvider(sink)));
+        var exporter = new DelimitedTextExporter(factory.CreateLogger<DelimitedTextExporter>());
+        var stream = new MemoryStream();
+
+        var spec = BuildSpec(
+            new SampleRow { AwbNo = "AWB1", Weight = -5m, Eta = new DateTime(2026, 1, 2) },
+            new SampleRow { AwbNo = "AWB2", Weight = -12m, Eta = new DateTime(2026, 1, 3) });
+
+        await exporter.ExportAsync(stream, spec, ExcelFormat.Csv, new ExcelTextOptions(), TestContext.Current.CancellationToken);
+
+        var text = BodyOf(stream);
+        Assert.Equal(
+            "提单号,重量,预计到达" + "\r\n" +
+            "AWB1,'-5.00,2026-01-02" + "\r\n" +
+            "AWB2,'-12.00,2026-01-03" + "\r\n", text);
+
+        var warnings = sink.Entries.Where(e => e.Level == LogLevel.Warning).ToList();
+        Assert.Single(warnings);
+        Assert.Contains("有 2 个字段", warnings[0].Message, StringComparison.Ordinal);   // 改写数量：两行的重量列
+        Assert.Contains("Weight", warnings[0].Message, StringComparison.Ordinal);         // 首个触发的列键
+        Assert.Contains("第 1 行", warnings[0].Message, StringComparison.Ordinal);        // 首个触发的行位置
     }
 
     /// <summary>
@@ -313,16 +401,23 @@ public class DelimitedTextExporterTests
         => Assert.Throws<ArgumentNullException>(() => new DelimitedTextExporter(null!));
 
     /// <summary>
-    /// 用默认单行规格写出，返回结果流
+    /// 用默认单行规格写成 csv，返回结果流
     /// </summary>
-    private static async Task<MemoryStream> Export(ExcelTextOptions? options, ExcelFormat format = ExcelFormat.Csv, ExcelSheetSpec? spec = null)
+    private static async Task<MemoryStream> Export(ExcelTextOptions? options, ExcelSheetSpec? spec = null)
+        => (await ExportWithResult(options, ExcelFormat.Csv, spec)).Stream;
+
+    /// <summary>
+    /// 按指定格式写出，同时返回结果流与导出结果，供扩展名与内容类型断言取用
+    /// </summary>
+    private static async Task<(MemoryStream Stream, ExcelExportResult Result)> ExportWithResult(
+        ExcelTextOptions? options, ExcelFormat format, ExcelSheetSpec? spec = null)
     {
         var stream = new MemoryStream();
 
-        await new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance)
+        var result = await new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance)
             .ExportAsync(stream, spec ?? BuildSpec(new SampleRow { AwbNo = "AWB1" }), format, options, TestContext.Current.CancellationToken);
 
-        return stream;
+        return (stream, result);
     }
 
     /// <summary>

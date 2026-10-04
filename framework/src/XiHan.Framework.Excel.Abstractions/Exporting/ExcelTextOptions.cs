@@ -43,9 +43,17 @@ public sealed record ExcelTextOptions
     /// 输出编码名称，默认 <c>"utf-8-bom"</c>
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 常用取值：<c>"utf-8-bom"</c> 写带 BOM 的 UTF-8；<c>"utf-8"</c> 写不带 BOM 的 UTF-8；<c>"big5"</c> 写大五码
     /// （繁体中文往来档常用，无 BOM）。其余取值按 <see cref="System.Text.Encoding.GetEncoding(string)"/> 的名称或代码页解析，
     /// 大小写不敏感。BOM 由解析出的编码自身写出，导出器不再手写，因此不会写两遍。
+    /// </para>
+    /// <para>
+    /// 解析出的编码一律带严格回退：待写出的字符不在目标编码的字符集内时（例如简体字写进 <c>"big5"</c>）抛
+    /// <see cref="System.Text.EncoderFallbackException"/>，不会像 .NET 默认的替换回退那样静默产出 <c>?</c> 字节、
+    /// 再把坏档当成功结果交回调用方。要写出某份文件，字符集必须真收得下它的全部内容：Big5 收不下简体字，
+    /// 简体档请用 <c>"utf-8"</c>／<c>"utf-8-bom"</c>，或改用 <c>"gb18030"</c>。
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentException">编码名为 <c>null</c> 或仅含空白字符</exception>
     public string EncodingName
@@ -94,7 +102,8 @@ public sealed record ExcelTextOptions
     /// </summary>
     /// <remarks>
     /// <see cref="ExcelTextQuote.None"/> 下字段值内的分隔符与换行无法原样写出，导出器把它们改写为空格并记
-    /// Warning 日志，不静默产出坏数据。
+    /// Warning 日志，不静默产出坏数据；该策略与空格分隔符是非法组合，导出器在写出任何字节之前抛
+    /// <see cref="ArgumentException"/>。
     /// </remarks>
     public ExcelTextQuote Quote { get; init; } = ExcelTextQuote.Minimal;
 
@@ -107,8 +116,15 @@ public sealed record ExcelTextOptions
     /// 是否对以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c> 开头的字段值加单引号前缀，默认开启
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 开启后表格软件读取该档时不会把文本当公式执行。交给机器逐字段解析的 <c>.txt</c> 应关掉，避免原始数据被改写。
     /// 表头行不受本设置影响，表头文案由开发者提供，不是外来数据。
+    /// </para>
+    /// <para>
+    /// 本设置同样改动数据，代价容易被忽略：负数经 <c>TextFormat</c> 得到 <c>-5.00</c> 后会被写成 <c>'-5.00</c>，
+    /// 表格软件读回来是文本而不是数字。导出器对全份文件的改写记一条聚合 Warning（含改写数量与首个触发的行列），
+    /// 不逐格刷日志；要逐字往返请置为 <c>false</c>。
+    /// </para>
     /// </remarks>
     public bool EscapeFormulaPrefix { get; init; } = true;
 }

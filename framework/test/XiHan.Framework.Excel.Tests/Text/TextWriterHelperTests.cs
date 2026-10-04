@@ -51,6 +51,37 @@ public class TextWriterHelperTests
         => Assert.Equal(expected, TextWriterHelper.QuoteIfNeeded(raw, delimiter, ExcelTextQuote.None));
 
     /// <summary>
+    /// 免引号策略是否会改写该值由 helper 直接判定，不靠改写前后的字符串比较反推
+    /// </summary>
+    [Theory]
+    [InlineData("a,b", ',', true)]        // 含分隔符
+    [InlineData("a\nb", ',', true)]       // 含换行
+    [InlineData("a\rb", ',', true)]       // 含回车
+    [InlineData("abc", ',', false)]       // 干净值
+    [InlineData("a\"b", ',', false)]      // 值内引号与分隔符无关，免引号策略原样保留
+    [InlineData("a b", ' ', true)]        // 空格作分隔符时值内空格无法与分隔符区分，替换成空格是 no-op 但档仍坏
+    public void 判定值内是否含不可原样写出的字符(string raw, char delimiter, bool expected)
+        => Assert.Equal(expected, TextWriterHelper.ContainsUnquotable(raw, delimiter));
+
+    /// <summary>
+    /// 公式防护是否会改写该值由 helper 直接判定，且与变换结果一致
+    /// </summary>
+    [Theory]
+    [InlineData("=1+1", true)]
+    [InlineData("-5", true)]
+    [InlineData("+86123", true)]
+    [InlineData("@a", true)]
+    [InlineData("正常", false)]
+    [InlineData("", false)]
+    public void 判定值是否会被公式防护改写(string raw, bool expected)
+    {
+        Assert.Equal(expected, TextWriterHelper.NeedsFormulaEscape(raw));
+
+        // 判定与变换不能各说各话：判定为真时变换必定改动该值，为假时必定原样返回
+        Assert.Equal(expected, !string.Equals(TextWriterHelper.EscapeFormula(raw), raw, StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// 引号策略取到未定义的枚举值时抛异常，不静默按最小策略处理
     /// </summary>
     [Fact]
@@ -82,10 +113,49 @@ public class TextWriterHelperTests
     [Fact]
     public void 编码名解析_bom变体不写BOM进Encoding而是单独处理()
     {
-        Assert.Equal(new UTF8Encoding(false), TextWriterHelper.ResolveEncoding("utf-8"));
-        Assert.Equal(Encoding.GetEncoding("Big5"), TextWriterHelper.ResolveEncoding("big5"));
+        Assert.Equal(StrictUtf8(encoderShouldEmitBom: false), TextWriterHelper.ResolveEncoding("utf-8"));
+        Assert.Equal(
+            Encoding.GetEncoding("Big5", new EncoderExceptionFallback(), new DecoderExceptionFallback()),
+            TextWriterHelper.ResolveEncoding("big5"));
         Assert.Throws<ArgumentException>(() => TextWriterHelper.ResolveEncoding("utf-8-bom!"));
     }
+
+    /// <summary>
+    /// 解析出的编码两侧都是异常回退，不可映射字符抛出而非静默替换成问号
+    /// </summary>
+    [Theory]
+    [InlineData("utf-8")]
+    [InlineData("utf-8-bom")]
+    [InlineData("big5")]
+    public void 解析出的编码两侧都是异常回退(string encodingName)
+    {
+        var encoding = TextWriterHelper.ResolveEncoding(encodingName);
+
+        Assert.IsType<EncoderExceptionFallback>(encoding.EncoderFallback);
+        Assert.IsType<DecoderExceptionFallback>(encoding.DecoderFallback);
+    }
+
+    /// <summary>
+    /// 目标编码收不下的字符在编码阶段就抛，产不出问号字节的坏档
+    /// </summary>
+    /// <remarks>
+    /// .NET 默认的替换回退会把 Big5 收不下的简体字安静写成 <c>?</c>，档已损坏却仍返回成功结果；
+    /// 严格回退后换成 <see cref="EncoderFallbackException"/>。收得下的字符不受影响，逐字节与宽松编码一致。
+    /// </remarks>
+    [Fact]
+    public void 不可映射字符编码时抛异常()
+    {
+        var strictBig5 = TextWriterHelper.ResolveEncoding("big5");
+
+        Assert.Throws<EncoderFallbackException>(() => strictBig5.GetBytes("提单号"));
+        Assert.Equal(Encoding.GetEncoding("Big5").GetBytes("提單號"), strictBig5.GetBytes("提單號"));
+    }
+
+    /// <summary>
+    /// 取与 ResolveEncoding 同形的严格回退 UTF-8，供相等断言取参照
+    /// </summary>
+    private static UTF8Encoding StrictUtf8(bool encoderShouldEmitBom)
+        => new(encoderShouldEmitBom, throwOnInvalidBytes: true);
 
     /// <summary>
     /// BOM 预设名与解析出的 Encoding 前导字节一致，导出器据此不再手写 BOM
@@ -113,7 +183,7 @@ public class TextWriterHelperTests
     [InlineData(" UTF-8 ")]
     [InlineData("utf8")]
     public void 编码名解析大小写不敏感(string encodingName)
-        => Assert.Equal(new UTF8Encoding(false), TextWriterHelper.ResolveEncoding(encodingName));
+        => Assert.Equal(StrictUtf8(encoderShouldEmitBom: false), TextWriterHelper.ResolveEncoding(encodingName));
 
     /// <summary>
     /// 空编码名无法解析，直接抛异常，不退回默认编码

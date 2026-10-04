@@ -29,7 +29,13 @@ namespace XiHan.Framework.Excel.Exporting;
 /// </para>
 /// <para>
 /// <see cref="ExcelTextQuote.None"/> 下值内的分隔符与换行无法原样写出，本类把它们替换为空格并记一条 Warning
-/// 日志，说明是哪一行哪一列被改写，不静默产出坏数据。
+/// 日志，说明是哪一行哪一列被改写，不静默产出坏数据。空格本身作分隔符时该策略在结构上无法成立（值内空格与
+/// 分隔符不可区分，替换成空格又是 no-op，写出的档列数直接错位），本类在写出任何字节之前拒绝这一组合。
+/// </para>
+/// <para>
+/// <see cref="ExcelTextOptions.EscapeFormulaPrefix"/> 默认开启，被加前缀的字段也与原始值不同，同属改数据；但负数
+/// 在业务档里极常见，逐格记日志会把真正要看的信号淹掉，因此整份文件累计一条 Warning，报出改写数量与第一个
+/// 触发的行列，可定位即可。
 /// </para>
 /// </remarks>
 /// <param name="logger">本导出器的日志器，用于记录改写数据的决定</param>
@@ -39,6 +45,11 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// 免引号策略下与列名一起出现在日志里的行位置标签
     /// </summary>
     private const string HeaderPosition = "表头行";
+
+    /// <summary>
+    /// 与 <see cref="ExcelTextQuote.None"/> 结构性冲突的分隔符
+    /// </summary>
+    private const char SpaceDelimiter = ' ';
 
     private readonly ILogger<DelimitedTextExporter> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -54,7 +65,8 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// <exception cref="ArgumentNullException"><paramref name="output"/> 或 <paramref name="sheet"/> 为 <c>null</c></exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> 不是 <c>Csv</c> 或 <c>Txt</c></exception>
     /// <exception cref="NotSupportedException"><see cref="ExcelTextLayout.FixedWidth"/> 布局尚未支持</exception>
-    /// <exception cref="ArgumentException">编码名无法解析</exception>
+    /// <exception cref="ArgumentException">编码名无法解析，或 <see cref="ExcelTextQuote.None"/> 与空格分隔符组合</exception>
+    /// <exception cref="EncoderFallbackException">目标编码收不下待写出的字符（详见 <see cref="TextWriterHelper"/>）</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// <para>
@@ -62,7 +74,9 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// <c>.txt</c> 用制表符。
     /// </para>
     /// <para>
-    /// 格式、布局、取消令牌与编码名的检查全部在写出第一个字节之前完成，这几类非法输入不会留下半份文件。
+    /// 格式、布局、取消令牌、选项组合与编码名的检查全部在写出第一个字节之前完成，这几类非法输入不会留下半份文件。
+    /// 目标编码收不下字符时的 <see cref="EncoderFallbackException"/> 也落不到「半份好档」上：编码器在转换该格时
+    /// 就抛，写出的字节只可能是缓冲区里已判过可编码的内容。
     /// </para>
     /// </remarks>
     public async Task<ExcelExportResult> ExportAsync(
@@ -93,8 +107,23 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
         cancellationToken.ThrowIfCancellationRequested();
 
         var delimiter = options.Delimiter ?? (format == ExcelFormat.Csv ? ',' : '\t');
+
+        if (options.Quote == ExcelTextQuote.None && delimiter == SpaceDelimiter)
+        {
+            throw new ArgumentException(
+                $"以空格作分隔符时，「不加引号」策略无法成立：值内的空格与分隔符无法区分，" +
+                $"既不替换也不加引号会直接产出列数错位的坏档。请改用其他分隔符，或将引号策略设为 {ExcelTextQuote.Minimal}／{ExcelTextQuote.All}。",
+                nameof(textOptions));
+        }
+
         var encoding = TextWriterHelper.ResolveEncoding(options.EncodingName);
         var line = new StringBuilder();
+
+        // 公式前缀的改写计数与首个触发点：改数据必须留痕，但逐格记日志会淹掉真正要看的信号，故全份聚合成一条
+        var escapedCount = 0;
+        var firstEscapedPosition = string.Empty;
+        var firstEscapedHeader = string.Empty;
+        var firstEscapedKey = string.Empty;
 
         using var writer = new StreamWriter(output, encoding, leaveOpen: true);
 
@@ -145,18 +174,43 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
 
         await writer.FlushAsync(cancellationToken);
 
+        if (escapedCount > 0)
+        {
+            _logger.LogWarning(
+                "本次导出有 {Count} 个字段被加了公式注入前缀「'」，首个为{Position}的「{Header}」列（键 {Key}）：" +
+                "这些值读回会多出前缀，不能与原值逐字往返；机器逐字段解析本档时请关掉 {Option}。",
+                escapedCount,
+                firstEscapedPosition,
+                firstEscapedHeader,
+                firstEscapedKey,
+                nameof(ExcelTextOptions.EscapeFormulaPrefix));
+        }
+
         return format == ExcelFormat.Csv
             ? ExcelExportResult.Styled(format, ExcelConstants.ExtensionCsv, ExcelConstants.CsvContentType)
             : ExcelExportResult.Styled(format, ExcelConstants.ExtensionTxt, ExcelConstants.PlainTextContentType);
 
         string PrepareField(ExcelColumn column, string rawText, string position, bool escapeFormula)
         {
-            var guarded = escapeFormula ? TextWriterHelper.EscapeFormula(rawText) : rawText;
-            var field = TextWriterHelper.QuoteIfNeeded(guarded, delimiter, options.Quote);
+            var guarded = rawText;
 
-            if (options.Quote == ExcelTextQuote.None && !string.Equals(field, guarded, StringComparison.Ordinal))
+            if (escapeFormula && TextWriterHelper.NeedsFormulaEscape(rawText))
             {
-                // 改数据必须留痕：免引号策略下不加引号又原样写出会破坏列数，替换成空格又不能让调用方毫不知情
+                guarded = TextWriterHelper.EscapeFormula(rawText);
+                escapedCount++;
+
+                if (escapedCount == 1)
+                {
+                    firstEscapedPosition = position;
+                    firstEscapedHeader = column.Header;
+                    firstEscapedKey = column.Key;
+                }
+            }
+
+            if (options.Quote == ExcelTextQuote.None && TextWriterHelper.ContainsUnquotable(guarded, delimiter))
+            {
+                // 改数据必须留痕：免引号策略下不加引号又原样写出会破坏列数，替换成空格又不能让调用方毫不知情。
+                // 是否被改写以 helper 的判定为准，不用「改写前后字符串是否相等」反推：替换成空格可能恰好等长
                 _logger.LogWarning(
                     "{Position}的「{Header}」列（键 {Key}）值内含分隔符「{Delimiter}」或换行，" +
                     "不加引号策略无法原样写出，已替换为空格，导出的文字档不能原样往返。",
@@ -166,7 +220,7 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
                     delimiter);
             }
 
-            return field;
+            return TextWriterHelper.QuoteIfNeeded(guarded, delimiter, options.Quote);
         }
     }
 }
