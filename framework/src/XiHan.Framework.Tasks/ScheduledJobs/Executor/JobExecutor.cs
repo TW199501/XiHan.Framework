@@ -53,7 +53,6 @@ public class JobExecutor : IJobExecutor
         var scopedServiceProvider = scope.ServiceProvider;
         using var tenantScope = EnterJobTenantScope(scopedServiceProvider, jobInstance);
 
-        JobResult result;
         try
         {
             // 保存任务实例状态
@@ -77,7 +76,7 @@ public class JobExecutor : IJobExecutor
                 pipeline.Use(middleware);
             }
 
-            result = await pipeline.ExecuteAsync(context, job);
+            var result = await pipeline.ExecuteAsync(context, job);
 
             // 更新执行结果
             var endTime = DateTimeOffset.UtcNow;
@@ -91,6 +90,14 @@ public class JobExecutor : IJobExecutor
                 jobInstance.ErrorMessage = result.ErrorMessage;
                 jobInstance.StackTrace = result.Exception?.StackTrace;
             }
+
+            // 更新任务状态
+            await _jobStore.UpdateJobStatusAsync(jobInstance.InstanceId, result.Status);
+
+            // 保存执行历史
+            await SaveHistoryAsync(jobInstance, result);
+
+            return result;
         }
         catch (Exception ex)
         {
@@ -103,44 +110,20 @@ public class JobExecutor : IJobExecutor
             jobInstance.ErrorMessage = ex.Message;
             jobInstance.StackTrace = ex.StackTrace;
 
-            await PersistEndStateAsync(jobInstance, JobStatus.Failed);
+            // 状态回写失败不得吞掉历史落档（否则失败的执行连一条 JobHistory 痕迹都不留，无法排障）
+            try
+            {
+                await _jobStore.UpdateJobStatusAsync(jobInstance.InstanceId, JobStatus.Failed);
+            }
+            catch (Exception storeEx)
+            {
+                _logger.LogError(storeEx, "更新任务失败状态时出错: {JobName} ({InstanceId})", jobInstance.JobName, jobInstance.InstanceId);
+            }
 
-            var failure = JobResult.Failure(ex.Message, ex, endTime - startTime);
-            await SaveHistoryAsync(jobInstance, failure);
+            var result = JobResult.Failure(ex.Message, ex, endTime - startTime);
+            await SaveHistoryAsync(jobInstance, result);
 
-            return failure;
-        }
-
-        // 回写结束后的状态与完整实例，存储写入出错只记录日志，不改变执行结果
-        await PersistEndStateAsync(jobInstance, result.Status);
-
-        // 保存执行历史
-        await SaveHistoryAsync(jobInstance, result);
-
-        return result;
-    }
-
-    /// <summary>
-    /// 回写结束时的任务状态与完整实例；两次写入各自独立，出错只记录日志
-    /// </summary>
-    private async Task PersistEndStateAsync(JobInstance jobInstance, JobStatus status)
-    {
-        try
-        {
-            await _jobStore.UpdateJobStatusAsync(jobInstance.InstanceId, status);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "更新任务状态时出错: {JobName} ({InstanceId})", jobInstance.JobName, jobInstance.InstanceId);
-        }
-
-        try
-        {
-            await _jobStore.SaveJobInstanceAsync(jobInstance);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "回存任务实例时出错: {JobName} ({InstanceId})", jobInstance.JobName, jobInstance.InstanceId);
+            return result;
         }
     }
 
