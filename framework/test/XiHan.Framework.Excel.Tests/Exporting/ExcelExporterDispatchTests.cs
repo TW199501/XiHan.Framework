@@ -180,6 +180,36 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
+    /// 流式阈值为 0 或负数时一律走流式，不当非法取值拒掉
+    /// </summary>
+    /// <remarks>
+    /// 选项文档与分派器都承诺「0 或负数等于任何非负行数都达到阈值」，那是「一行都不想全量」的合法表达。
+    /// 这条把承诺钉住：行数很小（低于默认阈值的量级）也照样降级，走的仍是流式路径的显式降级出口。
+    /// 判据用返回值而不是内存：达到阈值与走的实现是同一件事的两端，样式没落地就是那条路径。
+    /// </remarks>
+    /// <param name="threshold">要试的流式阈值</param>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public async Task 阈值非正时一律走流式(int threshold)
+    {
+        var exporter = NewExporter(new XiHanExcelOptions
+        {
+            StreamingThreshold = threshold
+        });
+
+        var result = await exporter.ExportAsync(
+            new MemoryStream(),
+            BuildSpec(Rows(2), expectedRowCount: 1),
+            ExcelFormat.Xlsx,
+            null,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.StylingApplied);
+        Assert.NotNull(result.StylingSkipReason);
+    }
+
+    /// <summary>
     /// 显式要求全量时不因超过阈值而改判，显式表态优先于阈值
     /// </summary>
     [Fact]
