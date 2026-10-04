@@ -1,0 +1,41 @@
+docs/guide/auditing.md
+  s_94057b8e5cf9b6::t_766bd329e88fcf 133,146,155,162,164-175,332
+docs/guide/authentication.md
+  s_94057b8e5cf9b6::t_27b4af83b1d70b 54,102
+docs/guide/authorization.md
+  s_94057b8e5cf9b6::t_f09b4659bf3359 178,320
+docs/guide/event-bus.md
+  s_94057b8e5cf9b6::t_cd94b8c6914244 360
+docs/guide/security.md
+  s_94057b8e5cf9b6::t_f2debc8342b031 377
+docs/guide/workflow.md
+  s_94057b8e5cf9b6::t_2571e906ffd6b8 37,384-386,446
+docs/packages/authentication.md
+  s_94057b8e5cf9b6::t_e4ab0ef33443e0 109,129,275-277
+docs/packages/authorization.md
+  s_94057b8e5cf9b6::t_d32488aecc0865 185
+docs/packages/security.md
+  s_94057b8e5cf9b6::t_e43c05c4203c92 223-224
+docs/packages/settings.md
+  s_94057b8e5cf9b6::t_f4c08c4e93ae43 93
+docs/packages/upgrade.md
+  s_94057b8e5cf9b6::t_3e29257c6afde9 213
+docs/packages/workflow.md
+  s_94057b8e5cf9b6::t_5f4c2bf98d8449 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17e4abdd63768202c0924083f44d7157448102af",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
