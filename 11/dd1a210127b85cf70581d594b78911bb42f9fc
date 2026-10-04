@@ -1,0 +1,30 @@
+framework/XiHan.Framework.slnx
+  h_be8240d2cfaa4b 44-45,121
+framework/src/XiHan.Framework.Excel.Abstractions/ExcelConstants.cs
+  h_be8240d2cfaa4b 1-63
+framework/src/XiHan.Framework.Excel.Abstractions/XiHan.Framework.Excel.Abstractions.csproj
+  h_be8240d2cfaa4b 1-16
+framework/src/XiHan.Framework.Excel.Abstractions/XiHanExcelOptions.cs
+  h_be8240d2cfaa4b 1-35
+framework/src/XiHan.Framework.Excel/Extensions/DependencyInjection/XiHanExcelServiceCollectionExtensions.cs
+  h_be8240d2cfaa4b 1-41
+framework/src/XiHan.Framework.Excel/XiHan.Framework.Excel.csproj
+  h_be8240d2cfaa4b 1-27
+framework/src/XiHan.Framework.Excel/XiHanExcelModule.cs
+  h_be8240d2cfaa4b 1-26
+framework/test/XiHan.Framework.Excel.Tests/Options/XiHanExcelOptionsTests.cs
+  h_be8240d2cfaa4b 1-62
+framework/test/XiHan.Framework.Excel.Tests/XiHan.Framework.Excel.Tests.csproj
+  h_be8240d2cfaa4b 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "11dd1a210127b85cf70581d594b78911bb42f9fc",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
