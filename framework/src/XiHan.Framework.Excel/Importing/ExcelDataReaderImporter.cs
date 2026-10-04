@@ -146,6 +146,9 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
         }
 
         var effective = options ?? new ExcelImportOptions();
+
+        // 顺序是刻意的：上限校验排在格式判别与建立读取器之前，非法的 MaxRowCount 在一条判别不出格式的垃圾档上
+        // 也要报「上限越界」而不是报「判不出格式」——调用方放大上限是请求本身的问题，与档的内容无关。
         var maxRows = ResolveMaxRowCount(effective.MaxRowCount);
 
         cancellationToken.ThrowIfCancellationRequested();

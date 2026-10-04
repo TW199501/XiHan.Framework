@@ -754,6 +754,60 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
+    /// TrimValues 在文字档上逐项生效：默认不剥值里的首尾空白
+    /// </summary>
+    /// <remarks>
+    /// 这一条守的是 <c>TrimWhiteSpace = false</c> 那行设置：库在 3.9.0 上默认开着它，删掉那行设置后
+    /// CSV 的 <c>TrimValues=false</c> 会当场变成谎话（xlsx 路径不受影响，所以只有文字档断言能抓它）。
+    /// 变异检查的输出见 <c>t8-fix-1-mutation-*.log</c>。
+    /// </remarks>
+    /// <param name="trimValues">是否剥取值空白</param>
+    /// <param name="expected">期望取值</param>
+    [Theory]
+    [InlineData(false, " AWB1 ")]
+    [InlineData(true, "AWB1")]
+    public async Task TrimValues在文字档上逐项生效(bool trimValues, string expected)
+    {
+        var rows = await ReadCsv("單號\r\n AWB1 \r\n"u8.ToArray(), o => o with { TrimValues = trimValues });
+
+        Assert.Equal(expected, rows[0].Values["單號"]);
+    }
+
+    /// <summary>
+    /// 表头含空白时按键名取值，值不被顺手剥：两个旋钮在文字档上各管各的
+    /// </summary>
+    [Fact]
+    public async Task 表头含空白时按键名取值而值不被顺手剥()
+    {
+        var rows = await ReadCsv(" 單號 ,甲\r\n 乙 ,丙\r\n"u8.ToArray());
+
+        Assert.Equal(["單號", "甲"], rows[0].Values.Keys);
+        Assert.Equal(" 乙 ", rows[0].Values["單號"]);
+        Assert.Equal("丙", rows[0].Values["甲"]);
+    }
+
+    /// <summary>
+    /// 只有表头一行的文字档交出空序列（Review Focus 第 2 项的文字档半边）
+    /// </summary>
+    [Fact]
+    public async Task 只有表头一行的文字档交出空序列()
+        => Assert.Empty(await ReadCsv("單號\r\n"u8.ToArray()));
+
+    /// <summary>
+    /// 上限校验排在格式判别与建立读取器之前：同一条垃圾档上，越界上限报越界而不是报判不出格式
+    /// </summary>
+    [Fact]
+    public async Task 越界上限先于格式判别被拒()
+    {
+        using var garbage = ImportFixtures.BinaryGarbage();
+
+        var failure = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await ReadAll(garbage, new ExcelImportOptions { MaxRowCount = HardMaxRows + 1 }));
+
+        Assert.Equal(nameof(ExcelImportOptions.MaxRowCount), failure.ParamName);
+    }
+
+    /// <summary>
     /// 导入器实现抽象契约，供门面与注册按接口取用
     /// </summary>
     [Fact]
