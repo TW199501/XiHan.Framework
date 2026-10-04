@@ -7,7 +7,7 @@ XiHan.Framework 由一组**可独立引用的 NuGet 包**组成，按分层组�
 
 | 你的问题 | 去哪 |
 | --- | --- |
-| 「**我要做 X**」——数据访问、事务、认证、缓存、多租户… | [开发指南](../guide/modularity)（39 章，按能力域组织） |
+| 「**我要做 X**」——数据访问、事务、认证、缓存、多租户… | [开发指南](../guide/modularity)（38 章，按能力域组织） |
 | 「**这个包有什么**」——完整 API、全部配置项、类型清单 | **本册** |
 
 指南章节末尾都会链到对应的包页。不确定从哪开始就先读[快速上手](../quickstart)。
@@ -70,8 +70,6 @@ DDD 分层与应用服务契约。
 | [MultiTenancy.Abstractions](./multitenancy-abstractions) | 多租户抽象：租户上下文接口、解析链 |
 | [MultiTenancy](./multitenancy) | 多租户：租户解析中间件、数据隔离、租户配置管理、生命周期 |
 | [Settings](./settings) | 设置管理：设置定义提供者模式、动态配置、多来源（租户级别） |
-| [Quotas](./quotas) | 租户用量配额：政策与账本分离，预留—提交—释放三段式 |
-| [Quotas.SqlSugar](./quotas-sqlsugar) | 配额账本持久化：唯一索引去重 + 条件更新扣额，多实例共享额度 |
 | [Validation.Abstractions](./validation-abstractions) | 校验抽象：校验异常与错误承载接口 |
 | [Validation](./validation) | 数据校验：当前为薄占位，核心类型在抽象包 |
 
@@ -110,9 +108,7 @@ DDD 分层与应用服务契约。
 | [VirtualFileSystem](./virtual-file-system) | 虚拟文件系统：本地目录 + 程序集嵌入资源统一挂载、内存版本快照 |
 | [Templating](./templating) | 模板渲染：默认简单占位替换引擎 + 可选 Scriban、模板注册表 |
 | [Tasks](./tasks) | 定时任务：调度引擎（Cron/间隔/延迟）、后台服务基类、多租户感知 |
-| [Tasks.SqlSugar](./tasks-sqlsugar) | 任务 SqlSugar 持久化提供程序：后台作业入队同事务、多实例领取互斥 |
 | [Traffic](./traffic) | 流量治理：灰度路由（百分比/用户/租户/请求头）、限流与熔断策略接口 |
-| [Traffic.SqlSugar](./traffic-sqlsugar) | 灰度规则的 SqlSugar 只读仓储：内存缓存 + 到期自动刷新，替换内存实现 |
 | [Upgrade](./upgrade) | 升级引擎：版本存储、迁移执行、分布式锁、启动自动检查 |
 | [Script](./script) | 脚本引擎：基于 Roslyn 的 C# 动态脚本、编译校验与超时 |
 | [Workflow.Abstractions](./workflow-abstractions) | 工作流抽象：流程定义模型、活动契约、书签与存储端口 |

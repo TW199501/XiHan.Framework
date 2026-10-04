@@ -54,8 +54,6 @@
     <Project Path="src/XiHan.Framework.ObjectMapping/XiHan.Framework.ObjectMapping.csproj" />
     <Project Path="src/XiHan.Framework.ObjectStorage/XiHan.Framework.ObjectStorage.csproj" />
     <Project Path="src/XiHan.Framework.Observability/XiHan.Framework.Observability.csproj" />
-    <Project Path="src/XiHan.Framework.Quotas/XiHan.Framework.Quotas.csproj" />
-    <Project Path="src/XiHan.Framework.Quotas.SqlSugar/XiHan.Framework.Quotas.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Script/XiHan.Framework.Script.csproj" />
     <Project Path="src/XiHan.Framework.SearchEngines.Abstractions/XiHan.Framework.SearchEngines.Abstractions.csproj" />
     <Project Path="src/XiHan.Framework.SearchEngines/XiHan.Framework.SearchEngines.csproj" />
@@ -63,12 +61,10 @@
     <Project Path="src/XiHan.Framework.Security/XiHan.Framework.Security.csproj" />
     <Project Path="src/XiHan.Framework.Serialization/XiHan.Framework.Serialization.csproj" />
     <Project Path="src/XiHan.Framework.Tasks/XiHan.Framework.Tasks.csproj" />
-    <Project Path="src/XiHan.Framework.Tasks.SqlSugar/XiHan.Framework.Tasks.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Templating/XiHan.Framework.Templating.csproj" />
     <Project Path="src/XiHan.Framework.Threading/XiHan.Framework.Threading.csproj" />
     <Project Path="src/XiHan.Framework.Timing/XiHan.Framework.Timing.csproj" />
     <Project Path="src/XiHan.Framework.Traffic/XiHan.Framework.Traffic.csproj" />
-    <Project Path="src/XiHan.Framework.Traffic.SqlSugar/XiHan.Framework.Traffic.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Uow/XiHan.Framework.Uow.csproj" />
     <Project Path="src/XiHan.Framework.Upgrade/XiHan.Framework.Upgrade.csproj" />
     <Project Path="src/XiHan.Framework.VirtualFileSystem/XiHan.Framework.VirtualFileSystem.csproj" />
@@ -77,7 +73,6 @@
   </Folder>
   <Folder Name="/1.src/7.Web/">
     <Project Path="src/XiHan.Framework.Web.Api/XiHan.Framework.Web.Api.csproj" Id="c2f22ef5-3eba-47b2-a893-b7db49e09ad9" />
-    <Project Path="src/XiHan.Framework.Web.Api.SqlSugar/XiHan.Framework.Web.Api.SqlSugar.csproj" />
     <Project Path="src/XiHan.Framework.Web.Core/XiHan.Framework.Web.Core.csproj" />
     <Project Path="src/XiHan.Framework.Web.Docs/XiHan.Framework.Web.Docs.csproj" Id="e8a1d021-4093-4e09-b9da-027db1eb90ae" />
     <Project Path="src/XiHan.Framework.Web.Gateway/XiHan.Framework.Web.Gateway.csproj" />
@@ -113,8 +108,6 @@
     <Project Path="test/XiHan.Framework.Docs.Mcp.Web.Tests/XiHan.Framework.Docs.Mcp.Web.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Domain.Shared.Tests/XiHan.Framework.Domain.Shared.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Domain.Tests/XiHan.Framework.Domain.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Quotas.Tests/XiHan.Framework.Quotas.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Quotas.SqlSugar.Tests/XiHan.Framework.Quotas.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.Abstractions.Tests/XiHan.Framework.EventBus.Abstractions.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.Kafka.Tests/XiHan.Framework.EventBus.Kafka.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.RabbitMQ.Tests/XiHan.Framework.EventBus.RabbitMQ.Tests.csproj" />
@@ -131,7 +124,6 @@
     <Project Path="test/XiHan.Framework.ObjectMapping.Tests/XiHan.Framework.ObjectMapping.Tests.csproj" />
     <Project Path="test/XiHan.Framework.ObjectStorage.Tests/XiHan.Framework.ObjectStorage.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Observability.Tests/XiHan.Framework.Observability.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.ProviderContractTests/XiHan.Framework.ProviderContractTests.csproj" />
     <Project Path="test/XiHan.Framework.Script.Tests/XiHan.Framework.Script.Tests.csproj" />
     <Project Path="test/XiHan.Framework.SearchEngines.Abstractions.Tests/XiHan.Framework.SearchEngines.Abstractions.Tests.csproj" />
     <Project Path="test/XiHan.Framework.SearchEngines.Elasticsearch.Tests/XiHan.Framework.SearchEngines.Elasticsearch.Tests.csproj" />
@@ -140,12 +132,10 @@
     <Project Path="test/XiHan.Framework.Serialization.Tests/XiHan.Framework.Serialization.Tests.csproj" Id="b4569bd6-5e7d-45bf-9135-17b2c6265439" />
     <Project Path="test/XiHan.Framework.Settings.Tests/XiHan.Framework.Settings.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Tasks.Tests/XiHan.Framework.Tasks.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Tasks.SqlSugar.Tests/XiHan.Framework.Tasks.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Templating.Tests/XiHan.Framework.Templating.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Threading.Tests/XiHan.Framework.Threading.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Timing.Tests/XiHan.Framework.Timing.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Traffic.Tests/XiHan.Framework.Traffic.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Traffic.SqlSugar.Tests/XiHan.Framework.Traffic.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Uow.Tests/XiHan.Framework.Uow.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Upgrade.Tests/XiHan.Framework.Upgrade.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Utils.Tests/XiHan.Framework.Utils.Tests.csproj" Id="e6f382f6-e361-47cd-af97-2689f3d784c8" />
@@ -153,7 +143,6 @@
     <Project Path="test/XiHan.Framework.Validation.Tests/XiHan.Framework.Validation.Tests.csproj" />
     <Project Path="test/XiHan.Framework.VirtualFileSystem.Tests/XiHan.Framework.VirtualFileSystem.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Web.Api.Tests/XiHan.Framework.Web.Api.Tests.csproj" Id="823dea4f-39d6-440f-8e2b-55c8f872e03a" />
-    <Project Path="test/XiHan.Framework.Web.Api.SqlSugar.Tests/XiHan.Framework.Web.Api.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Web.Core.Tests/XiHan.Framework.Web.Core.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Web.Docs.Tests/XiHan.Framework.Web.Docs.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Web.Gateway.Tests/XiHan.Framework.Web.Gateway.Tests.csproj" />
