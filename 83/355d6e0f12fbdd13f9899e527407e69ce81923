@@ -1,0 +1,27 @@
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlExporterTests.cs
+  s_94057b8e5cf9b6::t_46a16b2fbb7263 789-849
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlMultiSheetTests.cs
+  s_94057b8e5cf9b6::t_d846bdf52848cc 578-633
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/CancelOnWriteStream.cs
+  s_94057b8e5cf9b6::t_4b0b066c229a73 1-38
+framework/src/XiHan.Framework.Excel/Exporting/ClosedXmlExporter.cs
+  s_94057b8e5cf9b6::t_e75f201a7624ad 66-68,71-72,134-135,152-154,158-160,199-203,234-237,243-245
+framework/src/XiHan.Framework.Excel/Exporting/DelimitedTextExporter.cs
+  s_94057b8e5cf9b6::t_88aa997da777ce 19-21,105-108,331,337-338,408-410,415-418
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "83355d6e0f12fbdd13f9899e527407e69ce81923",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
