@@ -317,6 +317,98 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
+    /// 值内含换行在固定宽度布局下不可写出：取到该行即抛，信息点行位置与列键
+    /// </summary>
+    /// <remarks>
+    /// 本布局没有可以包住换行的引号，写出后读档方会把一档当成错行的两档，因此不清洗、不替换、不静默截断，直接抛。
+    /// 抛出时机与 <c>Overflow = Throw</c> 的超宽抛出同一层：都在渲染那一格时，前面已有的行不受影响。
+    /// </remarks>
+    [Theory]
+    [InlineData("A\nB")]      // 换行符
+    [InlineData("A\rB")]      // 回车
+    [InlineData("A\r\nB")]    // CRLF
+    public async Task 值含换行时抛出且点名行列位置(string rawValue)
+    {
+        var spec = BuildSpec([Column(AwbWidth)], new SampleRow { AwbNo = rawValue });
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ExportAsync(FixedOptions(), spec));
+
+        Assert.Contains("第 1 行", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(SampleRow.AwbNo), exception.Message, StringComparison.Ordinal);
+        Assert.Contains("换行", exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 换行抛出时前面的行已经落盘：该档是半成品，调用方不能把它当完整档交出
+    /// </summary>
+    /// <remarks>
+    /// 行集合是惰性游标，值含不含换行要取到那一行才知道，因此这条不可能「写出任何字节之前」失败；用例刻意让
+    /// 前 200 行的字节量超过 <see cref="StreamWriter"/> 的缓冲，把「已经落盘」变成可断言的现实。
+    /// </remarks>
+    [Fact]
+    public async Task 值含换行时前面的行已经落盘()
+    {
+        var rows = new List<SampleRow>();
+
+        for (var index = 1; index <= 200; index++)
+        {
+            rows.Add(new SampleRow { AwbNo = $"R{index:000}" });
+        }
+
+        rows.Add(new SampleRow { AwbNo = "BAD\nTAIL" });
+        rows.Add(new SampleRow { AwbNo = "R202" });
+
+        var stream = new MemoryStream();
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
+            stream, BuildSpec([Column(AwbWidth)], [.. rows]), ExcelFormat.Txt,
+            FixedOptions(), TestContext.Current.CancellationToken));
+
+        Assert.Contains("第 201 行", exception.Message, StringComparison.Ordinal);
+
+        // 前若干行已进流：这里不保证零字节残留，只保证出问题的那一行没有落进档里
+        Assert.True(stream.Length > 0, $"第 201 行抛出前应该已有行落盘，实际流长 {stream.Length}");
+
+        var written = BodyOf(stream);
+        Assert.Contains("R001", written, StringComparison.Ordinal);
+        Assert.DoesNotContain("BAD", written);
+    }
+
+    /// <summary>
+    /// 补位字符是换行时等于凭空造行，与内容无关，因此在写出任何字节之前就失败
+    /// </summary>
+    [Theory]
+    [InlineData('\n')]
+    [InlineData('\r')]
+    public async Task 补位字符是换行时在写出前就失败(char padChar)
+    {
+        var stream = new MemoryStream();
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        var columns = new List<ExcelColumn>
+        {
+            new ExcelColumn<SampleRow>
+            {
+                Key = nameof(SampleRow.AwbNo),
+                Header = "提单号",
+                Order = 0,
+                FixedWidth = AwbWidth,
+                PadChar = padChar,
+                Value = row => row.AwbNo
+            }
+        };
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            stream, BuildSpec(columns, new SampleRow { AwbNo = "AWB1" }), ExcelFormat.Txt,
+            FixedOptions(), TestContext.Current.CancellationToken));
+
+        Assert.Contains("换行", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(SampleRow.AwbNo), exception.Message, StringComparison.Ordinal);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
     /// 固定宽度布局不解释分隔符、引号策略与公式前缀，三者一律无效
     /// </summary>
     /// <remarks>

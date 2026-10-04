@@ -41,7 +41,12 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <see cref="ExcelTextLayout.FixedWidth"/> 布局另走一条写出路径：字段不加引号、不做转义、不设公式前缀，
 /// 每格由 <see cref="ExcelColumn.FixedWidth"/> 指定的字节宽度补位，读档方按字节位置切列。该布局下
 /// <see cref="ExcelTextOptions.Delimiter"/>、<see cref="ExcelTextOptions.Quote"/> 与
-/// <see cref="ExcelTextOptions.EscapeFormulaPrefix"/> 都不参与写出。
+/// <see cref="ExcelTextOptions.EscapeFormulaPrefix"/> 都不参与写出，且不接受值内换行：
+/// <c>\r</c> 与 <c>\n</c> 没有可以包住它们的引号，写出会让一档被读成错行的两档，取到该行即抛。
+/// </para>
+/// <para>
+/// 两种布局共用一份行写出骨架（<see cref="WriteTextAsync"/>）：行序、每行写前查取消令牌、行尾拼接、flush 与
+/// 聚合留痕的时机都只有一份实现，布局差异只留在「一格写出什么」与「格间插什么」上。
 /// </para>
 /// </remarks>
 /// <param name="logger">本导出器的日志器，用于记录改写数据的决定</param>
@@ -71,10 +76,10 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// <exception cref="ArgumentNullException"><paramref name="output"/> 或 <paramref name="sheet"/> 为 <c>null</c></exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> 不是 <c>Csv</c> 或 <c>Txt</c></exception>
     /// <exception cref="ArgumentException">编码名无法解析，<see cref="ExcelTextQuote.None"/> 与空格分隔符组合，
-    /// 或固定宽度布局下某列的补位字符不是单字节</exception>
+    /// 或固定宽度布局下某列的补位字符是换行符、在目标编码下不是单字节</exception>
     /// <exception cref="InvalidOperationException">固定宽度布局下某列未设置
-    /// <see cref="ExcelColumn.FixedWidth"/>、列宽不是正整数，或内容超出列宽且
-    /// <see cref="ExcelTextOptions.Overflow"/> 为 <see cref="ExcelTextOverflow.Throw"/></exception>
+    /// <see cref="ExcelColumn.FixedWidth"/>、列宽不是正整数，取值转出的文本含换行，
+    /// 或内容超出列宽且 <see cref="ExcelTextOptions.Overflow"/> 为 <see cref="ExcelTextOverflow.Throw"/></exception>
     /// <exception cref="EncoderFallbackException">目标编码收不下待写出的字符（详见 <see cref="TextWriterHelper"/>）</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
@@ -126,7 +131,6 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
         }
 
         var encoding = TextWriterHelper.ResolveEncoding(options.EncodingName);
-        var line = new StringBuilder();
 
         // 公式前缀的改写计数与首个触发点：改数据必须留痕，但逐格记日志会淹掉真正要看的信号，故全份聚合成一条
         var escapedCount = 0;
@@ -134,76 +138,38 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
         var firstEscapedHeader = string.Empty;
         var firstEscapedKey = string.Empty;
 
-        using var writer = new StreamWriter(output, encoding, leaveOpen: true);
+        return await WriteTextAsync(
+            output,
+            sheet,
+            format,
+            options,
+            encoding,
+            delimiter.ToString(),
+            PrepareField,
+            ReportFormulaEscapes,
+            cancellationToken);
 
-        if (options.IncludeHeader)
+        void ReportFormulaEscapes()
         {
-            line.Clear();
-
-            for (var index = 0; index < sheet.Columns.Count; index++)
+            if (escapedCount > 0)
             {
-                if (index > 0)
-                {
-                    line.Append(delimiter);
-                }
-
-                var column = sheet.Columns[index];
-                line.Append(PrepareField(column, column.Header, HeaderPosition, escapeFormula: false));
+                _logger.LogWarning(
+                    "本次导出有 {Count} 个字段被加了公式注入前缀「'」，首个为{Position}的「{Header}」列（键 {Key}）：" +
+                    "这些值读回会多出前缀，不能与原值逐字往返；机器逐字段解析本档时请关掉 {Option}。",
+                    escapedCount,
+                    firstEscapedPosition,
+                    firstEscapedHeader,
+                    firstEscapedKey,
+                    nameof(ExcelTextOptions.EscapeFormulaPrefix));
             }
-
-            line.Append(options.NewLine);
-            await writer.WriteAsync(line.ToString().AsMemory(), cancellationToken);
         }
 
-        var rowIndex = 0;
-
-        foreach (var row in sheet.Rows)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            rowIndex++;
-            line.Clear();
-            var position = $"第 {rowIndex} 行";
-
-            for (var index = 0; index < sheet.Columns.Count; index++)
-            {
-                if (index > 0)
-                {
-                    line.Append(delimiter);
-                }
-
-                var column = sheet.Columns[index];
-                var rawText = TextWriterHelper.ValueToText(column.GetValue(row), column.TextFormat, column.NumberFormat);
-                line.Append(PrepareField(column, rawText, position, options.EscapeFormulaPrefix));
-            }
-
-            line.Append(options.NewLine);
-            await writer.WriteAsync(line.ToString().AsMemory(), cancellationToken);
-        }
-
-        await writer.FlushAsync(cancellationToken);
-
-        if (escapedCount > 0)
-        {
-            _logger.LogWarning(
-                "本次导出有 {Count} 个字段被加了公式注入前缀「'」，首个为{Position}的「{Header}」列（键 {Key}）：" +
-                "这些值读回会多出前缀，不能与原值逐字往返；机器逐字段解析本档时请关掉 {Option}。",
-                escapedCount,
-                firstEscapedPosition,
-                firstEscapedHeader,
-                firstEscapedKey,
-                nameof(ExcelTextOptions.EscapeFormulaPrefix));
-        }
-
-        return format == ExcelFormat.Csv
-            ? ExcelExportResult.Styled(format, ExcelConstants.ExtensionCsv, ExcelConstants.CsvContentType)
-            : ExcelExportResult.Styled(format, ExcelConstants.ExtensionTxt, ExcelConstants.PlainTextContentType);
-
-        string PrepareField(ExcelColumn column, string rawText, string position, bool escapeFormula)
+        // index 由共用骨架交出（固定宽度布局要用它取该列列宽），分隔符布局不解释它
+        string PrepareField(ExcelColumn column, int index, string rawText, string position, bool isHeader)
         {
             var guarded = rawText;
 
-            if (escapeFormula && TextWriterHelper.NeedsFormulaEscape(rawText))
+            if (!isHeader && options.EscapeFormulaPrefix && TextWriterHelper.NeedsFormulaEscape(rawText))
             {
                 guarded = TextWriterHelper.EscapeFormula(rawText);
                 escapedCount++;
@@ -247,6 +213,11 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// 补位方向与超宽策略的取值在逐格补位时判定，与分隔符路径的引号策略同一时机。截断会丢弃数据，与免引号改写、
     /// 公式前缀同类，因此整份文件聚合成一条 Warning，报出数量与首个触发的行列。
     /// </para>
+    /// <para>
+    /// 本布局不接受值内换行：<c>\r</c> 与 <c>\n</c> 在定宽档里没有可以包住它们的引号，写出去会让一档被读成错行的
+    /// 两档，因此取到该行即抛 <see cref="InvalidOperationException"/>，不清洗也不替换。行集合是惰性游标，
+    /// 值含不含换行要等取出行才知道，所以这条不可能排在写出之前——抛出时前面的行可能已经落盘。
+    /// </para>
     /// </remarks>
     private async Task<ExcelExportResult> ExportFixedWidthAsync(
         Stream output,
@@ -261,8 +232,6 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
         // 列宽与补位字符全部排在 new StreamWriter 之前：这几类输入不成立时一个字节都不进流
         var widths = ValidateFixedWidthColumns(columns, encoding);
 
-        var line = new StringBuilder();
-
         // 截断的丢弃计数与首个触发点：理由同分隔符路径的公式前缀，逐格记日志会淹掉真正要看的信号
         var truncatedCount = 0;
         var firstTruncatedPosition = string.Empty;
@@ -270,63 +239,48 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
         var firstTruncatedKey = string.Empty;
         var firstTruncatedWidth = 0;
 
-        using var writer = new StreamWriter(output, encoding, leaveOpen: true);
+        // 定宽档的格与格之间不插任何字符：列宽已经把这一格占满
+        return await WriteTextAsync(
+            output,
+            sheet,
+            format,
+            options,
+            encoding,
+            string.Empty,
+            PadField,
+            ReportTruncations,
+            cancellationToken);
 
-        if (options.IncludeHeader)
+        void ReportTruncations()
         {
-            line.Clear();
-
-            for (var index = 0; index < columns.Count; index++)
+            if (truncatedCount > 0)
             {
-                var column = columns[index];
-                line.Append(PadField(column, widths[index], column.Header, HeaderPosition));
+                _logger.LogWarning(
+                    "本次固定宽度导出有 {Count} 个字段超出列宽并被截断，首个为{Position}的「{Header}」列（键 {Key}，列宽 {Width} 字节）：" +
+                    "超出部分没有写出，读回的档不能与原值逐字往返；请加大该列的 FixedWidth，或将超宽策略 Overflow 设为 Throw。",
+                    truncatedCount,
+                    firstTruncatedPosition,
+                    firstTruncatedHeader,
+                    firstTruncatedKey,
+                    firstTruncatedWidth);
+            }
+        }
+
+        // isHeader 在本布局不改变处置：表头与数据都按同一列宽补位，行位置标签已经把两者分开
+        string PadField(ExcelColumn column, int index, string rawText, string position, bool isHeader)
+        {
+            var width = widths[index];
+
+            // 值里的换行在本布局没有可以包住它的引号，写出去就把一档切成错行的两档；不清洗、不替换，取到即抛
+            if (TextWriterHelper.ContainsLineBreak(rawText))
+            {
+                throw CreateFieldFailure(
+                    column,
+                    position,
+                    "值内含换行（\\r 或 \\n），固定宽度布局没有可以包住它的引号，写出会让一档被读成错行的两档。" +
+                    "请先清洗该值，或改用分隔符（Delimited）布局。");
             }
 
-            line.Append(options.NewLine);
-            await writer.WriteAsync(line.ToString().AsMemory(), cancellationToken);
-        }
-
-        var rowIndex = 0;
-
-        foreach (var row in sheet.Rows)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            rowIndex++;
-            line.Clear();
-            var position = $"第 {rowIndex} 行";
-
-            for (var index = 0; index < columns.Count; index++)
-            {
-                var column = columns[index];
-                var rawText = TextWriterHelper.ValueToText(column.GetValue(row), column.TextFormat, column.NumberFormat);
-                line.Append(PadField(column, widths[index], rawText, position));
-            }
-
-            line.Append(options.NewLine);
-            await writer.WriteAsync(line.ToString().AsMemory(), cancellationToken);
-        }
-
-        await writer.FlushAsync(cancellationToken);
-
-        if (truncatedCount > 0)
-        {
-            _logger.LogWarning(
-                "本次固定宽度导出有 {Count} 个字段超出列宽并被截断，首个为{Position}的「{Header}」列（键 {Key}，列宽 {Width} 字节）：" +
-                "超出部分没有写出，读回的档不能与原值逐字往返；请加大该列的 FixedWidth，或将超宽策略 Overflow 设为 Throw。",
-                truncatedCount,
-                firstTruncatedPosition,
-                firstTruncatedHeader,
-                firstTruncatedKey,
-                firstTruncatedWidth);
-        }
-
-        return format == ExcelFormat.Csv
-            ? ExcelExportResult.Styled(format, ExcelConstants.ExtensionCsv, ExcelConstants.CsvContentType)
-            : ExcelExportResult.Styled(format, ExcelConstants.ExtensionTxt, ExcelConstants.PlainTextContentType);
-
-        string PadField(ExcelColumn column, int width, string rawText, string position)
-        {
             // 是否被截断由字节数直接判出，不从「补位后的串」反推：补位永远把整格填到列宽，反推看不出丢弃过内容
             var isTruncated = options.Overflow == ExcelTextOverflow.Truncate && encoding.GetByteCount(rawText) > width;
 
@@ -339,8 +293,7 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
             catch (InvalidOperationException ex)
             {
                 // 只补定位信息，不改变处置：超宽到底是抛还是截断仍由选项决定，这里不替调用方兜住
-                throw new InvalidOperationException(
-                    $"固定宽度导出无法完成：{position}的「{column.Header}」列（键 {column.Key}）。{ex.Message}", ex);
+                throw CreateFieldFailure(column, position, ex.Message, ex);
             }
 
             if (isTruncated)
@@ -361,11 +314,125 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     }
 
     /// <summary>
+    /// 两种文字档布局共用的写出骨架：表头行、逐行取值、每行写前查取消令牌、行尾拼接、flush、聚合留痕与结果尾部
+    /// </summary>
+    /// <remarks>
+    /// 布局之间的差异只留在两个委托与 <paramref name="fieldSeparator"/> 上：<c>renderField</c> 决定一格写出什么
+    /// （分隔符布局套公式前缀与引号，固定宽度布局做字节补位），<c>fieldSeparator</c> 决定格间插什么（定宽为空字串）。
+    /// 行序、取消时机与聚合 Warning 的落地时机（flush 之后、返回结果之前）因此只有一份实现，不会两条路径各漂一份。
+    /// </remarks>
+    private async Task<ExcelExportResult> WriteTextAsync(
+        Stream output,
+        ExcelSheetSpec sheet,
+        ExcelFormat format,
+        ExcelTextOptions options,
+        Encoding encoding,
+        string fieldSeparator,
+        RenderField renderField,
+        ReportAggregate reportAggregate,
+        CancellationToken cancellationToken)
+    {
+        var columns = sheet.Columns;
+        var line = new StringBuilder();
+
+        using var writer = new StreamWriter(output, encoding, leaveOpen: true);
+
+        if (options.IncludeHeader)
+        {
+            line.Clear();
+
+            for (var index = 0; index < columns.Count; index++)
+            {
+                if (index > 0 && fieldSeparator.Length > 0)
+                {
+                    line.Append(fieldSeparator);
+                }
+
+                var column = columns[index];
+                line.Append(renderField(column, index, column.Header, HeaderPosition, isHeader: true));
+            }
+
+            line.Append(options.NewLine);
+            await writer.WriteAsync(line.ToString().AsMemory(), cancellationToken);
+        }
+
+        var rowIndex = 0;
+
+        foreach (var row in sheet.Rows)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            rowIndex++;
+            line.Clear();
+            var position = $"第 {rowIndex} 行";
+
+            for (var index = 0; index < columns.Count; index++)
+            {
+                if (index > 0 && fieldSeparator.Length > 0)
+                {
+                    line.Append(fieldSeparator);
+                }
+
+                var column = columns[index];
+                var rawText = TextWriterHelper.ValueToText(column.GetValue(row), column.TextFormat, column.NumberFormat);
+                line.Append(renderField(column, index, rawText, position, isHeader: false));
+            }
+
+            line.Append(options.NewLine);
+            await writer.WriteAsync(line.ToString().AsMemory(), cancellationToken);
+        }
+
+        await writer.FlushAsync(cancellationToken);
+
+        reportAggregate();
+
+        return BuildTextResult(format);
+    }
+
+    /// <summary>
+    /// 按目标格式给出文字档的结果尾部：扩展名与内容类型
+    /// </summary>
+    private static ExcelExportResult BuildTextResult(ExcelFormat format)
+        => format == ExcelFormat.Csv
+            ? ExcelExportResult.Styled(format, ExcelConstants.ExtensionCsv, ExcelConstants.CsvContentType)
+            : ExcelExportResult.Styled(format, ExcelConstants.ExtensionTxt, ExcelConstants.PlainTextContentType);
+
+    /// <summary>
+    /// 组出固定宽度布局的格级失败：外层点名行位置、表头与列键，抛出的原因留在消息尾部
+    /// </summary>
+    /// <remarks>
+    /// 固定宽度档的失败都发生在「已经交出某一行」之后（值含换行、内容超宽），档到这里已是半成品，
+    /// 因此信息必须能定位到格，调用方才谈得上清洗该行或改列宽。本方法只补定位信息，不改变处置。
+    /// </remarks>
+    private static InvalidOperationException CreateFieldFailure(
+        ExcelColumn column,
+        string position,
+        string reason,
+        Exception? innerException = null)
+        => new($"固定宽度导出无法完成：{position}的「{column.Header}」列（键 {column.Key}）。{reason}", innerException);
+
+    /// <summary>
+    /// 把一格的原文写成该写出的文本，并在此处累计本布局的改写留痕计数
+    /// </summary>
+    /// <param name="column">本列</param>
+    /// <param name="index">本列在列清单中的位置，供按列取设置的布局使用</param>
+    /// <param name="rawText">取值已转成的文本（表头行就是表头文案）</param>
+    /// <param name="position">行位置标签，用于留痕与异常信息</param>
+    /// <param name="isHeader">是否为表头行：公式注入防护不适用于表头</param>
+    /// <returns>可以直接拼进行里的文本</returns>
+    private delegate string RenderField(ExcelColumn column, int index, string rawText, string position, bool isHeader);
+
+    /// <summary>
+    /// 在整档写出并 flush 之后、返回结果之前，落地本布局的聚合 Warning
+    /// </summary>
+    private delegate void ReportAggregate();
+
+    /// <summary>
     /// 校验固定宽度布局的列设置，返回每列按目标编码成立的字节宽度
     /// </summary>
     /// <remarks>
-    /// 本方法只看档级结构（每列有没有宽度、宽度是否为正、补位字符是否单字节），逐格的超宽处置不在这里，
-    /// 因为那要等取到行值才知道。校验顺序固定：先列宽，再补位字符，两处都排在写出任何字节之前。
+    /// 本方法只查与内容无关的列级设置（每列有没有宽度、宽度是否为正、补位字符能不能用），值内的换行与逐格超宽
+    /// 不在这里判，因为那要等取到行值才知道。校验顺序固定：先列宽，再补位字符，两处都排在写出任何字节之前。
     /// </remarks>
     private static int[] ValidateFixedWidthColumns(IReadOnlyList<ExcelColumn> columns, Encoding encoding)
     {
@@ -409,7 +476,9 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
         for (var index = 0; index < columns.Count; index++)
         {
             var column = columns[index];
-            TextWriterHelper.EnsureSingleBytePadChar(column.PadChar, encoding, $"（列「{column.Header}」，键 {column.Key}）");
+
+            // 补位字符能不能用与内容无关，所以在写第一个字节之前就把每一列问过，不等第一格补位时才炸
+            TextWriterHelper.ValidatePadChar(column.PadChar, encoding, $"（列「{column.Header}」，键 {column.Key}）");
         }
 
         return widths;

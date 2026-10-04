@@ -280,7 +280,7 @@ internal static class TextWriterHelper
     /// <param name="widthBytes">列宽，以目标编码的字节数计</param>
     /// <param name="encoding">写出用的编码，字节宽度按它计算</param>
     /// <param name="padding">补位方向：<see cref="ExcelTextPadding.Right"/> 内容靠左、右侧补字符，<see cref="ExcelTextPadding.Left"/> 反之</param>
-    /// <param name="padChar">补位字符，必须在 <paramref name="encoding"/> 下恰好占 1 字节</param>
+    /// <param name="padChar">补位字符，必须在 <paramref name="encoding"/> 下恰好占 1 字节，且不能是换行符</param>
     /// <param name="overflow">内容字节数超出列宽时的处置</param>
     /// <returns>在 <paramref name="encoding"/> 下恰好占 <paramref name="widthBytes"/> 字节的文本</returns>
     /// <remarks>
@@ -300,7 +300,7 @@ internal static class TextWriterHelper
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="value"/> 或 <paramref name="encoding"/> 为 <c>null</c></exception>
     /// <exception cref="ArgumentOutOfRangeException">列宽为负数，或补位方向、超宽策略取未定义的枚举值</exception>
-    /// <exception cref="ArgumentException"><paramref name="padChar"/> 在目标编码下不是单字节，或根本无法表示</exception>
+    /// <exception cref="ArgumentException"><paramref name="padChar"/> 是换行符，在目标编码下不是单字节，或根本无法表示</exception>
     /// <exception cref="EncoderFallbackException"><paramref name="value"/> 在目标编码下无法表示</exception>
     /// <exception cref="InvalidOperationException">内容超出列宽且 <paramref name="overflow"/> 为 <see cref="ExcelTextOverflow.Throw"/></exception>
     internal static string PadToWidth(
@@ -319,7 +319,7 @@ internal static class TextWriterHelper
             throw new ArgumentOutOfRangeException(nameof(widthBytes), widthBytes, "固定宽度列宽以字节计，不能是负数。");
         }
 
-        EnsureSingleBytePadChar(padChar, encoding, null);
+        ValidatePadChar(padChar, encoding, null);
 
         var bytes = encoding.GetByteCount(value);
 
@@ -360,7 +360,7 @@ internal static class TextWriterHelper
     }
 
     /// <summary>
-    /// 校验补位字符在目标编码下恰好占 1 字节
+    /// 校验补位字符可用：在目标编码下恰好占 1 字节，且不是换行符
     /// </summary>
     /// <param name="padChar">补位字符</param>
     /// <param name="encoding">写出用的编码</param>
@@ -370,10 +370,18 @@ internal static class TextWriterHelper
     /// 同一个异常类型，不留下「预检放行、写出时才抛」的缺口。
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="encoding"/> 为 <c>null</c></exception>
-    /// <exception cref="ArgumentException">补位字符不是单字节，或在目标编码下根本无法表示</exception>
-    internal static void EnsureSingleBytePadChar(char padChar, Encoding encoding, string? location)
+    /// <exception cref="ArgumentException">补位字符是换行符，或在目标编码下不是单字节、根本无法表示</exception>
+    internal static void ValidatePadChar(char padChar, Encoding encoding, string? location)
     {
         ArgumentNullException.ThrowIfNull(encoding);
+
+        // 换行与编码无关，且在所有目标编码里都是单字节：只查字节数会一路放行，因此排在字节数判定之前
+        if (padChar is '\r' or '\n')
+        {
+            throw new ArgumentException(
+                $"固定宽度补位字符不能是换行符（\\r 或 \\n）：整格补位会凭空写出行尾，一档会被读成两档。{location}",
+                nameof(padChar));
+        }
 
         var text = padChar.ToString();
         var description = $"固定宽度补位字符「{padChar}」(U+{(int)padChar:X4})";
@@ -399,6 +407,28 @@ internal static class TextWriterHelper
                 $"否则按字节差额补位会超出列宽。{location}",
                 nameof(padChar));
         }
+    }
+
+    /// <summary>
+    /// 判断值内是否含行分隔符（<c>\r</c> 或 <c>\n</c>）
+    /// </summary>
+    /// <param name="value">字段值文本</param>
+    /// <returns>含任一行分隔符时为 <c>true</c></returns>
+    /// <remarks>
+    /// 与 <see cref="ContainsUnquotable"/> 的分工：那条问「分隔符布局里这个值能不能不加引号就写出去」，
+    /// 本条只问「有没有换行」——固定宽度布局没有可以包住换行的引号，取值侧不需要知道分隔符。
+    /// </remarks>
+    internal static bool ContainsLineBreak(string value)
+    {
+        foreach (var current in value)
+        {
+            if (current is '\r' or '\n')
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

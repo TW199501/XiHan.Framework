@@ -45,6 +45,13 @@ public sealed record ExcelTextOptions
     /// 列特性不带字节宽度，因此本布局下列必须由调用方构造并给出 <see cref="ExcelColumn.FixedWidth"/>；
     /// 缺该设置的列在写出任何字节之前抛 <see cref="InvalidOperationException"/> 并列出缺宽度的列键。
     /// </para>
+    /// <para>
+    /// 本布局不接受值内换行：<see cref="ExcelColumn"/> 取值转出的文本含 <c>\r</c> 或 <c>\n</c> 时抛
+    /// <see cref="InvalidOperationException"/>，不清洗也不替换——定宽档没有可以包住换行的引号，写出去会让一档
+    /// 被读成错行的两档。该判定要等取到那一行才做得出（行集合是惰性游标），所以抛出时前面的行可能已经落盘；
+    /// 含换行的数据请用 <see cref="ExcelTextLayout.Delimited"/> 布局配 <see cref="Quote"/> 写出。
+    /// 列上的 <see cref="ExcelColumn.PadChar"/> 同样不得是换行符，那一条与内容无关，在写出任何字节之前就被拒绝。
+    /// </para>
     /// </remarks>
     public ExcelTextLayout Layout { get; init; } = ExcelTextLayout.Delimited;
 

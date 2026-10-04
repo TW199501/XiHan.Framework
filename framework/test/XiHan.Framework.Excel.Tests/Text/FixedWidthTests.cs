@@ -150,6 +150,26 @@ public class FixedWidthTests
     }
 
     /// <summary>
+    /// 补位字符是换行时按非法补位字符拒绝：整格补位会凭空写出行尾，一档被读成两档
+    /// </summary>
+    /// <remarks>
+    /// 这一条与字节数无关（<c>\r</c> 与 <c>\n</c> 在 UTF-8、Big5 下都是 1 字节），单列一条判定：
+    /// 固定宽度档按行解析，换行只能出现在行尾，不能来自补位。
+    /// </remarks>
+    [Theory]
+    [InlineData('\n')]
+    [InlineData('\r')]
+    public void 补位字符是换行时抛异常(char padChar)
+    {
+        var ex = Assert.Throws<ArgumentException>(() => TextWriterHelper.PadToWidth(
+            "A", 6, TextWriterHelper.ResolveEncoding("utf-8"),
+            ExcelTextPadding.Right, padChar, ExcelTextOverflow.Throw));
+
+        Assert.Contains("换行", ex.Message, StringComparison.Ordinal);
+        Assert.Equal("padChar", ex.ParamName);
+    }
+
+    /// <summary>
     /// 待写内容在目标编码收不下时抛编码回退异常，不静默替换成问号字节
     /// </summary>
     /// <remarks>
