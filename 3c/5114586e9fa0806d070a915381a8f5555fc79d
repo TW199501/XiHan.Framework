@@ -1,0 +1,20 @@
+framework/templates/content/xihan-web/test/XiHanWebApp.Tests/WebAppHostFactory.cs
+  s_94057b8e5cf9b6::t_8c1c14d7ae6dd4 15
+  s_94057b8e5cf9b6::t_328c25f98765bc 20,22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3c5114586e9fa0806d070a915381a8f5555fc79d",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
