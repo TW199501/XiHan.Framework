@@ -97,4 +97,9 @@ public class NonColumnMemberRow
     {
         set => Name = value;
     }
+
+    /// <summary>
+    /// 读取器是私有的，公共读面上取不到值
+    /// </summary>
+    public string PrivateGetter { private get; set; } = string.Empty;
 }

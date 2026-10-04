@@ -15,7 +15,7 @@ namespace XiHan.Framework.Excel.Columns;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 列来源是行类型的公共实例属性：读不出值的属性和索引器不成列，标了 <see cref="ExcelIgnoreAttribute"/>
+/// 列来源是行类型的公共实例属性：没有公共读取器的属性和索引器不成列，标了 <see cref="ExcelIgnoreAttribute"/>
 /// 的属性不成列；标了 <see cref="ExcelColumnAttribute"/> 的属性按特性给出表头与呈现项，特性没给表头时
 /// 取属性的描述信息；两个特性都没标的属性照常成列，表头同样取描述信息，呈现项取列的默认值。
 /// </para>
@@ -72,7 +72,7 @@ public static class ExcelColumnBuilder
 
         foreach (var property in typeof(TRow).GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
-            if (!property.CanRead || property.GetIndexParameters().Length > 0)
+            if (property.GetGetMethod() is null || property.GetIndexParameters().Length > 0)
             {
                 continue;
             }

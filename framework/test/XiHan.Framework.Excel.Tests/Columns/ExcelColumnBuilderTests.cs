@@ -117,10 +117,10 @@ public class ExcelColumnBuilderTests
     }
 
     /// <summary>
-    /// 索引器与只写属性取不出值，不产出列
+    /// 索引器、只写属性和只有私有读取器的属性都不产出列
     /// </summary>
     [Fact]
-    public void 特性列_索引器与只写属性不成列()
+    public void 特性列_索引器与公共读不到的属性不成列()
     {
         var columns = ExcelColumnBuilder.CreateColumns<NonColumnMemberRow>();
 
