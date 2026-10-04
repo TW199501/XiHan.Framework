@@ -1,0 +1,31 @@
+framework/src/XiHan.Framework.Authentication/Otp/OtpService.cs
+  s_94057b8e5cf9b6::t_7a9e75f4c80179 124-130
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Executor/JobExecutor.cs
+  s_94057b8e5cf9b6::t_ac2faa9dd5f5f1 79,93-100,113-121,123-124,126
+framework/src/XiHan.Framework.Data/SqlSugar/Repository/SqlSugarSoftDeleteRepository.cs
+  s_94057b8e5cf9b6::t_8bcf02e8a2abbd 63,107,181,226,316,324,364
+framework/src/XiHan.Framework.Data/SqlSugar/Initializers/DbEntityTypeProvider.cs
+  s_94057b8e5cf9b6::t_4e69a350e00a5e 116,140-141
+framework/src/XiHan.Framework.Data/SqlSugar/Repository/SqlSugarRepositoryBase.cs
+  s_94057b8e5cf9b6::t_fb0151f20729f4 590,609-616,630,638,652-654,656-659,661
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Executor/JobExecutorTests.cs
+  s_94057b8e5cf9b6::t_5d85556410381f 315,349
+docs/packages/data.md
+  s_94057b8e5cf9b6::t_960f9d2d9346b0 131,158,431,530
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d128b870aa452c1a6f43ede957212f63df77ae7f",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
