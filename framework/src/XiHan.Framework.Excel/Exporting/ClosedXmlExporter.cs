@@ -11,7 +11,7 @@ using XiHan.Framework.Utils.Core;
 namespace XiHan.Framework.Excel.Exporting;
 
 /// <summary>
-/// xlsx 工作簿导出器，用 ClosedXML 写单张表的表头、数据、样式与排版
+/// xlsx 工作簿导出器，用 ClosedXML 把一张或多张表写成带样式与排版的工作簿
 /// </summary>
 /// <remarks>
 /// <para>
@@ -23,9 +23,17 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 那里读到的不是调用方的声明值。
 /// </para>
 /// <para>
-/// 行集合的元素按 <see cref="ExcelSheetSpec.RowType"/> 校验一次：取到首个非 null 元素时比对实际类型，
-/// 不符即抛，不为一次类型检查而物化整份行集合；<c>RowType</c> 本身为 null 同样抛，不跳过判定。
-/// 放行异型行只会交出一份表头齐全、数据全空的档。
+/// 行集合的元素按 <see cref="ExcelSheetSpec.RowType"/> 校验：声明本身为 <c>null</c> 属于「非法声明」，
+/// 在写出第一格之前的预检里就抛，一个行元素都不取；类型比对仍落在取到首个非 null 元素的时候，不符即抛，
+/// 不为一次类型检查而物化整份行集合。放行异型行只会交出一份表头齐全、数据全空的档。
+/// </para>
+/// <para>
+/// <see cref="ExcelSheetSpec.SheetName"/> 的可用性在写第一格之前判：长度不超过 31（按 UTF-16 代码单元，与工作簿同一量纲，
+/// 代理对算两个）、不含工作簿不接受的字符、不以单引号开头或结尾；多表路径还要求名字互不重复，判重用
+/// <see cref="StringComparer.OrdinalIgnoreCase"/>，与 Excel 和 <see cref="ClosedXML.Excel.IXLWorksheets"/> 的口径一致。
+/// 这套判据逐条对齐工作簿的现实而不是猜测（取证见 <c>.superpowers/sdd/2026-10-04-excel/t7-probe-sheetname-charset.txt</c>
+/// 与 <c>t7-probe-sheetname-parity.txt</c>），既不比工作簿严（不误杀它肯收的名字），也不比它松，且绝不替调用方改名——
+/// 被拒的名字一律抛出，不做去空格、截断或加后缀这类静默兜底。
 /// </para>
 /// <para>
 /// <see cref="ExcelColumn.Width"/> 是工作簿显示宽度：<c>null</c> 走自适应列宽，其余取值必须是大于 0 且不高于
@@ -49,12 +57,13 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 会被工作簿夹到纪元时刻、静默变成另一个日期，因此该格直接抛 <see cref="InvalidOperationException"/> 并点名行位置、
 /// 表头与列键。颜色串必须是 <c>#RGB</c> 或 <c>#RRGGBB</c>，<c>null</c> 才表示未设置——空串与非法串不会被当成「没填」。
 /// 形状过关但工作簿仍解析不了的串（全形数字、阿拉伯-印度数字之类非 ASCII 位值）同样由本类转译成框架异常，
-/// 库的 <see cref="FormatException"/> 只作内部异常保留，对外不出现未声明的类型。
+/// 库的 <see cref="FormatException"/> 只作内部异常保留。这句承诺的范围是「本类显式检查过的失败面」：
+/// 颜色解析与表名判据在内，工作簿自身的存盘失败（流不可写、容器损坏、磁盘满）不在内，那类按库的异常形态交回。
 /// </para>
 /// <para>
 /// 输出流的所有权在调用方：本类只写入，绝不对传入流调用 <c>Dispose</c>，
-/// 存盘后流的位置停在末尾，调用方把位置回到 0 即可读回。整张表先在内存里建好再落盘，因此输入非法时
-/// 流里不会留下半个字节；取消发生在逐行检查处，抛出的那一刻工作簿尚未存盘，输出流同样是空的。
+/// 存盘后流的位置停在末尾，调用方把位置回到 0 即可读回。整份档（单表是一张，多表是清单里全部）先在内存里建好再落盘，
+/// 因此输入非法时流里不会留下半个字节；取消发生在逐行检查处，抛出的那一刻工作簿尚未存盘，输出流同样是空的。
 /// </para>
 /// <para>
 /// 写出全程同步：ClosedXML 没有异步面，写出侧不伪装 <c>async</c>、不起线程池任务，取消令牌在入口与逐行处检查。
@@ -80,6 +89,16 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// </summary>
     private const double MaximumColumnWidth = 255.0;
 
+    /// <summary>
+    /// 工作表名的长度上限，按 UTF-16 代码单元计（代理对占两个），与工作簿的判据同一量纲
+    /// </summary>
+    private const int MaximumSheetNameLength = 31;
+
+    /// <summary>
+    /// 工作表名不接受的字符，逐个实测自工作簿而不是照抄规范文本
+    /// </summary>
+    private static readonly char[] InvalidSheetNameCharacters = [':', '\\', '/', '?', '*', '[', ']', '\0', '\u0003'];
+
     private readonly XiHanExcelOptions _options = options ?? throw new ArgumentNullException(nameof(options));
 
     /// <summary>
@@ -91,13 +110,16 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <returns>导出结果，格式为 <see cref="ExcelFormat.Xlsx"/>，<see cref="ExcelExportResult.StylingApplied"/> 为 <c>true</c></returns>
     /// <exception cref="ArgumentNullException"><paramref name="output"/> 或 <paramref name="sheet"/> 为 <c>null</c>，
     /// 或 <see cref="ExcelSheetSpec.RowType"/> 为 <c>null</c>（<see cref="ArgumentException.ParamName"/> 为 <c>RowType</c>；
-    /// 该属性是 <c>required</c> 非空成员，null 只会来自 <c>null!</c> 的非法声明）</exception>
+    /// 该属性是 <c>required</c> 非空成员，null 只会来自 <c>null!</c> 的非法声明，并在写出第一格之前就被拒）</exception>
     /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是大于 0 且不高于 255
     /// 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内，或
     /// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/> 为负数</exception>
-    /// <exception cref="ArgumentException"><see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串，
-    /// 或形状合法但工作簿解析不了（位值含非 ASCII 字符）；<see cref="Exception.InnerException"/> 为库抛出的
-    /// <see cref="FormatException"/>，<see cref="ArgumentException.ParamName"/> 为 <c>HeaderFill</c></exception>
+    /// <exception cref="ArgumentException"><see cref="ExcelSheetSpec.SheetName"/> 超过 31 个字符、含工作簿不接受的字符
+    /// （<c>: \ / ? * [ ]</c> 与控制字符 <c>U+0000</c>、<c>U+0003</c>）或以单引号开头／结尾，此时
+    /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>；或 <see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的
+    /// 十六进制颜色串，此时 <see cref="ArgumentException.ParamName"/> 为 <c>HeaderFill</c>。颜色串里只有「形状合法但工作簿
+    /// 解析不了（位值含非 ASCII 字符）」那一条带库的 <see cref="FormatException"/> 作为内部异常，形状本身不合法的那条
+    /// 没有内部异常——按异常类型与 <see cref="ArgumentException.ParamName"/> 分流，不要靠读内部异常判断成因</exception>
     /// <exception cref="InvalidOperationException">行集合首个非 null 元素与
     /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是 xlsx 表示不了的日期；或某列的
     /// <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串（含形状合法但解析不了的串）。三者消息都点名行位置与
@@ -105,8 +127,8 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <see cref="FormatException"/> 保留为内部异常</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
-    /// 值域检查（列宽、对齐、表头底色、取样上限）全部排在写入第一格之前，非法输入不会留下半份文件。
-    /// 逐行检查取消令牌；行集合按惰性枚举，取到一行才写一行。
+    /// 值域检查（表名、列宽、对齐、表头底色、取样上限、<see cref="ExcelSheetSpec.RowType"/> 声明）全部排在写入第一格之前，
+    /// 非法输入不会留下半份文件。逐行检查取消令牌；行集合按惰性枚举，取到一行才写一行。
     /// </remarks>
     public Task<ExcelExportResult> ExportAsync(
         Stream output,
@@ -118,9 +140,83 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
 
         cancellationToken.ThrowIfCancellationRequested();
         ValidateSampleRows();
+        ValidateSheetName(sheet.SheetName, 1);
 
         using var workbook = new XLWorkbook();
         WriteSheet(workbook, sheet, cancellationToken);
+
+        // SaveAs 不关闭传入流，写完停在末尾
+        workbook.SaveAs(output);
+
+        return Task.FromResult(ExcelExportResult.Styled(
+            ExcelFormat.Xlsx,
+            ExcelConstants.ExtensionXlsx,
+            ExcelConstants.XlsxContentType));
+    }
+
+    /// <summary>
+    /// 把多张表写成同一个 xlsx 工作簿
+    /// </summary>
+    /// <param name="output">输出流，导出器只写入不关闭，由调用方拥有</param>
+    /// <param name="sheets">表清单，顺序就是工作表的落位顺序，至少一张</param>
+    /// <param name="cancellationToken">取消令牌，取消时不再写出后续行与后续的表</param>
+    /// <returns>导出结果，格式为 <see cref="ExcelFormat.Xlsx"/>，<see cref="ExcelExportResult.StylingApplied"/> 为 <c>true</c></returns>
+    /// <exception cref="ArgumentNullException"><paramref name="output"/> 或 <paramref name="sheets"/> 为 <c>null</c>，
+    /// <paramref name="sheets"/> 里有 <c>null</c> 项（<see cref="ArgumentException.ParamName"/> 为 <c>sheets</c>，
+    /// 消息点名是第几项），或清单里某张表的 <see cref="ExcelSheetSpec.RowType"/> 为 <c>null</c>
+    /// （<see cref="ArgumentException.ParamName"/> 为 <c>RowType</c>）</exception>
+    /// <exception cref="ArgumentException"><paramref name="sheets"/> 为空清单（工作簿至少要有一张表，
+    /// <see cref="ArgumentException.ParamName"/> 为 <c>sheets</c>），或某张表的 <see cref="ExcelSheetSpec.SheetName"/>
+    /// 不可用、或与清单里更早那张重名（判重不区分大小写），
+    /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>；或某张表的
+    /// <see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串。空清单与表名两类都在建工作簿之前抛出，
+    /// 底色一类排在写第一格之前</exception>
+    /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是大于 0 且不高于 255
+    /// 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内，或
+    /// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/> 为负数</exception>
+    /// <exception cref="InvalidOperationException">某张表的行集合首个非 null 元素与其
+    /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是 xlsx 表示不了的日期；或某列的
+    /// <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
+    /// <remarks>
+    /// <para>
+    /// 每张表走的写出路径与 <see cref="ExportAsync"/> 完全相同（同一个逐表方法），列宽、对齐、底色、行型这些守卫
+    /// 只有那一份，本方法不重写任何一条。本方法额外只做两件清单级的事：先确认清单非空，再确认表名可用且互不重名。
+    /// </para>
+    /// <para>
+    /// 整份档先在内存里建好再落盘，所以任何一张表失败（包括排在后面的表名非法、行型不符、令牌取消）都不会在
+    /// <paramref name="output"/> 里留下半个字节；前面那些表已经写进内存工作簿的部分随异常一起被丢弃。
+    /// </para>
+    /// </remarks>
+    public Task<ExcelExportResult> ExportAllAsync(
+        Stream output,
+        IReadOnlyList<ExcelSheetSpec> sheets,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(sheets);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        ValidateSampleRows();
+
+        if (sheets.Count == 0)
+        {
+            throw new ArgumentException(
+                $"{nameof(sheets)} 为空：xlsx 工作簿至少要有一张表。" +
+                "交出空清单不会得到一份空档，只会得到工作簿「至少要有一张表」那句英文异常，" +
+                "没有表可写就是没有可交出的档，请自己判掉这一类输入。",
+                nameof(sheets));
+        }
+
+        ValidateSheetNames(sheets);
+
+        using var workbook = new XLWorkbook();
+
+        foreach (var sheet in sheets)
+        {
+            // 逐表写出复用单表路径的全部守卫，不在这里再判一遍
+            WriteSheet(workbook, sheet, cancellationToken);
+        }
 
         // SaveAs 不关闭传入流，写完停在末尾
         workbook.SaveAs(output);
@@ -138,9 +234,14 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <param name="sheet">表规格</param>
     /// <param name="cancellationToken">取消令牌，逐行检查</param>
     /// <returns>写入完成的工作表</returns>
+    /// <remarks>
+    /// 单表与多表共用这一个方法，所以这里的预检（<see cref="ExcelSheetSpec.RowType"/> 声明、列值域、表头底色）
+    /// 对两条路径同时生效；表名的可用性由两个入口在建工作簿之前判，不在这里判第二次。
+    /// </remarks>
     private IXLWorksheet WriteSheet(IXLWorkbook workbook, ExcelSheetSpec sheet, CancellationToken cancellationToken)
     {
         var columns = sheet.Columns;
+        var rowType = ValidateRowTypeDeclaration(sheet);
         ValidateColumns(columns);
         var headerFill = sheet.HeaderFill is null ? null : ParseSheetColor(sheet.HeaderFill, nameof(ExcelSheetSpec.HeaderFill));
         var title = string.IsNullOrWhiteSpace(sheet.Title) ? null : sheet.Title;
@@ -168,7 +269,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
             // 行型一致性只判首个非 null 元素，判过就不再判，行集合不物化
             if (!rowTypeChecked && row is not null)
             {
-                ValidateRowType(sheet, row, rowIndex);
+                ValidateRowType(rowType, row, rowIndex);
                 rowTypeChecked = true;
             }
 
@@ -423,26 +524,31 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     }
 
     /// <summary>
+    /// 在写第一格之前确认表规格声明了行类型，交回非 null 的声明类型供逐行比对
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ExcelSheetSpec.RowType"/> 是 <c>required</c> 非空成员，能走到 null 的只有 <c>null!</c> 这种非法状态。
+    /// 判定放在预检而不是逐行路径上：零行的规格也要被拒——多表路径里「一行都没有 + 声明缺失」同样是坏声明，
+    /// 只有预检这一层同时覆盖单表与多表。跳过判定等于替调用方把坏声明咽下。
+    /// </remarks>
+    private static Type ValidateRowTypeDeclaration(ExcelSheetSpec sheet)
+    {
+        return sheet.RowType ?? throw new ArgumentNullException(
+            nameof(ExcelSheetSpec.RowType),
+            $"{nameof(ExcelSheetSpec.RowType)} 为 null：行集合的元素没有可比对的声明类型。" +
+            "请用行类型初始化表规格（RowType = typeof(TRow)），null 是非法状态而不是「未填」。");
+    }
+
+    /// <summary>
     /// 判定首个行元素的实际类型与表规格声明的 <see cref="ExcelSheetSpec.RowType"/> 是否一致
     /// </summary>
     /// <remarks>
     /// 只判首个非 null 元素：行集合是惰性游标，为一次类型检查而物化会破坏流式契约；null 行按列的既有契约写成空格，
     /// 本身没有类型可判。派生行类型按 <see cref="Type.IsInstanceOfType(object)"/> 放行。
-    /// <see cref="ExcelSheetSpec.RowType"/> 是 <c>required</c> 非空成员，能走到 null 的只有 <c>null!</c> 这种非法状态，
-    /// 因此直接抛而不是跳过判定——跳过等于替调用方把坏声明咽下。
+    /// 声明本身为 null 的情况已由 <see cref="ValidateRowTypeDeclaration"/> 在预检拦下，这里不再判第二次。
     /// </remarks>
-    private static void ValidateRowType(ExcelSheetSpec sheet, object row, int rowIndex)
+    private static void ValidateRowType(Type expected, object row, int rowIndex)
     {
-        var expected = sheet.RowType;
-
-        if (expected is null)
-        {
-            throw new ArgumentNullException(
-                nameof(ExcelSheetSpec.RowType),
-                $"{nameof(ExcelSheetSpec.RowType)} 为 null：行集合的元素没有可比对的声明类型。" +
-                "请用行类型初始化表规格（RowType = typeof(TRow)），null 是非法状态而不是「未填」。");
-        }
-
         if (expected.IsInstanceOfType(row))
         {
             return;
@@ -454,6 +560,101 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
             "请给出该类型的行集合，或把 RowType 改为实际行类型——异型行经列的取值方法只会得到 null，" +
             "放行就是交出一份表头齐全、数据全空的档。");
     }
+
+    /// <summary>
+    /// 逐张检查清单里的表名可用且互不重名
+    /// </summary>
+    /// <remarks>
+    /// 判重用 <see cref="StringComparer.OrdinalIgnoreCase"/>：Excel 的工作表名不区分大小写，
+    /// 实测工作簿也按同一口径判重（含仅大小写不同的名字），0 个分歧的比对见
+    /// <c>.superpowers/sdd/2026-10-04-excel/t7-probe-sheetname-parity.txt</c>。
+    /// </remarks>
+    private static void ValidateSheetNames(IReadOnlyList<ExcelSheetSpec> sheets)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (var index = 0; index < sheets.Count; index++)
+        {
+            var position = index + 1;
+            var sheet = sheets[index];
+
+            if (sheet is null)
+            {
+                throw new ArgumentNullException(
+                    nameof(sheets),
+                    $"第 {position} 项是 null：清单里的每一项都必须是一张表的规格。" +
+                    "空项既没有表名也没有列，写不出任何东西，也不会被当成「跳过这张表」。");
+            }
+
+            var sheetName = sheet.SheetName;
+
+            ValidateSheetName(sheetName, position);
+
+            if (!seen.Add(sheetName))
+            {
+                throw new ArgumentException(
+                    $"xlsx 导出无法完成：第 {position} 张表的表名「{TrimForMessage(sheetName)}」与清单里更早那张重名。" +
+                    "工作表名不区分大小写，判重按同一口径进行；工作簿遇到重名会直接拒掉而不是自动加后缀改名，" +
+                    "所以这里先拦：请给出互不重复的表名。",
+                    nameof(ExcelSheetSpec.SheetName));
+            }
+        }
+    }
+
+    /// <summary>
+    /// 检查单张表的表名能否落进工作簿：长度、非法字符与首尾单引号
+    /// </summary>
+    /// <remarks>
+    /// 三条判据都取自工作簿的现实而不是规范文本（取证见 <c>t7-probe-sheetname-charset.txt</c>）：
+    /// 长度按 <see cref="string.Length"/>（UTF-16 代码单元）计，代理对占两个，实测 31 可收、32 被拒；
+    /// 非法字符是 <c>: \ / ? * [ ]</c> 加 <c>U+0000</c> 与 <c>U+0003</c>，其余 ASCII 与控制字符工作簿都肯收，
+    /// 所以我们不多拒（含竖线、尖括号、换行、全形字符的名字照样写）；首尾单引号被拒而中间的撇号被收。
+    /// 表名为空或纯空白由 <see cref="ExcelSheetSpec.SheetName"/> 的 <c>init</c> 守卫拦下，这里不重复判。
+    /// </remarks>
+    private static void ValidateSheetName(string sheetName, int position)
+    {
+        if (sheetName.Length > MaximumSheetNameLength)
+        {
+            throw new ArgumentException(
+                $"xlsx 导出无法完成：第 {position} 张表的表名「{TrimForMessage(sheetName)}」有 {sheetName.Length} 个字符，" +
+                $"超过工作表名的上限 {MaximumSheetNameLength} 个（按 UTF-16 代码单元计，一个代理对占两个）。" +
+                "工作簿不会截断它，只会拒掉，请自己缩短或分表。",
+                nameof(ExcelSheetSpec.SheetName));
+        }
+
+        var invalidIndex = sheetName.IndexOfAny(InvalidSheetNameCharacters);
+
+        if (invalidIndex >= 0)
+        {
+            throw new ArgumentException(
+                $"xlsx 导出无法完成：第 {position} 张表的表名「{TrimForMessage(sheetName)}」在第 {invalidIndex + 1} 个字符处" +
+                $"含有工作表名不接受的字符「{DescribeCharacter(sheetName[invalidIndex])}」" +
+                $"（不接受的字符为 : \\ / ? * [ ] 与 U+0000、U+0003）。请改名字，写出侧不代为替换或删字符。",
+                nameof(ExcelSheetSpec.SheetName));
+        }
+
+        if (sheetName[0] == '\'' || sheetName[^1] == '\'')
+        {
+            throw new ArgumentException(
+                $"xlsx 导出无法完成：第 {position} 张表的表名「{TrimForMessage(sheetName)}」以单引号开头或结尾，" +
+                "工作簿不接受这种名字。请把撇号挪到名字中间或去掉。",
+                nameof(ExcelSheetSpec.SheetName));
+        }
+    }
+
+    /// <summary>
+    /// 把过长的名字截短后再写进异常消息，避免一条消息塞进整串无用的字符
+    /// </summary>
+    private static string TrimForMessage(string sheetName)
+        => sheetName.Length <= 40 ? sheetName : sheetName[..40] + "…";
+
+    /// <summary>
+    /// 描述一个字符，让控制字符在消息里也可读
+    /// </summary>
+    private static string DescribeCharacter(char character)
+        => char.IsControl(character)
+            ? $"U+{(int)character:X4}（控制字符，消息里显示为空格）"
+            : character.ToString();
 
     /// <summary>
     /// 检查自适应列宽的取样上限
