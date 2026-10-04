@@ -1,0 +1,39 @@
+docs/guide/event-bus.md
+  s_94057b8e5cf9b6::t_365bc0a8b61d47 360
+docs/packages/data.md
+  s_94057b8e5cf9b6::t_0798476f934453 137
+docs/packages/eventbus.md
+  s_94057b8e5cf9b6::t_296a458fe40858 60,102
+docs/guide/tasks.md
+  s_94057b8e5cf9b6::t_9bb6ddaa8b5320 410,422,438,447-448,452
+docs/packages/tasks.md
+  s_94057b8e5cf9b6::t_5f5d8086326306 85,117,151-154,158-159,200,240,405,418
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/BackgroundJobExecuter.cs
+  s_94057b8e5cf9b6::t_8a7eff1bdb4812 45,51,59-60,64-65
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/BackgroundJobWorker.cs
+  s_94057b8e5cf9b6::t_f4cb4869d9c431 38,119-123,125-132,134-139,141,143-144,146-147,151-152,217,233-240
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/DefaultBackgroundJobStore.cs
+  s_94057b8e5cf9b6::t_7dc4f7078e166a 27,35,61,65-76,84,89,97
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionExtensions.cs
+  s_94057b8e5cf9b6::t_c3c09217dacb41 52
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionExtensionsTests.cs
+  s_94057b8e5cf9b6::t_9a3cd9b0858d16 110-111
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionRegistrationIdempotencyTests.cs
+  s_94057b8e5cf9b6::t_6ec7d9888cdf6e 94-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e3edceb86992a817b2cf8a054c4ec85a0aeea10c",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
