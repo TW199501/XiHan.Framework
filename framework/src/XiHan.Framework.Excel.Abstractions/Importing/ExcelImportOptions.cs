@@ -130,9 +130,10 @@ public sealed record ExcelImportOptions
     /// <remarks>
     /// <para>
     /// 只对 <see cref="ExcelImportFormat.Csv"/>／<see cref="ExcelImportFormat.Txt"/> 生效。取 <c>null</c> 时的判别链见
-    /// 导入实现的说明；自动判别只能保证「不产出解码失败的乱码」，<u>不能保证判对编码</u>：纯 ASCII 档在 UTF-8 与
-    /// Big5 下都合法，一段 Big5 字节也可能正好是合法 UTF-8 序列，判出来的文本会是另一种语言的字。
-    /// 已知来源编码时请指名，这是唯一确定的做法。
+    /// 导入实现的说明；自动判别只能保证「按判出来的编码解不会撞到解码错误」，<u>不保证那是原档真正的编码</u>：
+    /// 纯 ASCII 档在 UTF-8 与 Big5 下都合法，一段 Big5 字节也可能正好构成合法 UTF-8 序列，判出来的会是另一种语言的字；
+    /// <u>没有 BOM 的 UTF-16 更会被判成 UTF-8</u>（ASCII 段在 UTF-16LE 下每字后跟一个 <c>0x00</c>，那是合法 UTF-8），
+    /// 整份档会解出一串夹着 NUL 的字符而不报任何错。这三类档都必须指名编码，那是唯一确定的做法。
     /// </para>
     /// <para>
     /// 常用取值：<c>"utf-8"</c>、<c>"utf-8-bom"</c>、<c>"big5"</c>、<c>"gb18030"</c>，大小写与首尾空白不参与判断。

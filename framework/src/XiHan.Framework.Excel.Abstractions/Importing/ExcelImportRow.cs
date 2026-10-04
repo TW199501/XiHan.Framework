@@ -21,15 +21,24 @@ namespace XiHan.Framework.Excel.Abstractions.Importing;
 /// </remarks>
 /// <param name="RowNumber">
 /// <para>
-/// 源文件里的 1 起始行号，含表头行、<see cref="ExcelImportOptions.HeaderRowIndex"/> 丢掉的前导行与
-/// <see cref="ExcelImportOptions.SkipEmptyRows"/> 跳过的空行——它是给错误报表定位用的，不随跳过动作重排。
+/// 本表内 <b>1 起始的行序号</b>，含表头行、<see cref="ExcelImportOptions.HeaderRowIndex"/> 丢掉的前导行与
+/// <see cref="ExcelImportOptions.SkipEmptyRows"/> 跳过的空行——两种来源下它都<u>不随跳行重排</u>。
 /// <see cref="ExcelImportOptions.HeaderRowIndex"/> 为 <c>0</c> 且 <see cref="ExcelImportOptions.HasHeader"/>
 /// 为 <c>true</c> 时，第一条数据行的行号是 <c>2</c>。
 /// </para>
 /// <para>
-/// 文字档里的「行」是<u>一条记录</u>而不是一个物理行：被引号包住的换行属于同一条记录，后续记录的行号按记录数递增，
-/// 不会为它补跳一格。读取器不暴露物理行位（<c>RowCount</c> 给的是结果集总行数、迭代期间不变），
-/// 因此这个口径无法再精确，写在这里以免被当成逐字节行号使用。
+/// <b>二进制档（</b><c>.xls</c>／<c>.xlsx</c><b>）它等于物理行号</b>：空行、稀疏行都会各交出一条记录，
+/// 序号与簿里的行号一一对上。
+/// </para>
+/// <para>
+/// <b>文字档（</b><c>.csv</c>／<c>.txt</c><b>）在字段值含换行时它是记录序号而不是编辑器行数</b>：
+/// 被引号包住的换行属于同一条记录，后续记录的序号按记录递增，不会为它补跳一格。这不是可修的细节——
+/// 读取器不暴露物理行位（<c>RowCount</c> 给的是结果集总行数、迭代期间不变），要拿到物理行号只能自造一层
+/// CSV 词法去数换行，那会与 <c>FallbackEncoding</c>、<c>AutodetectSeparators</c> 那套解析规则分叉成两套语义。
+/// </para>
+/// <para>
+/// 因此错误报表与本组件的文档都<u>不得</u>承诺「按编辑器里的行数找到那一行」；文字档上要定位到行，
+/// 得按记录序号数，或先把值里的换行清掉再导。
 /// </para>
 /// </param>
 /// <param name="Values">

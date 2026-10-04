@@ -21,6 +21,11 @@ namespace XiHan.Framework.Excel.Abstractions.Importing;
 /// 本契约只承诺读出源档里已有的东西：合并单元格除左上角外的其余格位读回 <c>null</c>（Excel 自身的存储形态），
 /// 公式只读回已缓存的值，样式、批注、图表与宏一律不解释。
 /// </para>
+/// <para>
+/// <see cref="ExcelImportRow.RowNumber"/> 的口径由本契约固定，实现不得各自解释：它是 1 起始的行序号，
+/// 二进制档等于物理行号，文字档在字段值含换行时是记录序号而非编辑器行数，两种情况下都不随跳行重排。
+/// 错误报表与本组件的文档都<u>不得</u>承诺「按编辑器行数找到那一行」，理由见该属性的说明。
+/// </para>
 /// </remarks>
 public interface IExcelImporter
 {

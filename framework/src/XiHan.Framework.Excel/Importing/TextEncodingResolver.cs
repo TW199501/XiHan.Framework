@@ -17,14 +17,23 @@ namespace XiHan.Framework.Excel.Importing;
 /// 两侧严格回退、未知名抛 <see cref="ArgumentException"/>），两边判定的编码不会分叉。
 /// </para>
 /// <para>
-/// 取到的编码一律带 <see cref="DecoderExceptionFallback"/>，这是「不产出乱码当正常数据」的前提：
-/// <see cref="Encoding.GetEncoding(string)"/> 默认的宽松解码永远不失败，也就永远察觉不到编码判错。
+/// 取到的编码一律带 <see cref="DecoderExceptionFallback"/>，为的是让「编码指错」能被察觉而不是安静带过：
+/// <see cref="Encoding.GetEncoding(string)"/> 默认的宽松解码永远不会失败，也就永远不会报判错。
+/// 但这条<b>只挡得住一部分乱码</b>，两件事必须分开看：
+/// <list type="bullet">
+/// <item>UTF-8 一支挡得住——非法 UTF-8 序列抛 <see cref="DecoderFallbackException"/>，读档停下而不是交出替换字符；</item>
+/// <item>Big5 一支挡不住——该代码页的解码器把配不上对的高位字节解成私有区字符 <c>U+F8F8</c> 而不是失败，
+/// 换成异常回退也一样，因此「带严格回退」不等于「不会产出乱码」。判出来的字里出现 <c>U+F8F8</c> 就代表源档那一处
+/// 字节已经损坏，调用方要自己决定要不要把它当错误。</item>
+/// </list>
 /// </para>
 /// <para>
 /// 自动判别是<u>保守</u>的而不是<u>准确</u>的：它只保证「按判出来的编码解不会撞到解码错误」，不保证那是原档真正的编码。
 /// 纯 ASCII 档在 UTF-8 与 Big5 下都合法，一段 Big5 双字节序列也可能正好构成合法 UTF-8 序列，
-/// 这时判出来的是另一种语言的字。已知来源编码请指名 <see cref="Abstractions.Importing.ExcelImportOptions.TextEncodingName"/>，
-/// 那是唯一确定的做法。
+/// 这时判出来的是另一种语言的字。<u>没有 BOM 的 UTF-16 更是会被判成 UTF-8</u>：ASCII 段在 UTF-16LE 下是
+/// 每个可见字符后跟一个 <c>0x00</c>，而 <c>0x00</c> 本身是合法 UTF-8，严格试探因此不会失败，整份档会被按 UTF-8
+/// 解出一串夹着 NUL 的字符。已知来源编码请指名
+/// <see cref="Abstractions.Importing.ExcelImportOptions.TextEncodingName"/>，那是唯一确定的做法。
 /// </para>
 /// </remarks>
 internal static class TextEncodingResolver
