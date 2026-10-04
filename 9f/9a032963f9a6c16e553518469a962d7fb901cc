@@ -1,0 +1,18 @@
+framework/src/XiHan.Framework.Excel/Columns/ExcelColumnBuilder.cs
+  h_be8240d2cfaa4b 18,75
+framework/test/XiHan.Framework.Excel.Tests/Columns/ExcelColumnBuilderTests.cs
+  h_be8240d2cfaa4b 120,123
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/AnnotatedRow.cs
+  h_be8240d2cfaa4b 100-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9f9a032963f9a6c16e553518469a962d7fb901cc",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
