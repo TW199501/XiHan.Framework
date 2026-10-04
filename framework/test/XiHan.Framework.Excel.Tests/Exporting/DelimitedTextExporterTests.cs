@@ -259,10 +259,55 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
-    /// 表头不做公式注入防护，只有数据值套防护前缀
+    /// 表头与数据格共用同一套公式注入防护，改写计入同一条聚合 Warning
+    /// </summary>
+    /// <remarks>
+    /// 表头文案是调用方在运行时给出的 required string，框架无法证明它出自开发者而不是终端使用者，
+    /// 「表头由开发者提供」因此不能当豁免依据。首个触发的定位取表头行——它是先写出的那一行。
+    /// </remarks>
+    [Fact]
+    public async Task 表头一并套用公式注入防护()
+    {
+        var sink = new FakeLogSink();
+        using var factory = LoggerFactory.Create(b => b.AddProvider(new SinkLoggerProvider(sink)));
+        var exporter = new DelimitedTextExporter(factory.CreateLogger<DelimitedTextExporter>());
+
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns =
+            [
+                new ExcelColumn<SampleRow>
+                {
+                    Key = nameof(SampleRow.AwbNo),
+                    Header = "=合计数",
+                    Order = 0,
+                    Value = row => row.AwbNo
+                }
+            ],
+            Rows = new[] { new SampleRow { AwbNo = "=1+1" } }
+        };
+
+        var stream = new MemoryStream();
+
+        await exporter.ExportAsync(stream, spec, ExcelFormat.Csv, new ExcelTextOptions(), TestContext.Current.CancellationToken);
+
+        // 表头行与数据行同样多出可见前缀：这一条代价写在 EscapeFormulaPrefix 的文档里
+        Assert.Equal("'=合计数" + "\r\n" + "'=1+1" + "\r\n", BodyOf(stream));
+
+        var warnings = sink.Entries.Where(e => e.Level == LogLevel.Warning).ToList();
+        Assert.Single(warnings);
+        Assert.Contains("有 2 个字段", warnings[0].Message, StringComparison.Ordinal);      // 表头一格 + 数据一格
+        Assert.Contains("表头行", warnings[0].Message, StringComparison.Ordinal);           // 首个触发点可定位到行
+        Assert.Contains(nameof(SampleRow.AwbNo), warnings[0].Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 关掉公式注入防护时表头与数据一律保留原始值
     /// </summary>
     [Fact]
-    public async Task 表头不做公式注入防护()
+    public async Task 关闭公式注入防护时表头也不加前缀()
     {
         var spec = new ExcelSheetSpec
         {
@@ -281,7 +326,8 @@ public class DelimitedTextExporterTests
             Rows = new[] { new SampleRow { AwbNo = "=1+1" } }
         };
 
-        Assert.Equal("=合计数" + "\r\n" + "'=1+1" + "\r\n", BodyOf(await Export(new ExcelTextOptions(), spec: spec)));
+        Assert.Equal("=合计数" + "\r\n" + "=1+1" + "\r\n",
+            BodyOf(await Export(new ExcelTextOptions { EscapeFormulaPrefix = false }, spec: spec)));
     }
 
     /// <summary>

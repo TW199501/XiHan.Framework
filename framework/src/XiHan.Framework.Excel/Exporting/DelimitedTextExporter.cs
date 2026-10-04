@@ -32,7 +32,10 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 样式，不是样式已生效。列宽与数字格式在文字档上的对应物是 <see cref="ExcelColumn.TextFormat"/>。
 /// </para>
 /// <para>
-/// 表头行不做公式注入防护：表头文案由开发者写在列模型上，不是外来数据，加前缀会让表头本身变形。
+/// 表头行与数据行走同一套公式注入防护：判据与写出入口都只有一份。表头文案是调用方在运行时给出的
+/// <c>required string</c>，框架无从证明它出自开发者而不是终端使用者，因此不按「来源可信」豁免；
+/// 以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c> 开头的标题会多出一个可见的 <c>'</c>，这一条代价写在
+/// <see cref="ExcelTextOptions.EscapeFormulaPrefix"/> 上，关掉本设置时表头与数据一并保留原值。
 /// </para>
 /// <para>
 /// <see cref="ExcelTextQuote.None"/> 下值内的分隔符与换行无法原样写出，本类把它们替换为空格并记一条 Warning
@@ -204,11 +207,12 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
         }
 
         // index 由共用骨架交出（固定宽度布局要用它取该列列宽），分隔符布局不解释它
-        string PrepareField(ExcelColumn column, int index, string rawText, string position, bool isHeader)
+        string PrepareField(ExcelColumn column, int index, string rawText, string position)
         {
             var guarded = rawText;
 
-            if (!isHeader && options.EscapeFormulaPrefix && TextWriterHelper.NeedsFormulaEscape(rawText))
+            // 表头与数据同一判据、同一入口：表头文案是调用方运行时给出的，框架无法证明它不是外来数据
+            if (options.EscapeFormulaPrefix && TextWriterHelper.NeedsFormulaEscape(rawText))
             {
                 guarded = TextWriterHelper.EscapeFormula(rawText);
                 escapedCount++;
@@ -305,8 +309,8 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
             }
         }
 
-        // isHeader 在本布局不改变处置：表头与数据都按同一列宽补位，行位置标签已经把两者分开
-        string PadField(ExcelColumn column, int index, string rawText, string position, bool isHeader)
+        // 表头与数据在本布局按同一列宽补位：布局不解释公式前缀，写出的一律是原值补到列宽
+        string PadField(ExcelColumn column, int index, string rawText, string position)
         {
             var width = widths[index];
 
@@ -393,7 +397,7 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
                 }
 
                 var column = columns[index];
-                line.Append(renderField(column, index, column.Header, HeaderPosition, isHeader: true));
+                line.Append(renderField(column, index, column.Header, HeaderPosition));
             }
 
             line.Append(options.NewLine);
@@ -423,7 +427,7 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
 
                 var column = columns[index];
                 var rawText = TextWriterHelper.ValueToText(column.GetValue(row), column.TextFormat, column.NumberFormat);
-                line.Append(renderField(column, index, rawText, position, isHeader: false));
+                line.Append(renderField(column, index, rawText, position));
             }
 
             line.Append(options.NewLine);
@@ -472,10 +476,12 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// <param name="column">本列</param>
     /// <param name="index">本列在列清单中的位置，供按列取设置的布局使用</param>
     /// <param name="rawText">取值已转成的文本（表头行就是表头文案）</param>
-    /// <param name="position">行位置标签，用于留痕与异常信息</param>
-    /// <param name="isHeader">是否为表头行：公式注入防护不适用于表头</param>
+    /// <param name="position">行位置标签，用于留痕与异常信息；表头行固定为「表头行」</param>
     /// <returns>可以直接拼进行里的文本</returns>
-    private delegate string RenderField(ExcelColumn column, int index, string rawText, string position, bool isHeader);
+    /// <remarks>
+    /// 表头行与数据行走同一个委托：同一串内容该写出什么，不因它落在表头还是数据而改变。
+    /// </remarks>
+    private delegate string RenderField(ExcelColumn column, int index, string rawText, string position);
 
     /// <summary>
     /// 在整档写出并 flush 之后、返回结果之前，落地本布局的聚合 Warning
