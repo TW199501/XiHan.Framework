@@ -44,10 +44,11 @@ namespace XiHan.Framework.Excel.Exporting;
 /// </para>
 /// <para>
 /// 表名与取值的判定不走库的那一套：表名按与全量路径共用的同一份判据先拒（库会拒一部分、
-/// 又把另一部分控制字符转义成另一个名字，两者都不是明确契约）；早于 1899-12-30 的 <c>DateTime</c>、非有限的浮点数与
-/// 长过单元格上限的字串同样先拒——这三类在本路径会被库直接落进档里，交出一份读不回的档或一个被改写的日期，
-/// 而全量路径对它们是抛，两条路径必须判得一样。行集合元素按 <see cref="ExcelSheetSpec.RowType"/> 逐笔校验，
-/// 判据与另两条路径同一份。取值委托自己抛出的异常原样上抛，本类不吞也不改写。
+/// 又把另一部分控制字符转义成另一个名字，两者都不是明确契约）；早于 1899-12-30 的 <see cref="DateTime"/>、
+/// 非有限的浮点数与长过单元格上限的字串同样先拒——这三类在本路径会被库直接落进档里，交出一份读不回的档
+/// 或一个被改写的日期，而全量路径对它们是抛，两条路径必须判得一样。行集合元素按
+/// <see cref="ExcelSheetSpec.RowType"/> 逐笔校验，判据与另两条路径同一份。取值委托自己抛出的异常原样上抛，
+/// 本类不吞也不改写。
 /// </para>
 /// <para>
 /// 输出流的所有权在调用方：本类只写入，不关闭也不复位流位置，写完停在末尾。取消令牌在入口、每一行投影之前
@@ -61,12 +62,15 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 值类型按写出库自己的形态落格，与全量路径可以不同：<see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>
 /// 在本路径落日期格（<c>DateTimeOffset</c> 取它的钟表时刻，偏移量不落格），在全量路径落文本格；
 /// <see cref="byte"/> 相反，在本路径落文本格、在全量路径落数值格；<see cref="TimeOnly"/> 在本路径落时长格。
-/// 这类同值异格不改变读回的值，因此不因格位不同而拒写：早于 1899-12-30 的 <c>DateOnly</c> 与
-/// <c>DateTimeOffset</c>（如 1899-12-29、1500-01-01）在本路径仍落成该日期本身。
-/// <b>但早到 <c>0001-01-01</c> 一类的极端取值会被写出库夹到 1899-12-30，值随之改变而结果仍回报完成</b>——
-/// 这是写出库的现实，本类不否认也不掩盖：要保住这类日期请用全量路径（它把 <c>DateOnly</c> 落成文本格，
-/// 值原样读回），或先把该列转成文本。取值域判定只管会被工作簿夹改的 <c>DateTime</c> 与非有限数值、超长字串
-/// （见上）。本类只承诺列顺序、表头文案与数值内容一致，不承诺格位型别一致。不写 <c>.xls</c>，也不承诺宏与图表。
+/// 这类同值异格不改变读回的值，因此不因格位不同而拒写。
+/// </para>
+/// <para>
+/// 日期格的下限是<b>本路径专属</b>的一道判定：1900 日期系统里早于 <c>1899-12-30</c> 的日期没有可落的序列号，
+/// 而本路径把 <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/> 也落成日期格，所以早于那一刻的这两个型别
+/// 在本路径拒写（<see cref="DateTime"/> 两条路径都拒，判据同一把尺）。全量路径把这两个型别交给工作簿落成文本格、
+/// 值与偏移量都原样留在文字里，因此不判这一条——同一份规格走哪条路径，早于纪元的 <c>DateOnly</c> 能导或不能导
+/// 并不相同，这是落格方式带来的差别，不是两套标准。要保住这类日期就用全量路径，或让该列取成文本。
+/// 本类只承诺列顺序、表头文案与数值内容一致，不承诺格位型别一致。不写 <c>.xls</c>，也不承诺宏与图表。
 /// </para>
 /// </remarks>
 public sealed class MiniExcelStreamExporter
@@ -100,9 +104,11 @@ public sealed class MiniExcelStreamExporter
     /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>；判据与全量写出路径同一份，
     /// 不交给写出库去拒或转义</exception>
     /// <exception cref="InvalidOperationException">行集合里有某笔元素与 <see cref="ExcelSheetSpec.RowType"/> 不符；
-    /// 列清单里有两列用了同一个 <see cref="ExcelColumn.Key"/>；或某个行值是工作簿装不下的（早于 1899-12-30 的日期、
-    /// <c>NaN</c> 或 <c>±∞</c>、长过单元格上限的字串）。三者消息都点名实际成因：行型不符者报出行号与期望／实际
-    /// 两个类型全名，重复列键者报出重复的键，取值越界者报出行位置、表头与列键。后两类里的取值判定只在取到那一行时
+    /// 列清单里有两列用了同一个 <see cref="ExcelColumn.Key"/>；或某个行值装不进本路径要落的格子——
+    /// 早于 1899-12-30 的 <see cref="DateTime"/>、<see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>
+    /// （后两者在本路径落日期格，故只在本路径拒；全量路径把它们落成文本格、值原样读回，不判这一条）、
+    /// <c>NaN</c> 或 <c>±∞</c>、长过单元格上限的字串。消息都点名实际成因：行型不符者报出行号与期望／实际
+    /// 两个类型全名，重复列键者报出重复的键，取值越界者报出行位置、表头与列键。取值类的判定只在取到那一行时
     /// 才做得出来，抛出时前面的行可能已经落进流里；重复列键在调用写出库之前就被拒，输出流零字节</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消。取消在入口被观察到时
     /// 输出流零字节；在写出中途被观察到时流里可能已有没收尾的字节；在写出收尾之后才被观察到时流里可能已是一份
@@ -263,7 +269,7 @@ public sealed class MiniExcelStreamExporter
 
                 // 取值域判定只交回成因文字，行位置在真要抛时才拼出来：每行每格都先分配一条消息，
                 // 等于让正常路径替异常路径付钱
-                if (value is not null && ExcelWorkbookWriteGuard.DescribeUnwritable(value) is { } reason)
+                if (value is not null && ExcelWorkbookWriteGuard.DescribeUnwritableInStream(value) is { } reason)
                 {
                     throw ExcelWorkbookWriteGuard.CreateFailure(column, $"第 {rowIndex} 行", reason);
                 }

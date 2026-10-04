@@ -389,38 +389,103 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
-    /// DateOnly 在本路径落日期格且值原样读回，早于纪元也照能导出
+    /// 早于工作簿日期下限的 DateOnly 与 DateTimeOffset 在本路径被拒，不交出日期格装不下的取值
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 钉的是实测落格形态，不是取舍：<c>DateOnly</c> 在本路径进日期格、在全量路径进文本格，
-    /// 同一个值落成不同格位而值不被改写，所以两条路径都不拒；日期下限判据只管会被夹改的 <c>DateTime</c>。
-    /// 日后有人把这条形态差异读成「数据损坏」而给 <c>DateOnly</c> 加回拒写，会先把这几条用例弄红。
+    /// 本路径把 <c>DateOnly</c> 与 <c>DateTimeOffset</c> 落成日期格，而 1900 日期系统里没有早于
+    /// 1899-12-30 的日期格序列号：实测这一段的两种后果都出现过——贴近或越过那一刻的取值被写成日期格读不回的
+    /// 序数，早得更多的（<c>0001-01-01</c> 一类）被写出库直接夹到 1899-12-30，值换了而返回值仍写着完成。
+    /// 与其猜哪一段会出事，整段一起拒。判据与 <c>DateTime</c> 用的是同一把尺（工作簿的日期下限），不另立常量。
     /// </para>
     /// <para>
-    /// 取的三个点各挡一种改法：1899-12-29 是「早于纪元但读回仍是原日期」那一侧，
-    /// 1899-12-30 是日期下限本身，1500-01-01 证明这条界不是「凡早于纪元都出事」。
+    /// 取的点分三层：1899-12-29 是下限的前一天、1500-01-01 与 0100-01-01 是「看着没事」的中等早年与极端早年、
+    /// <c>MinValue</c> 是真被夹改的那一档。同一些日期在全量路径照能导出（见 <c>ClosedXmlExporterTests</c>），
+    /// 那两条用例与上面的 <see cref="纪元当日及其后的日期型别在本路径落日期格且值不变"/> 一起证明两边各拒在该拒的地方。
     /// </para>
     /// </remarks>
+    /// <param name="useDateOnly">true 用 <c>DateOnly</c>，false 用带偏移量的 <c>DateTimeOffset</c></param>
     /// <param name="year">年份</param>
     /// <param name="month">月份</param>
     /// <param name="day">日</param>
     [Theory]
-    [InlineData(1899, 12, 29)]
-    [InlineData(1899, 12, 30)]
-    [InlineData(1500, 1, 1)]
-    public async Task 早于纪元的DateOnly在本路径落日期格且值不变(int year, int month, int day)
+    [InlineData(true, 1899, 12, 29)]
+    [InlineData(true, 1500, 1, 1)]
+    [InlineData(true, 100, 1, 1)]
+    [InlineData(true, 1, 1, 1)]
+    [InlineData(false, 1899, 12, 29)]
+    [InlineData(false, 1500, 1, 1)]
+    [InlineData(false, 1, 1, 1)]
+    public async Task 早于纪元的DateOnly与DateTimeOffset在流式路径被拒(bool useDateOnly, int year, int month, int day)
+    {
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new MiniExcelStreamExporter()
+            .ExportAsync(stream, BuildValueSpec(DateValue(useDateOnly, year, month, day)), TestContext.Current.CancellationToken));
+
+        Assert.Contains("日期", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("1899-12-30", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("全量", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// DateOnly 与 DateTimeOffset 在本路径落日期格且值原样读回，纪元当日与之后的都不被拒
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 钉的是本路径确实保得住能表示的日期：<c>DateOnly</c> 与 <c>DateTimeOffset</c> 在本路径进日期格、
+    /// 在全量路径进文本格，同一个值落成不同格位而值不被改写。取的点都在工作簿日期格可表示的范围之内
+    /// （1899-12-30 是那道下限本身、1899-12-31 是它的下一天、2026-01-02 是常态取值），
+    /// 用来证明拒写没有把边界当日与其后的值一起挡掉——那正是上一轮拒写被撤回的原因。
+    /// </para>
+    /// <para>
+    /// 早于下限的取值改由 <see cref="早于纪元的DateOnly与DateTimeOffset在流式路径被拒"/> 断拒写；
+    /// 同一些日期在全量路径照能导出（见 <c>ClosedXmlExporterTests</c> 的对应用例），
+    /// 两边不对称由那两条用例一起钉住。
+    /// </para>
+    /// </remarks>
+    /// <param name="useDateOnly">true 用 <c>DateOnly</c>，false 用带偏移量的 <c>DateTimeOffset</c></param>
+    /// <param name="year">年份</param>
+    /// <param name="month">月份</param>
+    /// <param name="day">日</param>
+    [Theory]
+    [InlineData(true, 1899, 12, 30)]
+    [InlineData(true, 1899, 12, 31)]
+    [InlineData(true, 2026, 1, 2)]
+    [InlineData(false, 1899, 12, 30)]
+    [InlineData(false, 1899, 12, 31)]
+    [InlineData(false, 2026, 1, 2)]
+    public async Task 纪元当日及其后的日期型别在本路径落日期格且值不变(bool useDateOnly, int year, int month, int day)
     {
         var stream = new MemoryStream();
 
         await new MiniExcelStreamExporter().ExportAsync(
-            stream, BuildValueSpec(new DateOnly(year, month, day)), TestContext.Current.CancellationToken);
+            stream, BuildValueSpec(DateValue(useDateOnly, year, month, day)), TestContext.Current.CancellationToken);
 
         using var workbook = Open(stream);
         var cell = workbook.Worksheet(1).Cell(2, 1);
 
         Assert.True(cell.Value.IsDateTime);
-        Assert.Equal(new DateTime(year, month, day), cell.Value.GetDateTime());
+        Assert.Equal(new DateTime(year, month, day, useDateOnly ? 0 : 6, useDateOnly ? 0 : 30, 0), cell.Value.GetDateTime());
+    }
+
+    /// <summary>
+    /// 按型别造一格日期取值：<c>DateOnly</c> 不带时刻，<c>DateTimeOffset</c> 带 <c>06:30</c> 与 <c>+08:00</c>
+    /// </summary>
+    /// <remarks>
+    /// <see cref="DateTimeOffset"/> 的构造本身不接受「公元 1 年再加 +08:00」这种组合（换算到 UTC 会掉出可表示范围），
+    /// 所以早到那个量级的取值只能按零偏移量造——要验的是日期格装不下早于纪元的日期，与偏移量无关。
+    /// </remarks>
+    private static object DateValue(bool useDateOnly, int year, int month, int day)
+    {
+        if (useDateOnly)
+        {
+            return new DateOnly(year, month, day);
+        }
+
+        var offset = year == 1 ? TimeSpan.Zero : TimeSpan.FromHours(8);
+
+        return new DateTimeOffset(year, month, day, 6, 30, 0, offset);
     }
 
     /// <summary>
@@ -429,11 +494,13 @@ public class MiniExcelStreamExporterTests
     /// <remarks>
     /// 与全量路径把 <c>DateTimeOffset</c> 落成带偏移量的文本格相对：本路径丢开偏移量，
     /// 读回的是钟表时刻。这一条把「同值异格」写实，免得只写「形态可能不同」而让人以为偏移量还在。
+    /// 取的日子在日期格可表示的范围之内——早于纪元的 <c>DateTimeOffset</c> 已改由
+    /// <see cref="早于纪元的DateOnly与DateTimeOffset在流式路径被拒"/> 断拒写（上一轮这条用的是 1899-12-29）。
     /// </remarks>
     [Fact]
     public async Task 带偏移量的DateTimeOffset在本路径只保留钟表时刻()
     {
-        var value = new DateTimeOffset(1899, 12, 29, 6, 30, 0, TimeSpan.FromHours(8));
+        var value = new DateTimeOffset(2026, 1, 2, 6, 30, 0, TimeSpan.FromHours(8));
 
         var stream = new MemoryStream();
 
@@ -444,44 +511,7 @@ public class MiniExcelStreamExporterTests
         var cell = workbook.Worksheet(1).Cell(2, 1);
 
         Assert.True(cell.Value.IsDateTime);
-        Assert.Equal(new DateTime(1899, 12, 29, 6, 30, 0), cell.Value.GetDateTime());
-    }
-
-    /// <summary>
-    /// 远早于纪元的 DateOnly 与 DateTimeOffset 被写出库夹到 1899-12-30，值改了而结果照样回报完成
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>这条钉的是写出库的既有行为，不是本组件认可它。</b>本路径的日期下限判据只管 <c>DateTime</c>，
-    /// <c>DateOnly</c> 与 <c>DateTimeOffset</c> 落到日期格后，早到 0001-01-01 一类的取值被库夹到纪元时刻：
-    /// 读回的是另一个日期，返回值却仍是一份正常的降级结果，没有任何一处报出这次改写。
-    /// </para>
-    /// <para>
-    /// 写在这里是为了让这条风险在 CI 里可见，而不是留成只有读代码的人才知道的坑：要保住这类日期，
-    /// 用全量路径（落文本格、值原样读回）或先把该列转成文本。是否改成像 <c>DateTime</c> 那样连这两个型别一起拒，
-    /// 由后续任务裁定——裁定落下来时这条用例就是改动的起点，不是障碍。
-    /// </para>
-    /// </remarks>
-    /// <param name="useDateOnly">用 <c>DateOnly.MinValue</c> 还是 <c>DateTimeOffset.MinValue</c></param>
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task 远早于纪元的日期型别在本路径被夹到纪元时刻(bool useDateOnly)
-    {
-        object value = useDateOnly ? new DateOnly(1, 1, 1) : new DateTimeOffset(1, 1, 1, 0, 0, 0, TimeSpan.Zero);
-
-        var stream = new MemoryStream();
-
-        var result = await new MiniExcelStreamExporter().ExportAsync(
-            stream, BuildValueSpec(value), TestContext.Current.CancellationToken);
-
-        Assert.Equal(ExcelConstants.ExtensionXlsx, result.FileExtension);
-
-        using var workbook = Open(stream);
-        var cell = workbook.Worksheet(1).Cell(2, 1);
-
-        Assert.True(cell.Value.IsDateTime);
-        Assert.Equal(new DateTime(1899, 12, 30), cell.Value.GetDateTime());
+        Assert.Equal(new DateTime(2026, 1, 2, 6, 30, 0), cell.Value.GetDateTime());
     }
 
     /// <summary>

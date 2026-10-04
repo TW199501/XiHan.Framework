@@ -24,12 +24,17 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 日期夹到纪元时刻会交回另一个日期，截断超长字串会丢弃数据，四种都是「交出看不出问题的坏档」。
 /// </para>
 /// <para>
-/// 两道判据放在一处是因为两条 xlsx 写出路径必须判同一件事：排版路径会把越界值与坏名字交给工作簿去拒，
-/// 流式路径却会把它们直接落进档里——日期被夹改、<c>NaN</c> 与超长字串写出回读不了的档、
-/// 名字里的控制字符被转义成另一个名字。分派器按行数把同一份规格送到其中一条路径，
-/// 能导与不能导的输入集合必须与走哪条无关，因此这里只留一份，两边都调它，不在各自的路径里各写一遍。
-/// 这份判据管的是「装不下」的取值；同一个值在两条路径落成不同格位（<see cref="DateOnly"/>、
-/// <see cref="byte"/>、<see cref="DateTimeOffset"/> 等）不在其列，由两条路径各自的文档说明。
+/// 两道判据放在一处是因为两条 xlsx 写出路径共用同一把尺，而不是为了把两边判成同一个样子：排版路径会把
+/// 越界值与坏名字交给工作簿去拒，流式路径却会把它们直接落进档里——日期被夹改、<c>NaN</c> 与超长字串写出
+/// 回读不了的档、名字里的控制字符被转义成另一个名字。分派器按行数把同一份规格送到其中一条路径，
+/// 「装不下」的取值集合不该由走哪条决定，因此这里只留一份，两边都调它，不在各自的路径里各写一遍。
+/// </para>
+/// <para>
+/// 只有日期格的下限按各条路径实际的落格方式判：<see cref="DateTime"/> 两条路径都落日期格，故由本文件的
+/// 共用判定管；<see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/> 在流式路径落日期格、在全量路径落文本格
+/// （值原样留在文字里），因此只在流式路径拒，见 <see cref="DescribeUnwritableInStream"/>。
+/// 同一个值落成不同格位而值不被改写的那些型别差异（<see cref="byte"/>、<see cref="TimeOnly"/> 等）
+/// 不在本文件的范围内，由两条路径各自的文档说明。
 /// </para>
 /// </remarks>
 internal static class ExcelWorkbookWriteGuard
@@ -149,10 +154,9 @@ internal static class ExcelWorkbookWriteGuard
     /// <remarks>
     /// 判定按型别分派，不做「先转字符串再看不像数字」这类猜测：<c>decimal</c> 没有非有限形态，
     /// <see cref="TimeSpan"/> 与 <see cref="Guid"/> 各有工作簿自己的格位，都不在这里拒。
-    /// 日期下限只判 <see cref="DateTime"/>——它是两条路径都会落进日期格、因而可能被夹改的型别。
-    /// <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/> 不在这道判定之内：全量路径把它们落成文本格（值原样读回），
-    /// 流式路径落成日期格，属落格形态差异而非「工作簿装不下」，由两条路径各自的文档承担；
-    /// 写出库对早到 <c>0001-01-01</c> 一类的极端取值仍会夹改，那道风险写在流式写出器的文档与用例里，不由本守卫处理。
+    /// 日期下限在这里只判 <see cref="DateTime"/>——它是两条路径都落日期格、因而共担同一道界的那个型别；
+    /// <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/> 在全量路径落文本格（值原样读回）、
+    /// 只在流式路径落日期格，故不归本方法，而由 <see cref="DescribeUnwritableInStream"/> 单独判。
     /// 成因只写值本身，行位置与列名由调用方在抛出时拼进去。
     /// </remarks>
     internal static string? DescribeUnwritable(object? value)
@@ -173,6 +177,46 @@ internal static class ExcelWorkbookWriteGuard
 
             _ => null
         };
+
+    /// <summary>
+    /// 流式路径的取值域判定：共用判定之外，再加一条只管本路径的日期格下限
+    /// </summary>
+    /// <param name="value">刚取出的行值，<c>null</c> 表示空格，直接放过</param>
+    /// <returns>不可写的原因文字，可写（含 <c>null</c> 值）时为 <c>null</c></returns>
+    /// <remarks>
+    /// <para>
+    /// <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/> 在流式路径都落成日期格（前者取当日零点，
+    /// 后者取它的钟表时刻、偏移量不落格），而 1900 日期系统里早于 <see cref="EarliestDate"/> 的日期没有可落的
+    /// 序列号：贴近那一刻的取值会写成日期格读不回原日期的序数，早得更多的（<c>0001-01-01</c> 一类）
+    /// 会被写出库直接夹到纪元时刻——值换了，返回值却仍是一份完成的结果。与其赌哪一段安全，整段一起拒。
+    /// </para>
+    /// <para>
+    /// 量的还是那把 <see cref="EarliestDate"/>，不另立常量；比的是真正落进格里的那个钟表时刻
+    /// （<see cref="DateTimeOffset"/> 用 <see cref="DateTimeOffset.DateTime"/>，不看偏移量）。
+    /// 全量路径把这两个型别交给工作簿落成文本格、值原样读回，因此不判这一条：不对称是两条路径的落格方式不同，
+    /// 不是两套标准。
+    /// </para>
+    /// </remarks>
+    internal static string? DescribeUnwritableInStream(object? value)
+        => DescribeUnwritable(value) ?? (value switch
+        {
+            DateOnly only when only.ToDateTime(TimeOnly.MinValue) < EarliestDate =>
+                StreamDateCellMessage($"{only:yyyy-MM-dd} 00:00:00"),
+
+            DateTimeOffset offset when offset.DateTime < EarliestDate =>
+                StreamDateCellMessage($"{offset.DateTime:yyyy-MM-dd HH:mm:ss}"),
+
+            _ => null
+        });
+
+    /// <summary>
+    /// 早于日期格下限的成因文字，带上本路径的出路
+    /// </summary>
+    private static string StreamDateCellMessage(string literal)
+        => $"日期「{literal}」早于 xlsx 的 1900 日期系统能表示的最早时刻 {EarliestDate:yyyy-MM-dd}，" +
+            "流式导出把它落成日期格，而这一格从那一刻起才有序列号：与其写出一份读回不是原日期的档，这里直接拒。" +
+            $"请给出不早于 {EarliestDate:yyyy-MM-dd} 的日期，或让该列取成文本；要原样保住早于纪元的日期，" +
+            "请改用全量导出——它把 DateOnly 与 DateTimeOffset 落成文本格，值与偏移量都留在文字里。";
 
     /// <summary>
     /// 非有限数值的成因文字
