@@ -1,0 +1,24 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelExporter.cs
+  h_be8240d2cfaa4b 61
+framework/src/XiHan.Framework.Excel/Exporting/ClosedXmlExporter.cs
+  h_be8240d2cfaa4b 56-58,67-74,123,184,388
+framework/src/XiHan.Framework.Excel/Exporting/ExcelWorkbookWriteGuard.cs
+  h_be8240d2cfaa4b 20-24,31-32,152-155,190
+framework/src/XiHan.Framework.Excel/Exporting/MiniExcelStreamExporter.cs
+  h_be8240d2cfaa4b 47,61-69
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlExporterTests.cs
+  h_be8240d2cfaa4b 527-583
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelStreamExporterTests.cs
+  h_be8240d2cfaa4b 350-445,652-670
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1273efd2c52e65409ffbd88e5fd4d1937d6ce18c",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
