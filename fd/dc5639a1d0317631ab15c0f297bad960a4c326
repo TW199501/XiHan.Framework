@@ -1,0 +1,20 @@
+framework/src/XiHan.Framework.Excel.Abstractions/ExcelConstants.cs
+  h_be8240d2cfaa4b 34-44
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/ExcelImportOptions.cs
+  h_be8240d2cfaa4b 212-217,222-223
+framework/src/XiHan.Framework.Excel/Importing/FixedWidthTextImporter.cs
+  h_be8240d2cfaa4b 7,19,111-112,291,381,384-385
+framework/test/XiHan.Framework.Excel.Tests/Importing/FixedWidthTextImporterTests.cs
+  h_be8240d2cfaa4b 7,398,404-407,410-431,557
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fddc5639a1d0317631ab15c0f297bad960a4c326",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
