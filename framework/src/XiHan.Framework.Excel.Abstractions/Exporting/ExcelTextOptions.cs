@@ -30,12 +30,27 @@ public sealed record ExcelTextOptions
 
     /// <summary>
     /// 列布局方式，默认 <see cref="ExcelTextLayout.Delimited"/>；<see cref="ExcelTextLayout.FixedWidth"/> 时
-    /// <see cref="Delimiter"/> 与 <see cref="Quote"/> 无效
+    /// <see cref="Delimiter"/>、<see cref="Quote"/> 与 <see cref="EscapeFormulaPrefix"/> 无效
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="ExcelTextLayout.FixedWidth"/> 下每格宽度取列上的 <see cref="ExcelColumn.FixedWidth"/>（按
+    /// <see cref="EncodingName"/> 的字节数计），超宽处置取 <see cref="Overflow"/>，档按字节位置切列，因此
+    /// <see cref="Delimiter"/>、<see cref="Quote"/> 与 <see cref="EscapeFormulaPrefix"/> 三项没有对应的解析位，
+    /// 写出时一律不解释：<c>Delimiter</c> 与 <c>Quote</c> 是分隔符布局的字段边界手段，加公式前缀还会吃掉一格字节宽度、
+    /// 让后续列位整体错位。给出这三项不报错也不生效，要逐字往返请留在默认的
+    /// <see cref="ExcelTextLayout.Delimited"/> 布局。
+    /// </para>
+    /// <para>
+    /// 列特性不带字节宽度，因此本布局下列必须由调用方构造并给出 <see cref="ExcelColumn.FixedWidth"/>；
+    /// 缺该设置的列在写出任何字节之前抛 <see cref="InvalidOperationException"/> 并列出缺宽度的列键。
+    /// </para>
+    /// </remarks>
     public ExcelTextLayout Layout { get; init; } = ExcelTextLayout.Delimited;
 
     /// <summary>
-    /// 字段分隔符。为 <c>null</c> 表示按目标格式取默认值：<c>.csv</c> 用 <c>,</c>，<c>.txt</c> 用制表符
+    /// 字段分隔符。为 <c>null</c> 表示按目标格式取默认值：<c>.csv</c> 用 <c>,</c>，<c>.txt</c> 用制表符；
+    /// <see cref="ExcelTextLayout.FixedWidth"/> 布局不解释本设置
     /// </summary>
     public char? Delimiter { get; init; }
 
@@ -98,22 +113,28 @@ public sealed record ExcelTextOptions
     public bool IncludeHeader { get; init; } = true;
 
     /// <summary>
-    /// 引号策略，默认 <see cref="ExcelTextQuote.Minimal"/>
+    /// 引号策略，默认 <see cref="ExcelTextQuote.Minimal"/>；<see cref="ExcelTextLayout.FixedWidth"/> 布局不解释本设置
     /// </summary>
     /// <remarks>
     /// <see cref="ExcelTextQuote.None"/> 下字段值内的分隔符与换行无法原样写出，导出器把它们改写为空格并记
     /// Warning 日志，不静默产出坏数据；该策略与空格分隔符是非法组合，导出器在写出任何字节之前抛
-    /// <see cref="ArgumentException"/>。
+    /// <see cref="ArgumentException"/>。固定宽度布局没有引号参与的解析位，本设置不参与写出。
     /// </remarks>
     public ExcelTextQuote Quote { get; init; } = ExcelTextQuote.Minimal;
 
     /// <summary>
     /// 固定宽度布局下内容超出列宽的处置，默认 <see cref="ExcelTextOverflow.Throw"/>；分隔符布局不解释本设置
     /// </summary>
+    /// <remarks>
+    /// <see cref="ExcelTextOverflow.Truncate"/> 会丢弃超出部分，读回的档不能与原值逐字往返，因此导出器对整份文件
+    /// 记一条聚合 Warning（含被截断的字段数量与首个触发的行列）；列宽按 <see cref="EncodingName"/> 的字节数计，
+    /// 截断落在字素边界上，不会把一个多字节字符切成半个字节序列。
+    /// </remarks>
     public ExcelTextOverflow Overflow { get; init; } = ExcelTextOverflow.Throw;
 
     /// <summary>
-    /// 是否对以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c> 开头的字段值加单引号前缀，默认开启
+    /// 是否对以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c> 开头的字段值加单引号前缀，默认开启；
+    /// <see cref="ExcelTextLayout.FixedWidth"/> 布局不解释本设置
     /// </summary>
     /// <remarks>
     /// <para>
@@ -124,6 +145,10 @@ public sealed record ExcelTextOptions
     /// 本设置同样改动数据，代价容易被忽略：负数经 <c>TextFormat</c> 得到 <c>-5.00</c> 后会被写成 <c>'-5.00</c>，
     /// 表格软件读回来是文本而不是数字。导出器对全份文件的改写记一条聚合 Warning（含改写数量与首个触发的行列），
     /// 不逐格刷日志；要逐字往返请置为 <c>false</c>。
+    /// </para>
+    /// <para>
+    /// 固定宽度布局下本设置不生效：前缀多出的一格字节会挤掉内容、破坏按字节切列的宽度契约，该布局本来也不是
+    /// 给表格软件重放的档。
     /// </para>
     /// </remarks>
     public bool EscapeFormulaPrefix { get; init; } = true;

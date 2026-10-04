@@ -11,7 +11,7 @@ using XiHan.Framework.Excel.Text;
 namespace XiHan.Framework.Excel.Exporting;
 
 /// <summary>
-/// 分隔符模式的文字档导出器，产出 <c>.csv</c> 与 <c>.txt</c>
+/// 文字档导出器，产出 <c>.csv</c> 与 <c>.txt</c>，按 <see cref="ExcelTextOptions.Layout"/> 走分隔符或固定宽度布局
 /// </summary>
 /// <remarks>
 /// <para>
@@ -37,6 +37,12 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 在业务档里极常见，逐格记日志会把真正要看的信号淹掉，因此整份文件累计一条 Warning，报出改写数量与第一个
 /// 触发的行列，可定位即可。
 /// </para>
+/// <para>
+/// <see cref="ExcelTextLayout.FixedWidth"/> 布局另走一条写出路径：字段不加引号、不做转义、不设公式前缀，
+/// 每格由 <see cref="ExcelColumn.FixedWidth"/> 指定的字节宽度补位，读档方按字节位置切列。该布局下
+/// <see cref="ExcelTextOptions.Delimiter"/>、<see cref="ExcelTextOptions.Quote"/> 与
+/// <see cref="ExcelTextOptions.EscapeFormulaPrefix"/> 都不参与写出。
+/// </para>
 /// </remarks>
 /// <param name="logger">本导出器的日志器，用于记录改写数据的决定</param>
 public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
@@ -54,7 +60,7 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     private readonly ILogger<DelimitedTextExporter> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <summary>
-    /// 把一张表按分隔符布局写成文字档
+    /// 把一张表写成文字档，布局由 <see cref="ExcelTextOptions.Layout"/> 决定
     /// </summary>
     /// <param name="output">输出流，导出器只写入不关闭，由调用方拥有</param>
     /// <param name="sheet">表规格，列清单的顺序即写出顺序</param>
@@ -64,8 +70,11 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// <returns>导出结果，含实际写出的扩展名与内容类型</returns>
     /// <exception cref="ArgumentNullException"><paramref name="output"/> 或 <paramref name="sheet"/> 为 <c>null</c></exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> 不是 <c>Csv</c> 或 <c>Txt</c></exception>
-    /// <exception cref="NotSupportedException"><see cref="ExcelTextLayout.FixedWidth"/> 布局尚未支持</exception>
-    /// <exception cref="ArgumentException">编码名无法解析，或 <see cref="ExcelTextQuote.None"/> 与空格分隔符组合</exception>
+    /// <exception cref="ArgumentException">编码名无法解析，<see cref="ExcelTextQuote.None"/> 与空格分隔符组合，
+    /// 或固定宽度布局下某列的补位字符不是单字节</exception>
+    /// <exception cref="InvalidOperationException">固定宽度布局下某列未设置
+    /// <see cref="ExcelColumn.FixedWidth"/>、列宽不是正整数，或内容超出列宽且
+    /// <see cref="ExcelTextOptions.Overflow"/> 为 <see cref="ExcelTextOverflow.Throw"/></exception>
     /// <exception cref="EncoderFallbackException">目标编码收不下待写出的字符（详见 <see cref="TextWriterHelper"/>）</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
@@ -74,9 +83,9 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// <c>.txt</c> 用制表符。
     /// </para>
     /// <para>
-    /// 格式、布局、取消令牌、选项组合与编码名的检查全部在写出第一个字节之前完成，这几类非法输入不会留下半份文件。
-    /// 目标编码收不下字符时的 <see cref="EncoderFallbackException"/> 也落不到「半份好档」上：编码器在转换该格时
-    /// 就抛，写出的字节只可能是缓冲区里已判过可编码的内容。
+    /// 格式、取消令牌、选项组合与编码名的检查全部在写出第一个字节之前完成，这几类非法输入不会留下半份文件。
+    /// 目标编码收不下字符时抛 <see cref="EncoderFallbackException"/>；已写出的字节是否为零由缓冲区决定，
+    /// 这里只保证不会产出「看起来成功」的坏档。固定宽度布局的列宽与补位字符同样排在预写校验里。
     /// </para>
     /// </remarks>
     public async Task<ExcelExportResult> ExportAsync(
@@ -99,12 +108,12 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
 
         var options = textOptions ?? new ExcelTextOptions();
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (options.Layout == ExcelTextLayout.FixedWidth)
         {
-            throw new NotSupportedException("固定宽度导出由 FixedWidth 分支实现。");
+            return await ExportFixedWidthAsync(output, sheet, format, options, cancellationToken);
         }
-
-        cancellationToken.ThrowIfCancellationRequested();
 
         var delimiter = options.Delimiter ?? (format == ExcelFormat.Csv ? ',' : '\t');
 
@@ -222,5 +231,187 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
 
             return TextWriterHelper.QuoteIfNeeded(guarded, delimiter, options.Quote);
         }
+    }
+
+    /// <summary>
+    /// 按固定宽度布局把一张表写成文字档
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 分隔符、引号策略与公式注入前缀在本布局下都不解释：档由读档方按字节位置切列，引号与分隔符没有对应的解析位，
+    /// 前缀还会吃掉一格字节宽度、让后续列位整体错位。因此写出的是「原值补位到列宽」，取值仍走
+    /// <see cref="TextWriterHelper.ValueToText"/>，只是不套引号与转义。
+    /// </para>
+    /// <para>
+    /// 列宽与补位字符在写出第一个字节之前判完（<see cref="ValidateFixedWidthColumns"/>），非法布局不写出任何字节；
+    /// 补位方向与超宽策略的取值在逐格补位时判定，与分隔符路径的引号策略同一时机。截断会丢弃数据，与免引号改写、
+    /// 公式前缀同类，因此整份文件聚合成一条 Warning，报出数量与首个触发的行列。
+    /// </para>
+    /// </remarks>
+    private async Task<ExcelExportResult> ExportFixedWidthAsync(
+        Stream output,
+        ExcelSheetSpec sheet,
+        ExcelFormat format,
+        ExcelTextOptions options,
+        CancellationToken cancellationToken)
+    {
+        var encoding = TextWriterHelper.ResolveEncoding(options.EncodingName);
+        var columns = sheet.Columns;
+
+        // 列宽与补位字符全部排在 new StreamWriter 之前：这几类输入不成立时一个字节都不进流
+        var widths = ValidateFixedWidthColumns(columns, encoding);
+
+        var line = new StringBuilder();
+
+        // 截断的丢弃计数与首个触发点：理由同分隔符路径的公式前缀，逐格记日志会淹掉真正要看的信号
+        var truncatedCount = 0;
+        var firstTruncatedPosition = string.Empty;
+        var firstTruncatedHeader = string.Empty;
+        var firstTruncatedKey = string.Empty;
+        var firstTruncatedWidth = 0;
+
+        using var writer = new StreamWriter(output, encoding, leaveOpen: true);
+
+        if (options.IncludeHeader)
+        {
+            line.Clear();
+
+            for (var index = 0; index < columns.Count; index++)
+            {
+                var column = columns[index];
+                line.Append(PadField(column, widths[index], column.Header, HeaderPosition));
+            }
+
+            line.Append(options.NewLine);
+            await writer.WriteAsync(line.ToString().AsMemory(), cancellationToken);
+        }
+
+        var rowIndex = 0;
+
+        foreach (var row in sheet.Rows)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            rowIndex++;
+            line.Clear();
+            var position = $"第 {rowIndex} 行";
+
+            for (var index = 0; index < columns.Count; index++)
+            {
+                var column = columns[index];
+                var rawText = TextWriterHelper.ValueToText(column.GetValue(row), column.TextFormat, column.NumberFormat);
+                line.Append(PadField(column, widths[index], rawText, position));
+            }
+
+            line.Append(options.NewLine);
+            await writer.WriteAsync(line.ToString().AsMemory(), cancellationToken);
+        }
+
+        await writer.FlushAsync(cancellationToken);
+
+        if (truncatedCount > 0)
+        {
+            _logger.LogWarning(
+                "本次固定宽度导出有 {Count} 个字段超出列宽并被截断，首个为{Position}的「{Header}」列（键 {Key}，列宽 {Width} 字节）：" +
+                "超出部分没有写出，读回的档不能与原值逐字往返；请加大该列的 FixedWidth，或将超宽策略 Overflow 设为 Throw。",
+                truncatedCount,
+                firstTruncatedPosition,
+                firstTruncatedHeader,
+                firstTruncatedKey,
+                firstTruncatedWidth);
+        }
+
+        return format == ExcelFormat.Csv
+            ? ExcelExportResult.Styled(format, ExcelConstants.ExtensionCsv, ExcelConstants.CsvContentType)
+            : ExcelExportResult.Styled(format, ExcelConstants.ExtensionTxt, ExcelConstants.PlainTextContentType);
+
+        string PadField(ExcelColumn column, int width, string rawText, string position)
+        {
+            // 是否被截断由字节数直接判出，不从「补位后的串」反推：补位永远把整格填到列宽，反推看不出丢弃过内容
+            var isTruncated = options.Overflow == ExcelTextOverflow.Truncate && encoding.GetByteCount(rawText) > width;
+
+            string padded;
+
+            try
+            {
+                padded = TextWriterHelper.PadToWidth(rawText, width, encoding, column.Padding, column.PadChar, options.Overflow);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // 只补定位信息，不改变处置：超宽到底是抛还是截断仍由选项决定，这里不替调用方兜住
+                throw new InvalidOperationException(
+                    $"固定宽度导出无法完成：{position}的「{column.Header}」列（键 {column.Key}）。{ex.Message}", ex);
+            }
+
+            if (isTruncated)
+            {
+                truncatedCount++;
+
+                if (truncatedCount == 1)
+                {
+                    firstTruncatedPosition = position;
+                    firstTruncatedHeader = column.Header;
+                    firstTruncatedKey = column.Key;
+                    firstTruncatedWidth = width;
+                }
+            }
+
+            return padded;
+        }
+    }
+
+    /// <summary>
+    /// 校验固定宽度布局的列设置，返回每列按目标编码成立的字节宽度
+    /// </summary>
+    /// <remarks>
+    /// 本方法只看档级结构（每列有没有宽度、宽度是否为正、补位字符是否单字节），逐格的超宽处置不在这里，
+    /// 因为那要等取到行值才知道。校验顺序固定：先列宽，再补位字符，两处都排在写出任何字节之前。
+    /// </remarks>
+    private static int[] ValidateFixedWidthColumns(IReadOnlyList<ExcelColumn> columns, Encoding encoding)
+    {
+        var widths = new int[columns.Count];
+        var missing = new List<string>();
+        var nonPositive = new List<string>();
+
+        for (var index = 0; index < columns.Count; index++)
+        {
+            var column = columns[index];
+
+            if (column.FixedWidth is null)
+            {
+                missing.Add(column.Key);
+                continue;
+            }
+
+            // 0 与负数不是「未指定」的另一种写法：未指定是 null，非正数一律按非法取值报出
+            if (column.FixedWidth.Value <= 0)
+            {
+                nonPositive.Add($"{column.Key}={column.FixedWidth.Value}");
+                continue;
+            }
+
+            widths[index] = column.FixedWidth.Value;
+        }
+
+        if (missing.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"固定宽度布局要求每列都设置 {nameof(ExcelColumn.FixedWidth)}（按目标编码的字节数计），以下列未设置：{string.Join("、", missing)}。" +
+                $"列特性不带字节宽度，请用代码构造这些列并给出 {nameof(ExcelColumn.FixedWidth)}，或改用 {nameof(ExcelTextLayout.Delimited)} 布局。");
+        }
+
+        if (nonPositive.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"固定宽度布局的列宽必须是正整数字节，以下列非法：{string.Join("、", nonPositive)}。");
+        }
+
+        for (var index = 0; index < columns.Count; index++)
+        {
+            var column = columns[index];
+            TextWriterHelper.EnsureSingleBytePadChar(column.PadChar, encoding, $"（列「{column.Header}」，键 {column.Key}）");
+        }
+
+        return widths;
     }
 }

@@ -186,25 +186,6 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
-    /// 固定宽度布局尚未实现时明确拒绝，且不写出任何字节
-    /// </summary>
-    /// <remarks>
-    /// 本条测试钉住的是 Task 4 的占位分支：Task 5 实现固定宽度后，把它换成真实行为测试并删掉导出器里的抛出。
-    /// </remarks>
-    [Fact]
-    public async Task 固定宽度布局在文字导出器显式拒绝()
-    {
-        var stream = new MemoryStream();
-        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
-
-        await Assert.ThrowsAsync<NotSupportedException>(async () => await exporter.ExportAsync(
-            stream, BuildSpec(new SampleRow { AwbNo = "AWB1" }), ExcelFormat.Txt,
-            new ExcelTextOptions { Layout = ExcelTextLayout.FixedWidth }, TestContext.Current.CancellationToken));
-
-        Assert.Equal(0, stream.Length);
-    }
-
-    /// <summary>
     /// 文字导出器只认 csv 与 txt，拿到 xlsx 时点名拒绝
     /// </summary>
     [Fact]
