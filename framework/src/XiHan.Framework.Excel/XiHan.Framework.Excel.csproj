@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <Import Project="..\..\props\netcore.props" />
+    <Import Project="..\..\props\common.props" />
+    <Import Project="..\..\props\version.props" />
+    <Import Project="..\..\props\nuget.props" />
+
+    <PropertyGroup>
+        <Title>XiHan.Framework.Excel</Title>
+        <AssemblyName>XiHan.Framework.Excel</AssemblyName>
+        <PackageId>XiHan.Framework.Excel</PackageId>
+        <Description>曦寒框架 Excel 导入导出库</Description>
+        <OutputType>Library</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="ClosedXML" Version="0.105.1" />
+        <PackageReference Include="ExcelDataReader" Version="3.9.0" />
+        <PackageReference Include="MiniExcel" Version="1.46.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\XiHan.Framework.Core\XiHan.Framework.Core.csproj" />
+        <ProjectReference Include="..\XiHan.Framework.Excel.Abstractions\XiHan.Framework.Excel.Abstractions.csproj" />
+    </ItemGroup>
+
+</Project>
