@@ -110,7 +110,9 @@ public interface IExcelExporter
     /// 或与清单里更早那张重名（判重不区分大小写）；或某张表的 <see cref="ExcelSheetSpec.HeaderFill"/>
     /// 不是合法的十六进制颜色串</exception>
     /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是大于 0
-    /// 且不高于 255 的有限数，或某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内</exception>
+    /// 且不高于 255 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内；
+    /// 或某张表的 <see cref="ExcelSheetSpec.ExpectedRowCount"/> 为负数（点名第几张）——多表恒走全量工作簿，
+    /// 这个值在这条入口只校验成立与否、不参与分流，也不因为用不到它就静默放过</exception>
     /// <exception cref="InvalidOperationException">清单里有哪张表的 <see cref="ExcelSheetSpec.ForceStreaming"/>
     /// 为 <c>true</c>（多表流式不在本组件的承诺范围内，冲突时拒绝而不是偷偷改走全量）；或某张表的行集合里有
     /// 某笔元素与其 <see cref="ExcelSheetSpec.RowType"/> 不符；或某个行值是工作簿装不下的</exception>

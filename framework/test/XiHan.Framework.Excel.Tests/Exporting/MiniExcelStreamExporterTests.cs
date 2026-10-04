@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Collections;
+using System.Globalization;
 using ClosedXML.Excel;
 using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
@@ -252,11 +253,20 @@ public class MiniExcelStreamExporterTests
 
         Assert.Equal(1, rows.GetEnumeratorCalls);
         Assert.Equal(rowCount, rows.Yielded);
-        Assert.NotNull(rows.FirstRowIndexWithBytesWritten);
+
+        // 首次落字节的行号一并写进断言消息：这条判据靠「本用例的数据量大于写出侧缓冲」成立，
+        // 光看红讯看不出是「实现物化了」还是「库把缓冲加大了」，两者要的处理完全不同。
+        var firstByteRow = rows.FirstRowIndexWithBytesWritten;
+        var firstByteText = firstByteRow is null
+            ? "整趟枚举结束前都没有落字节"
+            : $"第 {firstByteRow.Value.ToString(CultureInfo.InvariantCulture)} 行";
+
         Assert.True(
-            rows.FirstRowIndexWithBytesWritten < rowCount / 2,
-            $"取到第 {rows.FirstRowIndexWithBytesWritten} 行时输出流仍是空的：写出侧把整份行集合攒完才动笔，" +
-            "十万行档就变成十万行内存");
+            firstByteRow is not null && firstByteRow < rowCount / 2,
+            $"首次观察到输出流落字节是{firstByteText}，断言要求它早于行数中点（第 {rowCount / 2} 行，" +
+            $"行集合共 {rowCount} 行、每行约 400 字符）。要么实现把行集合攒完才动笔（那就是物化，十万行档变成十万行内存），" +
+            "要么写出侧的内部缓冲被加大到吞得下这份数据——后者是本用例的体量假设失效，不代表实现有错，" +
+            "此时应加大 rowCount 或每行字符数再跑，而不是改掉这条断言。");
     }
 
     /// <summary>

@@ -274,6 +274,28 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
+    /// 多表清单里的负预期行数同样在路由之前被拒：多表恒走全量、不用它分流，但非法声明不静默通过
+    /// </summary>
+    /// <remarks>
+    /// 单表入口对这项一律生效，多表入口若放过，调用方就会以为「清单里设了行数就会被校验」——
+    /// 一句错的行数声明换哪个入口都还是错的。判据与单表同一条，只按清单位置补上第几张表。
+    /// </remarks>
+    [Fact]
+    public async Task 多表里负预期行数也被拒并点名位置()
+    {
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await NewExporter().ExportAllAsync(
+            stream,
+            [BuildSpec(Rows(1)), BuildSpec(Rows(1), expectedRowCount: -1)],
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.ExpectedRowCount), failure.ParamName);
+        Assert.Contains("第 2 张表", failure.Message, StringComparison.Ordinal);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
     /// 负的预期行数在文字档路径同样被拒：它是分派输入，不因目标格式用不到阈值就放过
     /// </summary>
     /// <remarks>
