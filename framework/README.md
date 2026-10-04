@@ -112,7 +112,6 @@ One module per project under `framework/src`; package names match project names.
 | `Tasks` | Scheduled tasks and background jobs: scheduling engine, background services, tenant awareness |
 | `Tasks.SqlSugar` | SqlSugar persistence provider for tasks: background-job enqueue joins the business transaction and claiming is mutually exclusive across instances |
 | `Traffic` | Traffic governance: gray routing (rule engine with header / IP / percentage / tenant / user matchers); rate limiting and circuit breaking are policy interfaces only |
-| `Traffic.SqlSugar` | Gray rule persistence: SqlSugar-backed read-only `IGrayRuleRepository` with in-memory cache |
 | `Upgrade` | Upgrade engine: version store, migration execution, distributed lock, automatic check on startup |
 | `AI.Abstractions` | AI abstractions: agents, chat, configuration, guardrails, prompts, RAG, skills |
 | `AI` | AI integration: Microsoft.Extensions.AI model abstraction, Microsoft.Agents.AI agent framework, MCP protocol support |
@@ -160,8 +159,7 @@ Utils (zero third-party deps)
               │     ├── Caching (+ Redis)
               │     └── EventBus ──→ EventBus.RabbitMQ / Kafka / Redis
               ├── Domain.Shared ──→ Domain ──→ Data (SqlSugar) ──→ *.SqlSugar
-              │     │                                             (Auditing / Authentication / Authorization / EventBus /
-              │     │                                              Security / Settings / Tasks / Traffic / Upgrade / Workflow, 10 persistence packages)
+              │     │                                             (Tasks, 1 persistence package)
               │     └── Application.Contracts ──→ Application
               ├── MultiTenancy.Abstractions ──→ MultiTenancy
               │     ├── Tasks
