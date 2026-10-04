@@ -21,8 +21,10 @@ namespace XiHan.Framework.Excel.Tests.Exporting;
 /// 免得日后被误读成「配置传进去了就一定生效」。
 /// </para>
 /// <para>
-/// 行集合一律用只许枚举一次的夹具。本路径的价值就在于不物化结果集，二次枚举或先转成列表都会让十万行档
-/// 变成十万行内存，这条契约钉在 CI 里，而不是靠读代码担保。
+/// 不物化这条契约由两条用例分头钉住，各自挡一种改法：行集合用只许取一次枚举器的夹具
+/// （<c>OneShotRows</c>），回头再枚举一遍即抛；先整份转成列表再交出去的做法只取一次枚举器，
+/// 夹具抓不到，另由「行集合未耗尽前输出流已有字节」按写出顺序抓——物化的可观察特征就是行全走完才动笔。
+/// 两种改法都会让十万行档变成十万行内存，所以两条都留在 CI 里，不靠读代码担保。
 /// </para>
 /// </remarks>
 public class MiniExcelStreamExporterTests
@@ -202,8 +204,12 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
-    /// 行集合只被枚举一次，实现不物化也不回头再枚举
+    /// 行集合只被取用一次枚举器，实现不回头再枚举一遍
     /// </summary>
+    /// <remarks>
+    /// 这一条只挡二次枚举。先整份 <c>ToList()</c> 再交出去的实现同样只取一次枚举器，抓不到它，
+    /// 由 <see cref="行集合未耗尽前输出流已有字节"/> 那条按写出顺序挡。
+    /// </remarks>
     [Fact]
     public async Task 行集合只枚举一次()
     {
@@ -216,6 +222,41 @@ public class MiniExcelStreamExporterTests
 
         Assert.Equal(1, rows.GetEnumeratorCalls);
         Assert.Equal(3, rows.Yielded);
+    }
+
+    /// <summary>
+    /// 行集合还没走完，写出者就已经往输出流里落了字节——这条才真钉住「不物化」
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 物化的可观察特征是「行全走完才动笔」，所以断的是顺序而不是内存。数据量刻意给到写出侧的缓冲装不下
+    /// （每行一格数百字符、共数千行 XML 已远超库的写出缓冲），真流式的实现落点远早于行数中点，
+    /// 取中点而不是「最后一行之前」是不让这条断言靠缓冲大小取巧。
+    /// </para>
+    /// <para>
+    /// 把行集合先 <c>ToList()</c> 再交给写出库的实现里，每次取行时采到的输出流长度都是 0，
+    /// <c>FirstRowIndexWithBytesWritten</c> 保持 <c>null</c>，这条即红——
+    /// 而上一条（只许取一次枚举器）在这种情况下仍然全绿，两条合起来才把契约钉住。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 行集合未耗尽前输出流已有字节()
+    {
+        const int rowCount = 4000;
+
+        var stream = new MemoryStream();
+        var rows = new OneShotRows(BulkyRows(rowCount), () => stream.Length);
+
+        await new MiniExcelStreamExporter().ExportAsync(
+            stream, BuildSpec(rows), TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, rows.GetEnumeratorCalls);
+        Assert.Equal(rowCount, rows.Yielded);
+        Assert.NotNull(rows.FirstRowIndexWithBytesWritten);
+        Assert.True(
+            rows.FirstRowIndexWithBytesWritten < rowCount / 2,
+            $"取到第 {rows.FirstRowIndexWithBytesWritten} 行时输出流仍是空的：写出侧把整份行集合攒完才动笔，" +
+            "十万行档就变成十万行内存");
     }
 
     /// <summary>
@@ -621,6 +662,30 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
+    /// 造若干行、每行提单号给数百字符，让整份行集合的 XML 远超写出侧的缓冲
+    /// </summary>
+    /// <remarks>
+    /// 只给「不物化」那条用例用：数据量不够时，实现就算真的边取边写，字节也可能全压在库自己的缓冲里
+    /// 没落到输出流上，那条断言就会靠缓冲大小而不是行为来判，失去意义。
+    /// </remarks>
+    private static SampleRow[] BulkyRows(int count)
+    {
+        var rows = new SampleRow[count];
+
+        for (var index = 0; index < count; index++)
+        {
+            rows[index] = new SampleRow
+            {
+                AwbNo = $"AWB{index}-" + new string('X', 400),
+                Weight = index + 0.5m,
+                Eta = new DateTime(2026, 1, 2)
+            };
+        }
+
+        return rows;
+    }
+
+    /// <summary>
     /// 交出两行的惰性序列，取到第二行之前先把取消令牌取消
     /// </summary>
     private static IEnumerable<SampleRow> CancelAfterFirstRow(CancellationTokenSource source)
@@ -684,13 +749,28 @@ public class MiniExcelStreamExporterTests
     {
         private readonly IEnumerable<SampleRow> _inner;
 
+        private readonly Func<long>? _writtenBytes;
+
         private int _calls;
 
-        public OneShotRows(IEnumerable<SampleRow> inner) => _inner = inner;
+        public OneShotRows(IEnumerable<SampleRow> inner, Func<long>? writtenBytes = null)
+        {
+            _inner = inner;
+            _writtenBytes = writtenBytes;
+        }
 
         public int GetEnumeratorCalls => _calls;
 
         public int Yielded { get; private set; }
+
+        /// <summary>
+        /// 第一次采到输出流已有字节时已经交出去的行号，<c>null</c> 表示交完全部行仍是空的
+        /// </summary>
+        /// <remarks>
+        /// 只在建了 <paramref name="writtenBytes"/> 采样器时才有值。它把「边取边写」与「先攒完再动笔」分开：
+        /// 后者在每次取行时采到的输出流长度都是 0，这个属性也就一直是 <c>null</c>。
+        /// </remarks>
+        public int? FirstRowIndexWithBytesWritten { get; private set; }
 
         public IEnumerator<SampleRow> GetEnumerator()
         {
@@ -698,7 +778,7 @@ public class MiniExcelStreamExporterTests
 
             if (_calls > 1)
             {
-                throw new InvalidOperationException("行集合被第二次枚举，说明实现先物化或回头再读了一遍");
+                throw new InvalidOperationException("行集合被第二次枚举，说明实现回头又读了一遍");
             }
 
             return Iterate();
@@ -709,6 +789,12 @@ public class MiniExcelStreamExporterTests
             foreach (var row in _inner)
             {
                 Yielded++;
+
+                if (_writtenBytes is not null && FirstRowIndexWithBytesWritten is null && _writtenBytes() > 0)
+                {
+                    FirstRowIndexWithBytesWritten = Yielded;
+                }
+
                 yield return row;
             }
         }
