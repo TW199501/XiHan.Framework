@@ -1,0 +1,22 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Attributes/ExcelColumnAttribute.cs
+  h_be8240d2cfaa4b 52-54
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelTemplateRenderer.cs
+  h_be8240d2cfaa4b 47
+framework/src/XiHan.Framework.Excel/Exporting/ClosedXmlExporter.cs
+  h_be8240d2cfaa4b 101,547-548,586-589
+framework/src/XiHan.Framework.Excel/Exporting/MiniExcelTemplateRenderer.cs
+  h_be8240d2cfaa4b 16,23-25,34
+framework/src/XiHan.Framework.Excel/Text/TextWriterHelper.cs
+  h_be8240d2cfaa4b 109-112,116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9d76238dfa121cf50fddfef43d5fee3d549389df",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
