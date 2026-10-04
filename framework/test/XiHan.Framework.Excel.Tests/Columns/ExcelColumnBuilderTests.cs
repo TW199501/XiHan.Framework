@@ -1,6 +1,7 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using XiHan.Framework.Excel.Abstractions.Attributes;
 using XiHan.Framework.Excel.Abstractions.Enums;
 using XiHan.Framework.Excel.Abstractions.Exporting;
 using XiHan.Framework.Excel.Columns;
@@ -196,5 +197,30 @@ public class ExcelColumnBuilderTests
 
         Assert.Same(columns, spec.Columns);
         Assert.Equal("乙", spec.Columns[0].Header);
+    }
+
+    /// <summary>
+    /// 特性上的负列宽不会被当成固定列宽收下，构建时点名抛异常
+    /// </summary>
+    [Fact]
+    public void 特性列宽为负数时抛异常()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => ExcelColumnBuilder.CreateColumns<NegativeWidthRow>());
+    }
+
+    /// <summary>
+    /// 特性上写了非法列宽的测试行类型
+    /// </summary>
+    /// <remarks>
+    /// <c>double.NaN</c> 与无穷大不是合法的特性参数（编译期常量表达式，CS0182），只有负数能从特性侧抵达，
+    /// 因此这里只钉负数这一条可达分支。
+    /// </remarks>
+    private class NegativeWidthRow
+    {
+        /// <summary>
+        /// 列宽写成负数，不可能是合法列宽
+        /// </summary>
+        [ExcelColumn("甲", Width = -1.5)]
+        public string Name { get; set; } = string.Empty;
     }
 }

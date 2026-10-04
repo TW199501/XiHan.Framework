@@ -28,8 +28,9 @@ namespace XiHan.Framework.Excel.Columns;
 /// </para>
 /// <para>
 /// 列宽的缺省标记：特性上的 <c>Width</c> 是 <c>double</c>（可空数值不能作特性参数），用特性设定列宽时，
-/// <c>0</c> 表示「未指定 / 自动列宽」，构建器把它映射为列上的 <c>null</c>；非零值原样作为固定列宽。
-/// 没有特性的属性同样得到 <c>null</c>。
+/// <c>0</c> 表示「未指定 / 自动列宽」，构建器把它映射为列上的 <c>null</c>；非零的固定列宽必须是有限的正数，
+/// 负数、<see cref="double.NaN"/> 与无穷大在构建时抛 <see cref="ArgumentOutOfRangeException"/> 并点出属性名，
+/// 不会被当成合法的固定列宽收下。没有特性的属性同样得到 <c>null</c>。
 /// </para>
 /// </remarks>
 public static class ExcelColumnBuilder
@@ -120,7 +121,7 @@ public static class ExcelColumnBuilder
                 Key = property.Name,
                 Header = column?.Header ?? property.GetDescription(),
                 Order = position++,
-                Width = MapWidth(column),
+                Width = MapWidth(property.Name, column),
                 NumberFormat = column?.NumberFormat,
                 Alignment = column?.Alignment ?? ExcelAlignment.Auto,
                 Wrap = column?.Wrap ?? false,
@@ -134,10 +135,25 @@ public static class ExcelColumnBuilder
     /// <summary>
     /// 把特性上的列宽映射为列模型的列宽，<see cref="UnspecifiedWidth"/> 映射为 <c>null</c>
     /// </summary>
+    /// <param name="propertyName">属性名，出现在拒绝非法列宽的异常信息里</param>
     /// <param name="column">属性上的导出列特性，没有特性时为 <c>null</c></param>
     /// <returns>固定列宽，或表示「未指定 / 自动列宽」的 <c>null</c></returns>
-    private static double? MapWidth(ExcelColumnAttribute? column)
+    /// <exception cref="ArgumentOutOfRangeException">特性写的列宽是负数、<see cref="double.NaN"/> 或无穷大</exception>
+    private static double? MapWidth(string propertyName, ExcelColumnAttribute? column)
     {
-        return column is null || column.Width == UnspecifiedWidth ? null : column.Width;
+        if (column is null || column.Width == UnspecifiedWidth)
+        {
+            return null;
+        }
+
+        if (column.Width < 0 || !double.IsFinite(column.Width))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(column.Width),
+                column.Width,
+                $"属性「{propertyName}」的导出列宽 {column.Width} 非法：固定列宽必须是有限的正数，0 表示未指定（自动列宽）。");
+        }
+
+        return column.Width;
     }
 }

@@ -14,6 +14,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="XiHan.Framework.Excel.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="ClosedXML" Version="0.105.1" />
         <PackageReference Include="ExcelDataReader" Version="3.9.0" />
         <PackageReference Include="MiniExcel" Version="1.46.0" />
