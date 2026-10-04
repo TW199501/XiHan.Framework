@@ -1,0 +1,14 @@
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ExcelExporterDispatchTests.cs
+  h_be8240d2cfaa4b 182-211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "03a8df6d75560002f13fc8b07b5f01bff90088b5",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
