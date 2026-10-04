@@ -1,0 +1,35 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/ExcelTextOptions.cs
+  s_94057b8e5cf9b6::t_ae907f0eef99ef 46,50-56,105-106,119,122-127
+framework/src/XiHan.Framework.Excel/Text/TextWriterHelper.cs
+  s_94057b8e5cf9b6::t_5ad3d1d15d7408 55-56,59,63-73,87,93,96-99,102-120,179,182-183,185-193,195,197,199-202,205,208-230,279,290-294
+framework/test/XiHan.Framework.Excel.Tests/Exporting/DelimitedTextExporterTests.cs
+  s_94057b8e5cf9b6::t_337d5d054a5173 23-26,47,50,53,55-58,60-76,154-187,274-308,404,406-413,417,420
+framework/test/XiHan.Framework.Excel.Tests/Text/TextWriterHelperTests.cs
+  s_94057b8e5cf9b6::t_2a672268d09512 53-83,116-119,123-159,186
+framework/src/XiHan.Framework.Excel/Exporting/DelimitedTextExporter.cs
+  s_ef49b9b739143c::t_fc70e98a32e6f7 32-38,49-53,68-69,77-79,110-118,122-127,177-188,195-208,210,212-213,223
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb3b77ce720653f958ba3dd2a610805035d0f720",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_ef49b9b739143c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a183d4e207d9c8e3f",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
