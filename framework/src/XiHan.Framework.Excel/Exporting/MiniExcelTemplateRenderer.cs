@@ -4,6 +4,7 @@
 using System.Collections;
 using System.Reflection;
 using MiniExcelLibs;
+using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Exporting;
 using XiHan.Framework.Excel.Text;
 
@@ -47,6 +48,20 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 抛出时输出流里可能已经落了内容、甚至已是一份完整的档，调用方必须丢弃它，本类不承诺失败原子性。
 /// </para>
 /// <para>
+/// 数据在交给渲染库之前先被走访一遍，逐值套用与两条 xlsx 导出路径同一份的判据：字串值以 <c>=</c>、<c>+</c>、
+/// <c>-</c>、<c>@</c>、制表符或回车起首，或以渲染库自己的公式指令前缀 <c>$=</c>
+/// 起首时拒写（<see cref="ArgumentException"/>，<see cref="ArgumentException.ParamName"/> 为 <c>data</c>）；
+/// 取值是工作簿装不下的那一类时同样拒写（<see cref="InvalidOperationException"/>）。两者都点名键路径、
+/// 都抛在写出第一个字节之前，因此输出流零字节。处置是拒写而不是加单引号前缀：加前缀等于改写业务数据，
+/// 而模板没有留痕机制能交代改了什么。判据与分隔符文字导出相同，处置形态不同，这条不对称是刻意的。
+/// </para>
+/// <para>
+/// 写出前校验只保证校验那一刻：走访结束后到渲染库写出之间数据被改不在本类的覆盖范围内，
+/// 调用方不得在这段时间修改数据。走访会把集合成员完整枚举一遍，排在渲染库自己那两遍之前，
+/// 因此只允许枚举一次的数据源用不了，惰性数据源会提前求值。走访不解析模板，
+/// 模板没有引用的键同样在校验范围内；缺键仍然留空、不报错。
+/// </para>
+/// <para>
 /// 值类型按渲染库自己的形态落格：数值仍是数值格，日期落成文本格（与 <see cref="ClosedXmlExporter"/> 的日期格不同），
 /// <c>null</c> 值写空。不承诺宏、数据透视表与图表，也不写 <c>.xls</c>。
 /// </para>
@@ -58,14 +73,25 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
     /// </summary>
     /// <param name="output">输出流，本方法只写入不关闭，由调用方拥有；渲染后流位置停在末尾</param>
     /// <param name="template">模板流，必须是可定位的 xlsx 容器；渲染后由库关闭，不要复用该流</param>
-    /// <param name="data">填进模板的数据，按模板里的占位符键取值，允许匿名类型、具名类型或字典</param>
+    /// <param name="data">填进模板的数据，按模板里的占位符键取值，允许匿名类型、具名类型或字典；
+    /// 写出之前会被走访一遍做取值检查，调用方不得在校验与写出之间修改它</param>
     /// <param name="cancellationToken">取消令牌，取消时不再开始渲染；渲染已经动手才被观察到的取消同样抛出</param>
     /// <returns>异步任务</returns>
     /// <exception cref="ArgumentNullException"><paramref name="output"/>、<paramref name="template"/> 或
     /// <paramref name="data"/> 为 <c>null</c>，<see cref="ArgumentException.ParamName"/> 分别取参数名</exception>
     /// <exception cref="ArgumentException"><paramref name="template"/> 不可读、不可定位或内容为空（消息含
     /// 「模板内容为空」），三者 <see cref="ArgumentException.ParamName"/> 均为 <c>template</c>；这类失败在调用渲染库之前抛出，
+    /// 输出流零字节。或 <paramref name="data"/> 里某个字串值命中公式防护（以 <c>=</c>、<c>+</c>、<c>-</c>、
+    /// <c>@</c>、制表符、回车或 <c>$=</c> 起首），
+    /// <see cref="ArgumentException.ParamName"/> 为 <c>data</c>，消息点名键路径；同样抛在调用渲染库之前，
     /// 输出流零字节</exception>
+    /// <exception cref="InvalidOperationException"><paramref name="data"/> 里某个取值是工作簿装不下的
+    /// （早于 1900-01-01 的 <see cref="DateTime"/>、
+    /// <see cref="DateOnly"/> 或 <see cref="DateTimeOffset"/>、非有限的浮点数、有效数字多于
+    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值、绝对值超过双精度整数上限的
+    /// <see cref="long"/>／<see cref="ulong"/>／<see cref="decimal"/>，或长于
+    /// <see cref="ExcelConstants.MaxCellTextLength"/> 的字串），消息点名键路径并给出与两条 xlsx 导出路径
+    /// 逐字相同的成因句；抛在调用渲染库之前，输出流零字节</exception>
     /// <exception cref="InvalidDataException">模板档存在但不是可用的 xlsx 容器，由渲染库抛出并原样透传；
     /// 此时输出流可能已含部分字节</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消。取消落在动手之前时
