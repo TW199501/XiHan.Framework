@@ -19,6 +19,7 @@ namespace XiHan.Framework.Excel.Columns;
 /// 列来源是行类型的公共实例属性：没有公共读取器的属性和索引器不成列，标了 <see cref="ExcelIgnoreAttribute"/>
 /// 的属性不成列；标了 <see cref="ExcelColumnAttribute"/> 的属性按特性给出表头与呈现项，特性没给表头时
 /// 取属性的描述信息；两个特性都没标的属性照常成列，表头同样取描述信息，呈现项取列的默认值。
+/// 行类型是接口时，基接口声明的属性一并成列（接口不沿继承链给出成员，不并就会整栏消失）；
 /// 同名属性（<c>new</c> 遮蔽出来的那一对）只留 <see cref="MemberInfo.DeclaringType"/> 最深的那一个，
 /// 也就是 CLR 里看得见的那一个——两列同键会让三条导出路径各表现一套。
 /// </para>
@@ -182,6 +183,12 @@ public static class ExcelColumnBuilder
     /// <returns>按声明顺序给出的属性清单，位置即去重后第一次出现的位置</returns>
     /// <remarks>
     /// <para>
+    /// 接口行类型要另外并入继承来的接口：接口不像类那样沿继承链给出成员，<c>typeof(IOrder).GetProperties()</c>
+    /// 只交本接口自己声明的属性，基接口的 <c>Id</c> 不在里面，导出的档就整栏少一栏且没有任何提示。
+    /// 并入顺序是「基接口在前、本接口自己声明的在后」，多个基接口按继承深度由远到近排，
+    /// 不赌 <c>GetInterfaces()</c> 的返回顺序；类行类型一条不改，仍是反射给出的属性原样进候选。
+    /// </para>
+    /// <para>
     /// 同名去重是 CLR 可见成员语义：<c>class Dto : Base { public new int Id }</c> 里
     /// <c>GetProperties(Public | Instance)</c> 会同时交出 <c>Dto.Id</c> 与 <c>Base.Id</c>（两个各有背衬的
     /// 属性），不去重就是两列同键——流式路径被「重复列键」拒掉，全量与文字档则写出两个 <c>Id</c> 栏位、
@@ -199,7 +206,16 @@ public static class ExcelColumnBuilder
     {
         var rowType = typeof(TRow);
 
-        var candidates = rowType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        // 类沿继承链交出属性，接口不交：typeof(IOrder).GetProperties() 只有本接口自己声明的属性，
+        // 基接口的属性得按 GetInterfaces() 并入，否则接口行类型导出的档整栏少一栏且无提示。
+        // 顺序取「基接口在前、本接口自己声明的在后」，多个基接口按继承深度由远到近排，
+        // 不赌 GetInterfaces() 的返回顺序。
+        var candidates = rowType.IsInterface
+            ? rowType.GetInterfaces()
+                .OrderBy(static face => face.GetInterfaces().Length)
+                .SelectMany(static face => face.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                .Concat(rowType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            : rowType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
         var visible = new List<PropertyInfo>();
         var positions = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -249,8 +265,8 @@ public static class ExcelColumnBuilder
     /// <param name="current">已收下位置的属性的声明类型</param>
     /// <returns>candidate 派生自 current 时为 <c>true</c></returns>
     /// <remarks>
-    /// 两个型别互不派生时（两个不相干的声明类型给出同名属性）交回 <c>false</c>，留先出现的那一个：
-    /// 同名只可能是遮蔽关系，互不派生的那一对本来就没有「谁盖住谁」可判，按候选出现的先后收。
+    /// 两个型别互不派生时（不相干的基接口声明了同名属性）交回 <c>false</c>，留先出现的那一个：
+    /// 出现顺序已被「基接口按继承深度由远到近排」钉住，不再依赖反射给出的次序。
     /// </remarks>
     private static bool IsMoreDerived(Type? candidate, Type? current)
         => candidate is not null

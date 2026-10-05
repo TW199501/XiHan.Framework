@@ -559,6 +559,111 @@ public class ExcelColumnBuilderTests
     }
 
     /// <summary>
+    /// 接口行类型纳入继承接口声明的属性
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 类沿继承链给出属性，接口不给：<c>typeof(IOrder).GetProperties()</c> 只交本接口自己声明的 <c>No</c>，
+    /// <c>IOrderBase.Id</c> 不在里面，于是接口行类型导出的档整栏少一栏且没有任何提示。
+    /// </para>
+    /// <para>
+    /// 键的顺序按「基接口在前、本接口自己声明的在后」写进断言：多个基接口按继承深度由远到近排，
+    /// 不依赖 <c>GetInterfaces()</c> 的返回顺序。取值要证到能落进单元格的形状，所以两列都取一遍值。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void 接口行类型纳入继承接口的属性()
+    {
+        var columns = ExcelColumnBuilder.CreateColumns<IOrder>();
+
+        Assert.Equal([nameof(IOrderBase.Id), nameof(IOrder.No)], columns.Select(c => c.Key));
+        Assert.Equal([0, 1], columns.Select(c => c.Order));
+        Assert.All(columns, column => Assert.Equal(typeof(IOrder), column.RowType));
+
+        var row = new OrderRow();
+
+        Assert.Equal(42, Assert.IsType<int>(columns.Single(c => c.Key == nameof(IOrderBase.Id)).GetValue(row)));
+        Assert.Equal("AWB1", columns.Single(c => c.Key == nameof(IOrder.No)).GetValue(row));
+    }
+
+    /// <summary>
+    /// 接口与基接口的同名属性同样只留一列，留派生接口那一个
+    /// </summary>
+    [Fact]
+    public void 接口与基接口同名属性只留一列()
+    {
+        var columns = ExcelColumnBuilder.CreateColumns<IShadowOrder>();
+        var row = new ShadowOrderRow();
+
+        Assert.Equal([nameof(IShadowOrder.Id)], columns.Select(c => c.Key));
+        Assert.Equal(7, Assert.IsType<int>(columns.Single().GetValue(row)));
+    }
+
+    /// <summary>
+    /// 接口行类型夹具的基接口，只声明 <see cref="Id"/>
+    /// </summary>
+    private interface IOrderBase
+    {
+        /// <summary>
+        /// 单号
+        /// </summary>
+        int Id { get; }
+    }
+
+    /// <summary>
+    /// 接口行类型夹具：继承基接口再声明一个属性
+    /// </summary>
+    private interface IOrder : IOrderBase
+    {
+        /// <summary>
+        /// 提单号
+        /// </summary>
+        string No { get; }
+    }
+
+    /// <summary>
+    /// 基接口与派生接口同名属性（接口侧的 <c>new</c> 遮蔽）
+    /// </summary>
+    private interface IShadowBase
+    {
+        /// <summary>
+        /// 基接口那个 <c>Id</c>
+        /// </summary>
+        object Id { get; }
+    }
+
+    /// <summary>
+    /// 以 <c>new int Id</c> 遮蔽基接口 <c>object Id</c> 的接口行类型
+    /// </summary>
+    private interface IShadowOrder : IShadowBase
+    {
+        /// <summary>
+        /// 遮蔽后的派生 <c>Id</c>
+        /// </summary>
+        new int Id { get; }
+    }
+
+    /// <summary>
+    /// <see cref="IOrder"/> 的实现，供取值断言
+    /// </summary>
+    private sealed class OrderRow : IOrder
+    {
+        public int Id { get; set; } = 42;
+
+        public string No { get; set; } = "AWB1";
+    }
+
+    /// <summary>
+    /// <see cref="IShadowOrder"/> 的实现：派生属性与基接口的实现交出两个不同的值
+    /// </summary>
+    private sealed class ShadowOrderRow : IShadowOrder
+    {
+        public int Id { get; set; } = 7;
+
+        object IShadowBase.Id => "基类旧值";
+    }
+
+    /// <summary>
     /// 完全不带导出特性的测试行类型，表头只能由描述信息回退得到
     /// </summary>
     private class PlainRowNoShadow
