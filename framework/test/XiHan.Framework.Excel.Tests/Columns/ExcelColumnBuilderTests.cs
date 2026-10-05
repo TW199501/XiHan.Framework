@@ -1,10 +1,15 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.Text;
+using ClosedXML.Excel;
+using Microsoft.Extensions.Logging.Abstractions;
+using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Attributes;
 using XiHan.Framework.Excel.Abstractions.Enums;
 using XiHan.Framework.Excel.Abstractions.Exporting;
 using XiHan.Framework.Excel.Columns;
+using XiHan.Framework.Excel.Exporting;
 using XiHan.Framework.Excel.Tests.TestSupport;
 
 namespace XiHan.Framework.Excel.Tests.Columns;
@@ -214,9 +219,9 @@ public class ExcelColumnBuilderTests
     /// <remarks>
     /// <para>
     /// 同一契约的两条列来源（手写 <c>ExcelColumn&lt;TRow&gt;</c> 与构建器产出的列）必须抛同一个型别：调用方按
-    /// <c>IExcelExporter</c> 文档化的型别 <c>catch</c> 时，不该因为列是谁建的对不上号。反射 <c>GetValue</c>
+    /// <c>IExcelExporter</c> 文档化的型别 <c>catch</c> 时，不该因为列是谁建的而接不到。反射 <c>GetValue</c>
     /// 会把 getter 的异常包成 <see cref="System.Reflection.TargetInvocationException"/>，那条型别不在任何
-    /// 导出入口的 <c>&lt;exception&gt;</c> 清单里。
+    /// 导出入口的 <c>&lt;exception&gt;</c> 清单里，调用方 <c>catch (MyDomainException)</c> 直接落空。
     /// </para>
     /// <para>
     /// 断 <c>InnerException</c> 为空是为的不让「包了一层但把原异常放在里面」蒙过去：包过的型别已经不是
@@ -272,12 +277,12 @@ public class ExcelColumnBuilderTests
     }
 
     /// <summary>
-    /// <c>ref</c> 返回的读取器照常成列并取到值：改用编译取值不得让这种形状在建列时就抛或静默少一栏
+    /// <c>ref</c> 返回的读取器照常成列并取到值：改成编译取值不得让这种形状在建列时就抛或静默少一栏
     /// </summary>
     /// <remarks>
     /// 表达式树没有「取引用所指的值」这个节点（<c>Expression.Convert(Int32&amp;, object)</c> 直接抛
     /// <see cref="InvalidOperationException"/>，探针 <c>t13-b3-probe-shapes2.txt</c> 实测），这类属性只能留在
-    /// 反射路径上。本条钉的是该形状没有被改判成「不成列」，取出的值也仍与反射一致。
+    /// 反射路径上。本条钉的是形状没有被改判成「不成列」，值也仍与反射一致。
     /// </remarks>
     [Fact]
     public void ref返回的读取器照常成列且取到值()
@@ -289,6 +294,161 @@ public class ExcelColumnBuilderTests
         Assert.Equal(7, Assert.IsType<int>(columns.Single(c => c.Key == nameof(ByRefRow.Counter)).GetValue(row)));
         Assert.Equal("AWB1", columns.Single(c => c.Key == nameof(ByRefRow.Name)).GetValue(row));
     }
+
+    /// <summary>
+    /// <c>new</c> 遮蔽的同名属性只留一列，且留下的是 <c>DeclaringType</c> 最深的那一个
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>GetProperties(Public | Instance)</c> 会把 <c>ShadowRow.Id</c>（<c>Int32</c>）与被它遮蔽的
+    /// <c>ShadowBaseRow.Id</c>（<c>Object</c>）一起交出，不去重就是两列同键 <c>Id</c>。留哪一个按 CLR 可见成员
+    /// 语义定：派生类那个才是 <c>ShadowRow.Id</c>，基类那个交出的是另一份背衬的旧值。
+    /// </para>
+    /// <para>
+    /// 「留第一个」不够——反射交出的顺序不是承诺，两个候选的先后随运行时而变；必须比 <c>DeclaringType</c>。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void 遮蔽属性只留派生类那一列并取到派生值()
+    {
+        var columns = ExcelColumnBuilder.CreateColumns<ShadowRow>();
+        var row = new ShadowRow();
+
+        Assert.Equal([nameof(ShadowRow.Id)], columns.Select(c => c.Key));
+        Assert.Equal(7, Assert.IsType<int>(columns.Single().GetValue(row)));
+        Assert.Equal(typeof(ShadowRow), columns.Single().RowType);
+    }
+
+    /// <summary>
+    /// 没有遮蔽的行类型不因去重少列
+    /// </summary>
+    [Fact]
+    public void 无遮蔽的行类型列数不变()
+    {
+        var columns = ExcelColumnBuilder.CreateColumns<PlainRowNoShadow>();
+
+        Assert.Equal([nameof(PlainRowNoShadow.First), nameof(PlainRowNoShadow.Second)], columns.Select(c => c.Key));
+        Assert.Equal([0, 1], columns.Select(c => c.Order));
+    }
+
+    /// <summary>
+    /// 忽略标记标在遮蔽出来的派生属性上时整个键不成列，被盖住的基类属性不得顶上来
+    /// </summary>
+    /// <remarks>
+    /// 判定顺序是「先去重、后判忽略」：同名之间代表这个键的是 CLR 看得见的 <c>ShadowIgnoredRow.Id</c>，
+    /// 它标了忽略就该整键没有这一栏。反过来先判忽略的话，<c>ShadowIgnoredBaseRow.Id</c> 会顶上来，
+    /// 交出一栏调用方明明标了不要、值还是基类那份过时的。
+    /// </remarks>
+    [Fact]
+    public void 忽略标在遮蔽属性上时整个键不成列()
+    {
+        Assert.Empty(ExcelColumnBuilder.CreateColumns<ShadowIgnoredRow>());
+    }
+
+    /// <summary>
+    /// 忽略标记标在被盖住的基类属性上时，派生那个照常成列
+    /// </summary>
+    [Fact]
+    public void 忽略标在被盖住的基类属性上时派生列照常()
+    {
+        var columns = ExcelColumnBuilder.CreateColumns<ShadowBaseIgnoredDto>();
+        var row = new ShadowBaseIgnoredDto();
+
+        Assert.Equal([nameof(ShadowBaseIgnoredDto.Id)], columns.Select(c => c.Key));
+        Assert.Equal(7, Assert.IsType<int>(columns.Single().GetValue(row)));
+    }
+
+    /// <summary>
+    /// 遮蔽属性在同一份规格走三条导出路径时同判：都只落一栏 <c>Id</c>，取的都是派生类那个值
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这一条不看构建器自己的清单，看落进档的结果：去重前流式路径被「重复列键」拒掉（抛），
+    /// 而 xlsx 全量与文字档照常写出两个 <c>Id</c> 栏位、其中一栏是基类旧值——同一份规格三条路径三套表现。
+    /// 去重之后「同判」是自然结果，不是另加的一致性补丁。
+    /// </para>
+    /// <para>
+    /// 三条路径各自回读自己格式的产物：xlsx 走工作簿回读，文字档按正文字面比。流式那条同时证明
+    /// 它不再走进 <c>EnsureDistinctKeys</c> 的拒绝分支。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 遮蔽属性在三条导出路径都只落一栏()
+    {
+        var columns = ExcelColumnBuilder.CreateColumns<ShadowRow>();
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(ShadowRow),
+            Columns = columns,
+            Rows = new[] { new ShadowRow() }
+        };
+
+        using var fullWorkbook = new XLWorkbook(await ExportWithClosedXmlAsync(spec));
+        var fullSheet = fullWorkbook.Worksheet(1);
+
+        Assert.Equal("Id", fullSheet.Cell(1, 1).GetString());
+        Assert.Equal(7, fullSheet.Cell(2, 1).GetValue<int>());
+        Assert.True(fullSheet.Cell(1, 2).IsEmpty());
+
+        using var streamWorkbook = new XLWorkbook(await ExportWithMiniExcelStreamAsync(spec));
+        var streamSheet = streamWorkbook.Worksheet(1);
+
+        Assert.Equal("Id", streamSheet.Cell(1, 1).GetString());
+        Assert.Equal(7, streamSheet.Cell(2, 1).GetValue<int>());
+        Assert.True(streamSheet.Cell(1, 2).IsEmpty());
+
+        var textStream = await ExportWithTextAsync(spec);
+
+        Assert.Equal("Id" + "\r\n" + "7" + "\r\n", BodyOf(textStream));
+    }
+
+    /// <summary>
+    /// 走 xlsx 全量路径写出一份档，回到起点交回可读的流
+    /// </summary>
+    private static async Task<MemoryStream> ExportWithClosedXmlAsync(ExcelSheetSpec spec)
+    {
+        var stream = new MemoryStream();
+
+        await new ClosedXmlExporter(new XiHanExcelOptions()).ExportAsync(
+            stream, spec, TestContext.Current.CancellationToken);
+
+        stream.Position = 0;
+        return stream;
+    }
+
+    /// <summary>
+    /// 走 xlsx 流式路径写出一份档，回到起点交回可读的流
+    /// </summary>
+    private static async Task<MemoryStream> ExportWithMiniExcelStreamAsync(ExcelSheetSpec spec)
+    {
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(stream, spec, TestContext.Current.CancellationToken);
+
+        stream.Position = 0;
+        return stream;
+    }
+
+    /// <summary>
+    /// 走文字档路径写出 csv（不带 BOM，正文按字面比）
+    /// </summary>
+    private static async Task<MemoryStream> ExportWithTextAsync(ExcelSheetSpec spec)
+    {
+        var stream = new MemoryStream();
+
+        await new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance).ExportAsync(
+            stream, spec, ExcelFormat.Csv, new ExcelTextOptions { EncodingName = "utf-8" },
+            TestContext.Current.CancellationToken);
+
+        return stream;
+    }
+
+    /// <summary>
+    /// 取文字档正文，剥掉前导 BOM
+    /// </summary>
+    private static string BodyOf(MemoryStream stream)
+        => Encoding.UTF8.GetString(stream.ToArray()).TrimStart('\uFEFF');
 
     /// <summary>
     /// 带抛出型计算属性与多种值型别的测试行类型
@@ -335,6 +495,83 @@ public class ExcelColumnBuilderTests
         /// 普通属性，作对照
         /// </summary>
         public string Name { get; set; } = "AWB1";
+    }
+
+    /// <summary>
+    /// <c>new</c> 遮蔽的测试行类型：基类与派生类的同名属性各有背衬，值不同
+    /// </summary>
+    /// <remarks>
+    /// <c>GetProperties(Public | Instance)</c> 对 <see cref="ShadowRow"/> 交出两个 <c>Id</c>
+    /// （<c>decl=ShadowRow Int32</c> 与 <c>decl=ShadowBaseRow Object</c>，探针
+    /// <c>t13-b3-probe-shapes2.txt</c> 实测），不去重就是两列同键。
+    /// </remarks>
+    private class ShadowBaseRow
+    {
+        /// <summary>
+        /// 被遮蔽的基类属性，值与派生类那个不同，用来证明留下的是哪一个
+        /// </summary>
+        public object Id { get; set; } = "基类旧值";
+    }
+
+    /// <summary>
+    /// 以 <c>new int Id</c> 遮蔽基类 <c>object Id</c> 的行类型
+    /// </summary>
+    private class ShadowRow : ShadowBaseRow
+    {
+        /// <summary>
+        /// 遮蔽后的派生属性，CLR 可见成员语义下这才是 <c>ShadowRow.Id</c>
+        /// </summary>
+        public new int Id { get; set; } = 7;
+    }
+
+    /// <summary>
+    /// 基类 <c>Id</c> 可读、派生 <c>Id</c> 遮蔽它并标了忽略的行类型
+    /// </summary>
+    private class ShadowIgnoredBaseRow
+    {
+        public object Id { get; set; } = "基类旧值";
+    }
+
+    /// <summary>
+    /// 派生属性标 <see cref="ExcelIgnoreAttribute"/> 的遮蔽行类型，用于「忽略整键」那条
+    /// </summary>
+    private class ShadowIgnoredRow : ShadowIgnoredBaseRow
+    {
+        [ExcelIgnore]
+        public new int Id { get; set; } = 7;
+    }
+
+    /// <summary>
+    /// 基类 <c>Id</c> 标了忽略的行类型
+    /// </summary>
+    private class ShadowBaseIgnoredRow
+    {
+        [ExcelIgnore]
+        public object Id { get; set; } = "基类旧值";
+    }
+
+    /// <summary>
+    /// 遮蔽「被忽略的基类属性」的行类型，派生那个没标忽略，照常成列
+    /// </summary>
+    private class ShadowBaseIgnoredDto : ShadowBaseIgnoredRow
+    {
+        public new int Id { get; set; } = 7;
+    }
+
+    /// <summary>
+    /// 完全不带导出特性的测试行类型，表头只能由描述信息回退得到
+    /// </summary>
+    private class PlainRowNoShadow
+    {
+        /// <summary>
+        /// 一列
+        /// </summary>
+        public string First { get; set; } = string.Empty;
+
+        /// <summary>
+        /// 两列
+        /// </summary>
+        public string Second { get; set; } = string.Empty;
     }
 
     /// <summary>
