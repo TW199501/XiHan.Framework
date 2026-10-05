@@ -1081,6 +1081,77 @@ public class ExcelDataReaderImporterTests
         Assert.True(bomb.CanSeek);
     }
 
+    /// <summary>
+    /// 列数超过上限的档整份被拒，点名实际列数与上限，且一行都不交出
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 16,385 是刚过界的那一档，100,001 是审查里量出「建键 17 秒」的那一档：两档都要在建键之前就被挡下。
+    /// 列数上限管的是宽度，行数上限管不到它——这份档只有两行。
+    /// </para>
+    /// <para>
+    /// 「一行都不交出」与「点名列数」一起钉住拒收的形态：截断列清单、只交前 16,384 列，
+    /// 交回的是一份看起来成功的错位结果，比抛出来更糟。
+    /// </para>
+    /// </remarks>
+    /// <param name="columns">档里每行的列数</param>
+    [Theory]
+    [InlineData(ExcelConstants.MaxImportColumns + 1)]
+    [InlineData(100_001)]
+    public async Task 列数超过上限的档被拒且一行都不交出(int columns)
+    {
+        using var csv = WideCsv(columns);
+        var emitted = new List<ExcelImportRow>();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (var row in new ExcelDataReaderImporter()
+                .ReadAsync(csv, new ExcelImportOptions { Format = ExcelImportFormat.Csv }, TestContext.Current.CancellationToken))
+            {
+                emitted.Add(row);
+            }
+        });
+
+        Assert.Empty(emitted);
+        Assert.Contains(columns.ToString(CultureInfo.InvariantCulture), failure.Message, StringComparison.Ordinal);
+        Assert.Contains(ExcelConstants.MaxImportColumns.ToString(CultureInfo.InvariantCulture), failure.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(ExcelConstants.MaxImportColumns), failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 列数恰等上限时照读：上限是「超过才拒」，16,384 列的表头整个建得起来
+    /// </summary>
+    [Fact]
+    public async Task 列数恰等上限时照读()
+    {
+        using var csv = WideCsv(ExcelConstants.MaxImportColumns);
+
+        var rows = await ReadAll(csv, new ExcelImportOptions { Format = ExcelImportFormat.Csv });
+
+        Assert.Single(rows);
+        Assert.Equal(ExcelConstants.MaxImportColumns, rows[0].Values.Count);
+        Assert.Equal("h0", rows[0].Values.Keys.First());
+        Assert.Equal($"h{ExcelConstants.MaxImportColumns - 1}", rows[0].Values.Keys.Last());
+    }
+
+    /// <summary>
+    /// 表头只有大小写不同时是两个键，不加重名后缀
+    /// </summary>
+    /// <remarks>
+    /// 钉判重用的比较器是 <c>Ordinal</c>：换成大小写不敏感，<c>"a"</c> 会被判成 <c>"A"</c> 的重名而变成
+    /// <c>a_2</c>，调用方按源档文案写的取值代码就取不到东西了。取值字典本来也按 <c>Ordinal</c> 比对，
+    /// 两边口径必须一致。
+    /// </remarks>
+    [Fact]
+    public async Task 表头只有大小写不同时不加重名后缀()
+    {
+        var rows = await ReadCsv("A,a\r\n1,2\r\n"u8.ToArray());
+
+        Assert.Equal(["A", "a"], rows[0].Values.Keys);
+        Assert.Equal("1", rows[0].Values["A"]);
+        Assert.Equal("2", rows[0].Values["a"]);
+    }
+
     private static async Task<List<ExcelImportRow>> ReadAll(Stream input, ExcelImportOptions? options = null)
     {
         return await ReadAll(new ExcelDataReaderImporter(), input, options);
@@ -1107,6 +1178,45 @@ public class ExcelDataReaderImporterTests
         var options = new ExcelImportOptions { Format = ExcelImportFormat.Csv };
 
         return ReadAll(new MemoryStream(bytes), mutate is null ? options : mutate(options));
+    }
+
+    /// <summary>
+    /// 造一份每行 <paramref name="columns"/> 列的 CSV：表头是 <c>h0</c>…<c>h{n-1}</c>，数据行每列一个 <c>v</c>
+    /// </summary>
+    /// <param name="columns">每行的列数</param>
+    /// <returns>位置在起点的流</returns>
+    /// <remarks>
+    /// 表头文案互不相同，因此建键时一个重名后缀都不会加：这条夹具量的是宽度本身，不是去重。
+    /// </remarks>
+    private static MemoryStream WideCsv(int columns)
+    {
+        var builder = new StringBuilder(columns * 8);
+
+        for (var index = 0; index < columns; index++)
+        {
+            if (index > 0)
+            {
+                builder.Append(',');
+            }
+
+            builder.Append('h').Append(index.ToString(CultureInfo.InvariantCulture));
+        }
+
+        builder.Append("\r\n");
+
+        for (var index = 0; index < columns; index++)
+        {
+            if (index > 0)
+            {
+                builder.Append(',');
+            }
+
+            builder.Append('v');
+        }
+
+        builder.Append("\r\n");
+
+        return new MemoryStream(ImportFixtures.Utf8NoBom.GetBytes(builder.ToString()));
     }
 
     /// <summary>

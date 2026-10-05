@@ -109,6 +109,19 @@ public static class ExcelConstants
     public const int MaxSheetRows = 1_048_576;
 
     /// <summary>
+    /// 导入时单行列数的硬上限
+    /// </summary>
+    /// <remarks>
+    /// 取 xlsx 自身的列上限（16,384 列，最后一列是 <c>XFD</c>）：正常档到不了这道界，越过它的通常是
+    /// 从别处拼出来的分隔符档或手工构造的容器。列数决定建键与每行取值的规模——每一列都要一个键名与
+    /// 一个字典项，不设上界就是让一份档决定单次导入的内存与耗时，而建键那段时间里取消令牌一次也不会被检查。
+    /// 容器导入器在<u>建键之前</u>逐行判 <c>FieldCount</c>，超限即抛出并点名实际列数：不截断列清单、
+    /// 也不交出前若干列，半行数据交回的是看起来成功的错位结果。固定宽度路径没有这道界——
+    /// 那里的列数来自调用方给的列定义而不是档，单行占用另有 <see cref="MaxFixedRowWidthBytes"/> 兜住。
+    /// </remarks>
+    public const int MaxImportColumns = 16_384;
+
+    /// <summary>
     /// 本组件对 xlsx 数值格承诺能原样落格的有效数字位数上限
     /// </summary>
     /// <remarks>

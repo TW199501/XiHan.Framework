@@ -84,6 +84,11 @@ namespace XiHan.Framework.Excel.Importing;
 /// 一份一百万字节的档可以把几百兆字节的共享字串塞进本进程。三道解压侧上限不可配置，
 /// 取值见 <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 一族的说明。
 /// </para>
+/// <para>
+/// 规模还有第三个维度是<u>宽度</u>：每一行的列数不得超过 <see cref="ExcelConstants.MaxImportColumns"/>，
+/// 逐行判在建键之前，超限整份档拒收。列数与行数一样决定单次导入的成本——每列都要一个键名与一个字典项——
+/// 而行数上限管不到它：一份两行的档也可以有十万列。
+/// </para>
 /// </remarks>
 public sealed class ExcelDataReaderImporter : IExcelImporter
 {
@@ -171,6 +176,8 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// 并点名 HTML 表格／XML 表格这类伪装；</item>
     /// <item>格式给出或判出但容器读不通（伪造的档头、截断的档、损坏的簿）：消息点名该格式、附同一份可读档头，
     /// 并把库原话留在内部异常；</item>
+    /// <item>某一行的列数超过 <see cref="ExcelConstants.MaxImportColumns"/>：消息写出实际列数与该上限，
+    /// 逐行判在建键之前，整份档拒收，不截断列清单也不交出前若干列；</item>
     /// <item><see cref="ExcelImportOptions.SheetName"/> 在本工作簿里不存在：消息列出实际表名。</item>
     /// </list></exception>
     /// <exception cref="DecoderFallbackException">文字档的实际字节在所用编码下解不开（UTF-8 一支）。
@@ -258,7 +265,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
 
         var rowNumber = 0;
         var emitted = 0;
-        List<string>? keys = null;
+        HeaderKeySet? keys = null;
 
         while (ReadNext(reader, format, header))
         {
@@ -268,6 +275,9 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
             {
                 cancellationToken.ThrowIfCancellationRequested();
             }
+
+            // 列数上限判在建键之前：建键与每行取值都按列数放大，判晚了那笔成本已经付掉了
+            GuardColumnCount(reader.FieldCount);
 
             // 前导行按行号丢掉，不参与表头与取值
             if (rowNumber <= effective.HeaderRowIndex)
@@ -279,17 +289,17 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
             {
                 if (effective.HasHeader)
                 {
-                    keys = BuildKeys(reader, effective.TrimHeaders);
+                    keys = HeaderKeySet.BuildKeys(reader, effective.TrimHeaders);
                     continue;
                 }
 
-                keys = PositionalKeys(reader.FieldCount);
+                keys = HeaderKeySet.PositionalKeys(reader.FieldCount);
             }
 
             // 行比表头宽时补出 Col{n}，多出来的列保留而不丢弃
-            ExtendKeys(keys, reader.FieldCount);
+            keys.ExtendKeys(reader.FieldCount);
 
-            var values = ReadValues(reader, keys, effective.TrimValues);
+            var values = ReadValues(reader, keys.Keys, effective.TrimValues);
 
             if (effective.SkipEmptyRows && ImportSharedRules.IsEmptyRow(values))
             {
@@ -540,87 +550,154 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     }
 
     /// <summary>
-    /// 把一行表头转成键名清单，重名加 <c>_n</c> 后缀（<c>n</c> 从 2 起）
-    /// </summary>
-    /// <param name="reader">停在表头行的读取器</param>
-    /// <param name="trimHeaders">是否去掉表头文案的首尾空白</param>
-    private static List<string> BuildKeys(IExcelDataReader reader, bool trimHeaders)
-    {
-        var keys = new List<string>(reader.FieldCount);
-
-        for (var index = 0; index < reader.FieldCount; index++)
-        {
-            var raw = reader.GetValue(index);
-            var text = ValueToHeaderKey(raw);
-
-            if (trimHeaders)
-            {
-                text = text.Trim();
-            }
-
-            // 空表头位用列序补名：表头缺字是常事，键名不能是空字串
-            if (text.Length == 0)
-            {
-                text = $"{PositionalKeyPrefix}{index + 1}";
-            }
-
-            keys.Add(UniqueKey(keys, text));
-        }
-
-        return keys;
-    }
-
-    /// <summary>
-    /// 生成 <c>Col1</c>、<c>Col2</c>… 的位置键名
+    /// 判一行的列数有没有超过导入列数上限
     /// </summary>
     /// <param name="fieldCount">本行的列数</param>
-    private static List<string> PositionalKeys(int fieldCount)
-    {
-        var keys = new List<string>(fieldCount);
-
-        for (var index = 0; index < fieldCount; index++)
-        {
-            keys.Add($"{PositionalKeyPrefix}{index + 1}");
-        }
-
-        return keys;
-    }
-
-    /// <summary>
-    /// 行比现有键清单宽时补出位置键，窄时不动
-    /// </summary>
-    /// <param name="keys">现有键清单</param>
-    /// <param name="fieldCount">本行的列数</param>
-    private static void ExtendKeys(List<string> keys, int fieldCount)
-    {
-        for (var index = keys.Count; index < fieldCount; index++)
-        {
-            keys.Add(UniqueKey(keys, $"{PositionalKeyPrefix}{index + 1}"));
-        }
-    }
-
-    /// <summary>
-    /// 取一个不与已有键重名的键名
-    /// </summary>
-    /// <param name="keys">已有键名</param>
-    /// <param name="baseKey">候选键名</param>
+    /// <exception cref="InvalidOperationException">列数超过 <see cref="ExcelConstants.MaxImportColumns"/></exception>
     /// <remarks>
-    /// 后缀从 <c>_2</c> 起，且要跳过「源档里本来就有 <c>重量_2</c>」这种撞名：撞了就继续加一号，
-    /// 否则两份数据会落进同一个键、后写的盖掉先写的。
+    /// 逐行判而不只在表头行判一次：分隔符档每行的列数可以不同，行变宽时补出 <c>Col{n}</c> 是既有语义，
+    /// 因此「表头只有两列、第 900 行忽然十万列」这种档也要在补键之前被挡下。
+    /// 超限时整份档拒收，不截断列清单、也不交出前若干列——半行数据交回的是看起来成功的错位结果。
     /// </remarks>
-    private static string UniqueKey(IReadOnlyList<string> keys, string baseKey)
+    private static void GuardColumnCount(int fieldCount)
     {
-        if (!keys.Contains(baseKey))
+        if (fieldCount <= ExcelConstants.MaxImportColumns)
         {
-            return baseKey;
+            return;
         }
 
-        for (var suffix = 2; ; suffix++)
+        throw new InvalidOperationException(
+            $"这份档的一行有 {fieldCount} 列，超过导入列数上限 " +
+            $"{nameof(ExcelConstants.MaxImportColumns)} = {ExcelConstants.MaxImportColumns} 列：" +
+            "整份档拒收，不建键、也不交出任何一行。列数决定建键与每行取值的规模，" +
+            "不设上界就是让一份档决定单次导入的内存与耗时；要读更宽的档请先在来源侧把列拆成多份。");
+    }
+
+    /// <summary>
+    /// 一行表头换算出的键名清单，以及与它同步维护的判重集合
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 判重集合必须与清单同生同长，因此收在一个类型里，不拆成调用方自己维持的两个局部变量：
+    /// 只按清单线性扫（<c>List.Contains</c>）判重时，<c>n</c> 列的表头要扫 O(n²) 次，
+    /// 一份十万列的档光是建键就要十几秒，而这段时间里取消令牌一次也不会被检查。
+    /// 用 <see cref="HashSet{T}"/> 判重把它压回 O(n)。
+    /// </para>
+    /// <para>
+    /// 比较器钉 <see cref="StringComparer.Ordinal"/>：键名是调用方按字面取值的标识，
+    /// <c>"A"</c> 与 <c>"a"</c> 是两个键。换成大小写不敏感的比较器会把它们判成重名、给后一个加 <c>_2</c> 后缀，
+    /// 同一份档在不同来源上取到不同键名，而这与 <see cref="ReadValues"/> 里取值字典用的比较器也会不一致。
+    /// </para>
+    /// </remarks>
+    private sealed class HeaderKeySet
+    {
+        private readonly List<string> _keys;
+
+        private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
+
+        private HeaderKeySet(int capacity)
         {
-            var candidate = $"{baseKey}_{suffix}";
-            if (!keys.Contains(candidate))
+            _keys = new List<string>(capacity);
+        }
+
+        /// <summary>
+        /// 键名清单，顺序就是列序
+        /// </summary>
+        internal IReadOnlyList<string> Keys => _keys;
+
+        /// <summary>
+        /// 把一行表头转成键名清单，重名加 <c>_n</c> 后缀（<c>n</c> 从 2 起）
+        /// </summary>
+        /// <param name="reader">停在表头行的读取器</param>
+        /// <param name="trimHeaders">是否去掉表头文案的首尾空白</param>
+        internal static HeaderKeySet BuildKeys(IExcelDataReader reader, bool trimHeaders)
+        {
+            var set = new HeaderKeySet(reader.FieldCount);
+
+            for (var index = 0; index < reader.FieldCount; index++)
             {
-                return candidate;
+                var raw = reader.GetValue(index);
+                var text = ValueToHeaderKey(raw);
+
+                if (trimHeaders)
+                {
+                    text = text.Trim();
+                }
+
+                // 空表头位用列序补名：表头缺字是常事，键名不能是空字串
+                if (text.Length == 0)
+                {
+                    text = $"{PositionalKeyPrefix}{index + 1}";
+                }
+
+                set.Add(text);
+            }
+
+            return set;
+        }
+
+        /// <summary>
+        /// 生成 <c>Col1</c>、<c>Col2</c>… 的位置键名
+        /// </summary>
+        /// <param name="fieldCount">本行的列数</param>
+        internal static HeaderKeySet PositionalKeys(int fieldCount)
+        {
+            var set = new HeaderKeySet(fieldCount);
+
+            for (var index = 0; index < fieldCount; index++)
+            {
+                set.Add($"{PositionalKeyPrefix}{index + 1}");
+            }
+
+            return set;
+        }
+
+        /// <summary>
+        /// 行比现有键清单宽时补出位置键，窄时不动
+        /// </summary>
+        /// <param name="fieldCount">本行的列数</param>
+        internal void ExtendKeys(int fieldCount)
+        {
+            for (var index = _keys.Count; index < fieldCount; index++)
+            {
+                Add($"{PositionalKeyPrefix}{index + 1}");
+            }
+        }
+
+        /// <summary>
+        /// 取一个不与已有键重名的键名，连同它一起记进清单与判重集合
+        /// </summary>
+        /// <param name="baseKey">候选键名</param>
+        /// <remarks>
+        /// 后缀从 <c>_2</c> 起，且要跳过「源档里本来就有 <c>重量_2</c>」这种撞名：撞了就继续加一号，
+        /// 否则两份数据会落进同一个键、后写的盖掉先写的。
+        /// </remarks>
+        private void Add(string baseKey)
+        {
+            var key = UniqueKey(baseKey);
+
+            _keys.Add(key);
+            _seen.Add(key);
+        }
+
+        /// <summary>
+        /// 在判重集合上取一个不重名的键名
+        /// </summary>
+        /// <param name="baseKey">候选键名</param>
+        private string UniqueKey(string baseKey)
+        {
+            if (!_seen.Contains(baseKey))
+            {
+                return baseKey;
+            }
+
+            for (var suffix = 2; ; suffix++)
+            {
+                var candidate = $"{baseKey}_{suffix}";
+                if (!_seen.Contains(candidate))
+                {
+                    return candidate;
+                }
             }
         }
     }
