@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Globalization;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Text;
 using ExcelDataReader;
@@ -73,6 +74,16 @@ namespace XiHan.Framework.Excel.Importing;
 /// 两个构造的差别只在数字上，判定与报错文字同一份。配置值越出框架硬上限或不是正整数时在构造点抛出，
 /// 不等第一次取行，也不夹回上限。
 /// </para>
+/// <para>
+/// 档的规模有两道界，都判在建立读取器之前。<b>其一</b>是档大小：取构造时的
+/// <see cref="XiHanExcelOptions.MaxImportBytes"/>（无参构造用 <see cref="ExcelConstants.DefaultMaxImportBytes"/>），
+/// 超限拒收整份档，判据与固定宽度路径共用一份。<b>其二</b>只对 <c>xlsx</c> 生效，判的是解压后的规模：
+/// 按 zip 中央目录里的元数据扫一遍各部件的解压后长度、总长与解压比，任一道越界就拒收，
+/// 一个部件都不解压。第二道界是必需的，因为工作簿读取器开簿时就把 <c>xl/sharedStrings.xml</c>
+/// 整份载进内存，那笔开销发生在读出第一行<u>之前</u>，行数上限与取消令牌都拦不住它：
+/// 一份一百万字节的档可以把几百兆字节的共享字串塞进本进程。三道解压侧上限不可配置，
+/// 取值见 <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 一族的说明。
+/// </para>
 /// </remarks>
 public sealed class ExcelDataReaderImporter : IExcelImporter
 {
@@ -81,7 +92,19 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// </summary>
     private const int CancellationCheckIntervalRows = 64;
 
+    /// <summary>
+    /// 解压比只对不小于这个解压后长度的部件判（1 MiB）
+    /// </summary>
+    /// <remarks>
+    /// 更小的部件即使比值难看也占不了多少内存，而它们的总量另有
+    /// <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 兜住；对小部件判比值只会把
+    /// 「一小段重复度高的样式表」误判成炸弹。
+    /// </remarks>
+    private const long CompressionRatioFloorBytes = 1_048_576;
+
     private readonly int _hardMaxRows;
+
+    private readonly long _maxImportBytes;
 
     /// <summary>
     /// 用框架默认导入行数硬上限构造读取器
@@ -89,12 +112,14 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     public ExcelDataReaderImporter()
     {
         _hardMaxRows = ImportSharedRules.ResolveHardMaxRows(null);
+        _maxImportBytes = ImportSharedRules.ResolveMaxImportBytes(null);
     }
 
     /// <summary>
-    /// 用配置里的导入行数硬上限构造读取器
+    /// 用配置里的导入上限构造读取器
     /// </summary>
-    /// <param name="options">Excel 选项，只取 <see cref="XiHanExcelOptions.MaxImportRows"/> 一项</param>
+    /// <param name="options">Excel 选项，取 <see cref="XiHanExcelOptions.MaxImportRows"/>
+    /// 与 <see cref="XiHanExcelOptions.MaxImportBytes"/> 两项</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> 为 <c>null</c></exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <see cref="XiHanExcelOptions.MaxImportRows"/> 不是正整数，或高过框架硬上限
@@ -104,6 +129,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
         ArgumentNullException.ThrowIfNull(options);
 
         _hardMaxRows = ImportSharedRules.ResolveHardMaxRows(options);
+        _maxImportBytes = ImportSharedRules.ResolveMaxImportBytes(options);
     }
 
     /// <summary>
@@ -137,6 +163,10 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// 上限由构造本类的选项决定，默认是框架硬上限 <see cref="ExcelConstants.DefaultMaxImportRows"/> 行）</exception>
     /// <exception cref="InvalidOperationException">
     /// <list type="bullet">
+    /// <item>档的字节数超过本次生效的 <see cref="XiHanExcelOptions.MaxImportBytes"/>：消息写出档的实际大小与该上限，
+    /// 判在格式判别之前，整份档拒收；</item>
+    /// <item><c>xlsx</c> 容器的解压规模越界（单个部件解压后长度、解压后总长、单个部件的解压比，
+    /// 三者任一）：消息点名越界的那个部件与越界的数字，判在建立工作簿读取器之前，一个部件都不解压；</item>
     /// <item><see cref="ExcelImportOptions.Format"/> 为 <c>null</c> 且档头判不出格式：消息写出档头字节的可读形式
     /// 并点名 HTML 表格／XML 表格这类伪装；</item>
     /// <item>格式给出或判出但容器读不通（伪造的档头、截断的档、损坏的簿）：消息点名该格式、附同一份可读档头，
@@ -185,6 +215,9 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
 
         cancellationToken.ThrowIfCancellationRequested();
 
+        // 档大小先判：超限的档连格式都不必判。判据与固定宽度路径共用一份，两个来源对「这份档太大」不能各说一套。
+        ImportSharedRules.ValidateImportBytes(input.Length, _maxImportBytes);
+
         // 读取一律从流起点开始：容器解析会复位到起点，嗅探也照同一个起点，
         // 否则「调用方把位置留在中间」时嗅探判的是中间那段，而解析器读的是整档，两者会各说各话。
         input.Position = 0;
@@ -195,6 +228,10 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
 
         var format = effective.Format ?? DetectFormatOrThrow(header);
         var isText = format is ExcelImportFormat.Csv or ExcelImportFormat.Txt;
+
+        // 解压规模判在建立读取器之前：工作簿读取器开簿时就把 sharedStrings 整份载进内存，
+        // 那笔开销发生在读出第一行之前，行数上限与取消令牌都拦不住它。
+        GuardDecompressedSize(input, format);
 
         // 建立读取器：文字路径的分隔符与编码在这里钉死，二进制路径不读 TextEncodingName 与 Delimiter
         var configuration = new ExcelReaderConfiguration
@@ -294,6 +331,90 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
             $"请把 ExcelImportOptions.Format 显式指名：文字档用 {ExcelImportFormat.Csv} 或 {ExcelImportFormat.Txt}" +
             $"（同时给 Delimiter 与 TextEncodingName），{ExcelImportFormat.Xls}／{ExcelImportFormat.Xlsx} 只在档真是那种容器时给。" +
             "HTML 表格与 XML 表格本身没有可靠签名，本组件不读它们，请先转成 xlsx 或 csv。");
+    }
+
+    /// <summary>
+    /// 按 zip 元数据判一个 xlsx 容器的解压规模，扫完把流位置归零
+    /// </summary>
+    /// <param name="input">输入流，可定位</param>
+    /// <param name="format">本次要读的格式；不是 <see cref="ExcelImportFormat.Xlsx"/> 时什么都不做</param>
+    /// <exception cref="InvalidOperationException">
+    /// 单个部件解压后长度超过 <see cref="ExcelConstants.MaxImportEntryDecompressedBytes"/>，
+    /// 或解压后总长超过 <see cref="ExcelConstants.MaxImportDecompressedBytes"/>，
+    /// 或某个部件的解压比超过 <see cref="ExcelConstants.MaxImportCompressionRatio"/>
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// 只读 zip 的中央目录，<u>不解压任何部件</u>：<see cref="ZipArchiveEntry.Length"/> 与
+    /// <see cref="ZipArchiveEntry.CompressedLength"/> 都写在目录里，因此这道检查的成本与档的内容规模无关，
+    /// 一份 1 MiB 的炸弹和一份 1 MiB 的正常档扫起来一样快。
+    /// </para>
+    /// <para>
+    /// 以 <c>leaveOpen: true</c> 打开，流的所有权始终在调用方；<see cref="ZipArchive"/> 读完目录会把位置留在
+    /// 档尾附近，因此无论判过还是判不过，退出前一律把 <see cref="Stream.Position"/> 归零。这是本类自己
+    /// 对调用方的承诺——读取从流的起点开始、扫档不吃调用方的流——不建立在「底层读取器会不会自己回头定位」上；
+    /// 判不过的时候，调用方拿回的也是一条停在起点、可以就地检查或另作处置的流。
+    /// </para>
+    /// <para>
+    /// 档头是 zip 签名却打不开目录（截断的档、伪造的档头）时不在这里报错，交给
+    /// <see cref="CreateReader"/> 报那条已经声明过的「按 Xlsx 读不通」：容器失败的消息只有一份口径，
+    /// 这道检查不另立一套。
+    /// </para>
+    /// </remarks>
+    private static void GuardDecompressedSize(Stream input, ExcelImportFormat format)
+    {
+        if (format != ExcelImportFormat.Xlsx)
+        {
+            return;
+        }
+
+        var total = 0L;
+
+        try
+        {
+            using var zip = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: true);
+
+            foreach (var entry in zip.Entries)
+            {
+                // 单部件先判：任何离谱的声明长度都在累加之前被挡掉，总和因此不会溢出
+                if (entry.Length > ExcelConstants.MaxImportEntryDecompressedBytes)
+                {
+                    throw new InvalidOperationException(
+                        $"xlsx 容器里的部件「{entry.FullName}」解压后有 {entry.Length} 字节，" +
+                        $"超过单个部件的上限 {ExcelConstants.MaxImportEntryDecompressedBytes} 字节：整份档拒收，不建立工作簿读取器。" +
+                        "工作簿读取器开簿时把共享字串整份载进内存，单个部件的解压后长度直接换算成本进程的内存占用。");
+                }
+
+                total += entry.Length;
+
+                if (total > ExcelConstants.MaxImportDecompressedBytes)
+                {
+                    throw new InvalidOperationException(
+                        $"xlsx 容器解压后总长超过上限 {ExcelConstants.MaxImportDecompressedBytes} 字节：" +
+                        $"累加到部件「{entry.FullName}」时已达 {total} 字节，整份档拒收，不建立工作簿读取器。" +
+                        "档的字节数说的是压缩后的大小，读它要付的内存与 I/O 由解压后的规模决定。");
+                }
+
+                if (entry.Length >= CompressionRatioFloorBytes &&
+                    entry.CompressedLength > 0 &&
+                    entry.Length / entry.CompressedLength > ExcelConstants.MaxImportCompressionRatio)
+                {
+                    throw new InvalidOperationException(
+                        $"xlsx 容器里的部件「{entry.FullName}」解压比过高：压缩后 {entry.CompressedLength} 字节，" +
+                        $"解压后 {entry.Length} 字节，是 {entry.Length / entry.CompressedLength} 倍，" +
+                        $"超过上限 {ExcelConstants.MaxImportCompressionRatio} 倍：整份档拒收，不建立工作簿读取器。" +
+                        "承载数据的部件压缩比在数十倍量级，上百倍意味着这个部件里几乎没有信息量。");
+                }
+            }
+        }
+        catch (InvalidDataException)
+        {
+            // 档头是 zip 签名但目录读不出来：不在这里另立一套容器失败消息，交给 CreateReader 报「按 Xlsx 读不通」
+        }
+        finally
+        {
+            input.Position = 0;
+        }
     }
 
     /// <summary>

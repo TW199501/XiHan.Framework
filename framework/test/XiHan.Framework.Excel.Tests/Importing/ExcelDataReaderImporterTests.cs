@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Globalization;
+using System.IO.Compression;
 using System.Text;
 using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
@@ -948,6 +949,138 @@ public class ExcelDataReaderImporterTests
         Assert.Equal(3, rows.Count);
     }
 
+    /// <summary>
+    /// 档大小超过本次生效的上限时整份档被拒，且判在格式判别之前
+    /// </summary>
+    /// <remarks>
+    /// 喂的是判别不出格式的二进制垃圾：若档大小判在格式判别之后，报出来的会是「无法从档头判定导入格式」。
+    /// 上限取自配置而不是档的内容，因此它比档侧判据更早成立。
+    /// </remarks>
+    [Fact]
+    public async Task 超过配置档大小上限的档在格式判别之前被拒()
+    {
+        var importer = new ExcelDataReaderImporter(new XiHanExcelOptions { MaxImportBytes = 8 });
+        using var garbage = ImportFixtures.BinaryGarbage();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ReadAll(importer, garbage));
+
+        Assert.Contains("导入的档有 9 字节", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("上限 8 字节", failure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("无法从档头判定导入格式", failure.Message, StringComparison.Ordinal);
+        Assert.Null(failure.InnerException);
+    }
+
+    /// <summary>
+    /// 档大小恰等上限时照读：上限是「超过才拒」，不是「达到就拒」
+    /// </summary>
+    [Fact]
+    public async Task 档大小恰等上限时照读()
+    {
+        using var csv = ImportFixtures.Csv("提单号", 2);
+        var importer = new ExcelDataReaderImporter(new XiHanExcelOptions { MaxImportBytes = csv.Length });
+
+        var rows = await ReadAll(importer, csv, new ExcelImportOptions { Format = ExcelImportFormat.Csv });
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("AWB1", rows[0].Values["提单号"]);
+    }
+
+    /// <summary>
+    /// 解压比超标的 xlsx 在建立工作簿读取器之前被拒，行数上限拦不住的那种档由这道守卫拦下
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 夹具是一份<u>结构完整、读得通</u>的 xlsx，只有共享字串部件里塞了一段高度重复的内容：
+    /// 工作簿读取器开簿时把共享字串整份载进内存，那笔开销发生在读出第一行之前，
+    /// 因此这里显式把 <see cref="ExcelImportOptions.MaxRowCount"/> 设成 1 —— 只要一行也照样会被炸开，
+    /// 拦下它的只能是建立读取器之前的这道解压规模守卫。
+    /// </para>
+    /// <para>
+    /// 断言消息点名部件、并且内部异常为 <c>null</c>：内部异常非空意味着走的是「容器读不通」那条转译路径，
+    /// 也就是守卫根本没判，档已经被交给读取器了。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 解压比超标的xlsx在建立读取器之前被拒()
+    {
+        using var bomb = HighRatioXlsx(8 * 1024 * 1024);
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await ReadAll(bomb, new ExcelImportOptions { MaxRowCount = 1 }));
+
+        Assert.Contains("xl/sharedStrings.xml", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("解压比过高", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(ExcelConstants.MaxImportCompressionRatio.ToString(CultureInfo.InvariantCulture), failure.Message, StringComparison.Ordinal);
+        Assert.Null(failure.InnerException);
+    }
+
+    /// <summary>
+    /// 解压规模扫档之后流位置归零：同一份 xlsx 连着读两次都读出同一行
+    /// </summary>
+    /// <remarks>
+    /// 扫档要打开 zip 读中央目录，读完位置会落在档尾附近。不把位置归零，后面建立读取器拿到的
+    /// 是一条已经读到尾的流，报出来的会是「按 Xlsx 读不通」而不是真正的原因。
+    /// </remarks>
+    [Fact]
+    public async Task 解压规模扫档之后流位置归零仍能读出数据()
+    {
+        using var xlsx = ImportFixtures.OneRowXlsx();
+
+        var first = await ReadAll(xlsx);
+        var second = await ReadAll(xlsx);
+
+        Assert.Equal("AWB1", first[0].Values["提单号"]);
+        Assert.Equal(first[0].Values.Keys, second[0].Values.Keys);
+        Assert.Equal("AWB1", second[0].Values["提单号"]);
+    }
+
+    /// <summary>
+    /// 解压规模守卫排在建立工作簿读取器<u>之前</u>，不是之后
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 夹具刻意造成「zip 完好、共享字串解压比超标、但缺工作簿部件」：这样两种先后给出<u>不同</u>的异常面。
+    /// 守卫在前，报的是解压比超标、内部异常为 <c>null</c>；守卫在后，档已经被交给工作簿读取器，
+    /// 报的是「按 Xlsx 读不通」那条转译、内部异常非空。上一条用例的夹具是结构完整的炸弹簿，
+    /// 守卫挪到后面也照样报同一句话，因此钉不住先后，先后由这一条钉。
+    /// </para>
+    /// <para>
+    /// 先后不是洁癖：工作簿读取器开簿就把共享字串整份载进内存，守卫排在它后面等于先付完那笔内存再回头拒。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 解压规模守卫排在建立读取器之前()
+    {
+        using var bomb = HighRatioXlsx(8 * 1024 * 1024, withWorkbookPart: false);
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ReadAll(bomb));
+
+        Assert.Contains("xl/sharedStrings.xml", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("解压比过高", failure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("读不通", failure.Message, StringComparison.Ordinal);
+        Assert.Null(failure.InnerException);
+    }
+
+    /// <summary>
+    /// 解压规模守卫不吃调用方的流：扫过中央目录之后位置归零，流照旧可读
+    /// </summary>
+    /// <remarks>
+    /// 扫档要打开 zip 读中央目录，读完位置会落在档尾附近。归零是本类对调用方的承诺——
+    /// 读取从流起点开始、判不过时交回的也是一条停在起点的流——不建立在「底层读取器会不会自己回头定位」上：
+    /// 库自己会不会定位是库这一版的取舍，本类不把自己的正确性挂在它上面。
+    /// </remarks>
+    [Fact]
+    public async Task 解压规模守卫不吃调用方的流()
+    {
+        using var bomb = HighRatioXlsx(8 * 1024 * 1024);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await ReadAll(bomb));
+
+        Assert.Equal(0, bomb.Position);
+        Assert.True(bomb.CanRead);
+        Assert.True(bomb.CanSeek);
+    }
+
     private static async Task<List<ExcelImportRow>> ReadAll(Stream input, ExcelImportOptions? options = null)
     {
         return await ReadAll(new ExcelDataReaderImporter(), input, options);
@@ -974,5 +1107,90 @@ public class ExcelDataReaderImporterTests
         var options = new ExcelImportOptions { Format = ExcelImportFormat.Csv };
 
         return ReadAll(new MemoryStream(bytes), mutate is null ? options : mutate(options));
+    }
+
+    /// <summary>
+    /// 造一份解压比超标的 xlsx：共享字串部件里塞满高度重复的内容
+    /// </summary>
+    /// <param name="payloadBytes">共享字串里那段重复内容的字节数</param>
+    /// <param name="withWorkbookPart">是否写出工作簿部件；<c>false</c> 时这份 zip 建不起工作簿读取器</param>
+    /// <returns>位置在起点的 xlsx 流</returns>
+    /// <remarks>
+    /// <para>
+    /// 手工按 zip 部件写而不是用 ClosedXML：ClosedXML 写不出「压缩后几十 KB、解压后几 MB」这种形态，
+    /// 而这份夹具要的正是它。<paramref name="withWorkbookPart"/> 为 <c>true</c> 时工作表只引用共享字串的第 0 项，
+    /// 因此守卫若失效，这份档是<u>读得通</u>的——用例会在「本该抛却没抛」上失败，而不是在容器解析上失败。
+    /// </para>
+    /// <para>
+    /// 重复内容分块写，夹具自己不持有整段字串；压缩后只有几十 KB，因此这条用例的成本是线性的。
+    /// 共享字串用 <see cref="CompressionLevel.Optimal"/> 压：这段内容高度重复，最优压缩下解压比落在数百倍，
+    /// 与上限之间留出成倍余量，不依赖压缩器某一版的取舍。
+    /// </para>
+    /// </remarks>
+    private static MemoryStream HighRatioXlsx(int payloadBytes, bool withWorkbookPart = true)
+    {
+        var stream = new MemoryStream();
+
+        using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            WriteEntry(zip, "[Content_Types].xml",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>
+                """);
+
+            WriteEntry(zip, "_rels/.rels",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>
+                """);
+
+            if (withWorkbookPart)
+            {
+                WriteEntry(zip, "xl/workbook.xml",
+                    """
+                    <?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="导入" sheetId="1" r:id="rId1"/></sheets></workbook>
+                    """);
+            }
+
+            WriteEntry(zip, "xl/_rels/workbook.xml.rels",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>
+                """);
+
+            WriteEntry(zip, "xl/worksheets/sheet1.xml",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2" t="s"><v>0</v></c></row></sheetData></worksheet>
+                """);
+
+            var entry = zip.CreateEntry("xl/sharedStrings.xml", CompressionLevel.Optimal);
+
+            using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(false));
+            writer.Write(
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="1" uniqueCount="1"><si><t>
+                """);
+
+            var chunk = new string('x', 4096);
+            for (var written = 0; written < payloadBytes; written += chunk.Length)
+            {
+                writer.Write(chunk);
+            }
+
+            writer.Write("</t></si></sst>");
+        }
+
+        stream.Position = 0;
+
+        return stream;
+    }
+
+    /// <summary>
+    /// 往 zip 里写一个文字部件
+    /// </summary>
+    private static void WriteEntry(ZipArchive zip, string name, string content)
+    {
+        var entry = zip.CreateEntry(name, CompressionLevel.Fastest);
+
+        using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(false));
+        writer.Write(content);
     }
 }

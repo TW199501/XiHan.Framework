@@ -658,6 +658,49 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
+    /// 档大小超过配置上限时定宽路径整份拒收，判据与容器路径共用一份
+    /// </summary>
+    /// <remarks>
+    /// 两条导入路径对「这份档太大」必须同一种报法：只在容器路径判的话，同一份超限的档换条路径读就放行了，
+    /// 而「走哪条读取路径」由列定义有没有给决定，不该顺带决定档能有多大。
+    /// </remarks>
+    [Fact]
+    public async Task 超过配置档大小上限的定宽档被拒()
+    {
+        var importer = new FixedWidthTextImporter(
+            new XiHanExcelOptions { MaxImportBytes = 4 },
+            NullLogger<FixedWidthTextImporter>.Instance);
+        using var stream = ImportFixtures.Text("AB\r\nCD\r\n");
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await AsyncCollector.CollectAsync(importer.ReadAsync(
+                stream, ColumnsOnly([new("A", 1), new("B", 1)]), TestContext.Current.CancellationToken)));
+
+        Assert.Contains("导入的档有 8 字节", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("上限 4 字节", failure.Message, StringComparison.Ordinal);
+        Assert.Null(failure.InnerException);
+    }
+
+    /// <summary>
+    /// 定宽档大小恰等上限时照读：上限是「超过才拒」，与容器路径同一个口径
+    /// </summary>
+    [Fact]
+    public async Task 定宽档大小恰等上限时照读()
+    {
+        var importer = new FixedWidthTextImporter(
+            new XiHanExcelOptions { MaxImportBytes = 8 },
+            NullLogger<FixedWidthTextImporter>.Instance);
+        using var stream = ImportFixtures.Text("AB\r\nCD\r\n");
+
+        var rows = await AsyncCollector.CollectAsync(importer.ReadAsync(
+            stream, ColumnsOnly([new("A", 1), new("B", 1)]), TestContext.Current.CancellationToken));
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("A", rows[0].Values["A"]);
+        Assert.Equal("C", rows[1].Values["A"]);
+    }
+
+    /// <summary>
     /// 只给日志器的构造照旧可用，且上限仍是框架默认硬上限
     /// </summary>
     [Fact]

@@ -44,4 +44,27 @@ public class XiHanExcelOptions
     /// 不夹回上界。
     /// </remarks>
     public int MaxImportRows { get; set; } = ExcelConstants.DefaultMaxImportRows;
+
+    /// <summary>
+    /// 框架侧导入档大小上限（字节），单次导入的档超过它就拒收
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 两条导入路径（容器与文字档、固定宽度）都在读第一个字节之前按本值判 <c>Stream.Length</c>，
+    /// 超限抛 <see cref="InvalidOperationException"/> 并点名档的实际大小与本上限：拒收的是<u>整份档</u>，
+    /// 不截断读取、也不「先读前面一段」，因为半份档交回的是看起来成功的数据损失。
+    /// 默认值是 <see cref="ExcelConstants.DefaultMaxImportBytes"/>（256 MiB）。
+    /// </para>
+    /// <para>
+    /// 本项管的是<u>压缩后</u>的档大小。xlsx 是 zip 容器，压缩后的大小与读它要付出的内存不成比例，
+    /// 因此容器路径另有三道不可配置的解压侧上限（解压后总长、单个部件解压后长度、单个部件的解压比，
+    /// 见 <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 一族），
+    /// 在把工作簿交给读取器之前先按 zip 元数据判完；调高本值不会放宽那三道界。
+    /// </para>
+    /// <para>
+    /// 输入流不可定位时判不了 <c>Length</c>，那种流在读档之前就已经被两条路径拒掉，
+    /// 因此本项不需要为「不可定位的流」另定口径。
+    /// </para>
+    /// </remarks>
+    public long MaxImportBytes { get; set; } = ExcelConstants.DefaultMaxImportBytes;
 }
