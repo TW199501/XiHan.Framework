@@ -1,0 +1,25 @@
+framework/src/XiHan.Framework.Excel/README.md
+  s_94057b8e5cf9b6::t_bf4803af10118e 1-220
+framework/src/XiHan.Framework.Excel.Abstractions/README.md
+  s_94057b8e5cf9b6::t_ec66bbe5929b31 1-111
+docs/packages/index.md
+  s_94057b8e5cf9b6::t_63e33360c78c91 112
+docs/packages/excel.md
+  s_94057b8e5cf9b6::t_5354c156a852dd 1-377
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1748c29c9b6a03029c632e98ab223e69a4141f52",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
