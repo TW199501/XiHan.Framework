@@ -107,8 +107,6 @@
     <Project Path="test/XiHan.Framework.DistributedIds.Tests/XiHan.Framework.DistributedIds.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Domain.Shared.Tests/XiHan.Framework.Domain.Shared.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Domain.Tests/XiHan.Framework.Domain.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Quotas.Tests/XiHan.Framework.Quotas.Tests.csproj" />
-    <Project Path="test/XiHan.Framework.Quotas.SqlSugar.Tests/XiHan.Framework.Quotas.SqlSugar.Tests.csproj" />
     <Project Path="test/XiHan.Framework.Excel.Tests/XiHan.Framework.Excel.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.Abstractions.Tests/XiHan.Framework.EventBus.Abstractions.Tests.csproj" />
     <Project Path="test/XiHan.Framework.EventBus.Kafka.Tests/XiHan.Framework.EventBus.Kafka.Tests.csproj" />
