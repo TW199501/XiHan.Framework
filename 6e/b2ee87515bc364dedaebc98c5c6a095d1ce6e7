@@ -1,0 +1,33 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Attributes/ExcelColumnAttribute.cs
+  s_94057b8e5cf9b6::t_e3ecf6a7962657 12-15
+framework/src/XiHan.Framework.Excel.Abstractions/Attributes/ExcelIgnoreAttribute.cs
+  s_94057b8e5cf9b6::t_c86915658730fe 10-12
+framework/src/XiHan.Framework.Excel/Columns/ExcelColumnBuilder.cs
+  s_94057b8e5cf9b6::t_3c259a16b9face 31-33,39-40,42,193-195,217-218,274-276
+framework/test/XiHan.Framework.Excel.Tests/Columns/ExcelColumnBuilderTests.cs
+  s_93cd51a28330ba::t_6be9e4870a3c5f 4,299-326,529-548
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6eb2ee87515bc364dedaebc98c5c6a095d1ce6e7",
+  "prompts": {},
+  "sessions": {
+    "s_93cd51a28330ba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aimpl-e85-44d40cb530403bf3",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
