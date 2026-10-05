@@ -67,7 +67,8 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <c>DateTimeOffset</c> 在本类落文本格、不送进日期格，因此本类不判它们早于 1899-12-30 的情形（照能导出），
 /// 而流式路径把它们落成日期格、整段拒——同一份带这类日期的规格走哪条路径，结果并不相同，
 /// 详见流式写出器的说明。这句承诺的范围是「本类显式检查过的失败面」：
-/// 取值域、颜色解析与表名判据在内，工作簿自身的存盘失败（流不可写、容器损坏、磁盘满）不在内，那类按库的异常形态交回。
+/// 取值域、颜色解析、表名判据与单张工作表的行数上限（<see cref="ExcelConstants.MaxSheetRows"/>，含标题行与表头行）
+/// 在内，工作簿自身的存盘失败（流不可写、容器损坏、磁盘满）不在内，那类按库的异常形态交回。
 /// </para>
 /// <para>
 /// 本类按 <see cref="ClosedXML.Excel.XLCellValue"/> 自己的口径落格，落进哪一类格子由取值的运行期型别决定：
@@ -115,6 +116,36 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     private readonly XiHanExcelOptions _options = options ?? throw new ArgumentNullException(nameof(options));
 
     /// <summary>
+    /// 本导出器生效的单张工作表行数上限（含标题行与表头行），公开入口恒为 <see cref="ExcelConstants.MaxSheetRows"/>
+    /// </summary>
+    private readonly int _maxSheetRows = ExcelConstants.MaxSheetRows;
+
+    /// <summary>
+    /// 构造一个把单张工作表行数上限注入成 <paramref name="maxSheetRows"/> 的导出器，只供本组件的边界测试使用
+    /// </summary>
+    /// <param name="options">Excel 选项，语义与公开构造函数相同</param>
+    /// <param name="maxSheetRows">单张工作表的行数上限，含标题行与表头行，至少 1</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> 为 <c>null</c></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxSheetRows"/> 小于 1</exception>
+    /// <remarks>
+    /// 真实上限是一百多万行，逐行写到触线要产出十几 MB 的档并把它整份建在内存里，因此边界断言改在同一个判定上
+    /// 取一个小上限。判定只有 <see cref="_maxSheetRows"/> 这一处读点，注入与不注入走的是同一段代码；
+    /// 正式入口一律走公开构造函数，读到的就是那个常数。
+    /// </remarks>
+    internal ClosedXmlExporter(XiHanExcelOptions options, int maxSheetRows)
+        : this(options)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxSheetRows, 1);
+
+        _maxSheetRows = maxSheetRows;
+    }
+
+    /// <summary>
+    /// 本导出器生效的单张工作表行数上限，供接线断言确认公开入口读的就是 <see cref="ExcelConstants.MaxSheetRows"/>
+    /// </summary>
+    internal int MaxSheetRows => _maxSheetRows;
+
+    /// <summary>
     /// 把一张表写成 xlsx 工作簿
     /// </summary>
     /// <param name="output">输出流，导出器只写入不关闭，由调用方拥有</param>
@@ -137,14 +168,18 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是工作簿装不下的（早于 1899-12-30 的 <c>DateTime</c>、
     /// <c>NaN</c> 或 <c>±∞</c>、有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的
     /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>、长过单元格上限的字串）；
-    /// 或某列的 <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串
-    /// （含形状合法但解析不了的串）。三者消息都点名行位置与实际成因：行型不符者报出行号与期望／实际两个类型全名，
-    /// 后两者报出行号、表头与列键，解析不了的那类把库的 <see cref="FormatException"/> 保留为内部异常</exception>
+    /// 某列的 <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串（含形状合法但解析不了的串）；
+    /// 或标题行、表头行与数据行加起来要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后——单张工作表
+    /// 只有这么多行，超出的行没有可落的位置，上限按每张工作表各自计、不做整簿累计，消息点出上限值、
+    /// 触线的那一行与「分成多张表或改用文字档」两条出路。各类消息都点名行位置与实际成因：行型不符者报出行号与
+    /// 期望／实际两个类型全名，取值与颜色两类报出行号、表头与列键，解析不了的那类把库的
+    /// <see cref="FormatException"/> 保留为内部异常</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// 值域检查（表名、列宽、对齐、表头底色、取样上限、<see cref="ExcelSheetSpec.RowType"/> 声明）全部排在写入第一格之前，
-    /// 非法输入不会留下半份文件。行集合按惰性枚举，取到一行才写一行，逐行检查取消令牌；存盘之前与回传结果之前
-    /// 各再查一次——前者抛出时输出流仍是零字节，后者抛出时整份档已经落盘，但不会交出成功结果。
+    /// 非法输入不会留下半份文件。行集合按惰性枚举，取到一行才写一行，逐行检查取消令牌与工作表行数上限；
+    /// 存盘之前与回传结果之前各再查一次取消——前者抛出时输出流仍是零字节，后者抛出时整份档已经落盘，
+    /// 但不会交出成功结果。行数上限的判定也在逐行那一趟里，抛出时整份档尚未存盘，输出流同样是零字节。
     /// </remarks>
     public Task<ExcelExportResult> ExportAsync(
         Stream output,
@@ -200,7 +235,10 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是工作簿装不下的（早于 1899-12-30 的 <c>DateTime</c>、
     /// <c>NaN</c> 或 <c>±∞</c>、有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的
     /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>、长过单元格上限的字串）；
-    /// 或某列的 <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串</exception>
+    /// 某列的 <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串；或某张表的标题行、表头行与数据行加起来
+    /// 要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后。行数上限按<u>每张工作表各自</u>计——
+    /// 每张表都有自己的标题行与表头行，各自数各自的，不做整簿累计，因此两张各占上限六成的表能同时写进一个工作簿，
+    /// 而任何一张触线就整个请求被拒，消息点出触线那张表的表名、上限值与「分成多张表或改用文字档」两条出路</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// <para>
@@ -301,10 +339,18 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
 
             rowIndex++;
 
+            // 行上限判定就在这一趟循环里：用的正是刚数出来的行号，不为计数把行集合物化、也不回头再枚举一遍
+            var rowNumber = headerRowNumber + rowIndex;
+
+            if (rowNumber > _maxSheetRows)
+            {
+                throw CreateRowLimitFailure(sheet.SheetName, rowIndex, rowNumber);
+            }
+
             // 每一行都判，判据与文字档路径同一份；用的就是刚取到的这一行，不物化行集合
             ExcelRowTypeGuard.ValidateRow(rowType, row, rowIndex, "xlsx 导出");
 
-            WriteDataRow(worksheet, headerRowNumber + rowIndex, columns, row, rowIndex);
+            WriteDataRow(worksheet, rowNumber, columns, row, rowIndex);
         }
 
         ApplyColumnWidths(worksheet, columns, headerRowNumber, Math.Min(rowIndex, _options.AutoWidthSampleRows));
@@ -548,6 +594,24 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
             }
         }
     }
+
+    /// <summary>
+    /// 造出行数超过单张工作表上限时的失败，消息点出上限值、触线的那一行与两条出路
+    /// </summary>
+    /// <param name="sheetName">触线的工作表名</param>
+    /// <param name="position">触线那一行在数据行里的序号</param>
+    /// <param name="rowNumber">该行要落进工作表的行号，已含标题行与表头行</param>
+    /// <remarks>
+    /// 消息是政策陈述：只说本组件按 <see cref="ExcelConstants.MaxSheetRows"/> 拒写、上限按每张工作表各自计，
+    /// 不描述工作簿在这一步会做什么。判定落在逐行循环内，因此抛出时行集合可能已经被枚举到触线那一行为止，
+    /// 但整份档尚未存盘，输出流仍是零字节。
+    /// </remarks>
+    private InvalidOperationException CreateRowLimitFailure(string sheetName, int position, int rowNumber)
+        => new(
+            $"xlsx 导出无法完成：工作表「{sheetName}」的第 {position} 行数据要落到第 {rowNumber} 行，" +
+            $"超过单张工作表的上限 {_maxSheetRows} 行（标题行与表头行都算在内）。" +
+            "这道上限按每张工作表各自计，不做整簿累计；超出的行在 xlsx 里没有可落的位置，" +
+            "请把数据分成多张表，或改用不带这道行数上限的文字档（CSV／定宽）。");
 
     /// <summary>
     /// 检查自适应列宽的取样上限

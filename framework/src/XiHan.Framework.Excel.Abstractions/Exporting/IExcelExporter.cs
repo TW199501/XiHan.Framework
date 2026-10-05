@@ -69,7 +69,12 @@ public interface IExcelExporter
     /// 工作簿不接受的东西；或（仅流式模式）两列共用了同一个 <see cref="ExcelColumn.Key"/>——那一模式的行模型
     /// 按键取值，重复键会让后一列盖掉前一列；或（仅流式模式）某个行值是早于 1899-12-30 的
     /// <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>——这两个型别在流式模式落日期格、整段拒，
-    /// 走全量工作簿时它们落文本格、照能导出，因此这一条不承诺与另一条路径同判。各项消息都点名实际成因</exception>
+    /// 走全量工作簿时它们落文本格、照能导出，因此这一条不承诺与另一条路径同判；或（仅两条 xlsx 路径）
+    /// 标题行、表头行与数据行加起来要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后——单张工作表
+    /// 只有这么多行，超出的行没有可落的位置，上限按每张工作表各自计、不做整簿累计，文字档路径没有这道上限，
+    /// 消息点出上限值与「分成多张表或改用文字档」两条出路；两条 xlsx 路径数的是各自要落的那一行行号，
+    /// 全量路径把标题行算进去、流式模式不写标题行因此不算，能导的行数由落档形态决定，不是两套上限。
+    /// 各项消息都点名实际成因</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// <para>
@@ -120,7 +125,10 @@ public interface IExcelExporter
     /// 为 <c>true</c>（多表流式不在本组件的承诺范围内，冲突时拒绝而不是偷偷改走全量）；或某张表的行集合里有
     /// 某笔元素与其 <see cref="ExcelSheetSpec.RowType"/> 不符；或某个行值是工作簿装不下的（取值域判据与
     /// <see cref="ExportAsync"/> 共用同一份，含有效数字多于
-    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值）</exception>
+    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值）；或某张表的标题行、表头行与
+    /// 数据行加起来要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后——行数上限按<u>每张工作表各自</u>计，
+    /// 不做整簿累计，因此两张各占上限六成的表能同时写进一个工作簿，而任何一张触线就整个请求被拒，
+    /// 消息点出触线那张表的表名、上限值与「分成多张表或改用文字档」两条出路</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// <para>

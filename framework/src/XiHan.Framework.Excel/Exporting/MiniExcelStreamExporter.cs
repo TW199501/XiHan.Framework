@@ -54,6 +54,13 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 本类不吞也不改写。
 /// </para>
 /// <para>
+/// 单张工作表的行数也按 <see cref="ExcelConstants.MaxSheetRows"/> 先拒：表头行与数据行加起来要落到那道上限
+/// 之后时抛出，不接着写出行号超过工作表可表示范围的档。判定落在逐行投影那一趟里，用的就是刚数出来的行号，
+/// 不为计数把行集合物化、也不回头再枚举一遍。上限按每张工作表各自计，不做整簿累计；本路径不写标题行，
+/// 因此 <see cref="ExcelSheetSpec.Title"/> 不占行数——同一份带标题的规格在全量路径要占两行（标题行加表头行），
+/// 在这里只占一行，能导的行数因此不同，这是落档形态带来的差别，不是两套上限。
+/// </para>
+/// <para>
 /// 输出流的所有权在调用方：本类只写入，不关闭也不复位流位置，写完停在末尾。取消令牌在入口、每一行投影之前
 /// 与回传结果之前各检查一次。取消在入口被观察到时输出流零字节；在写出的中途被观察到时，流里可能已经落了
 /// 没收尾的字节，读不回来；在写出收尾之后才被观察到时，流里可能已是一份完整的档，而交回的仍然是异常。
@@ -101,6 +108,40 @@ public sealed class MiniExcelStreamExporter
         "本档保留的只有表头文案、列顺序、数字与日期格式串，以及表头行冻结与自动筛选两个开关。";
 
     /// <summary>
+    /// 本导出器生效的单张工作表行数上限（含表头行），公开入口恒为 <see cref="ExcelConstants.MaxSheetRows"/>
+    /// </summary>
+    private readonly int _maxSheetRows = ExcelConstants.MaxSheetRows;
+
+    /// <summary>
+    /// 构造一个流式导出器，单张工作表的行数上限取 <see cref="ExcelConstants.MaxSheetRows"/>
+    /// </summary>
+    public MiniExcelStreamExporter()
+    {
+    }
+
+    /// <summary>
+    /// 构造一个把单张工作表行数上限注入成 <paramref name="maxSheetRows"/> 的流式导出器，只供本组件的边界测试使用
+    /// </summary>
+    /// <param name="maxSheetRows">单张工作表的行数上限，含表头行，至少 1</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxSheetRows"/> 小于 1</exception>
+    /// <remarks>
+    /// 真实上限是一百多万行，逐行写到触线要产出十几 MB 的档，因此边界断言改在同一个判定上取一个小上限。
+    /// 判定只有 <see cref="_maxSheetRows"/> 这一处读点，注入与不注入走的是同一段代码；
+    /// 正式入口一律走公开构造函数，读到的就是那个常数。
+    /// </remarks>
+    internal MiniExcelStreamExporter(int maxSheetRows)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxSheetRows, 1);
+
+        _maxSheetRows = maxSheetRows;
+    }
+
+    /// <summary>
+    /// 本导出器生效的单张工作表行数上限，供接线断言确认公开入口读的就是 <see cref="ExcelConstants.MaxSheetRows"/>
+    /// </summary>
+    internal int MaxSheetRows => _maxSheetRows;
+
+    /// <summary>
     /// 把一张表流式写成 xlsx
     /// </summary>
     /// <param name="output">输出流，本方法只写入不关闭，也不复位流位置；写出后位置停在末尾</param>
@@ -116,14 +157,19 @@ public sealed class MiniExcelStreamExporter
     /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>；判据与全量写出路径同一份，
     /// 不交给写出库去拒或转义</exception>
     /// <exception cref="InvalidOperationException">行集合里有某笔元素与 <see cref="ExcelSheetSpec.RowType"/> 不符；
-    /// 列清单里有两列用了同一个 <see cref="ExcelColumn.Key"/>；或某个行值装不进本路径要落的格子——
+    /// 列清单里有两列用了同一个 <see cref="ExcelColumn.Key"/>；表头行与数据行加起来要落到第
+    /// <see cref="ExcelConstants.MaxSheetRows"/> 行以后（单张工作表只有这么多行，超出的行没有可落的位置，
+    /// 上限按每张工作表各自计、不做整簿累计，消息点出上限值、触线的那一行与「分成多张表或改用文字档」两条出路；
+    /// 本路径不写标题行，因此 <see cref="ExcelSheetSpec.Title"/> 不占行数，这一点与全量路径不同）；
+    /// 或某个行值装不进本路径要落的格子——
     /// 早于 1899-12-30 的 <see cref="DateTime"/>、<see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>
     /// （后两者在本路径落日期格，故只在本路径拒；全量路径把它们落成文本格、值原样读回，不判这一条）、
     /// <c>NaN</c> 或 <c>±∞</c>、有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的
     /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>（这一条与全量路径同判）、
     /// 长过单元格上限的字串。消息都点名实际成因：行型不符者报出行号与期望／实际
-    /// 两个类型全名，重复列键者报出重复的键，取值越界者报出行位置、表头与列键。取值类的判定只在取到那一行时
-    /// 才做得出来，抛出时前面的行可能已经落进流里；重复列键在调用写出库之前就被拒，输出流零字节</exception>
+    /// 两个类型全名，重复列键者报出重复的键，取值越界者报出行位置、表头与列键。取值类与行数上限的判定只在
+    /// 取到那一行时才做得出来，抛出时前面的行可能已经落进流里，调用方必须丢弃这条流的内容；
+    /// 重复列键在调用写出库之前就被拒，输出流零字节</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消。取消在入口被观察到时
     /// 输出流零字节；在写出中途被观察到时流里可能已有没收尾的字节；在写出收尾之后才被观察到时流里可能已是一份
     /// 完整的档——三种落点交出的都是异常，调用方必须丢弃这条流的内容</exception>
@@ -158,7 +204,7 @@ public sealed class MiniExcelStreamExporter
 
         await MiniExcel.SaveAsAsync(
             output,
-            ProjectRows(sheet.Rows, columns, rowType, cancellationToken),
+            ProjectRows(sheet.Rows, columns, rowType, _maxSheetRows, cancellationToken),
             printHeader: true,
             sheetName: sheet.SheetName,
             excelType: ExcelType.XLSX,
@@ -245,22 +291,27 @@ public sealed class MiniExcelStreamExporter
     }
 
     /// <summary>
-    /// 把行集合逐行投影成「列键到取值」的字典，并在同一趟里做行型判定与取值可写性判定
+    /// 把行集合逐行投影成「列键到取值」的字典，并在同一趟里做行数上限、行型判定与取值可写性判定
     /// </summary>
     /// <param name="rows">表规格给的行集合，惰性枚举一次</param>
     /// <param name="columns">列清单，决定每行交出哪些键与键的顺序</param>
     /// <param name="rowType">声明的行类型，取自写出的第一格之前的声明级判定</param>
+    /// <param name="maxSheetRows">单张工作表的行数上限，含写出库落下的那一行表头</param>
     /// <param name="cancellationToken">取消令牌，每行投影之前查一次</param>
     /// <returns>交给写出库的行序列</returns>
     /// <remarks>
     /// 每行的键集与列清单完全一致、缺一键都不行：写出库按第一行的键定列集，后面的行缺键会当场抛，
     /// 少给一列就是把「列集由列清单决定」这件事交给了行的形状。取值走列自己的取值方法，
     /// <c>null</c> 与异型行按列的既有契约交回 <c>null</c>，异型行在本趟判定里已经先抛出。
+    /// 行上限按「这一行数据要落到工作表的第几行」比对——本路径的表头占第 1 行，第 <c>n</c> 行数据落在第
+    /// <c>1 + n</c> 行；判定就在这唯一的一趟循环里，不为计数把行集合物化、也不回头再枚举一遍。
     /// </remarks>
+    /// <exception cref="InvalidOperationException">行号超过 <paramref name="maxSheetRows"/>，消息点出上限值与出路</exception>
     private static IEnumerable<IDictionary<string, object?>> ProjectRows(
         System.Collections.IEnumerable rows,
         IReadOnlyList<ExcelColumn> columns,
         Type rowType,
+        int maxSheetRows,
         CancellationToken cancellationToken)
     {
         var rowIndex = 0;
@@ -270,6 +321,14 @@ public sealed class MiniExcelStreamExporter
             cancellationToken.ThrowIfCancellationRequested();
 
             rowIndex++;
+
+            // 行上限判定就在这一趟循环里：用的正是刚数出来的行号，不为计数把行集合物化、也不回头再枚举一遍
+            var rowNumber = 1 + rowIndex;
+
+            if (rowNumber > maxSheetRows)
+            {
+                throw CreateRowLimitFailure(rowIndex, rowNumber, maxSheetRows);
+            }
 
             // 每一行都判，判据与另两条路径同一份；用的就是刚取到的这一行，不物化行集合
             ExcelRowTypeGuard.ValidateRow(rowType, row, rowIndex, "xlsx 流式导出");
@@ -294,4 +353,23 @@ public sealed class MiniExcelStreamExporter
             yield return values;
         }
     }
+
+    /// <summary>
+    /// 造出行数超过单张工作表上限时的失败，消息点出上限值、触线的那一行与两条出路
+    /// </summary>
+    /// <param name="position">触线那一行在数据行里的序号</param>
+    /// <param name="rowNumber">该行要落进工作表的行号，已含表头行</param>
+    /// <param name="maxSheetRows">生效的单张工作表行数上限</param>
+    /// <remarks>
+    /// 消息是政策陈述：只说本组件按 <see cref="ExcelConstants.MaxSheetRows"/> 拒写、上限按每张工作表各自计，
+    /// 不描述写出库在这一步会做什么。本路径边枚举行边往流里吐字节，判定又落在逐行循环内，
+    /// 因此抛出时流里可能已经落了没收尾的字节——能主张的只有「不交出成功结果」，不主张零字节，
+    /// 调用方按既有口径丢弃这条流的内容。
+    /// </remarks>
+    private static InvalidOperationException CreateRowLimitFailure(int position, int rowNumber, int maxSheetRows)
+        => new(
+            $"xlsx 流式导出无法完成：第 {position} 行数据要落到工作表的第 {rowNumber} 行，" +
+            $"超过单张工作表的上限 {maxSheetRows} 行（表头行也算在内）。" +
+            "这道上限按每张工作表各自计，不做整簿累计；超出的行在 xlsx 里没有可落的位置，" +
+            "请把数据分成多张表，或改用不带这道行数上限的文字档（CSV／定宽）。");
 }

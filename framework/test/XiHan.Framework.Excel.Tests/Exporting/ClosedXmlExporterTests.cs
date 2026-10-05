@@ -1410,6 +1410,209 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
+    /// 无标题行时，表头行加数据行正好占满上限的那一份照常写出
+    /// </summary>
+    /// <remarks>
+    /// 上限注入成 3：表头占第 1 行，两行数据占第 2、3 行，正好触线。这条与
+    /// <see cref="全量路径超过行数上限时抛且不留下任何字节"/> 是一对——把判定里的 <c>&gt;</c> 写成 <c>&gt;=</c>，
+    /// 这条会先红（提前一行拒），那条仍然绿，因此两条都得留着。
+    /// 真实上限是一百多万行，逐行写到触线要产出十几 MB 的档并整份建在内存里，因此边界断言改用注入的小上限，
+    /// 读点与正式入口是同一个字段。
+    /// </remarks>
+    [Fact]
+    public async Task 全量路径行数恰等上限时照常写出()
+    {
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions(), 3);
+        var stream = new MemoryStream();
+
+        var result = await exporter.ExportAsync(
+            stream, BuildRowLimitSpec(Rows(2), title: null), TestContext.Current.CancellationToken);
+
+        Assert.True(result.StylingApplied);
+
+        using var workbook = Open(stream);
+        var sheet = workbook.Worksheet(1);
+
+        Assert.Equal("提单号", sheet.Cell(1, 1).GetString());
+        Assert.Equal("AWB0", sheet.Cell(2, 1).GetString());
+        Assert.Equal("AWB1", sheet.Cell(3, 1).GetString());
+        Assert.True(sheet.Cell(4, 1).IsEmpty());
+    }
+
+    /// <summary>
+    /// 有标题行时，标题行也计入行数：标题行加表头行加数据行正好占满上限的那一份照常写出
+    /// </summary>
+    /// <remarks>
+    /// 上限注入成 4：标题占第 1 行、表头占第 2 行、两行数据占第 3、4 行，正好触线。
+    /// </remarks>
+    [Fact]
+    public async Task 全量路径含标题行时行数恰等上限照常写出()
+    {
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions(), 4);
+        var stream = new MemoryStream();
+
+        await exporter.ExportAsync(
+            stream, BuildRowLimitSpec(Rows(2), title: "运单明细"), TestContext.Current.CancellationToken);
+
+        using var workbook = Open(stream);
+        var sheet = workbook.Worksheet(1);
+
+        Assert.Equal("运单明细", sheet.Cell(1, 1).GetString());
+        Assert.Equal("提单号", sheet.Cell(2, 1).GetString());
+        Assert.Equal("AWB1", sheet.Cell(4, 1).GetString());
+        Assert.True(sheet.Cell(5, 1).IsEmpty());
+    }
+
+    /// <summary>
+    /// 超过行数上限时抛出框架异常，输出流零字节，且判定没有把行集合物化
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 上限注入成 3，行集合给 10 行：表头占第 1 行，第 3 行数据要落到第 4 行即触线。四条断言各挡一种改法——
+    /// 异常型别挡「把库的 <see cref="ArgumentOutOfRangeException"/> 原样交出去」；<c>stream.Length == 0</c> 挡
+    /// 「照样存盘」；<c>rows.Count == 3</c> 挡「为计数先 <c>ToList()</c> 或回头再枚举一遍」（物化会数到 10）；
+    /// 消息里点出上限值与两条出路挡「抛了但不说上限是多少、也不说该怎么办」。
+    /// </para>
+    /// <para>
+    /// 全量路径整份档先在内存里建好、<c>SaveAs</c> 只落盘一次，因此这里能主张零字节；流式路径边写边吐，
+    /// 主张的是「不回报成功结果」，两边的失败语义不同，见流式导出测试。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 全量路径超过行数上限时抛且不留下任何字节()
+    {
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions(), 3);
+        var rows = new CountingRows(10);
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
+            stream, BuildRowLimitSpec(rows, title: null), TestContext.Current.CancellationToken));
+
+        Assert.Equal(0, stream.Length);
+        Assert.Equal(3, rows.Count);
+        Assert.Contains("3", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("分成多张表", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("文字档", failure.Message, StringComparison.Ordinal);
+        Assert.Null(failure.InnerException);
+    }
+
+    /// <summary>
+    /// 标题行计入行数：上限 3 时「标题 + 表头 + 2 行数据」共 4 行，已经触线
+    /// </summary>
+    /// <remarks>
+    /// 这条专门挡「计数漏掉标题行」的改法：把 <c>headerRowNumber + rowIndex</c> 写成 <c>1 + rowIndex</c>，
+    /// 这一份只有 3 行会被数到，判定放行，本条即红——而写出来的档里第 4 行确实有内容，超了声明的上限。
+    /// </remarks>
+    [Fact]
+    public async Task 全量路径标题行计入行数上限()
+    {
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions(), 3);
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
+            stream, BuildRowLimitSpec(Rows(2), title: "运单明细"), TestContext.Current.CancellationToken));
+
+        Assert.Equal(0, stream.Length);
+        Assert.Contains("4", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 多表路径按每张工作表各自计数，两张各占上限六成的表能同时写进一个工作簿
+    /// </summary>
+    /// <remarks>
+    /// 上限注入成 10，两张表各 4 行数据（各占 5 行）：合计 10 行，若按整簿累计就会正好触线、再多一行即抛。
+    /// 这里两份都放行，证明累计的是每张表自己的行号而不是整簿的行数。
+    /// </remarks>
+    [Fact]
+    public async Task 多表路径每张工作表各自计数不做整簿累计()
+    {
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions(), 10);
+        var stream = new MemoryStream();
+
+        var result = await exporter.ExportAllAsync(
+            stream,
+            [
+                BuildRowLimitSpec(Rows(4), title: null, sheetName: "第一张"),
+                BuildRowLimitSpec(Rows(4), title: null, sheetName: "第二张")
+            ],
+            TestContext.Current.CancellationToken);
+
+        Assert.True(result.StylingApplied);
+
+        using var workbook = Open(stream);
+
+        Assert.Equal(2, workbook.Worksheets.Count);
+        Assert.Equal("AWB3", workbook.Worksheet("第一张").Cell(5, 1).GetString());
+        Assert.Equal("AWB3", workbook.Worksheet("第二张").Cell(5, 1).GetString());
+    }
+
+    /// <summary>
+    /// 多表路径里任何一张表触线，整份请求即抛且输出流零字节
+    /// </summary>
+    /// <remarks>
+    /// 第一张表 4 行数据放行，第二张 10 行数据要落到第 11 行、超过注入的上限 10。整份档先在内存里建好再落盘，
+    /// 所以前面那张表已经写进工作簿的部分随异常一起被丢弃，输出流不会留下半个字节。
+    /// </remarks>
+    [Fact]
+    public async Task 多表路径某张表触线时整份抛且零字节()
+    {
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions(), 10);
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAllAsync(
+            stream,
+            [
+                BuildRowLimitSpec(Rows(4), title: null, sheetName: "第一张"),
+                BuildRowLimitSpec(Rows(10), title: null, sheetName: "第二张")
+            ],
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(0, stream.Length);
+        Assert.Contains("第二张", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("10", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 造 <paramref name="count"/> 行只有提单号有值的测试行
+    /// </summary>
+    private static SampleRow[] Rows(int count)
+    {
+        var rows = new SampleRow[count];
+
+        for (var index = 0; index < count; index++)
+        {
+            rows[index] = new SampleRow { AwbNo = $"AWB{index}", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) };
+        }
+
+        return rows;
+    }
+
+    /// <summary>
+    /// 构造只有一列、可指定标题行与表名的表规格，专走行数上限判定
+    /// </summary>
+    /// <remarks>
+    /// 只留一列是为了让「第几行有内容」这件事在回读时不掺别的列；列宽给定值，避免自适应宽度去动别的行。
+    /// </remarks>
+    private static ExcelSheetSpec BuildRowLimitSpec(System.Collections.IEnumerable rows, string? title, string sheetName = "运单")
+        => new()
+        {
+            SheetName = sheetName,
+            Title = title,
+            RowType = typeof(SampleRow),
+            Columns =
+            [
+                new ExcelColumn<SampleRow>
+                {
+                    Key = nameof(SampleRow.AwbNo),
+                    Header = "提单号",
+                    Width = 20,
+                    Value = row => row.AwbNo
+                }
+            ],
+            Rows = rows
+        };
+
+    /// <summary>
     /// 写出一张表，返回可供回读的流
     /// </summary>
     private static async Task<MemoryStream> ExportAsync(ExcelSheetSpec spec, XiHanExcelOptions? options = null)

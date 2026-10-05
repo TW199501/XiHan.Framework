@@ -998,6 +998,129 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
+    /// 无标题行时，表头行加数据行正好占满上限的那一份照常写出
+    /// </summary>
+    /// <remarks>
+    /// 上限注入成 3：写出库落下的表头占第 1 行，两行数据占第 2、3 行，正好触线。这条与
+    /// <see cref="流式路径超过行数上限时抛且不回报成功结果"/> 是一对——把判定里的 <c>&gt;</c> 写成 <c>&gt;=</c>，
+    /// 这条会先红（提前一行拒），那条仍然绿，因此两条都得留着。
+    /// 真实上限是一百多万行，逐行写到触线要产出十几 MB 的档，因此边界断言改用注入的小上限，
+    /// 读点与正式入口是同一个字段。回读判定走本组件的导入器，不用工作簿读自己写的档。
+    /// </remarks>
+    [Fact]
+    public async Task 流式路径行数恰等上限时照常写出()
+    {
+        var exporter = new MiniExcelStreamExporter(3);
+        var stream = new MemoryStream();
+
+        var result = await exporter.ExportAsync(
+            stream, BuildRowLimitSpec(Rows(2), title: null), TestContext.Current.CancellationToken);
+
+        Assert.False(result.StylingApplied);
+        Assert.Equal(["AWB0", "AWB1"], await ImportAwbNosAsync(stream));
+    }
+
+    /// <summary>
+    /// 超过行数上限时抛出框架异常、不回报成功结果，且判定没有把行集合物化
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 上限注入成 3，行集合给 10 行：表头占第 1 行，第 3 行数据要落到第 4 行即触线。异常型别挡「让写出库自己去撞
+    /// 工作表的行数界」；<c>rows.Count == 3</c> 挡「为计数先 <c>ToList()</c> 或回头再枚举一遍」（物化会数到 10）；
+    /// 消息里点出上限值与两条出路挡「抛了但不说上限是多少、也不说该怎么办」。
+    /// </para>
+    /// <para>
+    /// 这里<b>不断言输出流零字节</b>：本路径边枚举行边往流里吐字节，触线时前面几行的字节可能已经落进去了，
+    /// 能主张的只有「交出异常、不交出 <see cref="ExcelExportResult"/>」，与取消落在写出中途时的口径一致。
+    /// 全量路径整份档建好才落盘一次，那边才主张零字节。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 流式路径超过行数上限时抛且不回报成功结果()
+    {
+        var exporter = new MiniExcelStreamExporter(3);
+        var rows = new CountingRows(10);
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
+            stream, BuildRowLimitSpec(rows, title: null), TestContext.Current.CancellationToken));
+
+        Assert.Equal(3, rows.Count);
+        Assert.Contains("3", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("分成多张表", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("文字档", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 本路径不写标题行，因此标题不占行数：同样的上限 3，带标题的两行数据照样放行
+    /// </summary>
+    /// <remarks>
+    /// 标题行在流式模式属于「落不下来」的那一批（返回值里已逐项点名），既然不落档就不占工作表的行。
+    /// 全量路径把标题行写在第 1 行、数据区整体下移，同样两行数据在上限 3 时是触线的——两条路径对
+    /// 「标题算不算一行」的答案不同，是因为落档的形态不同，不是两套上限。
+    /// </remarks>
+    [Fact]
+    public async Task 流式路径不写标题行因此标题不占行数()
+    {
+        var exporter = new MiniExcelStreamExporter(3);
+        var stream = new MemoryStream();
+
+        await exporter.ExportAsync(
+            stream, BuildRowLimitSpec(Rows(2), title: "运单明细"), TestContext.Current.CancellationToken);
+
+        using var workbook = Open(stream);
+        var sheet = workbook.Worksheet(1);
+
+        Assert.Equal("提单号", sheet.Cell(1, 1).GetString());
+        Assert.Equal(["AWB0", "AWB1"], await ImportAwbNosAsync(stream));
+    }
+
+    /// <summary>
+    /// 构造只有一列、可指定标题行的表规格，专走行数上限判定
+    /// </summary>
+    private static ExcelSheetSpec BuildRowLimitSpec(System.Collections.IEnumerable rows, string? title) => new()
+    {
+        SheetName = "运单",
+        Title = title,
+        RowType = typeof(SampleRow),
+        Columns =
+        [
+            new ExcelColumn<SampleRow>
+            {
+                Key = nameof(SampleRow.AwbNo),
+                Header = "提单号",
+                Value = row => row.AwbNo
+            }
+        ],
+        Rows = rows
+    };
+
+    /// <summary>
+    /// 用本框架的导入器把导出的档读回，交出「提单号」这一列的逐行取值
+    /// </summary>
+    /// <param name="stream">导出后的流，本方法把它回到起点，不关闭也不释放</param>
+    /// <remarks>
+    /// 往返断言的判定器一律走这里，不用 <see cref="XLWorkbook"/> 读自己写的档：工作簿会按自己的形式反算，
+    /// 读回来的东西看着与写进去的一致，恰好掩盖档里被改写过这件事。
+    /// </remarks>
+    private static async Task<string[]> ImportAwbNosAsync(MemoryStream stream)
+    {
+        stream.Position = 0;
+
+        var values = new List<string>();
+
+        await foreach (var row in new ExcelDataReaderImporter()
+            .ReadAsync(stream, new ExcelImportOptions { Format = ExcelImportFormat.Xlsx }, TestContext.Current.CancellationToken))
+        {
+            Assert.True(row.Values.ContainsKey("提单号"));
+
+            values.Add((string)row.Values["提单号"]!);
+        }
+
+        return [.. values];
+    }
+
+    /// <summary>
     /// 造若干测试行
     /// </summary>
     private static SampleRow[] Rows(int count)

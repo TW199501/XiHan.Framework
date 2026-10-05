@@ -41,6 +41,19 @@ public static class ExcelConstants
     public const int MaxCellTextLength = 32_767;
 
     /// <summary>
+    /// xlsx 单张工作表的行数上限（标题行与表头行都算在内）
+    /// </summary>
+    /// <remarks>
+    /// 这是 xlsx 自身的硬界，不是本组件自定的档位：一张工作表只有这么多行，再往下的行在档里没有可落的位置。
+    /// 两条 xlsx 写出路径都在既有的逐行循环里按「这一行数据要落到工作表的第几行」比对，超出即<u>抛出</u>，
+    /// 不丢行、不截断，也不接着写出一份读不回来的档。上限按<u>单张工作表</u>各自计——多表路径每张表都有自己的
+    /// 标题行与表头行，各自数各自的，不做整簿累计，因此两张各占六成的表能同时写进一个工作簿。
+    /// 这道界与 <see cref="MaxFixedRowWidthBytes"/> 数值相同，但一个数的是行、一个数的是单行字节，
+    /// 两道界互不相干，不得互相代用。文字档路径没有这道上限。
+    /// </remarks>
+    public const int MaxSheetRows = 1_048_576;
+
+    /// <summary>
     /// 本组件对 xlsx 数值格承诺能原样落格的有效数字位数上限
     /// </summary>
     /// <remarks>
