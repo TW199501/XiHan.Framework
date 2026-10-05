@@ -39,6 +39,22 @@ public class XiHanExcelOptionsTests
     }
 
     /// <summary>
+    /// 解压比默认值钉在 <c>200</c>：它按实测量到的安全窗口取值，不是可以随手改的旋钮
+    /// </summary>
+    /// <remarks>
+    /// 量到的合法簇是 11–157 倍（同一份数据工作表写不写规格里可选的 <c>r</c> 属性就差一个数量级），
+    /// 量到的解压炸弹是 368.5 倍，因此安全窗口只有 (157, 368.5) 这一段。<c>200</c> 在合法簇之上留约 27% 余量、
+    /// 仍在炸弹之下约 46%。这条用例把数字钉住：改回 <c>100</c> 会误拒 154:1 的合法档，
+    /// 抬到 <c>1000</c> 会放走实测到的真炸弹，两个方向都要在这里先红一次。
+    /// </remarks>
+    [Fact]
+    public void 解压比默认值按实测安全窗口钉在两百()
+    {
+        Assert.Equal(200, ExcelConstants.MaxImportCompressionRatio);
+        Assert.Equal(200, new XiHanExcelOptions().MaxImportCompressionRatio);
+    }
+
+    /// <summary>
     /// 不传配置时仍能解析出选项实例
     /// </summary>
     [Fact]

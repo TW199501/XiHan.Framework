@@ -1446,38 +1446,88 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// 高重复的<u>合法</u>档默认被解压比这条启发式挡下，把上限调高之后同一份档照读
+    /// 实测量到的合法高重复工作簿（约 154:1）在默认解压比上限下照读，把上限收到实测合法簇之下才拒
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 夹具是一份结构合法、ExcelDataReader 读得通的工作簿：四万行同值，工作表不写规格里可选的 <c>r</c> 属性，
-    /// 于是整段 <c>sheetData</c> 逐字节重复，实测解压比约 154 倍、越过默认的 100 倍。
-    /// 这条用例钉的正是「解压比是启发式、会误伤合法档，因此必须可调」：同一份字节，
-    /// 默认上限下拒收、调高之后交出四万行且取值对得上。
+    /// 于是整段 <c>sheetData</c> 逐字节重复，实测解压比约 154 倍。这个比值落在默认上限
+    /// <see cref="ExcelConstants.MaxImportCompressionRatio"/> = 200 之下，因此默认就该放行——
+    /// 旧的 100 会把它误拒，那正是本次改判的起因。用例先量一遍夹具自己的比值并断言它落在
+    /// (100, 200) 这个「旧默认会误拒、新默认放行」的窗口里，夹具哪天漂了会先在这里红，
+    /// 而不是悄悄地变成一条验不到东西的用例。
+    /// </para>
+    /// <para>
+    /// 第二段钉「可配置」：同一份字节，把上限收到 100 就拒收。默认值改回 100 时第一段红，
+    /// 这条因此同时是「默认值不许退回误拒合法档那一侧」的守门。
+    /// </para>
     /// </remarks>
     [Fact]
-    public async Task 高重复的合法档默认被解压比拒收调高上限后照读()
+    public async Task 实测合法簇的高重复工作簿在默认解压比上限下照读()
     {
         var bytes = RepeatedRowsXlsx(40_000);
         var noHeader = new ExcelImportOptions { HasHeader = false };
 
+        var (declared, compressed) = PartLengths(bytes, "xl/worksheets/sheet1.xml");
+        var ratio = declared / compressed;
+
+        // 夹具自己的比值要真的落在「旧默认误拒、新默认放行」的窗口里，否则这条用例验不到改判
+        Assert.InRange(ratio, 101, ExcelConstants.MaxImportCompressionRatio - 1);
+
+        using (var accepted = new MemoryStream(bytes))
+        {
+            var rows = await ReadAll(accepted, noHeader);
+
+            Assert.Equal(40_000, rows.Count);
+            Assert.Equal("甲", rows[0].Values["Col1"]);
+        }
+
         using (var rejected = new MemoryStream(bytes))
         {
-            var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ReadAll(rejected, noHeader));
+            var importer = new ExcelDataReaderImporter(new XiHanExcelOptions { MaxImportCompressionRatio = 100 });
+
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ReadAll(importer, rejected, noHeader));
 
             Assert.Contains("解压比过高", failure.Message, StringComparison.Ordinal);
             Assert.Contains("xl/worksheets/sheet1.xml", failure.Message, StringComparison.Ordinal);
             Assert.Contains(nameof(XiHanExcelOptions.MaxImportCompressionRatio), failure.Message, StringComparison.Ordinal);
         }
+    }
 
-        using (var accepted = new MemoryStream(bytes))
-        {
-            var importer = new ExcelDataReaderImporter(new XiHanExcelOptions { MaxImportCompressionRatio = 1000 });
+    /// <summary>
+    /// 实测量到的解压炸弹比值（368:1）在默认上限下仍被拒，一个部件都不解压
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 夹具按实测炸弹的比值造：真炸弹是一份 1.05 MiB 的档，<c>xl/sharedStrings.xml</c> 压缩后 1,102,748 字节、
+    /// 解压后 406,400,168 字节，比值 368.5，建立读取器之后托管占用 777.2 MiB。这里不必真造出 387 MiB 的部件——
+    /// 守卫读的只有 zip 中央目录里的声明值，因此把声明的解压后长度改写成「压缩后长度 × 368」就得到同一个比值，
+    /// 判据走的代码路径与真炸弹逐字相同。
+    /// </para>
+    /// <para>
+    /// 这条是本轮的核心守门：默认值若从 200 抬到 1000，368 倍就落在界内、这份档会被放行，用例立刻红。
+    /// 断言里同时钉住「内部异常为 <c>null</c>」——非空意味着走的是「容器读不通」那条转译，
+    /// 也就是守卫没判、档已经被交给读取器了。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 实测炸弹量级的解压比在默认上限下仍被拒()
+    {
+        const int bombRatio = 368;
 
-            var rows = await ReadAll(importer, accepted, noHeader);
+        Assert.True(bombRatio > ExcelConstants.MaxImportCompressionRatio,
+            "夹具的比值必须高过默认上限，否则这条用例验不到「炸弹仍被拒」。");
 
-            Assert.Equal(40_000, rows.Count);
-            Assert.Equal("甲", rows[0].Values["Col1"]);
-        }
+        using var bomb = DeclaredRatioXlsx(bombRatio);
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await ReadAll(bomb, new ExcelImportOptions { MaxRowCount = 1 }));
+
+        Assert.Contains("xl/sharedStrings.xml", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("解压比过高", failure.Message, StringComparison.Ordinal);
+        Assert.Contains($"是 {bombRatio} 倍", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(ExcelConstants.MaxImportCompressionRatio.ToString(CultureInfo.InvariantCulture), failure.Message, StringComparison.Ordinal);
+        Assert.Null(failure.InnerException);
     }
 
     /// <summary>
@@ -1818,5 +1868,52 @@ public class ExcelDataReaderImporterTests
         }
 
         throw new InvalidOperationException($"夹具在中央目录里找不到部件 {entryName}。");
+    }
+
+    /// <summary>
+    /// 读出 zip 里某个部件在中央目录里声明的解压后长度与压缩后长度
+    /// </summary>
+    /// <param name="bytes">档字节</param>
+    /// <param name="entryName">部件名</param>
+    /// <returns>声明的解压后长度与压缩后长度</returns>
+    /// <remarks>
+    /// 用例自己量一遍夹具的比值，为的是让「夹具漂了」在断言比值那一步就红，而不是悄悄地退化成一条
+    /// 验不到东西的用例——解压比这条判据整个建立在夹具的真实比值上，比值一漂结论就不成立。
+    /// </remarks>
+    private static (long Declared, long Compressed) PartLengths(byte[] bytes, string entryName)
+    {
+        using var stream = new MemoryStream(bytes);
+        using var zip = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+
+        var entry = zip.Entries.FirstOrDefault(item => item.FullName == entryName)
+            ?? throw new InvalidOperationException($"夹具在中央目录里找不到部件 {entryName}。");
+
+        return (entry.Length, entry.CompressedLength);
+    }
+
+    /// <summary>
+    /// 造一份解压比恰为 <paramref name="ratio"/> 的 xlsx：炸弹形态的档，声明的解压后长度按比值改写
+    /// </summary>
+    /// <param name="ratio">要让守卫算出来的解压比（解压后长度 ÷ 压缩后长度）</param>
+    /// <returns>位置在起点的 xlsx 流</returns>
+    /// <remarks>
+    /// <para>
+    /// 守卫读的只有 zip 中央目录里的两个声明值，因此要得到某个确定的比值，不必真造出那么大的部件：
+    /// 先按 <see cref="HighRatioXlsx"/> 造一份共享字串被塞满重复内容的档，量出它压缩后的实际长度，
+    /// 再把声明的解压后长度改写成「压缩后长度 × 比值」。整数除法之后守卫算出来的正是 <paramref name="ratio"/>，
+    /// 走的代码路径与真炸弹逐字相同。
+    /// </para>
+    /// <para>
+    /// 只改中央目录不改本地档头就够了：实测 .NET 的 <see cref="ZipArchive"/> 一律以中央目录的声明值为准，
+    /// 本地档头写什么不参与判定。
+    /// </para>
+    /// </remarks>
+    private static MemoryStream DeclaredRatioXlsx(int ratio)
+    {
+        using var source = HighRatioXlsx(8 * 1024 * 1024);
+
+        var (_, compressed) = PartLengths(source.ToArray(), "xl/sharedStrings.xml");
+
+        return WithDeclaredEntryLength(source, "xl/sharedStrings.xml", compressed * ratio);
     }
 }

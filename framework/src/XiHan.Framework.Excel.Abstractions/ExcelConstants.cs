@@ -100,6 +100,15 @@ public static class ExcelConstants
     /// 可能越过本值。该选项取 <c>0</c> 或负数表示不判解压比。
     /// </para>
     /// <para>
+    /// <b>取值按实测校准，不是一个好记的整数。</b>量到的合法簇在 11–157 倍之间：同一份四万行同值数据，
+    /// 工作表写规格里可选的 <c>r</c> 属性时约 11 倍、不写时约 154 倍（二十万行不写 <c>r</c> 约 157 倍），
+    /// 一份十万行八栏的真实工作簿约 13 倍，三者都读得通；量到的解压炸弹是 368.5 倍
+    /// （整档 1.05 MiB，<c>xl/sharedStrings.xml</c> 压缩后 1,102,748 字节、解压后 406,400,168 字节，
+    /// 建立读取器之后托管占用 777.2 MiB）。本值取 <c>200</c>：在合法簇之上留约 27% 余量，
+    /// 仍在实测炸弹之下约 46%。<u>安全窗口只有 (157, 368.5) 这一段</u>——取低了误拒合法档，
+    /// 取高了放走真炸弹，因此这不是一个可以随手翻倍的旋钮；改它请先量档，不要按「留多点余量」推。
+    /// </para>
+    /// <para>
     /// 只对解压后长度不小于 1 MiB 的部件判：更小的部件即使比值难看，展开后也占不了多少内存，
     /// 而它们的总量另有 <see cref="MaxImportDecompressedBytes"/> 兜住。界定<u>解压后字节数</u>的是
     /// <see cref="MaxImportEntryDecompressedBytes"/> 与 <see cref="MaxImportDecompressedBytes"/>
@@ -107,7 +116,7 @@ public static class ExcelConstants
     /// 换算关系与量级见 <see cref="MaxImportDecompressedBytes"/> 的说明。
     /// </para>
     /// </remarks>
-    public const int MaxImportCompressionRatio = 100;
+    public const int MaxImportCompressionRatio = 200;
 
     /// <summary>
     /// 一个单元格能承载的字符数上限
