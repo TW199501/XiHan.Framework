@@ -70,14 +70,15 @@ public interface IExcelExporter
     /// <exception cref="InvalidOperationException">目标格式是 <see cref="ExcelFormat.Xlsx"/> 而
     /// <see cref="ExcelSheetSpec.ForceStreaming"/> 与 <see cref="ExcelSheetSpec.ExpectedRowCount"/>
     /// 两个都没给；或行集合里有某笔元素与 <see cref="ExcelSheetSpec.RowType"/> 不符；或某个行值是工作簿
-    /// 装不下的（早于 1899-12-30 的 <c>DateTime</c>、<c>NaN</c> 或 <c>±∞</c>、有效数字多于
+    /// 装不下的（早于 1900-01-01 的 <c>DateTime</c>／<c>DateOnly</c>／<c>DateTimeOffset</c>、
+    /// <c>NaN</c> 或 <c>±∞</c>、有效数字多于
     /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的 <c>long</c>／<c>ulong</c>／
-    /// <c>decimal</c>／<c>double</c>／<c>float</c>、长过单元格上限的字串）——四类都只在全量与流式两条 xlsx 路径判，
-    /// 且两条路径判得一样（文字档没有数值格，这类取值照原样写成文本）；或某个取值委托交回了
-    /// 工作簿不接受的东西；或（仅流式模式）两列共用了同一个 <see cref="ExcelColumn.Key"/>——那一模式的行模型
-    /// 按键取值，重复键会让后一列盖掉前一列；或（仅流式模式）某个行值是早于 1899-12-30 的
-    /// <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>——这两个型别在流式模式落日期格、整段拒，
-    /// 走全量工作簿时它们落文本格、照能导出，因此这一条不承诺与另一条路径同判；或（仅两条 xlsx 路径）
+    /// <c>decimal</c>／<c>double</c>／<c>float</c>、绝对值超过 9007199254740992（2 的 53 次方）的
+    /// <c>long</c>／<c>ulong</c>／<c>decimal</c>、长过单元格上限的字串）——五类都只在全量与流式两条 xlsx
+    /// 路径判，且两条路径判得一样、抛出的成因句逐字相同（文字档路径不判这五类：它没有数值格也没有日期格，
+    /// 取值一律按文本原样写出）；日期下限那一条三种型别同判，不按各条路径把该型别落成日期格还是文本格区分；
+    /// 或某个取值委托交回了工作簿不接受的东西；或（仅流式模式）两列共用了同一个
+    /// <see cref="ExcelColumn.Key"/>——那一模式的行模型按键取值，重复键会让后一列盖掉前一列；或（仅两条 xlsx 路径）
     /// 标题行、表头行与数据行加起来要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后——单张工作表
     /// 只有这么多行，超出的行没有可落的位置，上限按每张工作表各自计、不做整簿累计，文字档路径没有这道上限，
     /// 消息点出上限值与「分成多张表或改用文字档」两条出路；两条 xlsx 路径数的是各自要落的那一行行号，
