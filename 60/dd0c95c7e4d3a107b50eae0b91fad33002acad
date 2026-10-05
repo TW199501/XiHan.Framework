@@ -1,0 +1,20 @@
+framework/src/XiHan.Framework.Excel.Abstractions/ExcelConstants.cs
+  h_be8240d2cfaa4b 40-42
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelExporter.cs
+  h_be8240d2cfaa4b 55-60,124-128
+framework/src/XiHan.Framework.Excel/Exporting/ClosedXmlExporter.cs
+  h_be8240d2cfaa4b 69-75,167-174,238-244,326-328,338-347,597,599-608,613-621
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlExporterTests.cs
+  h_be8240d2cfaa4b 1575-1805
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "60dd0c95c7e4d3a107b50eae0b91fad33002acad",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
