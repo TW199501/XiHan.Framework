@@ -9,8 +9,10 @@ namespace XiHan.Framework.Excel.Abstractions.Attributes;
 /// 导出列特性，用于声明属性对应的表头与列呈现
 /// </summary>
 /// <remarks>
-/// 带本特性的属性参与列构建，不带特性的属性同样参与，只是取用默认呈现；要排除某属性请改用
-/// <see cref="ExcelIgnoreAttribute"/>。列的取值一律来自属性本身，特性只描述呈现，不描述取数逻辑。
+/// 带本特性的属性参与列构建，不带特性的属性同样参与，只是取用默认呈现；要排除某个键请改用
+/// <see cref="ExcelIgnoreAttribute"/>：它以「同名属性去重后 CLR 看得见的那一个」为单位生效，标在
+/// <c>new</c> 遮蔽出来的派生属性上会使整个键不成列，被它盖住的基类属性不会顶上来；标在被盖住的那一个
+/// 上不影响成列。列的取值一律来自属性本身，特性只描述呈现，不描述取数逻辑。
 /// </remarks>
 [AttributeUsage(AttributeTargets.Property)]
 public sealed class ExcelColumnAttribute : Attribute

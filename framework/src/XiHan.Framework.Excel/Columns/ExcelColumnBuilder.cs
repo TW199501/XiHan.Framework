@@ -28,13 +28,18 @@ namespace XiHan.Framework.Excel.Columns;
 /// 反射会把属性 getter 自己抛的异常包成 <see cref="TargetInvocationException"/>，那与手写
 /// <see cref="ExcelColumn{TRow}"/> 的 <c>r =&gt; r.X</c> 不是同一个型别，调用方按导出入口文档化的异常去
 /// <c>catch</c> 会因为「列是谁建的」而接不到。
+/// 例外只有一种形状：<c>ref</c> 返回的读取器（<c>public ref int Counter =&gt; ref _counter;</c>）表达不进
+/// 表达式树，这类属性仍走反射 <c>GetValue</c>，它的 getter 抛出的异常仍被包成
+/// <see cref="TargetInvocationException"/>；除这一种之外，读取器自己的异常型别原样上抛。
 /// </para>
 /// <para>
 /// 排序规则（同一行类型每次构建结果一致）：<see cref="ExcelColumnAttribute"/> 上显式写了非负
 /// <c>Order</c>（含 <c>0</c>）的属性排在前面，按该值升序，同值时按声明顺序；<c>Order</c> 为负数
 /// （默认 <c>-1</c>，即未指定）的属性与没有特性的属性同排在后一组，按声明顺序。
+/// 行类型是接口时，未写 <c>Order</c> 的列按声明顺序排，而接口行类型的声明顺序是「并入的基接口属性在前、
+/// 本接口自己声明的属性在后」，所以基接口那一栏排在前面；同一深度内互不派生的多个基接口之间的先后不作保证。
 /// 排定位置回写为每列的 <see cref="ExcelColumn.Order"/>，因此把结果再按 <c>Order</c> 升序排一次
-/// 得到的仍是同一顺序。声明顺序取反射给出的属性顺序，同一程序集内稳定。
+/// 得到的仍是同一顺序。类行类型的声明顺序取反射给出的属性顺序，同一程序集内稳定。
 /// </para>
 /// <para>
 /// 列宽的缺省标记：特性上的 <c>Width</c> 是 <c>double</c>（可空数值不能作特性参数），用特性设定列宽时，
@@ -185,8 +190,9 @@ public static class ExcelColumnBuilder
     /// <para>
     /// 接口行类型要另外并入继承来的接口：接口不像类那样沿继承链给出成员，<c>typeof(IOrder).GetProperties()</c>
     /// 只交本接口自己声明的属性，基接口的 <c>Id</c> 不在里面，导出的档就整栏少一栏且没有任何提示。
-    /// 并入顺序是「基接口在前、本接口自己声明的在后」，多个基接口按继承深度由远到近排，
-    /// 不赌 <c>GetInterfaces()</c> 的返回顺序；类行类型一条不改，仍是反射给出的属性原样进候选。
+    /// 并入顺序是「基接口在前、本接口自己声明的在后」，多个基接口按继承深度由远到近排，跨深度的先后
+    /// 不依赖 <c>GetInterfaces()</c> 的返回顺序（同一深度内互不派生的基接口之间仍取它的返回序）；
+    /// 类行类型一条不改，仍是反射给出的属性原样进候选。
     /// </para>
     /// <para>
     /// 同名去重是 CLR 可见成员语义：<c>class Dto : Base { public new int Id }</c> 里
@@ -208,8 +214,8 @@ public static class ExcelColumnBuilder
 
         // 类沿继承链交出属性，接口不交：typeof(IOrder).GetProperties() 只有本接口自己声明的属性，
         // 基接口的属性得按 GetInterfaces() 并入，否则接口行类型导出的档整栏少一栏且无提示。
-        // 顺序取「基接口在前、本接口自己声明的在后」，多个基接口按继承深度由远到近排，
-        // 不赌 GetInterfaces() 的返回顺序。
+        // 顺序取「基接口在前、本接口自己声明的在后」，多个基接口按继承深度由远到近排，跨深度的先后
+        // 不依赖 GetInterfaces() 的返回顺序；同一深度内互不派生的基接口之间仍取它的返回序。
         var candidates = rowType.IsInterface
             ? rowType.GetInterfaces()
                 .OrderBy(static face => face.GetInterfaces().Length)
@@ -265,8 +271,9 @@ public static class ExcelColumnBuilder
     /// <param name="current">已收下位置的属性的声明类型</param>
     /// <returns>candidate 派生自 current 时为 <c>true</c></returns>
     /// <remarks>
-    /// 两个型别互不派生时（不相干的基接口声明了同名属性）交回 <c>false</c>，留先出现的那一个：
-    /// 出现顺序已被「基接口按继承深度由远到近排」钉住，不再依赖反射给出的次序。
+    /// 两个型别互不派生时（不相干的基接口声明了同名属性）交回 <c>false</c>，留先出现的那一个。
+    /// 继承深度排序只保证「更远的基接口在前」：同名属性分属同一深度内互不派生的两个基接口时，
+    /// 谁先出现仍随反射 <c>GetInterfaces()</c> 给出的次序，留哪一个不作承诺。
     /// </remarks>
     private static bool IsMoreDerived(Type? candidate, Type? current)
         => candidate is not null
