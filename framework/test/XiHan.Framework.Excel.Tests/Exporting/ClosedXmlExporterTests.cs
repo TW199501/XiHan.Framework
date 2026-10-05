@@ -706,6 +706,44 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
+    /// 指数形态的取值按尾数数位数，指数部分不参与——两条 xlsx 路径都照写并读回同一个数
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 双精度的最短往返文本在量级够大或够小时会写成指数形态（<c>9.87654321012345E+18</c>、
+    /// <c>1.23456789012345E-10</c>），此时判据只数 <c>E</c> 之前的尾数：指数移动的是小数点，不增加有效数字。
+    /// 两档的尾数都恰好是承诺上限 15 位，因此照写；把剥离指数那一段去掉，指数里的数字会被一起数进去
+    /// （17 位与 16 位），两档立刻被判成越界——这条用例就是钉住那一段真在起作用，不是死码。
+    /// </para>
+    /// <para>
+    /// 这两档是 <c>double</c>，因此不受整数大小那道约束：呼叫端交出的本来就是双精度取值，
+    /// 落进数值格的是同一个双精度，交回的也是它（量级超过 2^53 的那一道只管
+    /// <c>long</c>／<c>ulong</c>／<c>decimal</c>，见 <see cref="超过整数上限的数值在两条xlsx路径一起拒写"/>）。
+    /// </para>
+    /// </remarks>
+    /// <param name="value">要落进一格的双精度取值，它的不变文化文本是指数形态</param>
+    /// <param name="expected">导入器读回来该是的那份数的不变文化文本</param>
+    [Theory]
+    [InlineData(9876543210123450000d, "9.87654321012345E+18")]
+    [InlineData(1.23456789012345E-10d, "1.23456789012345E-10")]
+    public async Task 指数形态的数值按尾数数位数并在两条xlsx路径照写(double value, string expected)
+    {
+        // 前提自证：这一档的最短往返文本确实是指数形态，否则本用例就测不到剥离指数那一段
+        Assert.Contains("E", value.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+
+        var fullStream = await ExportAsync(BuildValueSpec(value));
+
+        var streamStream = new MemoryStream();
+        await new MiniExcelStreamExporter().ExportAsync(streamStream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        var fullBack = await ImportValueAsync(fullStream);
+        var streamBack = await ImportValueAsync(streamStream);
+
+        Assert.Equal(expected, ((double)fullBack!).ToString(CultureInfo.InvariantCulture));
+        Assert.Equal(expected, ((double)streamBack!).ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
     /// 绝对值超过数值格能逐个表示的整数上限的取值在两条 xlsx 路径一起被拒，且成因句逐字相同
     /// </summary>
     /// <remarks>
