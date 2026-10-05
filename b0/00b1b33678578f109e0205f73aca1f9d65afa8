@@ -1,0 +1,28 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/ExcelColumn.cs
+  h_be8240d2cfaa4b 14-15,24-34,110-114,123-126
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/ExcelSheetSpec.cs
+  h_be8240d2cfaa4b 16-21
+framework/src/XiHan.Framework.Excel/Exporting/ExcelRowTypeGuard.cs
+  h_be8240d2cfaa4b 9,13,15-26,33-37,44,49-56,60-62,65,69-86
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlExporterTests.cs
+  h_be8240d2cfaa4b 61-84,889-998
+framework/test/XiHan.Framework.Excel.Tests/Exporting/DelimitedTextExporterTests.cs
+  h_be8240d2cfaa4b 473-573
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ExcelColumnTests.cs
+  h_be8240d2cfaa4b 31-52
+framework/test/XiHan.Framework.Excel.Tests/Exporting/FixedWidthTextExportTests.cs
+  h_be8240d2cfaa4b 161-205
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelStreamExporterTests.cs
+  h_be8240d2cfaa4b 365-476
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b000b1b33678578f109e0205f73aca1f9d65afa8",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
