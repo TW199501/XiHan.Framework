@@ -68,9 +68,10 @@ public class XiHanExcelOptions
     /// </para>
     /// <para>
     /// 本项管的是<u>压缩后</u>的档大小。xlsx 是 zip 容器，压缩后的大小与读它要付出的内存不成比例，
-    /// 因此容器路径另有三道不可配置的解压侧上限（解压后总长、单个部件解压后长度、单个部件的解压比，
-    /// 见 <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 一族），
-    /// 在把工作簿交给读取器之前先按 zip 元数据判完；调高本值不会放宽那三道界。
+    /// 因此容器路径另有三道解压侧上限（解压后总长、单个部件解压后长度、单个部件的解压比，
+    /// 见 <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 一族与
+    /// <see cref="MaxImportCompressionRatio"/>），在把工作簿交给读取器之前先按 zip 元数据判完；
+    /// 调高本值不会放宽那三道界。
     /// </para>
     /// <para>
     /// 输入流不可定位时判不了 <c>Length</c>，那种流在读档之前就已经被两条路径拒掉，
@@ -78,4 +79,34 @@ public class XiHanExcelOptions
     /// </para>
     /// </remarks>
     public long MaxImportBytes { get; set; } = ExcelConstants.DefaultMaxImportBytes;
+
+    /// <summary>
+    /// xlsx 容器里单个部件的解压比上限（解压后长度 ÷ 压缩后长度的倍数），<c>0</c> 或负数表示不判解压比
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>本项是启发式，不是内存界。</b>真正界定「一份档能让本进程吃多少内存」的是两道绝对上限：
+    /// 单个部件解压后长度 <see cref="ExcelConstants.MaxImportEntryDecompressedBytes"/> 与
+    /// 解压后总长 <see cref="ExcelConstants.MaxImportDecompressedBytes"/>，两者都不可配置、也不受本项影响。
+    /// 解压比只是在这两道绝对界之下多认一种形态：压缩后很小、展开后很大，那是解压炸弹的典型样子。
+    /// </para>
+    /// <para>
+    /// 之所以可配置：比值高低由<u>产出这份档的工具</u>决定，而不只由内容决定。工作表里 <c>row</c> 与
+    /// <c>c</c> 元素的 <c>r</c> 属性在规格上是可选的，不写 <c>r</c> 的产出者会让整段 <c>sheetData</c>
+    /// 逐字节重复，同样的数据压缩比可以差一个数量级。因此高度重复但完全合法的档可能越过默认值，
+    /// 这时把本项调高、或设成 <c>0</c> 关掉比值判据即可，两道绝对上限照旧生效。
+    /// </para>
+    /// <para>
+    /// <b><c>0</c> 与负数是有意允许的取值，不是漏掉的校验</b>：它们的含义是「不做解压比检查」，
+    /// 给重复性极高的合法资料一条明示的出路。关掉比值判据<u>不等于</u>关掉解压侧防护——
+    /// 上述两道绝对上限仍然逐部件判，超限照样抛 <see cref="InvalidOperationException"/>。
+    /// 默认值是 <see cref="ExcelConstants.MaxImportCompressionRatio"/>。
+    /// </para>
+    /// <para>
+    /// 只对解压后长度不小于 1 MiB 的部件判：更小的部件即使比值难看也占不了多少内存，
+    /// 而它们的总量另有 <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 兜住。
+    /// 本项只对 <c>xlsx</c> 有意义，文字档与固定宽度档没有压缩容器，不参与判定。
+    /// </para>
+    /// </remarks>
+    public int MaxImportCompressionRatio { get; set; } = ExcelConstants.MaxImportCompressionRatio;
 }

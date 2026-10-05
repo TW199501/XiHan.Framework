@@ -1231,6 +1231,91 @@ public class ExcelDataReaderImporterTests
         Assert.Equal(ExcelConstants.DefaultMaxImportRows, emitted);
     }
 
+    /// <summary>
+    /// 高重复的<u>合法</u>档默认被解压比这条启发式挡下，把上限调高之后同一份档照读
+    /// </summary>
+    /// <remarks>
+    /// 夹具是一份结构合法、ExcelDataReader 读得通的工作簿：四万行同值，工作表不写规格里可选的 <c>r</c> 属性，
+    /// 于是整段 <c>sheetData</c> 逐字节重复，实测解压比约 154 倍、越过默认的 100 倍。
+    /// 这条用例钉的正是「解压比是启发式、会误伤合法档，因此必须可调」：同一份字节，
+    /// 默认上限下拒收、调高之后交出四万行且取值对得上。
+    /// </remarks>
+    [Fact]
+    public async Task 高重复的合法档默认被解压比拒收调高上限后照读()
+    {
+        var bytes = RepeatedRowsXlsx(40_000);
+        var noHeader = new ExcelImportOptions { HasHeader = false };
+
+        using (var rejected = new MemoryStream(bytes))
+        {
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ReadAll(rejected, noHeader));
+
+            Assert.Contains("解压比过高", failure.Message, StringComparison.Ordinal);
+            Assert.Contains("xl/worksheets/sheet1.xml", failure.Message, StringComparison.Ordinal);
+            Assert.Contains(nameof(XiHanExcelOptions.MaxImportCompressionRatio), failure.Message, StringComparison.Ordinal);
+        }
+
+        using (var accepted = new MemoryStream(bytes))
+        {
+            var importer = new ExcelDataReaderImporter(new XiHanExcelOptions { MaxImportCompressionRatio = 1000 });
+
+            var rows = await ReadAll(importer, accepted, noHeader);
+
+            Assert.Equal(40_000, rows.Count);
+            Assert.Equal("甲", rows[0].Values["Col1"]);
+        }
+    }
+
+    /// <summary>
+    /// 解压比设成 <c>0</c> 时不判比值，高重复的合法档照读
+    /// </summary>
+    /// <remarks>
+    /// <c>0</c> 与负数是「关掉这条启发式」的明示写法，不是漏校验的非法取值：比值高低由产出这份档的工具决定，
+    /// 高度重复而完全合法的档确实可能越过任何固定阈值，得留一条明示的出路。
+    /// </remarks>
+    [Fact]
+    public async Task 解压比设成零时不判比值()
+    {
+        using var stream = new MemoryStream(RepeatedRowsXlsx(40_000));
+        var importer = new ExcelDataReaderImporter(new XiHanExcelOptions { MaxImportCompressionRatio = 0 });
+
+        var rows = await ReadAll(importer, stream, new ExcelImportOptions { HasHeader = false });
+
+        Assert.Equal(40_000, rows.Count);
+        Assert.Equal("甲", rows[0].Values["Col1"]);
+    }
+
+    /// <summary>
+    /// 关掉解压比<u>不等于</u>关掉解压侧防护：单部件解压后长度那道绝对上限照常生效
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 夹具是把 zip 中央目录里 <c>xl/worksheets/sheet1.xml</c> 声明的解压后长度改写成超过
+    /// <see cref="ExcelConstants.MaxImportEntryDecompressedBytes"/> 的值：守卫读的正是中央目录里这个声明值，
+    /// 因此不必真造出 GiB 级的部件就能验这道界。断言消息是「超过单个部件的上限」而不是「解压比过高」，
+    /// 钉住抛出的是绝对上限那一条。
+    /// </para>
+    /// <para>
+    /// 这条是本轮最要紧的一条：<c>MaxImportCompressionRatio &lt;= 0</c> 若被写成「整个解压规模检查都跳过」，
+    /// 关掉一条启发式就连带关掉界定内存占用的两道绝对上限，那比原来的缺陷更糟。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 关掉解压比之后单部件解压后长度上限仍然生效()
+    {
+        using var source = new MemoryStream(RepeatedRowsXlsx(40_000));
+        using var declared = WithDeclaredEntryLength(
+            source, "xl/worksheets/sheet1.xml", ExcelConstants.MaxImportEntryDecompressedBytes + 1);
+        var importer = new ExcelDataReaderImporter(new XiHanExcelOptions { MaxImportCompressionRatio = 0 });
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ReadAll(importer, declared));
+
+        Assert.Contains("超过单个部件的上限", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("xl/worksheets/sheet1.xml", failure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("解压比过高", failure.Message, StringComparison.Ordinal);
+        Assert.Null(failure.InnerException);
+    }
+
     private static async Task<List<ExcelImportRow>> ReadAll(Stream input, ExcelImportOptions? options = null)
     {
         return await ReadAll(new ExcelDataReaderImporter(), input, options);
@@ -1405,5 +1490,119 @@ public class ExcelDataReaderImporterTests
 
         using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(false));
         writer.Write(content);
+    }
+
+    /// <summary>
+    /// 造一份<u>合法</u>但解压比很高的 xlsx：<paramref name="rows"/> 行同值，工作表不写规格里可选的 <c>r</c> 属性
+    /// </summary>
+    /// <param name="rows">行数（含被当作表头的第一行）</param>
+    /// <returns>档字节</returns>
+    /// <remarks>
+    /// <para>
+    /// 与 <see cref="HighRatioXlsx"/> 的分工：那一份是炸弹形态（共享字串部件被塞满重复内容），
+    /// 这一份是<u>正常工作簿</u>——四万行、每行一列、值都是共享字串第 0 项，ExcelDataReader 读得通。
+    /// 它的高比值不来自恶意构造，而来自产出者的写法：<c>row</c> 与 <c>c</c> 的 <c>r</c> 属性在规格里是可选的，
+    /// 不写就整段 <c>sheetData</c> 逐字节重复，实测解压比约 154 倍；同一份数据写上 <c>r</c> 属性只有约 11 倍。
+    /// 因此「比值高」推不出「档有问题」，这正是解压比必须可配置的理由。
+    /// </para>
+    /// <para>
+    /// 工作表用 <see cref="CompressionLevel.Optimal"/> 压，与真实产出者的取舍一致；
+    /// 四万行时该部件解压后约 1.2 MiB，落在「比值只判不小于 1 MiB 的部件」那道门槛之上。
+    /// </para>
+    /// </remarks>
+    private static byte[] RepeatedRowsXlsx(int rows)
+    {
+        using var stream = new MemoryStream();
+
+        using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            WriteEntry(zip, "[Content_Types].xml",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>
+                """);
+
+            WriteEntry(zip, "_rels/.rels",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>
+                """);
+
+            WriteEntry(zip, "xl/workbook.xml",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="导入" sheetId="1" r:id="rId1"/></sheets></workbook>
+                """);
+
+            WriteEntry(zip, "xl/_rels/workbook.xml.rels",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>
+                """);
+
+            WriteEntry(zip, "xl/sharedStrings.xml",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="1" uniqueCount="1"><si><t>甲</t></si></sst>
+                """);
+
+            var entry = zip.CreateEntry("xl/worksheets/sheet1.xml", CompressionLevel.Optimal);
+
+            using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(false), 1 << 16);
+            writer.Write(
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>
+                """);
+
+            for (var row = 0; row < rows; row++)
+            {
+                writer.Write("<row><c t=\"s\"><v>0</v></c></row>");
+            }
+
+            writer.Write("</sheetData></worksheet>");
+        }
+
+        return stream.ToArray();
+    }
+
+    /// <summary>
+    /// 把 zip 中央目录里某个部件声明的「解压后长度」改写成给定值
+    /// </summary>
+    /// <param name="source">原档</param>
+    /// <param name="entryName">要改写的部件名</param>
+    /// <param name="declaredLength">要声明的解压后长度</param>
+    /// <returns>改写后的档流，位置在起点</returns>
+    /// <remarks>
+    /// 中央目录记录的固定部分长 46 字节：签名 <c>50 4B 01 02</c> 之后 <c>+20</c> 是压缩后长度、
+    /// <c>+24</c> 是解压后长度、<c>+28</c> 是档名长度，档名紧跟在 <c>+46</c>。守卫读的正是 <c>+24</c> 这个声明值，
+    /// 因此改写它就足以让绝对上限那条判据成立，不必真造出 GiB 级的部件。
+    /// 按档名比对而不是取第一条记录，避免把压缩数据里偶然出现的同一段字节当成签名。
+    /// </remarks>
+    private static MemoryStream WithDeclaredEntryLength(MemoryStream source, string entryName, long declaredLength)
+    {
+        var bytes = source.ToArray();
+        var name = Encoding.ASCII.GetBytes(entryName);
+
+        for (var offset = 0; offset + 46 <= bytes.Length; offset++)
+        {
+            if (bytes[offset] != 0x50 || bytes[offset + 1] != 0x4B ||
+                bytes[offset + 2] != 0x01 || bytes[offset + 3] != 0x02)
+            {
+                continue;
+            }
+
+            var nameLength = BitConverter.ToUInt16(bytes, offset + 28);
+
+            if (nameLength != name.Length || offset + 46 + nameLength > bytes.Length)
+            {
+                continue;
+            }
+
+            if (!bytes.AsSpan(offset + 46, nameLength).SequenceEqual(name))
+            {
+                continue;
+            }
+
+            BitConverter.TryWriteBytes(bytes.AsSpan(offset + 24, 4), (uint)declaredLength);
+
+            return new MemoryStream(bytes);
+        }
+
+        throw new InvalidOperationException($"夹具在中央目录里找不到部件 {entryName}。");
     }
 }

@@ -193,6 +193,20 @@ internal static class ImportSharedRules
         => options?.MaxImportBytes ?? ExcelConstants.DefaultMaxImportBytes;
 
     /// <summary>
+    /// 取本次生效的解压比上限（倍数）
+    /// </summary>
+    /// <param name="options">Excel 选项，传 <c>null</c> 表示不接配置、用框架默认上限</param>
+    /// <returns>本次可用的解压比上限；<c>0</c> 或负数表示不判解压比</returns>
+    /// <remarks>
+    /// 不在这里把 <c>&lt;= 0</c> 夹回默认值：<c>0</c> 与负数是「关掉解压比这条启发式」的明示写法，
+    /// 夹回去等于把应用的意图改成别的东西。关掉它不影响两道绝对上限——
+    /// <see cref="ExcelConstants.MaxImportEntryDecompressedBytes"/> 与
+    /// <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 照常判，那两道才是界定内存占用的。
+    /// </remarks>
+    internal static int ResolveMaxImportCompressionRatio(XiHanExcelOptions? options)
+        => options?.MaxImportCompressionRatio ?? ExcelConstants.MaxImportCompressionRatio;
+
+    /// <summary>
     /// 按本次生效的档大小上限判一份档，超限就拒收
     /// </summary>
     /// <param name="length">档的字节数，取自 <c>Stream.Length</c></param>

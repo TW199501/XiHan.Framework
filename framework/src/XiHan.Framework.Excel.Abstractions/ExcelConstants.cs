@@ -67,18 +67,26 @@ public static class ExcelConstants
     public const long MaxImportEntryDecompressedBytes = 1_073_741_824;
 
     /// <summary>
-    /// xlsx 容器里单个部件的解压比上限（解压后长度 ÷ 压缩后长度的倍数）
+    /// xlsx 容器里单个部件解压比上限的默认值（解压后长度 ÷ 压缩后长度的倍数）
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 承载数据的工作簿部件压缩比在数十倍量级：文字内容重复度低，工作表的标记重复度高但也有限。
-    /// 上百倍意味着这个部件里几乎没有信息量——同一段内容被复制了成千上万次，那正是解压炸弹的形态。
-    /// 超过本倍数时导入器<u>拒收整份档</u>并点名该部件、它的解压比与本上限。
+    /// 承载数据的工作簿部件压缩比通常在数十倍量级。上百倍意味着这个部件里几乎没有信息量——
+    /// 同一段内容被复制了成千上万次，那正是解压炸弹的形态。超过本倍数时导入器<u>拒收整份档</u>
+    /// 并点名该部件、它的解压比与生效中的上限。
+    /// </para>
+    /// <para>
+    /// <b>本常量是默认值，不是不可动的界</b>：生效值取 <see cref="XiHanExcelOptions.MaxImportCompressionRatio"/>，
+    /// 未接配置时用本常量。解压比是<u>启发式</u>——比值高低不只由内容决定，也由产出这份档的工具决定
+    /// （工作表里 <c>row</c>／<c>c</c> 的 <c>r</c> 属性在规格上可选，不写 <c>r</c> 的产出者会让整段
+    /// <c>sheetData</c> 逐字节重复，同样的数据比值可以差一个数量级），因此高度重复而完全合法的档
+    /// 可能越过本值。该选项取 <c>0</c> 或负数表示不判解压比。
     /// </para>
     /// <para>
     /// 只对解压后长度不小于 1 MiB 的部件判：更小的部件即使比值难看，展开后也占不了多少内存，
-    /// 而它们的总量另有 <see cref="MaxImportDecompressedBytes"/> 兜住。这道界不可配置，
-    /// 因此取值留在「正常档到不了、炸弹一定越过」的位置上。
+    /// 而它们的总量另有 <see cref="MaxImportDecompressedBytes"/> 兜住。真正界定内存占用的是
+    /// <see cref="MaxImportEntryDecompressedBytes"/> 与 <see cref="MaxImportDecompressedBytes"/>
+    /// 两道绝对上限，它们不可配置，也不因关掉解压比而失效。
     /// </para>
     /// </remarks>
     public const int MaxImportCompressionRatio = 100;
