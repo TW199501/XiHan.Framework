@@ -52,6 +52,15 @@ public static class ExcelConstants
     /// <see cref="MaxImportCompressionRatio"/> 配合使用：比值界挡住「小档展开成巨量内容」，
     /// 本界挡住「大档展开成更大量内容」，两者缺一都留口子。超限时导入器<u>拒收整份档</u>并点名解压后总长，
     /// 不解压、也不交给工作簿读取器。
+    /// <para>
+    /// <b>本常量界定的是解压后的<u>字节数</u>，不是本进程的托管占用。</b>解压后的内容进工作簿读取器还要
+    /// 按字符与解析结构再展开一遍，实测一份解压后 387.6 MiB 的共享字串部件换来约 777.2 MiB 托管占用
+    /// （约 2 倍；倍数不是常数，随部件内容与读取器的缓冲方式变动）。按本值与
+    /// <see cref="MaxImportEntryDecompressedBytes"/> 当前的取值，最坏情形的托管占用是 <u>GiB 量级</u>而不是
+    /// MiB 量级：这两道界挡的是「一份外来档把本进程的内存放大到不可收拾」，不是「导入最多只占几十兆」。
+    /// 部署侧要按更低的内存预算工作，请用 <see cref="XiHanExcelOptions.MaxImportBytes"/> 把压缩后的档大小
+    /// 收得更紧，或调低 <see cref="XiHanExcelOptions.MaxImportRows"/>。
+    /// </para>
     /// </remarks>
     public const long MaxImportDecompressedBytes = 2_147_483_648;
 
@@ -63,6 +72,12 @@ public static class ExcelConstants
     /// 那一个部件的长度就直接换算成托管堆占用，而工作表部件是流式读过的，两者的内存代价并不相同。
     /// 本常量按「行数上限之内的正常工作簿里最大的那个部件」留出成倍余量取值，超限时导入器<u>拒收整份档</u>
     /// 并点名是哪个部件、它解压后有多长。
+    /// <para>
+    /// 「直接换算成托管堆占用」说的是<u>量级</u>而不是一比一：实测解压后 387.6 MiB 的共享字串部件
+    /// 换来约 777.2 MiB 托管占用，约 2 倍，倍数随内容与读取器的缓冲方式变动。因此 1 GiB 这道界
+    /// 意味着最坏情形下单个部件就能换来 GiB 量级的托管占用，取值细节见
+    /// <see cref="MaxImportDecompressedBytes"/> 的说明。
+    /// </para>
     /// </remarks>
     public const long MaxImportEntryDecompressedBytes = 1_073_741_824;
 
@@ -71,9 +86,11 @@ public static class ExcelConstants
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 承载数据的工作簿部件压缩比通常在数十倍量级。上百倍意味着这个部件里几乎没有信息量——
-    /// 同一段内容被复制了成千上万次，那正是解压炸弹的形态。超过本倍数时导入器<u>拒收整份档</u>
-    /// 并点名该部件、它的解压比与生效中的上限。
+    /// 本判据认的是一种<u>形态</u>：压缩后很小、展开后很大的部件，读它要付的内存与它压缩后的体积不成比例，
+    /// 而工作簿读取器把这份内存花在读出第一行<u>之前</u>，行数上限与取消令牌都拦不住它。
+    /// <b>比值高本身推不出「这份档有问题」</b>——同一个比值可以由内容的重复度造成，也可以由产出这份档的
+    /// 工具怎么写造成，两者在档的字节上分不开。因此本值是一个<u>可调的档位</u>，不是对档内容的事实判断；
+    /// 超过它时导入器<u>拒收整份档</u>并点名该部件、它的解压比与生效中的上限。
     /// </para>
     /// <para>
     /// <b>本常量是默认值，不是不可动的界</b>：生效值取 <see cref="XiHanExcelOptions.MaxImportCompressionRatio"/>，
@@ -84,9 +101,10 @@ public static class ExcelConstants
     /// </para>
     /// <para>
     /// 只对解压后长度不小于 1 MiB 的部件判：更小的部件即使比值难看，展开后也占不了多少内存，
-    /// 而它们的总量另有 <see cref="MaxImportDecompressedBytes"/> 兜住。真正界定内存占用的是
+    /// 而它们的总量另有 <see cref="MaxImportDecompressedBytes"/> 兜住。界定<u>解压后字节数</u>的是
     /// <see cref="MaxImportEntryDecompressedBytes"/> 与 <see cref="MaxImportDecompressedBytes"/>
-    /// 两道绝对上限，它们不可配置，也不因关掉解压比而失效。
+    /// 两道绝对上限，它们不可配置，也不因关掉解压比而失效；换成托管占用还要再乘一个倍数，
+    /// 换算关系与量级见 <see cref="MaxImportDecompressedBytes"/> 的说明。
     /// </para>
     /// </remarks>
     public const int MaxImportCompressionRatio = 100;

@@ -85,10 +85,18 @@ public class XiHanExcelOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>本项是启发式，不是内存界。</b>真正界定「一份档能让本进程吃多少内存」的是两道绝对上限：
+    /// <b>本项是启发式，不是内存界。</b>界定「一份档能让本进程吃多少<u>解压后字节</u>」的是两道绝对上限：
     /// 单个部件解压后长度 <see cref="ExcelConstants.MaxImportEntryDecompressedBytes"/> 与
     /// 解压后总长 <see cref="ExcelConstants.MaxImportDecompressedBytes"/>，两者都不可配置、也不受本项影响。
-    /// 解压比只是在这两道绝对界之下多认一种形态：压缩后很小、展开后很大，那是解压炸弹的典型样子。
+    /// 解压比只是在这两道绝对界之下多认一种形态：压缩后很小、展开后很大。
+    /// </para>
+    /// <para>
+    /// <b>那两道绝对上限说的也不是托管占用。</b>解压后的内容进工作簿读取器还要按字符与解析结构再展开一遍，
+    /// 实测一份解压后 387.6 MiB 的共享字串部件换来约 777.2 MiB 托管占用（约 2 倍，倍数不是常数，
+    /// 随部件内容与读取器的缓冲方式变动）。按两道界当前的 1 GiB／2 GiB 取值，最坏情形的托管占用是
+    /// <u>GiB 量级</u>：要按更低的内存预算部署，请把 <see cref="MaxImportBytes"/>（压缩后的档大小）收得更紧，
+    /// 或调低 <see cref="MaxImportRows"/>，而不是指望这两道界把内存压在几十兆。换算关系详见
+    /// <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 的说明。
     /// </para>
     /// <para>
     /// 之所以可配置：比值高低由<u>产出这份档的工具</u>决定，而不只由内容决定。工作表里 <c>row</c> 与
