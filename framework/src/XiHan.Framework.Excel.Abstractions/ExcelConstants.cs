@@ -37,6 +37,9 @@ public static class ExcelConstants
     /// <remarks>
     /// 这是 xlsx 自身的硬界，不是本组件自定的档位：超出的字串在工作簿里没有对应形态。两条 xlsx 写出路径
     /// 都在取值阶段拒掉超长字串并回报本常量，不截断（截断会丢弃数据）、也不交给工作簿去抛它那句英文异常。
+    /// 全量工作簿路径还用它做声明级预检：<see cref="Exporting.ExcelColumn.Header"/> 与
+    /// <see cref="Exporting.ExcelSheetSpec.Title"/> 落的也是单元格，超长时在写出第一格之前就拒，
+    /// 一个行元素都不取。
     /// </remarks>
     public const int MaxCellTextLength = 32_767;
 

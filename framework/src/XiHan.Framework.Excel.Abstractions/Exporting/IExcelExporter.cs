@@ -52,7 +52,12 @@ public interface IExcelExporter
     /// 取引号字符、或免引号策略配空格分隔符，<see cref="ArgumentException.ParamName"/> 为
     /// <c>textOptions</c>）；或 <see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串（只在目标格式是
     /// <see cref="ExcelFormat.Xlsx"/> 且走全量工作簿路径时判——流式模式根本不写表头底色，文字档也没有底色，
-    /// 那两种场合这个值不参与写出，也不报错，与「设置了但本路径不承载的选项」的既有口径一致）</exception>
+    /// 那两种场合这个值不参与写出，也不报错，与「设置了但本路径不承载的选项」的既有口径一致）；
+    /// 或某列的 <see cref="ExcelColumn.Header"/>、<see cref="ExcelSheetSpec.Title"/> 长过
+    /// <see cref="ExcelConstants.MaxCellTextLength"/> 个字符（<see cref="ArgumentException.ParamName"/> 分别为
+    /// <c>Header</c> 与 <c>Title</c>，只在目标格式是 <see cref="ExcelFormat.Xlsx"/> 且走全量工作簿路径时判——
+    /// 表头与标题落的也是单元格，与数据格共用同一道上限，超长时写出侧不截断，判定排在写出第一格之前，
+    /// 抛出时输出流零字节、行集合一次都没被枚举）</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> 不在
     /// <see cref="ExcelFormat"/> 的定义范围内；或 <see cref="ExcelSheetSpec.ExpectedRowCount"/> 为负数
     /// （这一条不分格式：它是分派输入，任何目标格式下都不是合法的行数声明）；或某列的
@@ -116,7 +121,11 @@ public interface IExcelExporter
     /// <exception cref="ArgumentException"><paramref name="sheets"/> 为空清单；或清单里某张表的
     /// <see cref="ExcelSheetSpec.Columns"/> 是 <c>null</c> 或一列都没有（点名第几张）；或某张表的表名不可用、
     /// 或与清单里更早那张重名（判重不区分大小写）；或某张表的 <see cref="ExcelSheetSpec.HeaderFill"/>
-    /// 不是合法的十六进制颜色串</exception>
+    /// 不是合法的十六进制颜色串；或某张表某列的 <see cref="ExcelColumn.Header"/>、某张表的
+    /// <see cref="ExcelSheetSpec.Title"/> 长过 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符
+    /// （<see cref="ArgumentException.ParamName"/> 分别为 <c>Header</c> 与 <c>Title</c>）——表头与标题落的也是单元格，
+    /// 与数据格共用同一道上限，超长时写出侧不截断；这几类都排在写第一格之前，整份档建好才落盘一次，
+    /// 因此任何一张表触发它们，输出流都是零字节、那张表的行集合一次都没被枚举</exception>
     /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是大于 0
     /// 且不高于 255 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内；
     /// 或某张表的 <see cref="ExcelSheetSpec.ExpectedRowCount"/> 为负数（点名第几张）——多表恒走全量工作簿，

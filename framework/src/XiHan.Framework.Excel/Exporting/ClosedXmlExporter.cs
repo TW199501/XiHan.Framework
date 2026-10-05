@@ -66,9 +66,13 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 这部分能导与不能导的输入集合与走哪条无关。<b>唯一的例外是日期格的下限</b>：<c>DateOnly</c> 与
 /// <c>DateTimeOffset</c> 在本类落文本格、不送进日期格，因此本类不判它们早于 1899-12-30 的情形（照能导出），
 /// 而流式路径把它们落成日期格、整段拒——同一份带这类日期的规格走哪条路径，结果并不相同，
-/// 详见流式写出器的说明。这句承诺的范围是「本类显式检查过的失败面」：
-/// 取值域、颜色解析、表名判据与单张工作表的行数上限（<see cref="ExcelConstants.MaxSheetRows"/>，含标题行与表头行）
-/// 在内，工作簿自身的存盘失败（流不可写、容器损坏、磁盘满）不在内，那类按库的异常形态交回。
+/// 详见流式写出器的说明。<see cref="ExcelColumn.Header"/> 与 <see cref="ExcelSheetSpec.Title"/> 落的也是单元格，
+/// 与数据格共用 <see cref="ExcelConstants.MaxCellTextLength"/> 那道上限，但它们是声明而不是行值：超长时在写出
+/// 第一格之前抛 <see cref="ArgumentException"/>（<see cref="ArgumentException.ParamName"/> 为 <c>Header</c>／<c>Title</c>），
+/// 一个行元素都不取，也不截断。这句承诺的范围是「本类显式检查过的失败面」：
+/// 取值域、颜色解析、表名判据、表头与标题的长度，以及单张工作表的行数上限
+/// （<see cref="ExcelConstants.MaxSheetRows"/>，含标题行与表头行）在内，
+/// 工作簿自身的存盘失败（流不可写、容器损坏、磁盘满）不在内，那类按库的异常形态交回。
 /// </para>
 /// <para>
 /// 本类按 <see cref="ClosedXML.Excel.XLCellValue"/> 自己的口径落格，落进哪一类格子由取值的运行期型别决定：
@@ -160,8 +164,14 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/> 为负数</exception>
     /// <exception cref="ArgumentException"><see cref="ExcelSheetSpec.SheetName"/> 超过 31 个字符、含工作簿不接受的字符
     /// （<c>: \ / ? * [ ]</c> 与控制字符 <c>U+0000</c>、<c>U+0003</c>）或以单引号开头／结尾，此时
-    /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>；或 <see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的
-    /// 十六进制颜色串，此时 <see cref="ArgumentException.ParamName"/> 为 <c>HeaderFill</c>。颜色串里只有「形状合法但工作簿
+    /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>；<see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的
+    /// 十六进制颜色串，此时 <see cref="ArgumentException.ParamName"/> 为 <c>HeaderFill</c>；某列的
+    /// <see cref="ExcelColumn.Header"/> 长过 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，此时
+    /// <see cref="ArgumentException.ParamName"/> 为 <c>Header</c>；或 <see cref="ExcelSheetSpec.Title"/> 长过
+    /// <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，此时 <see cref="ArgumentException.ParamName"/> 为
+    /// <c>Title</c>。表头与标题落的也是单元格，与数据格共用同一道上限，超长时写出侧<u>不截断</u>——截断会交回一份
+    /// 文案与声明不一致的档；这两条与表名、底色一样属于声明级判定，排在写出第一格之前，抛出时输出流零字节、
+    /// 行集合一次都没被枚举，消息只报长度与列键、不嵌那串超长文案本身。颜色串里只有「形状合法但工作簿
     /// 解析不了（位值含非 ASCII 字符）」那一条带库的 <see cref="FormatException"/> 作为内部异常，形状本身不合法的那条
     /// 没有内部异常——按异常类型与 <see cref="ArgumentException.ParamName"/> 分流，不要靠读内部异常判断成因</exception>
     /// <exception cref="InvalidOperationException">行集合里有某笔元素与
@@ -225,9 +235,13 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <exception cref="ArgumentException"><paramref name="sheets"/> 为空清单（工作簿至少要有一张表，
     /// <see cref="ArgumentException.ParamName"/> 为 <c>sheets</c>），或某张表的 <see cref="ExcelSheetSpec.SheetName"/>
     /// 不可用、或与清单里更早那张重名（判重不区分大小写），
-    /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>；或某张表的
-    /// <see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串。空清单与表名两类都在建工作簿之前抛出，
-    /// 底色一类排在写第一格之前</exception>
+    /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>；某张表的
+    /// <see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串；某张表某列的
+    /// <see cref="ExcelColumn.Header"/> 长过 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，此时
+    /// <see cref="ArgumentException.ParamName"/> 为 <c>Header</c>；或某张表的 <see cref="ExcelSheetSpec.Title"/>
+    /// 长过 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，此时 <see cref="ArgumentException.ParamName"/>
+    /// 为 <c>Title</c>。空清单与表名两类都在建工作簿之前抛出，底色、表头长度与标题长度三类排在写第一格之前——
+    /// 整份档建好才落盘一次，因此任何一张表触这几条，输出流都是零字节</exception>
     /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是大于 0 且不高于 255
     /// 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内，或
     /// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/> 为负数</exception>
@@ -309,8 +323,9 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <param name="cancellationToken">取消令牌，逐行检查</param>
     /// <returns>写入完成的工作表</returns>
     /// <remarks>
-    /// 单表与多表共用这一个方法，所以这里的预检（<see cref="ExcelSheetSpec.RowType"/> 声明、列值域、表头底色）
-    /// 对两条路径同时生效；表名的可用性由两个入口在建工作簿之前判，不在这里判第二次。
+    /// 单表与多表共用这一个方法，所以这里的预检（<see cref="ExcelSheetSpec.RowType"/> 声明、列值域与表头长度、
+    /// 标题长度、表头底色）对两条路径同时生效；表名的可用性由两个入口在建工作簿之前判，不在这里判第二次。
+    /// 预检全部排在 <c>foreach</c> 之前，因此声明级的问题一个行元素都不取、一个字节也不写。
     /// </remarks>
     private IXLWorksheet WriteSheet(IXLWorkbook workbook, ExcelSheetSpec sheet, CancellationToken cancellationToken)
     {
@@ -319,6 +334,16 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
         ValidateColumns(columns);
         var headerFill = sheet.HeaderFill is null ? null : ParseSheetColor(sheet.HeaderFill, nameof(ExcelSheetSpec.HeaderFill));
         var title = string.IsNullOrWhiteSpace(sheet.Title) ? null : sheet.Title;
+
+        // 标题落的也是一格，与数据格共用同一道单元格上限；判在建工作表与枚举行集合之前
+        if (title is { Length: > ExcelConstants.MaxCellTextLength })
+        {
+            throw new ArgumentException(
+                $"{nameof(ExcelSheetSpec.Title)} 有 {title.Length} 个字符，超过单元格的上限 " +
+                $"{ExcelConstants.MaxCellTextLength} 个字符：标题行落的也是一格，装不下的文案在 xlsx 里没有对应形态。" +
+                "请缩短标题，不写标题行请把该项置为 null 或留空白；写出侧不截断——截断会交回一份标题与声明不一致的档。",
+                nameof(ExcelSheetSpec.Title));
+        }
 
         // 标题行占第一行时，表头与数据区整体下移一行
         var headerRowNumber = title is null ? 1 : 2;
@@ -569,12 +594,31 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     }
 
     /// <summary>
-    /// 在写入第一格之前检查列级值域：列宽与对齐
+    /// 在写入第一格之前检查列级值域：表头长度、列宽与对齐
     /// </summary>
+    /// <remarks>
+    /// 表头长度排在最前面：它落的也是一格，与数据格共用 <see cref="ExcelConstants.MaxCellTextLength"/> 那道界，
+    /// 而下面两条的消息都要把 <see cref="ExcelColumn.Header"/> 原文嵌进去——几万字符的表头若不先拦下来，
+    /// 那句消息本身就会带着整串文案抛出。这条消息只报长度与列键，不嵌表头原文。
+    /// </remarks>
+    /// <exception cref="ArgumentException">某列的 <see cref="ExcelColumn.Header"/> 长过
+    /// <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，<see cref="ArgumentException.ParamName"/> 为
+    /// <c>Header</c></exception>
+    /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 或
+    /// <see cref="ExcelColumn.Alignment"/> 不在定义范围内</exception>
     private static void ValidateColumns(IReadOnlyList<ExcelColumn> columns)
     {
         foreach (var column in columns)
         {
+            if (column.Header.Length > ExcelConstants.MaxCellTextLength)
+            {
+                throw new ArgumentException(
+                    $"键为 {column.Key} 的列，表头有 {column.Header.Length} 个字符，超过单元格的上限 " +
+                    $"{ExcelConstants.MaxCellTextLength} 个字符：表头落的也是一格，装不下的文案在 xlsx 里没有对应形态。" +
+                    "请缩短表头文案；写出侧不截断——截断会交回一份表头与声明不一致的档。",
+                    nameof(ExcelColumn.Header));
+            }
+
             if (column.Width is { } width && (width <= 0 || !double.IsFinite(width) || width > MaximumColumnWidth))
             {
                 throw new ArgumentOutOfRangeException(
