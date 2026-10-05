@@ -249,28 +249,40 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// 文字档在交出第一行之前已把整档扫过一遍：解码编码与整档最大列数都在建立读取器时定下
+    /// 文字档在交出第一行之前已把整档读过一遍：解码编码与整档最大列数都在建立读取器时定下
     /// </summary>
     /// <remarks>
     /// 这条钉住前置扫描这个事实本身，免得后来人以为「逐行交出」等于「建立读取器时一个字节都不读」，
     /// 也免得有人拿 <see cref="ExcelImportOptions.MaxRowCount"/> 与取消令牌去指望它拦得住这一趟。
+    /// 断言的是<u>累计读走的字节数</u>而不是流位置：读取器扫完会把位置复位再按自己的缓冲重读，
+    /// 交出第一行时位置停在缓冲边界上，看不出前面已经扫过整档。档给到五千行，比任何「有界预扫窗口」
+    /// 的常见取值都大——把预扫范围限成开头一千行的话，交出第一行时读走的字节数远不到档长，这条断言就红。
     /// </remarks>
     [Fact]
     public async Task 文字档交出第一行时整档已扫过一遍()
     {
-        using var csv = ImportFixtures.Csv("提单号", 50);
+        using var csv = ImportFixtures.Csv("提单号", 5000);
+        using var counted = new ReadCountingStream(csv);
         var length = csv.Length;
         var importer = new ExcelDataReaderImporter();
         var options = new ExcelImportOptions { Format = ExcelImportFormat.Csv };
         var read = 0;
+        var bytesReadAtFirstRow = 0L;
 
-        await foreach (var _ in importer.ReadAsync(csv, options, TestContext.Current.CancellationToken))
+        await foreach (var _ in importer.ReadAsync(counted, options, TestContext.Current.CancellationToken))
         {
             read++;
-            Assert.Equal(length, csv.Position);
+
+            if (read == 1)
+            {
+                bytesReadAtFirstRow = counted.TotalBytesRead;
+            }
         }
 
-        Assert.Equal(50, read);
+        Assert.Equal(5000, read);
+        Assert.True(
+            bytesReadAtFirstRow >= length,
+            $"交出第一行时只从档里读走 {bytesReadAtFirstRow} 字节，档长 {length} 字节：建立读取器时没有扫完整档。");
     }
 
     /// <summary>
