@@ -1,0 +1,20 @@
+framework/src/XiHan.Framework.Excel.Abstractions/ExcelConstants.cs
+  h_be8240d2cfaa4b 55-63,75-80,89-93,104,106-107
+framework/src/XiHan.Framework.Excel.Abstractions/XiHanExcelOptions.cs
+  h_be8240d2cfaa4b 88,91-99
+framework/src/XiHan.Framework.Excel/Importing/ExcelDataReaderImporter.cs
+  h_be8240d2cfaa4b 433-435,470,494-495
+framework/src/XiHan.Framework.Excel/Importing/ImportSharedRules.cs
+  h_be8240d2cfaa4b 204-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ac3b51f95dcd169b6053ed29b356aac63a6892c",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
