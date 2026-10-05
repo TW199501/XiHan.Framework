@@ -8,8 +8,11 @@ namespace XiHan.Framework.Excel.Abstractions.Importing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 读是惰性的：<see cref="ReadAsync"/> 返回 <see cref="IAsyncEnumerable{T}"/>，不物化整档，
-/// 每取一行才解析一行，因此 <see cref="ExcelImportOptions.MaxRowCount"/> 与取消都能在行与行之间生效。
+/// 读是逐行的：<see cref="ReadAsync"/> 返回 <see cref="IAsyncEnumerable{T}"/>，不把整档的行物化在内存里，
+/// 每取一行才交出一行，因此 <see cref="ExcelImportOptions.MaxRowCount"/> 与取消都能在行与行之间生效。
+/// 本契约要求的是「不物化整档的行」，不是「交出第一行之前一个字节都不读」：实现可以在那之前先把整档扫一遍
+/// （文字档要在建立读取器时定下解码编码与整档的最大列数），这趟前置扫描不受
+/// <see cref="ExcelImportOptions.MaxRowCount"/> 与取消令牌约束。
 /// 枚举器是一次性的，同一份读取不要重复枚举。
 /// </para>
 /// <para>

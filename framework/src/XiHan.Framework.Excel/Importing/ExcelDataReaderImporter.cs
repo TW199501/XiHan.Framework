@@ -18,8 +18,14 @@ namespace XiHan.Framework.Excel.Importing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 逐行惰性交出 <see cref="ExcelImportRow"/>，不物化整档：行号、<see cref="ExcelImportOptions.MaxRowCount"/>
-/// 与取消都落在行与行之间，因此百万行档不会先在内存里排一遍。
+/// 逐行交出 <see cref="ExcelImportRow"/>，不物化整档：行号、<see cref="ExcelImportOptions.MaxRowCount"/>
+/// 与取消都落在行与行之间，百万行档不会先在内存里排一遍。
+/// </para>
+/// <para>
+/// 文字档在交出第一行<u>之前</u>还有一趟前置扫描：底层读取器要在建立时就定下解码编码（无 BOM 时它按整档
+/// 试解 UTF-8，试不通才用回退编码）与整档的最大列数，因此这一趟把整个档读过一遍，
+/// <see cref="ExcelImportOptions.MaxRowCount"/> 与取消令牌都拦不住它，两者只在交出行阶段生效。
+/// 这趟扫描只读不存，托管内存不随档的行数增长。
 /// </para>
 /// <para>
 /// <b>流所有权在调用方。</b>底层读取器默认会连传入的流一起关掉（<c>LeaveOpen</c> 为 <c>false</c> 时
@@ -256,7 +262,10 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
         // 那笔开销发生在读出第一行之前，行数上限与取消令牌都拦不住它。
         GuardDecompressedSize(input, format, _maxImportCompressionRatio);
 
-        // 建立读取器：文字路径的分隔符与编码在这里钉死，二进制路径不读 TextEncodingName 与 Delimiter
+        // 建立读取器：文字路径的分隔符与编码在这里钉死，二进制路径不读 TextEncodingName 与 Delimiter。
+        // AnalyzeInitialCsvRows 刻意不设（默认 0 = 建立时扫完整档）：那个窗口同时限住「整档最大列数」与
+        // 「UTF-8 试解范围」，设成有界值之后，窗口之外才变宽的行会被静默截掉多出来的列，窗口之后才出现的
+        // 非 UTF-8 字节会被按 UTF-8 解而在中途抛解码异常。前置扫描换来的是列数与编码两个判定都按整档成立。
         var configuration = new ExcelReaderConfiguration
         {
             LeaveOpen = true,

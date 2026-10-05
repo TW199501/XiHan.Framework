@@ -172,6 +172,66 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
+    /// 文字档在交出第一行之前已把整档扫过一遍：解码编码与整档最大列数都在建立读取器时定下
+    /// </summary>
+    /// <remarks>
+    /// 这条钉住前置扫描这个事实本身，免得后来人以为「逐行交出」等于「建立读取器时一个字节都不读」，
+    /// 也免得有人拿 <see cref="ExcelImportOptions.MaxRowCount"/> 与取消令牌去指望它拦得住这一趟。
+    /// </remarks>
+    [Fact]
+    public async Task 文字档交出第一行时整档已扫过一遍()
+    {
+        using var csv = ImportFixtures.Csv("提单号", 50);
+        var length = csv.Length;
+        var importer = new ExcelDataReaderImporter();
+        var options = new ExcelImportOptions { Format = ExcelImportFormat.Csv };
+        var read = 0;
+
+        await foreach (var _ in importer.ReadAsync(csv, options, TestContext.Current.CancellationToken))
+        {
+            read++;
+            Assert.Equal(length, csv.Position);
+        }
+
+        Assert.Equal(50, read);
+    }
+
+    /// <summary>
+    /// 靠后才变宽的行照旧补出 <c>Col{n}</c>：整档最大列数按整档算，不按开头若干行算
+    /// </summary>
+    /// <remarks>
+    /// 第 1200 个数据行才有四列。把建立读取器时的预扫范围限成开头一千行的话，读取器交回的列数会停在那个
+    /// 窗口的最大值，这一行多出来的两列会被静默丢掉——列数上限与补键都拦不住它，因为那两列根本没交出来。
+    /// </remarks>
+    [Fact]
+    public async Task 靠后的宽行仍补出Col键而不丢列()
+    {
+        var builder = new StringBuilder("ID,NAME\r\n");
+
+        for (var row = 1; row <= 1500; row++)
+        {
+            builder
+                .Append(row.ToString(CultureInfo.InvariantCulture))
+                .Append(",v")
+                .Append(row.ToString(CultureInfo.InvariantCulture));
+
+            if (row == 1200)
+            {
+                builder.Append(",EXTRA1,EXTRA2");
+            }
+
+            builder.Append("\r\n");
+        }
+
+        var rows = await ReadCsv(ImportFixtures.Utf8NoBom.GetBytes(builder.ToString()));
+
+        Assert.Equal(1500, rows.Count);
+        Assert.Equal(["ID", "NAME", "Col3", "Col4"], rows[1199].Values.Keys);
+        Assert.Equal("EXTRA1", rows[1199].Values["Col3"]);
+        Assert.Equal("EXTRA2", rows[1199].Values["Col4"]);
+    }
+
+    /// <summary>
     /// MaxRowCount 截断交出前 N 行，行号仍是源文件里的行号
     /// </summary>
     [Fact]
