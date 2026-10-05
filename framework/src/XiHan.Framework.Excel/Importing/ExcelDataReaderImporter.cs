@@ -45,15 +45,23 @@ namespace XiHan.Framework.Excel.Importing;
 /// 在两条路径上一致处理。
 /// </para>
 /// <para>
-/// 文字档的解码编码见 <see cref="TextEncodingResolver"/>。读到的字能不能信，取决于两处库的现实：
+/// 文字档的解码编码见 <see cref="TextEncodingResolver"/>。读到的字能不能信，取决于三处底层读取器的现实：
 /// <list type="bullet">
-/// <item>读取器认 BOM，且 BOM 优先于 <c>FallbackEncoding</c>；无 BOM 时<u>不会</u>先按 UTF-8 试解再落回退，
-/// 而是直接用 <c>FallbackEncoding</c>。因此判错编码就交回另一种语言的字，本类给出的回退编码只保证「解码不撞错误」，
-/// 不保证判对。已知编码请指名 <see cref="ExcelImportOptions.TextEncodingName"/>。</item>
-/// <item>无 BOM 又未按 UTF-8 成立的档回退 Big5 时，真正的非法 Big5 字节不会报错：<c>System.Text</c> 的 Big5
-/// 解码器把无法配对的字节换成私有区字符 <c>U+F8F8</c>，两侧都换成异常回退也拦不住它。这属于代码页自身的口径，
-/// 本类不额外判死，但读到的字里出现 <c>U+F8F8</c> 就表示源档那一处字节已经损坏。</item>
+/// <item>读取器认前导字节（BOM），且它优先于回退编码，也优先于 <see cref="ExcelImportOptions.TextEncodingName"/>：
+/// 档带 BOM 时按 BOM 解，指名的编码让位。</item>
+/// <item>无 BOM 时读取器先把<u>整档</u>按 UTF-8 试解一遍，试得通就按 UTF-8 解，试不通才用回退编码。
+/// 本类因此把回退编码设为严格 Big5，自己不再按档头窗口试探：窗口只看得到前 <c>32KB</c>，
+/// 前段是纯 ASCII 的 Big5 档会被窗口判成 UTF-8，然后在中文出现的那一行抛 <see cref="DecoderFallbackException"/>。</item>
+/// <item>指名编码时不交给读取器解码：回退编码只在 UTF-8 试解失败时才用得上，档的字节只要构成合法 UTF-8，
+/// 指名的编码就被静默忽略而读档照样回报成功。本类改为按指名编码把整档转码成无 BOM UTF-8 再交给读取器，
+/// 读到的字由指名的编码唯一决定；代价是这一支的转码结果整份放在内存里，规模与档同量级
+/// （档大小的上限仍是 <see cref="XiHanExcelOptions.MaxImportBytes"/>）。</item>
 /// </list>
+/// </para>
+/// <para>
+/// 回退 Big5 时有一处不收口：真正的非法 Big5 字节不会报错，<c>System.Text</c> 的 Big5 解码器把无法配对的字节
+/// 换成私有区字符 <c>U+F8F8</c>，两侧都换成异常回退也拦不住它。这属于代码页自身的口径，本类不额外判死，
+/// 但读到的字里出现 <c>U+F8F8</c> 就表示源档那一处字节已经损坏。
 /// </para>
 /// <para>
 /// 来源不做补偿：合并单元格除左上角外的格位读回 <c>null</c>，空格子在文字档里是空字串、在工作簿里是 <c>null</c>，
@@ -198,8 +206,9 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// 消息点名下限值，已经交出的行照旧交完，不静默少交行。指名过上限时不抛，按上限截断；</item>
     /// <item><see cref="ExcelImportOptions.SheetName"/> 在本工作簿里不存在：消息列出实际表名。</item>
     /// </list></exception>
-    /// <exception cref="DecoderFallbackException">文字档的实际字节在所用编码下解不开（UTF-8 一支）。
-    /// 库不会为解不开的字节产出替换字符当正常数据，读档在中途停下</exception>
+    /// <exception cref="DecoderFallbackException">文字档的实际字节在所用编码下解不开：无 BOM 又未指名编码时来自
+    /// UTF-8 试解之后的严格 Big5 回退，指名编码时来自指名编码的解码（在转码阶段就抛，读取器还没建立）。
+    /// 解不开的字节不会被换成替换字符当正常数据交出，读档在中途停下</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// <para>
@@ -272,84 +281,103 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
             TrimWhiteSpace = false
         };
 
+        // 文字档交给读取器解码，编码怎么定、要不要先转码见 TextEncodingResolver.ResolveForReader；
+        // 转码那一支交出去的是新建的流，读完由本类释放，调用方那条流的所有权始终在调用方
+        var textSource = input;
+        var ownsTextSource = false;
+
         if (isText)
         {
-            configuration.FallbackEncoding = TextEncodingResolver.Resolve(effective.TextEncodingName, input);
+            var handoff = TextEncodingResolver.ResolveForReader(effective.TextEncodingName, input);
+
+            textSource = handoff.Input;
+            ownsTextSource = handoff.OwnsInput;
+            configuration.FallbackEncoding = handoff.FallbackEncoding;
             configuration.AutodetectSeparators =
             [
                 effective.Delimiter ?? (format == ExcelImportFormat.Csv ? CsvDefaultDelimiter : TxtDefaultDelimiter)
             ];
         }
 
-        using var reader = CreateReader(input, configuration, isText, format, header);
-
-        if (!isText && effective.SheetName is not null)
+        try
         {
-            SelectSheet(reader, effective.SheetName, format, header);
-        }
+            using var reader = CreateReader(textSource, configuration, isText, format, header);
 
-        var rowNumber = 0;
-        var emitted = 0;
-        var limitHit = false;
-        HeaderKeySet? keys = null;
-
-        while (ReadNext(reader, format, header))
-        {
-            rowNumber++;
-
-            if (rowNumber % CancellationCheckIntervalRows == 0)
+            if (!isText && effective.SheetName is not null)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                SelectSheet(reader, effective.SheetName, format, header);
             }
 
-            // 列数上限判在建键之前：建键与每行取值都按列数放大，判晚了那笔成本已经付掉了
-            GuardColumnCount(reader.FieldCount);
+            var rowNumber = 0;
+            var emitted = 0;
+            var limitHit = false;
+            HeaderKeySet? keys = null;
 
-            // 前导行按行号丢掉，不参与表头与取值
-            if (rowNumber <= effective.HeaderRowIndex)
+            while (ReadNext(reader, format, header))
             {
-                continue;
-            }
+                rowNumber++;
 
-            if (keys is null)
-            {
-                if (effective.HasHeader)
+                if (rowNumber % CancellationCheckIntervalRows == 0)
                 {
-                    keys = HeaderKeySet.BuildKeys(reader, effective.TrimHeaders);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+
+                // 列数上限判在建键之前：建键与每行取值都按列数放大，判晚了那笔成本已经付掉了
+                GuardColumnCount(reader.FieldCount);
+
+                // 前导行按行号丢掉，不参与表头与取值
+                if (rowNumber <= effective.HeaderRowIndex)
+                {
                     continue;
                 }
 
-                keys = HeaderKeySet.PositionalKeys(reader.FieldCount);
-            }
-
-            // 行比表头宽时补出 Col{n}，多出来的列保留而不丢弃
-            keys.ExtendKeys(reader.FieldCount);
-
-            var values = ReadValues(reader, keys.Keys, effective.TrimValues);
-
-            if (effective.SkipEmptyRows && ImportSharedRules.IsEmptyRow(values))
-            {
-                continue;
-            }
-
-            // 走到这里说明上限之后确实还有数据行（空行不算，判定照旧）。指名过上限就按请求截断，
-            // 没指名就抛：撞的是框架的保护性硬上限，静默少交行等于交回一份看起来完整的缺尾结果。
-            if (limitHit)
-            {
-                if (throwsOnLimit)
+                if (keys is null)
                 {
-                    throw ImportSharedRules.RowLimitExceeded(maxRows);
+                    if (effective.HasHeader)
+                    {
+                        keys = HeaderKeySet.BuildKeys(reader, effective.TrimHeaders);
+                        continue;
+                    }
+
+                    keys = HeaderKeySet.PositionalKeys(reader.FieldCount);
                 }
 
-                break;
+                // 行比表头宽时补出 Col{n}，多出来的列保留而不丢弃
+                keys.ExtendKeys(reader.FieldCount);
+
+                var values = ReadValues(reader, keys.Keys, effective.TrimValues);
+
+                if (effective.SkipEmptyRows && ImportSharedRules.IsEmptyRow(values))
+                {
+                    continue;
+                }
+
+                // 走到这里说明上限之后确实还有数据行（空行不算，判定照旧）。指名过上限就按请求截断，
+                // 没指名就抛：撞的是框架的保护性硬上限，静默少交行等于交回一份看起来完整的缺尾结果。
+                if (limitHit)
+                {
+                    if (throwsOnLimit)
+                    {
+                        throw ImportSharedRules.RowLimitExceeded(maxRows);
+                    }
+
+                    break;
+                }
+
+                yield return new ExcelImportRow(rowNumber, values);
+
+                emitted++;
+                if (emitted >= maxRows)
+                {
+                    limitHit = true;
+                }
             }
-
-            yield return new ExcelImportRow(rowNumber, values);
-
-            emitted++;
-            if (emitted >= maxRows)
+        }
+        finally
+        {
+            if (ownsTextSource)
             {
-                limitHit = true;
+                textSource.Dispose();
             }
         }
     }

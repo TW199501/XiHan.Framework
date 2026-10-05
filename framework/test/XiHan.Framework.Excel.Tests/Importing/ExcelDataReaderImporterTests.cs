@@ -172,6 +172,83 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
+    /// 前段是纯 ASCII 的 Big5 档照旧读出正字：编码判定不按档头窗口做，整档试解 UTF-8 不成才落 Big5
+    /// </summary>
+    /// <remarks>
+    /// 形态取自实际往来档：前 <c>47KB</c> 全是 ASCII，中文在窗口之后才出现。按 <c>32KB</c> 窗口试探会把整档
+    /// 判成 UTF-8，然后在中文那一行抛解码异常、一列都交不出来。
+    /// </remarks>
+    [Fact]
+    public async Task ASCII前缀超过试探窗口的Big5档读出正字()
+    {
+        var ascii = new string('A', 47 * 1024);
+        var bytes = ImportFixtures.Encode(ImportFixtures.StrictBig5, $"{ascii},PAD\r\n提單號,AWB1\r\n");
+
+        var rows = await ReadCsv(bytes);
+
+        var row = Assert.Single(rows);
+        Assert.Equal("提單號", row.Values[ascii]);
+        Assert.Equal("AWB1", row.Values["PAD"]);
+        Assert.DoesNotContain(ReplacementChar, (string?)row.Values[ascii], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 指名编码时按指名的编码解码：UTF-8 合法字节指名 latin-1 就读回 latin-1 的字
+    /// </summary>
+    /// <remarks>
+    /// 读取器只在整档试解 UTF-8 失败时才用回退编码，直接把它交给读取器的话这条档会按 UTF-8 读出 <c>é</c>，
+    /// 指名的 latin-1 被静默忽略而读档回报成功。
+    /// </remarks>
+    [Fact]
+    public async Task 指名latin1时UTF8合法字节按latin1读()
+    {
+        // 0xC3 0xA9 在 UTF-8 下是一个 U+00E9，在 latin-1 下是 U+00C3 与 U+00A9 两个字符
+        var bytes = new byte[] { (byte)'a', 0x0D, 0x0A, 0xC3, 0xA9, 0x0D, 0x0A };
+
+        var rows = await ReadCsv(bytes, o => o with { TextEncodingName = "iso-8859-1" });
+
+        Assert.Equal("\u00C3\u00A9", rows[0].Values["a"]);
+    }
+
+    /// <summary>
+    /// 档带 BOM 时以 BOM 为准，指名的编码让位：读取器认 BOM 且优先于任何回退编码
+    /// </summary>
+    [Fact]
+    public async Task 档带BOM时指名编码让位给BOM()
+    {
+        using var input = ImportFixtures.TextWithUtf8Bom("提單號\r\nAWB1\r\n");
+
+        var rows = await ReadAll(input, new ExcelImportOptions
+        {
+            Format = ExcelImportFormat.Csv,
+            TextEncodingName = "iso-8859-1"
+        });
+
+        Assert.Equal("AWB1", rows[0].Values["提單號"]);
+    }
+
+    /// <summary>
+    /// 指名编码那一支转码用的是另建的流，调用方的流读完仍归调用方
+    /// </summary>
+    [Fact]
+    public async Task 指名编码转码之后调用方的流仍可用()
+    {
+        using var input = ImportFixtures.Big5Text("提單號\r\nAWB1\r\n");
+
+        var rows = await ReadAll(input, new ExcelImportOptions
+        {
+            Format = ExcelImportFormat.Csv,
+            TextEncodingName = "big5"
+        });
+
+        Assert.Equal("AWB1", rows[0].Values["提單號"]);
+        Assert.True(input.CanRead);
+
+        input.Position = 0;
+        Assert.Equal(0xB4, input.ReadByte());
+    }
+
+    /// <summary>
     /// 文字档在交出第一行之前已把整档扫过一遍：解码编码与整档最大列数都在建立读取器时定下
     /// </summary>
     /// <remarks>
@@ -260,6 +337,40 @@ public class ExcelDataReaderImporterTests
 
         Assert.Contains("<html", failure.Message, StringComparison.Ordinal);
         Assert.Contains("FF FE 3C 00", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 分隔模式 <c>.txt</c> 里制表符起首的值被引号包住，读回还原成同一个值
+    /// </summary>
+    /// <remarks>
+    /// 导出侧对制表符起首的值走「值内含分隔符就整段裹引号」那一条，因此写出的档形如 <c>"\tABC"</c>。
+    /// 引号本身往返一致：值内的引号翻倍、值内的换行原样，都读得回来。
+    /// </remarks>
+    [Fact]
+    public async Task 制表符起首的值按引号写出后原样读回()
+    {
+        var bytes = "COL\r\n\"\tABC\"\r\n"u8.ToArray();
+
+        var rows = await ReadAll(new MemoryStream(bytes), new ExcelImportOptions { Format = ExcelImportFormat.Txt });
+
+        Assert.Equal("\tABC", rows[0].Values["COL"]);
+    }
+
+    /// <summary>
+    /// 公式注入前缀是单向改写：读回的值带着那个前导撇号，不还原成原值
+    /// </summary>
+    /// <remarks>
+    /// 导出侧默认给制表符起首的值加 <c>'</c> 前缀，并按改写条数记一条警告。前缀不是引号策略的一部分，
+    /// 导入侧也不认它、不剥它：读回的就是带前缀的那个值。
+    /// </remarks>
+    [Fact]
+    public async Task 制表符起首的值带公式前缀时读回多出撇号()
+    {
+        var bytes = "COL\r\n\"'\tABC\"\r\n"u8.ToArray();
+
+        var rows = await ReadAll(new MemoryStream(bytes), new ExcelImportOptions { Format = ExcelImportFormat.Txt });
+
+        Assert.Equal("'\tABC", rows[0].Values["COL"]);
     }
 
     /// <summary>
