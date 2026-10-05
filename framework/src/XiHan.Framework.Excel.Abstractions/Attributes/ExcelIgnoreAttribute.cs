@@ -8,8 +8,10 @@ namespace XiHan.Framework.Excel.Abstractions.Attributes;
 /// </summary>
 /// <remarks>
 /// 纯标记特性，不带任何成员；只能标在属性上，对类型本身、字段与方法都没有效果。
-/// 排除以「键」为单位：同名属性（<c>new</c> 遮蔽出来的那一对）先去重再判本特性，标在 CLR 看得见
-/// 的那一个上会让整个键不成列，被它盖住的基类属性不会顶上来；标在被盖住的那一个上不影响成列。
+/// 排除以「键」为单位：判本特性只看代表这个键的那一个属性，它标了忽略就整个键不成列。
+/// 同名属性（<c>new</c> 遮蔽出来的那一对）先去重再判，代表键的是 CLR 看得见的那一个，被它盖住的
+/// 基类属性不会顶上来，标在被盖住那一个上的忽略不影响成列；遮蔽者没有公共读取器或是索引器时不进
+/// 候选，代表键的是基类属性，此时标在它上面的忽略使整个键不成列。
 /// </remarks>
 [AttributeUsage(AttributeTargets.Property)]
 public sealed class ExcelIgnoreAttribute : Attribute

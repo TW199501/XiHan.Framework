@@ -303,7 +303,8 @@ public class ExcelColumnBuilderTests
     /// <para>
     /// 「构建器列交出去包装的异常型别」这一条对 <c>ref</c> 返回的读取器不成立：表达式树表达不出「取引用所指的
     /// 值」，这类属性留在 <c>GetValue</c> 上，反射的包装随之保留。公开文档的取值段把这一条例外写明，本条钉住
-    /// 例外只有这一条、包成的型别就是 <see cref="TargetInvocationException"/>，同时证明这种形状照常成列。
+    /// <c>ref</c> 返回这一种回退形状：包成的型别就是 <see cref="TargetInvocationException"/>，且这种形状照常
+    /// 成列。回退面另有其它形状时不在本条覆盖范围内。
     /// </para>
     /// <para>
     /// <c>Assert.Throws&lt;T&gt;</c> 按精确型别判：日后表达式树支持 byref、或回退路径改成把原异常透出时，
@@ -616,8 +617,9 @@ public class ExcelColumnBuilderTests
     /// <c>IOrderBase.Id</c> 不在里面，于是接口行类型导出的档整栏少一栏且没有任何提示。
     /// </para>
     /// <para>
-    /// 键的顺序按「基接口在前、本接口自己声明的在后」写进断言：多个基接口按继承深度由远到近排，
-    /// 不依赖 <c>GetInterfaces()</c> 的返回顺序。取值要证到能落进单元格的形状，所以两列都取一遍值。
+    /// 键的顺序按「基接口在前、本接口自己声明的在后」写进断言：这里的 <c>IOrder</c> 只有一个基接口，
+    /// 断言不覆盖多个同深度互不派生基接口之间的先后（那一段仍随 <c>GetInterfaces()</c> 的返回序）。
+    /// 取值要证到能落进单元格的形状，所以两列都取一遍值。
     /// </para>
     /// </remarks>
     [Fact]
