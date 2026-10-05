@@ -472,7 +472,7 @@ public class ClosedXmlExporterTests
         var stream = new MemoryStream();
         var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
 
-        // SampleRow.Eta 未赋值时是 0001-01-01，早于 xlsx 的 1900 日期系统能表示的最早时刻 1899-12-30
+        // SampleRow.Eta 未赋值时是 0001-01-01，远早于本组件接受的最早日期 1900-01-01
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
             stream, BuildSpec([new SampleRow { AwbNo = "AWB1", Weight = 1.5m }]), TestContext.Current.CancellationToken));
 
@@ -948,75 +948,170 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
-    /// 早于 1899-12-30 的 DateOnly 在本路径照能导出，且落文本格、值原样读回
+    /// 早于日期下限的三种日期型别在两条 xlsx 路径一起被拒，且成因句逐字相同
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 钉的是「能导」与「落格形态」这一对事实，不是一句取舍：工作簿没有 <c>DateOnly</c> 的格位，本类把它交给
-    /// <c>XLCellValue</c> 的文本形态，所以它不参与日期格的取值域判定，早于纪元也不该被拒。
-    /// 流式路径对同一型别落日期格并整段拒掉早于纪元的取值（见 <c>MiniExcelStreamExporterTests</c>），
-    /// 两条路径只承诺值不被改写、不承诺格位相同。日后有人把这条形态差异当成「数据损坏」而加回拒写，
-    /// 会先被这两条用例挡住。
+    /// 日期下限只有一把尺，判据落在两条 xlsx 写出路径共用的那一个函数里，因此「哪一天之前不能写」不由
+    /// 落进哪种格子决定。<c>DateOnly</c> 与 <c>DateTimeOffset</c> 在本路径落文本格（值原样留在文字里）、
+    /// 在流式路径落日期格，早先因此判得不对称——本路径照能导出、流式路径整段拒；分派器按行数替调用方选路径，
+    /// 于是「同一份带早年日期的规格能不能导」成了走哪条的副产品。现在两边一起拒。
     /// </para>
     /// <para>
-    /// 取的三个点：1899-12-29 是下限的前一天、1500-01-01 是中等早年、<c>0001-01-01</c> 是流式路径上
-    /// 唯一真被写出库挪走过的那一档——本路径把它交给文本形态，值原样留在文字里。
-    /// 断言不比对整串文本——那是库按固定区域格式排出来的（形如 12/29/1899），改排法不算改契约；
-    /// 要紧的是它是文本格、带该年份，因此没有被挪到 1899-12-30 那一刻。
+    /// 1899-12-31 与 1899-12-30 这两档是本次收口的核心：它们在改动前是本路径的正例（落文本格、原样读回），
+    /// 而流式路径把它们写成日期序号 0 与 0.2708…，本框架的导入器读回是 1899-12-31 与 1899-12-31 06:30，
+    /// 表格软件按 1900 日期系统显示的却是「1900-01-00」这一类不在日历上的日子——同一份档读回来是哪一天，
+    /// 取决于谁来读。政策因此收成「不早于 1900-01-01」，不再赌写出库与表格软件各自的宽容度。
+    /// 这段取证只写在这里与提交信息里，不写进对外消息。
     /// </para>
     /// </remarks>
+    /// <param name="kind">0 用 <c>DateTime</c>，1 用 <c>DateOnly</c>，2 用带偏移量的 <c>DateTimeOffset</c></param>
     /// <param name="year">年份</param>
     /// <param name="month">月份</param>
     /// <param name="day">日</param>
     [Theory]
-    [InlineData(1899, 12, 29)]
-    [InlineData(1500, 1, 1)]
-    [InlineData(1, 1, 1)]
-    public async Task 早于纪元的DateOnly在本路径落文本格并照能导出(int year, int month, int day)
+    [InlineData(0, 1899, 12, 31)]
+    [InlineData(0, 1899, 12, 30)]
+    [InlineData(0, 1, 1, 1)]
+    [InlineData(1, 1899, 12, 31)]
+    [InlineData(1, 1899, 12, 30)]
+    [InlineData(1, 1899, 12, 29)]
+    [InlineData(1, 1500, 1, 1)]
+    [InlineData(1, 1, 1, 1)]
+    [InlineData(2, 1899, 12, 31)]
+    [InlineData(2, 1899, 12, 30)]
+    [InlineData(2, 1899, 12, 29)]
+    [InlineData(2, 1, 1, 1)]
+    public async Task 早于日期下限的三种日期型别在两条xlsx路径一起拒写(int kind, int year, int month, int day)
     {
-        var value = new DateOnly(year, month, day);
+        var value = DateValue(kind, year, month, day);
 
-        var stream = await ExportAsync(BuildValueSpec(value));
+        var fullStream = new MemoryStream();
+        var fullFailure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
+            .ExportAsync(fullStream, BuildValueSpec(value), TestContext.Current.CancellationToken));
 
-        using var workbook = Open(stream);
-        var cell = workbook.Worksheet(1).Cell(2, 1);
+        var streamStream = new MemoryStream();
+        var streamFailure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new MiniExcelStreamExporter()
+            .ExportAsync(streamStream, BuildValueSpec(value), TestContext.Current.CancellationToken));
 
-        Assert.Equal(XLDataType.Text, cell.DataType);
-        Assert.Contains(year.ToString(CultureInfo.InvariantCulture).PadLeft(4, '0'), cell.GetString(), StringComparison.Ordinal);
+        Assert.Contains("日期", fullFailure.Message, StringComparison.Ordinal);
+        Assert.Contains("1900-01-01", fullFailure.Message, StringComparison.Ordinal);
+        Assert.Contains("键 Value", fullFailure.Message, StringComparison.Ordinal);
+        Assert.Equal(0, fullStream.Length);
+        Assert.Equal(CauseOf(fullFailure.Message), CauseOf(streamFailure.Message));
+
+        // 「要保住这类日期就走全量路径」这条出路已随两路同拒作废，消息里不许再指点换路径
+        Assert.DoesNotContain("全量", fullFailure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("流式", fullFailure.Message, StringComparison.Ordinal);
     }
 
     /// <summary>
-    /// 早于 1899-12-30 的 DateTimeOffset 同样落文本格并照能导出，偏移量留在文本里
+    /// 下限当日及其后的三种日期型别在两条 xlsx 路径都照写，并由本框架的导入器读回同一天
     /// </summary>
     /// <remarks>
-    /// 与上一同一取向：本类不把这个型别送进日期格，所以日期下限判据管不到它，也不该管。
-    /// 读回的是带偏移量的文本原样，因此钟表时刻与时区差都没有被静默丢掉——这与流式路径落日期格、
-    /// 只保留钟表时刻不同，两条路径的格位差异由各自的文档承担。
-    /// <c>0001-01-01</c> 一档只能按零偏移量构造（<see cref="DateTimeOffset"/> 自身不接受公元 1 年再加正偏移），
-    /// 要验的是本类不把它送进日期格，与偏移量取值无关。
+    /// <para>
+    /// <c>1900-01-01</c> 是恰等正例：两条路径都把它写成日期序号 <c>1</c>，本框架的
+    /// <see cref="ExcelDataReaderImporter"/> 读回来还是 <c>1900-01-01</c>，端到端往返闭合——
+    /// 这道下限收得再紧也没有把边界当日挡在外面。判定器一律走导入器（<see cref="ImportValueAsync"/>），
+    /// 不用工作簿读自己写的档：工作簿会按自己的位移规则反算，读回来的日期看着与写进去的一致，
+    /// 恰好掩盖档里被挪过这件事——C3 那条发现正是这样被盖住的。
+    /// </para>
+    /// <para>
+    /// 格位差异照旧存在，只是不再影响能不能导：<c>DateTime</c> 两条路径都落日期格，导入器交回
+    /// <see cref="DateTime"/>，逐值可比；<c>DateOnly</c> 与 <c>DateTimeOffset</c> 在本路径落文本格、
+    /// 导入器交回 <see cref="string"/>，文本的排法是库按不变文化格式排的（形如 <c>01/01/1900</c>），
+    /// 改排法不算改契约，因此只断它是文本、带该年份；同两类型在流式路径落日期格，交回
+    /// <see cref="DateTime"/>，逐值可比。
+    /// </para>
     /// </remarks>
+    /// <param name="kind">0 用 <c>DateTime</c>，1 用 <c>DateOnly</c>，2 用带偏移量的 <c>DateTimeOffset</c></param>
     /// <param name="year">年份</param>
     /// <param name="month">月份</param>
     /// <param name="day">日</param>
-    /// <param name="offsetHours">偏移小时数</param>
     [Theory]
-    [InlineData(1899, 12, 29, 8)]
-    [InlineData(1, 1, 1, 0)]
-    public async Task 早于纪元的DateTimeOffset在本路径落文本格并照能导出(int year, int month, int day, int offsetHours)
+    [InlineData(0, 1900, 1, 1)]
+    [InlineData(0, 2026, 1, 2)]
+    [InlineData(1, 1900, 1, 1)]
+    [InlineData(1, 2026, 1, 2)]
+    [InlineData(2, 1900, 1, 1)]
+    [InlineData(2, 2026, 1, 2)]
+    public async Task 下限当日及其后的三种日期型别在两条xlsx路径都照写(int kind, int year, int month, int day)
     {
-        var value = new DateTimeOffset(year, month, day, 6, 30, 0, TimeSpan.FromHours(offsetHours));
+        var value = DateValue(kind, year, month, day);
 
-        var stream = await ExportAsync(BuildValueSpec(value));
+        var fullStream = await ExportAsync(BuildValueSpec(value));
+
+        var streamStream = new MemoryStream();
+        await new MiniExcelStreamExporter().ExportAsync(streamStream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        var fullBack = await ImportValueAsync(fullStream);
+        var streamBack = await ImportValueAsync(streamStream);
+
+        // 流式路径三种型别都落日期格，交回的是钟表时刻
+        var expectedInStream = new DateTime(year, month, day, kind == 2 ? 6 : 0, kind == 2 ? 30 : 0, 0);
+
+        Assert.IsType<DateTime>(streamBack);
+        Assert.Equal(expectedInStream, (DateTime)streamBack!);
+
+        if (kind == 0)
+        {
+            Assert.IsType<DateTime>(fullBack);
+            Assert.Equal(new DateTime(year, month, day), (DateTime)fullBack!);
+        }
+        else
+        {
+            Assert.IsType<string>(fullBack);
+            Assert.Contains(year.ToString(CultureInfo.InvariantCulture).PadLeft(4, '0'), (string)fullBack!, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
+    /// 下限当日及其后的 DateOnly 与 DateTimeOffset 在本路径落文本格
+    /// </summary>
+    /// <remarks>
+    /// 钉的是落格形态：工作簿没有这两个型别的格位，本类把它们交给 <c>XLCellValue</c> 的文本形态。
+    /// 这道形态差异在日期下限收口之后仍然存在，只是不再决定「能不能导」——早于下限的取值两条路径一起拒，
+    /// 见 <see cref="早于日期下限的三种日期型别在两条xlsx路径一起拒写"/>；读回的值由
+    /// <see cref="下限当日及其后的三种日期型别在两条xlsx路径都照写"/> 用导入器断。
+    /// 因此这里只断格位型别，不比对整串文本（那是库按不变文化格式排出来的，改排法不算改契约）。
+    /// </remarks>
+    /// <param name="kind">1 用 <c>DateOnly</c>，2 用带偏移量的 <c>DateTimeOffset</c></param>
+    /// <param name="year">年份</param>
+    /// <param name="month">月份</param>
+    /// <param name="day">日</param>
+    [Theory]
+    [InlineData(1, 1900, 1, 1)]
+    [InlineData(1, 2026, 1, 2)]
+    [InlineData(2, 1900, 1, 1)]
+    [InlineData(2, 2026, 1, 2)]
+    public async Task 下限当日及其后的DateOnly与DateTimeOffset在本路径落文本格(int kind, int year, int month, int day)
+    {
+        var stream = await ExportAsync(BuildValueSpec(DateValue(kind, year, month, day)));
 
         using var workbook = Open(stream);
         var cell = workbook.Worksheet(1).Cell(2, 1);
 
-        var expectedOffset = (offsetHours < 0 ? "-" : "+") + Math.Abs(offsetHours).ToString("D2", CultureInfo.InvariantCulture) + ":00";
-
         Assert.Equal(XLDataType.Text, cell.DataType);
-        Assert.Contains(year.ToString(CultureInfo.InvariantCulture).PadLeft(4, '0'), cell.GetString(), StringComparison.Ordinal);
-        Assert.Contains(expectedOffset, cell.GetString(), StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// 按型别造一格日期取值：<c>DateTime</c> 取当日零点，<c>DateOnly</c> 不带时刻，
+    /// <c>DateTimeOffset</c> 带 <c>06:30</c> 与 <c>+08:00</c>
+    /// </summary>
+    /// <remarks>
+    /// <see cref="DateTimeOffset"/> 的构造本身不接受「公元 1 年再加 +08:00」这种组合（换算到 UTC 会掉出可表示范围），
+    /// 所以早到那个量级的取值只能按零偏移量造——要验的是早于下限的日期一律被拒，与偏移量取值无关。
+    /// </remarks>
+    /// <param name="kind">0 用 <c>DateTime</c>，1 用 <c>DateOnly</c>，2 用带偏移量的 <c>DateTimeOffset</c></param>
+    /// <param name="year">年份</param>
+    /// <param name="month">月份</param>
+    /// <param name="day">日</param>
+    private static object DateValue(int kind, int year, int month, int day) => kind switch
+    {
+        0 => new DateTime(year, month, day),
+        1 => new DateOnly(year, month, day),
+        _ => new DateTimeOffset(year, month, day, 6, 30, 0, year == 1 ? TimeSpan.Zero : TimeSpan.FromHours(8))
+    };
 
     /// <summary>
     /// 非法列宽在写出任何字节之前抛，信息同时点出下界与 xlsx 的 255 上限

@@ -365,7 +365,7 @@ public sealed class MiniExcelStreamExporter
 
                 // 取值域判定只交回成因文字，行位置在真要抛时才拼出来：每行每格都先分配一条消息，
                 // 等于让正常路径替异常路径付钱
-                if (value is not null && ExcelWorkbookWriteGuard.DescribeUnwritableInStream(value) is { } reason)
+                if (value is not null && ExcelWorkbookWriteGuard.DescribeUnwritable(value) is { } reason)
                 {
                     throw ExcelWorkbookWriteGuard.CreateFailure(column, $"第 {rowIndex} 行", reason);
                 }
