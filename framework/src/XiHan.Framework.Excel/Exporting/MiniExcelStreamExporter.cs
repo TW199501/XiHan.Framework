@@ -54,6 +54,16 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 本类不吞也不改写。
 /// </para>
 /// <para>
+/// 表头与标题的长度也在声明层先拒，判据与全量路径共用 <see cref="ExcelCellTextGuard"/> 那一份，
+/// 消息逐字相同：两者落的都是单元格，与数据格共用 <see cref="ExcelConstants.MaxCellTextLength"/> 那道界，
+/// 超长时写出侧不截断。此前本路径对超长表头一声不响——照样写出一份表头超过单元格上限的档、照样回报降级成功，
+/// 而全量路径对同一份声明是抛的；分派器按行数替调用方选路径，于是「能不能导」成了走哪条的副产品。
+/// 标题这一项要单独说清：标题行在本路径属于上面那批「落不下来」的排版项，照
+/// <see cref="ExcelSheetSpec.HeaderFill"/> 的先例本可以「不承载也不报错」，但全量路径对超长标题是抛的，
+/// 因此这里也抛——「本路径不承载某个选项」与「这个选项的声明非法」是两件事，前者不报错，后者两条路径一起拒。
+/// 长度合法的标题仍然照旧不落档，只在降级理由里点名。
+/// </para>
+/// <para>
 /// 单张工作表的行数也按 <see cref="ExcelConstants.MaxSheetRows"/> 先拒：表头行与数据行加起来要落到那道上限
 /// 之后时抛出，不接着写出行号超过工作表可表示范围的档。判定落在逐行投影那一趟里，用的就是刚数出来的行号，
 /// 不为计数把行集合物化、也不回头再枚举一遍。上限按每张工作表各自计，不做整簿累计；本路径不写标题行，
@@ -154,8 +164,14 @@ public sealed class MiniExcelStreamExporter
     /// 该属性是 <c>required</c> 非空成员，null 只会来自非法声明，并在写出第一格之前就被拒）</exception>
     /// <exception cref="ArgumentException"><see cref="ExcelSheetSpec.SheetName"/> 超过 31 个字符、含工作簿不接受的字符
     /// （<c>: \ / ? * [ ]</c> 与控制字符 <c>U+0000</c>、<c>U+0003</c>）或以单引号开头／结尾，此时
-    /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>；判据与全量写出路径同一份，
-    /// 不交给写出库去拒或转义</exception>
+    /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>；某列的 <see cref="ExcelColumn.Header"/>
+    /// 长过 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，此时 <see cref="ArgumentException.ParamName"/>
+    /// 为 <c>Header</c>；或 <see cref="ExcelSheetSpec.Title"/> 长过 <see cref="ExcelConstants.MaxCellTextLength"/>
+    /// 个字符，此时 <see cref="ArgumentException.ParamName"/> 为 <c>Title</c>。三条判据都与全量写出路径同一份
+    /// （表名走 <see cref="ExcelWorkbookWriteGuard"/>，表头与标题的长度走 <see cref="ExcelCellTextGuard"/>），
+    /// 消息逐字相同，不交给写出库去拒或转义。表头与标题的长度都排在调用写出库之前，抛出时输出流零字节、
+    /// 行集合一次都没被枚举，写出侧<u>不截断</u>；标题在本路径不落档（见降级理由），但声明超长照拒——
+    /// 放过就等于让「同一份规格能不能导」由走哪条路径决定，而分派器是按行数替调用方选的</exception>
     /// <exception cref="InvalidOperationException">行集合里有某笔元素与 <see cref="ExcelSheetSpec.RowType"/> 不符；
     /// 列清单里有两列用了同一个 <see cref="ExcelColumn.Key"/>；表头行与数据行加起来要落到第
     /// <see cref="ExcelConstants.MaxSheetRows"/> 行以后（单张工作表只有这么多行，超出的行没有可落的位置，
@@ -188,6 +204,13 @@ public sealed class MiniExcelStreamExporter
         ExcelWorkbookWriteGuard.ValidateSheetName(sheet.SheetName, 1);
 
         var columns = sheet.Columns;
+
+        // 表头与标题的长度同样是声明级判定，判据与全量路径共用 ExcelCellTextGuard 那一份；
+        // 排在调用写出库之前，因此超长文案一个字节都不会进流。标题在本路径不落档，但声明非法照拒，
+        // 免得同一份规格走全量抛、走流式却静默交回一份档
+        ExcelCellTextGuard.ValidateHeaders(columns);
+        ExcelCellTextGuard.ValidateTitle(sheet.Title);
+
         EnsureDistinctKeys(columns);
 
         var configuration = new OpenXmlConfiguration

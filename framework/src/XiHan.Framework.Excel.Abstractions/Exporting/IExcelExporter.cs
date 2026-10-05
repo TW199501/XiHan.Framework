@@ -55,9 +55,12 @@ public interface IExcelExporter
     /// 那两种场合这个值不参与写出，也不报错，与「设置了但本路径不承载的选项」的既有口径一致）；
     /// 或某列的 <see cref="ExcelColumn.Header"/>、<see cref="ExcelSheetSpec.Title"/> 长过
     /// <see cref="ExcelConstants.MaxCellTextLength"/> 个字符（<see cref="ArgumentException.ParamName"/> 分别为
-    /// <c>Header</c> 与 <c>Title</c>，只在目标格式是 <see cref="ExcelFormat.Xlsx"/> 且走全量工作簿路径时判——
-    /// 表头与标题落的也是单元格，与数据格共用同一道上限，超长时写出侧不截断，判定排在写出第一格之前，
-    /// 抛出时输出流零字节、行集合一次都没被枚举）</exception>
+    /// <c>Header</c> 与 <c>Title</c>，只在目标格式是 <see cref="ExcelFormat.Xlsx"/> 时判，两条 xlsx 路径共用
+    /// 同一份判据、抛出的消息逐字相同，文字档没有单元格因此没有这道上限——表头与标题落的也是单元格，
+    /// 与数据格共用同一道上限，超长时写出侧不截断，判定排在写出第一格之前，抛出时输出流零字节、
+    /// 行集合一次都没被枚举。<see cref="ExcelSheetSpec.Title"/> 在流式模式不落档，但声明超长照样拒：
+    /// 「本路径不承载某个选项」与「这个选项的声明非法」是两件事，前者不报错，后者两条路径一起拒，
+    /// 免得同一份规格能不能导由分派器按行数选了哪条路径决定）</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> 不在
     /// <see cref="ExcelFormat"/> 的定义范围内；或 <see cref="ExcelSheetSpec.ExpectedRowCount"/> 为负数
     /// （这一条不分格式：它是分派输入，任何目标格式下都不是合法的行数声明）；或某列的

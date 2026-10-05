@@ -69,7 +69,8 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 详见流式写出器的说明。<see cref="ExcelColumn.Header"/> 与 <see cref="ExcelSheetSpec.Title"/> 落的也是单元格，
 /// 与数据格共用 <see cref="ExcelConstants.MaxCellTextLength"/> 那道上限，但它们是声明而不是行值：超长时在写出
 /// 第一格之前抛 <see cref="ArgumentException"/>（<see cref="ArgumentException.ParamName"/> 为 <c>Header</c>／<c>Title</c>），
-/// 一个行元素都不取，也不截断。这句承诺的范围是「本类显式检查过的失败面」：
+/// 一个行元素都不取，也不截断；这份长度判据由 <see cref="ExcelCellTextGuard"/> 持有、与流式路径共用，
+/// 两边抛出的消息逐字相同。这句承诺的范围是「本类显式检查过的失败面」：
 /// 取值域、颜色解析、表名判据、表头与标题的长度，以及单张工作表的行数上限
 /// （<see cref="ExcelConstants.MaxSheetRows"/>，含标题行与表头行）在内，
 /// 工作簿自身的存盘失败（流不可写、容器损坏、磁盘满）不在内，那类按库的异常形态交回。
@@ -326,6 +327,8 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 单表与多表共用这一个方法，所以这里的预检（<see cref="ExcelSheetSpec.RowType"/> 声明、列值域与表头长度、
     /// 标题长度、表头底色）对两条路径同时生效；表名的可用性由两个入口在建工作簿之前判，不在这里判第二次。
     /// 预检全部排在 <c>foreach</c> 之前，因此声明级的问题一个行元素都不取、一个字节也不写。
+    /// 表头与标题的长度判据不由本类自己持有，而是调 <see cref="ExcelCellTextGuard"/>——那一份与流式路径共用，
+    /// 两边抛出的消息逐字相同。
     /// </remarks>
     private IXLWorksheet WriteSheet(IXLWorkbook workbook, ExcelSheetSpec sheet, CancellationToken cancellationToken)
     {
@@ -333,17 +336,11 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
         var rowType = ExcelRowTypeGuard.ValidateDeclaration(sheet);
         ValidateColumns(columns);
         var headerFill = sheet.HeaderFill is null ? null : ParseSheetColor(sheet.HeaderFill, nameof(ExcelSheetSpec.HeaderFill));
-        var title = string.IsNullOrWhiteSpace(sheet.Title) ? null : sheet.Title;
 
-        // 标题落的也是一格，与数据格共用同一道单元格上限；判在建工作表与枚举行集合之前
-        if (title is { Length: > ExcelConstants.MaxCellTextLength })
-        {
-            throw new ArgumentException(
-                $"{nameof(ExcelSheetSpec.Title)} 有 {title.Length} 个字符，超过单元格的上限 " +
-                $"{ExcelConstants.MaxCellTextLength} 个字符：标题行落的也是一格，装不下的文案在 xlsx 里没有对应形态。" +
-                "请缩短标题，不写标题行请把该项置为 null 或留空白；写出侧不截断——截断会交回一份标题与声明不一致的档。",
-                nameof(ExcelSheetSpec.Title));
-        }
+        // 标题落的也是一格；长度判据与「仅含空白视为未填」的归一都收在共用守卫里，判在建工作表与枚举行集合之前
+        ExcelCellTextGuard.ValidateTitle(sheet.Title);
+
+        var title = string.IsNullOrWhiteSpace(sheet.Title) ? null : sheet.Title;
 
         // 标题行占第一行时，表头与数据区整体下移一行
         var headerRowNumber = title is null ? 1 : 2;
@@ -599,7 +596,8 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <remarks>
     /// 表头长度排在最前面：它落的也是一格，与数据格共用 <see cref="ExcelConstants.MaxCellTextLength"/> 那道界，
     /// 而下面两条的消息都要把 <see cref="ExcelColumn.Header"/> 原文嵌进去——几万字符的表头若不先拦下来，
-    /// 那句消息本身就会带着整串文案抛出。这条消息只报长度与列键，不嵌表头原文。
+    /// 那句消息本身就会带着整串文案抛出。长度判据本身不由本方法持有，而是逐列交给
+    /// <see cref="ExcelCellTextGuard.ValidateHeader"/>，那一份与流式路径共用，消息只报长度与列键、不嵌表头原文。
     /// </remarks>
     /// <exception cref="ArgumentException">某列的 <see cref="ExcelColumn.Header"/> 长过
     /// <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，<see cref="ArgumentException.ParamName"/> 为
@@ -610,14 +608,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     {
         foreach (var column in columns)
         {
-            if (column.Header.Length > ExcelConstants.MaxCellTextLength)
-            {
-                throw new ArgumentException(
-                    $"键为 {column.Key} 的列，表头有 {column.Header.Length} 个字符，超过单元格的上限 " +
-                    $"{ExcelConstants.MaxCellTextLength} 个字符：表头落的也是一格，装不下的文案在 xlsx 里没有对应形态。" +
-                    "请缩短表头文案；写出侧不截断——截断会交回一份表头与声明不一致的档。",
-                    nameof(ExcelColumn.Header));
-            }
+            ExcelCellTextGuard.ValidateHeader(column);
 
             if (column.Width is { } width && (width <= 0 || !double.IsFinite(width) || width > MaximumColumnWidth))
             {
