@@ -1,0 +1,35 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelExporter.cs
+  s_e341848ede711f::t_2aaf8fb47178a3 58-63
+framework/src/XiHan.Framework.Excel/Exporting/ClosedXmlExporter.cs
+  s_e341848ede711f::t_9e27c469f45873 72-73,330-331,340-343,599-600,611
+framework/src/XiHan.Framework.Excel/Exporting/ExcelCellTextGuard.cs
+  s_e341848ede711f::t_e995d334c8005d 1-125
+framework/src/XiHan.Framework.Excel/Exporting/MiniExcelStreamExporter.cs
+  s_e341848ede711f::t_310f80d8d3d51a 57-66,167-174,207-213
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelStreamExporterTests.cs
+  s_94057b8e5cf9b6::t_efa840cde4f86f 1078-1334
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bff128d81b263131b4922718e172adecebe722f8",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_e341848ede711f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6c0729-14d9-4317-989a-dd3108172b84",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
