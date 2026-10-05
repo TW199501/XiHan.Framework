@@ -706,6 +706,105 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
+    /// 绝对值超过数值格能逐个表示的整数上限的取值在两条 xlsx 路径一起被拒，且成因句逐字相同
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这一道补的是位数那道的漏。位数按「第一个非零数字到最后一个非零数字」数，整数末尾的一串零不计入，
+    /// 于是 <c>9876543210123450000</c> 这个 19 位整数只算 15 位有效数字、在位数那道恰好过关；而它的量级已经
+    /// 越过双精度能逐个表示整数的界（2^53 = 9007199254740992，这一段相邻可表示值的间距是 2048），
+    /// 落进数值格再读回来是 9876543210123450368——数据被挪了，导出却回报成功。两条路径都是这个结果：
+    /// 全量路径把 <c>9.87654321012345E+18</c> 写进档，流式路径把整串数字原样写进档，
+    /// 而数值格在档里就是一个双精度数，读回时两边都只能落到最近的那个可表示值上。
+    /// <c>decimal</c> 同样在列——它有 28 到 29 位十进制精度，量级越界之后一样交不回原值。
+    /// </para>
+    /// <para>
+    /// 判的是「绝对值超过那道界」而不是「这个取值恰好落在两个可表示值之间」：<c>18000000000000000000</c>
+    /// 只有 2 位有效数字、而且恰好是双精度可精确表示的，实测原样往返，但它在界外所以一并拒——
+    /// 与位数那道同一取向（<c>1000000000000001</c> 在 2^53 以内、可精确表示，却因 16 位有效数字被拒），
+    /// 按一把简单可预测的尺判，宁可多拒不静默改值。
+    /// </para>
+    /// </remarks>
+    /// <param name="value">要落进一格的取值</param>
+    [Theory]
+    [MemberData(nameof(OverMagnitudeIntegerCases))]
+    public async Task 超过整数上限的数值在两条xlsx路径一起拒写(object value)
+    {
+        var fullStream = new MemoryStream();
+        var fullFailure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
+            .ExportAsync(fullStream, BuildValueSpec(value), TestContext.Current.CancellationToken));
+
+        var streamStream = new MemoryStream();
+        var streamFailure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new MiniExcelStreamExporter()
+            .ExportAsync(streamStream, BuildValueSpec(value), TestContext.Current.CancellationToken));
+
+        // 上限值写死在断言里：它是判据的一部分，改动它就是要改动对外承诺，不该由判据自己报出来算数
+        Assert.Contains("绝对值超过 xlsx 数值格能逐个表示的整数上限 9007199254740992", fullFailure.Message, StringComparison.Ordinal);
+        Assert.Contains("绝对值超过 xlsx 数值格能逐个表示的整数上限 9007199254740992", streamFailure.Message, StringComparison.Ordinal);
+        Assert.Contains("键 Value", fullFailure.Message, StringComparison.Ordinal);
+        Assert.Equal(CauseOf(fullFailure.Message), CauseOf(streamFailure.Message));
+    }
+
+    /// <summary>
+    /// 整数上限案例：有效数字都在 15 位以内（位数那道过关），量级却已越过 2^53
+    /// </summary>
+    /// <remarks>
+    /// 取值一律用字面量写死。<c>9876543210123450000</c> 写不成 <c>long</c>（超出 <see cref="long.MaxValue"/>），
+    /// 因此正的这一档只能用 <c>ulong</c>，负的对照另取 <c>long</c> 范围内的量级。
+    /// </remarks>
+    public static IEnumerable<object?[]> OverMagnitudeIntegerCases()
+    {
+        yield return new object?[] { 9876543210123450000UL };
+        yield return new object?[] { 18000000000000000000UL };
+        yield return new object?[] { 1234567890123000000L };
+        yield return new object?[] { -1234567890123000000L };
+        yield return new object?[] { 9876543210123450000m };
+        yield return new object?[] { 1234567890123450000m };
+        yield return new object?[] { -1234567890123450000m };
+    }
+
+    /// <summary>
+    /// 量级在上限以内的整数照写，并由导入器读回同一个数——大小那道界不提前拒
+    /// </summary>
+    /// <remarks>
+    /// 取的几档都只有很少的有效数字（位数那道本来就放行），量级分别落在 2^53 之内、紧贴它、以及为负：
+    /// 用来钉住新增的那一道没有把界内的取值一起挡掉。<c>9000000000000000</c> 小于 9007199254740992，
+    /// 是界内能量级最大的一档；再往上一档（<c>18000000000000000000</c>）已在界外，由上一组用例断拒写。
+    /// 恰好等于 2^53 的那一档（<c>9007199254740992</c>）有 16 位有效数字，先在位数那道被拒，
+    /// 因此不在这里当正例——两道界各判各的，谁先命中由 <c>DescribeUnwritable</c> 的臂序决定。
+    /// </remarks>
+    /// <param name="value">要落进一格的取值</param>
+    /// <param name="expected">读回来该是的那份数的不变文化文本</param>
+    [Theory]
+    [MemberData(nameof(WithinIntegerMagnitudeCases))]
+    public async Task 整数上限内的取值两条xlsx路径都照写并读回原值(object value, string expected)
+    {
+        var fullStream = await ExportAsync(BuildValueSpec(value));
+
+        var streamStream = new MemoryStream();
+        await new MiniExcelStreamExporter().ExportAsync(streamStream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        var fullBack = await ImportValueAsync(fullStream);
+        var streamBack = await ImportValueAsync(streamStream);
+
+        Assert.Equal(expected, ((double)fullBack!).ToString(CultureInfo.InvariantCulture));
+        Assert.Equal(expected, ((double)streamBack!).ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// 整数上限内案例：要落一格的取值，与导入器读回来该是的那份数的不变文化文本
+    /// </summary>
+    public static IEnumerable<object?[]> WithinIntegerMagnitudeCases()
+    {
+        yield return new object?[] { 1234567890123450L, "1234567890123450" };
+        yield return new object?[] { 9000000000000000L, "9000000000000000" };
+        yield return new object?[] { 8000000000000000L, "8000000000000000" };
+        yield return new object?[] { -9000000000000000L, "-9000000000000000" };
+        yield return new object?[] { 9000000000000000m, "9000000000000000" };
+        yield return new object?[] { -1234567890123450L, "-1234567890123450" };
+    }
+
+    /// <summary>
     /// 公式起首的值在全量路径落文字格、逐字读回，且档里不会多出撇号前缀
     /// </summary>
     /// <remarks>
