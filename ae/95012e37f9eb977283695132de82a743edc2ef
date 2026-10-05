@@ -1,0 +1,21 @@
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlExporterTests.cs
+  s_94057b8e5cf9b6::t_693198e5484eff 5-7,708-772,1400-1423
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelStreamExporterTests.cs
+  s_94057b8e5cf9b6::t_925192894ff8e8 6-8,767-834,1065-1088
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae95012e37f9eb977283695132de82a743edc2ef",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
