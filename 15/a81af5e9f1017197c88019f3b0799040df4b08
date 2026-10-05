@@ -1,0 +1,16 @@
+framework/src/XiHan.Framework.Excel/Exporting/ExcelWorkbookWriteGuard.cs
+  h_be8240d2cfaa4b 24-26,28-29,38-39,56-70,186-187,208-209,280-284,310-354,402-403
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlExporterTests.cs
+  h_be8240d2cfaa4b 708-806
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "15a81af5e9f1017197c88019f3b0799040df4b08",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
