@@ -1,0 +1,18 @@
+framework/src/XiHan.Framework.Excel/Importing/ExcelFormatProbe.cs
+  h_be8240d2cfaa4b 32-37,49-68,190,193-203,207-210,215-216,244-316
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelDataReaderImporterTests.cs
+  h_be8240d2cfaa4b 234-264
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelFormatProbeTests.cs
+  h_be8240d2cfaa4b 169-243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "923839a29cb7f12c744766af290b874868c23d3c",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}

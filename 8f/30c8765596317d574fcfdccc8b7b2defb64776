@@ -1,0 +1,18 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/IExcelImporter.cs
+  h_be8240d2cfaa4b 11-15
+framework/src/XiHan.Framework.Excel/Importing/ExcelDataReaderImporter.cs
+  h_be8240d2cfaa4b 21-28,265-268
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelDataReaderImporterTests.cs
+  h_be8240d2cfaa4b 174-233
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8f30c8765596317d574fcfdccc8b7b2defb64776",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
