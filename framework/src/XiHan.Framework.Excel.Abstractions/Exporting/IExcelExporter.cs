@@ -62,7 +62,10 @@ public interface IExcelExporter
     /// <exception cref="InvalidOperationException">目标格式是 <see cref="ExcelFormat.Xlsx"/> 而
     /// <see cref="ExcelSheetSpec.ForceStreaming"/> 与 <see cref="ExcelSheetSpec.ExpectedRowCount"/>
     /// 两个都没给；或行集合里有某笔元素与 <see cref="ExcelSheetSpec.RowType"/> 不符；或某个行值是工作簿
-    /// 装不下的（早于 1899-12-30 的 <c>DateTime</c>、<c>NaN</c> 或 <c>±∞</c>、长过单元格上限的字串）；或某个取值委托交回了
+    /// 装不下的（早于 1899-12-30 的 <c>DateTime</c>、<c>NaN</c> 或 <c>±∞</c>、有效数字多于
+    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的 <c>long</c>／<c>ulong</c>／
+    /// <c>decimal</c>／<c>double</c>／<c>float</c>、长过单元格上限的字串）——四类都只在全量与流式两条 xlsx 路径判，
+    /// 且两条路径判得一样（文字档没有数值格，这类取值照原样写成文本）；或某个取值委托交回了
     /// 工作簿不接受的东西；或（仅流式模式）两列共用了同一个 <see cref="ExcelColumn.Key"/>——那一模式的行模型
     /// 按键取值，重复键会让后一列盖掉前一列；或（仅流式模式）某个行值是早于 1899-12-30 的
     /// <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>——这两个型别在流式模式落日期格、整段拒，
@@ -115,7 +118,9 @@ public interface IExcelExporter
     /// 这个值在这条入口只校验成立与否、不参与分流，也不因为用不到它就静默放过</exception>
     /// <exception cref="InvalidOperationException">清单里有哪张表的 <see cref="ExcelSheetSpec.ForceStreaming"/>
     /// 为 <c>true</c>（多表流式不在本组件的承诺范围内，冲突时拒绝而不是偷偷改走全量）；或某张表的行集合里有
-    /// 某笔元素与其 <see cref="ExcelSheetSpec.RowType"/> 不符；或某个行值是工作簿装不下的</exception>
+    /// 某笔元素与其 <see cref="ExcelSheetSpec.RowType"/> 不符；或某个行值是工作簿装不下的（取值域判据与
+    /// <see cref="ExportAsync"/> 共用同一份，含有效数字多于
+    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值）</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// <para>

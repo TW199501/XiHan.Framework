@@ -7,7 +7,9 @@ using ClosedXML.Excel;
 using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
 using XiHan.Framework.Excel.Abstractions.Exporting;
+using XiHan.Framework.Excel.Abstractions.Importing;
 using XiHan.Framework.Excel.Exporting;
+using XiHan.Framework.Excel.Importing;
 using XiHan.Framework.Excel.Tests.TestSupport;
 
 namespace XiHan.Framework.Excel.Tests.Exporting;
@@ -666,6 +668,100 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
+    /// 有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值在流式路径同样拒写
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 本路径把取值的文本交给写出库落格，越界取值在这里能原样写进档里（16 位整数就是整串数字），
+    /// 看起来比全量路径「更准」，实则两条路径对同一份规格交出两个不同的数：分派器按行数决定走哪条，
+    /// 得到哪个数就成了走哪条的副产品。位数这一道按取值本身判，两条路径一起拒，判据只有 <c>ExcelWorkbookWriteGuard</c> 里那一份。
+    /// </para>
+    /// <para>
+    /// <c>float</c> 是按同一判据从条文最初的四类型扩用进来的：落进数值格的是它展开成 <see cref="double"/>
+    /// 后的那份形态，<c>0.1f</c> 展开后已是 17 位。
+    /// </para>
+    /// <para>
+    /// 与全量路径不同，本路径的取值判定发生在逐行投影期间，此时表头与建档骨架已经落进流里，
+    /// 因此这里断「抛出且没有成功结果」，不断零字节——全量路径才主张零字节（见 <c>ClosedXmlExporterTests</c>）。
+    /// </para>
+    /// </remarks>
+    /// <param name="value">要落进一格的数值取值</param>
+    /// <param name="reason">消息里该出现的成因片段（点明实际位数）</param>
+    [Theory]
+    [MemberData(nameof(OverPreciseNumericCases))]
+    public async Task 有效数字多于十五位的数值在流式路径拒写(object value, string reason)
+    {
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new MiniExcelStreamExporter()
+            .ExportAsync(stream, BuildValueSpec(value), TestContext.Current.CancellationToken));
+
+        Assert.Contains("取值", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("键 Value", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("第 1 行", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(reason, failure.Message, StringComparison.Ordinal);
+        Assert.Contains("转成字符串栏位", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 上限内的数值在流式路径照写，并由本组件的导入器读回同一份数
+    /// </summary>
+    /// <remarks>
+    /// 判尺不多拒：一位小数、恰为 15 位的整数、带负号带小数点的 15 位取值、展开后仍短的单精度都照写。
+    /// 往返判定用 <see cref="ExcelDataReaderImporter"/>，不用 ClosedXML 读自己写的档——后者会按工作簿自己的
+    /// 形式反算，把「档里被改写过」这件事掩盖掉。
+    /// </remarks>
+    /// <param name="value">要落进一格的数值取值</param>
+    /// <param name="expected">读回来该是的那份数的不变文化文本</param>
+    [Theory]
+    [MemberData(nameof(WithinPrecisionNumericCases))]
+    public async Task 上限内的数值在流式路径照写并由导入器读回原值(object value, string expected)
+    {
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(stream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        var back = await ImportValueAsync(stream);
+
+        Assert.IsType<double>(back);
+        Assert.Equal(expected, ((double)back!).ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// 越界数值案例：要落一格的取值，与消息里该出现的成因片段
+    /// </summary>
+    /// <remarks>
+    /// 与 <c>ClosedXmlExporterTests</c> 的同名案例集取同一批字面量：两条路径各一对反例是这一批的规矩，
+    /// 两处的取值保持相同才能说明判的是同一件事。
+    /// </remarks>
+    public static IEnumerable<object?[]> OverPreciseNumericCases()
+    {
+        yield return new object?[] { 1234567890123456L, "有 16 位有效数字" };
+        yield return new object?[] { 12345678901234.5678m, "有 18 位有效数字" };
+        yield return new object?[] { 12345678901234567.89m, "有 19 位有效数字" };
+        yield return new object?[] { 1.0 / 3.0, "有 16 位有效数字" };
+        yield return new object?[] { 0.1 + 0.2, "有 17 位有效数字" };
+        yield return new object?[] { 0.1f, "有 17 位有效数字" };
+        yield return new object?[] { 3.14f, "有 16 位有效数字" };
+        yield return new object?[] { 12345678901234567890UL, "有 19 位有效数字" };
+    }
+
+    /// <summary>
+    /// 上限内数值案例：要落一格的取值，与导入器读回来该是的那份数的不变文化文本
+    /// </summary>
+    public static IEnumerable<object?[]> WithinPrecisionNumericCases()
+    {
+        yield return new object?[] { 1.5m, "1.5" };
+        yield return new object?[] { 123456789012345L, "123456789012345" };
+        yield return new object?[] { 12345678901234.5m, "12345678901234.5" };
+        yield return new object?[] { -12345678901234.5m, "-12345678901234.5" };
+        yield return new object?[] { 1234567890123450L, "1234567890123450" };
+        yield return new object?[] { 999999999999999m, "999999999999999" };
+        yield return new object?[] { 1.5f, "1.5" };
+        yield return new object?[] { 0m, "0" };
+    }
+
+    /// <summary>
     /// 不可用的表名抛出的是本组件的框架异常，不是渲染库那句英文异常，也不是被转义后的另一个名字
     /// </summary>
     /// <remarks>
@@ -893,6 +989,33 @@ public class MiniExcelStreamExporterTests
     {
         stream.Position = 0;
         return new XLWorkbook(stream);
+    }
+
+    /// <summary>
+    /// 用本框架的导入器把导出的档读回，交出「取值」这一列的第一笔值
+    /// </summary>
+    /// <param name="stream">导出后的流，本方法把它回到起点，不关闭也不释放</param>
+    /// <remarks>
+    /// 往返断言的判定器一律走这里，不用 <see cref="XLWorkbook"/> 读自己写的档：工作簿会按自己的形式反算，
+    /// 读回来的数看着与写进去的一致，恰好掩盖档里被改写过这件事。导入器对数值格交回
+    /// <see cref="double"/>、对文字格交回 <see cref="string"/>，格位由档里真实落的东西决定。
+    /// </remarks>
+    private static async Task<object?> ImportValueAsync(MemoryStream stream)
+    {
+        stream.Position = 0;
+
+        var rows = new List<ExcelImportRow>();
+
+        await foreach (var row in new ExcelDataReaderImporter()
+            .ReadAsync(stream, new ExcelImportOptions { Format = ExcelImportFormat.Xlsx }, TestContext.Current.CancellationToken))
+        {
+            rows.Add(row);
+        }
+
+        Assert.Single(rows);
+        Assert.True(rows[0].Values.ContainsKey("取值"));
+
+        return rows[0].Values["取值"];
     }
 
     /// <summary>

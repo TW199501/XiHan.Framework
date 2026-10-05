@@ -19,15 +19,21 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <para>
 /// 单元格取值同样有硬界：<see cref="DateTime"/> 走 1900 日期系统，早于 <see cref="EarliestDate"/> 的日期
 /// 会被夹到纪元时刻而变成另一个日期；数值格只有有限十进制数，<c>NaN</c> 与 <c>±∞</c> 没有对应形态；
-/// 字串格的上限是 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符。越界的值一律抛出而不改写——把
+/// <see cref="long"/>、<see cref="ulong"/>、<see cref="decimal"/>、<see cref="double"/>、<see cref="float"/>
+/// 的有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位时，本组件不再承诺这一格交回
+/// 呼叫端给的那个数；字串格的上限是 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符。越界的值一律抛出而不改写——把
 /// <c>NaN</c> 写成 <c>"NaN"</c> 会让读回的数值列多出字串，把 <c>∞</c> 夹成最大有限数是凭空造数，把早于纪元的
-/// 日期夹到纪元时刻会交回另一个日期，截断超长字串会丢弃数据，四种都是「交出看不出问题的坏档」。
+/// 日期夹到纪元时刻会交回另一个日期，把多于承诺位数的数值照落会交出被舍短的另一份数，截断超长字串会丢弃数据，
+/// 五种都是「交出看不出问题的坏档」。
 /// </para>
 /// <para>
-/// 两道判据放在一处是因为两条 xlsx 写出路径共用同一把尺，而不是为了把两边判成同一个样子：排版路径会把
+/// 这套判据放在一处是因为两条 xlsx 写出路径共用同一把尺，而不是为了把两边判成同一个样子：排版路径会把
 /// 越界值与坏名字交给工作簿去拒，流式路径却会把它们直接落进档里——日期落进装不下它的格子、<c>NaN</c> 与
-/// 超长字串写出回读不了的档、名字里的控制字符被转义成另一个名字。分派器按行数把同一份规格送到其中一条路径，
+/// 超长字串写出回读不了的档、多于承诺位数的数值被两条路径各自舍成不同的较短形式、名字里的控制字符被转义成
+/// 另一个名字。分派器按行数把同一份规格送到其中一条路径，
 /// 「装不下」的取值集合不该由走哪条决定，因此这里只留一份，两边都调它，不在各自的路径里各写一遍。
+/// 数值位数这一道尤其要只有一份：它判的是「本组件承诺交回呼叫端给的那个数」，而这份承诺只能按取值本身说，
+/// 不能按某个写出库恰好舍到第几位说。
 /// </para>
 /// <para>
 /// 只有日期格的下限按各条路径实际的落格方式判：<see cref="DateTime"/> 两条路径都落日期格，故由本文件的
@@ -157,6 +163,8 @@ internal static class ExcelWorkbookWriteGuard
     /// 日期下限在这里只判 <see cref="DateTime"/>——它是两条路径都落日期格、因而共担同一道界的那个型别；
     /// <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/> 在全量路径落文本格（值原样读回）、
     /// 只在流式路径落日期格，故不归本方法，而由 <see cref="DescribeUnwritableInStream"/> 单独判。
+    /// 数值的位数一道归 <see cref="NumericPrecisionReason"/>：它自己认得该管哪几个型别，
+    /// <see cref="double"/> 与 <see cref="float"/> 的非有限形态已在更早的臂先拒，走到这一道的都是有限值。
     /// 成因只写值本身，行位置与列名由调用方在抛出时拼进去。
     /// </remarks>
     internal static string? DescribeUnwritable(object? value)
@@ -174,6 +182,8 @@ internal static class ExcelWorkbookWriteGuard
                 $"字串有 {text.Length} 个字符，超过单元格的上限 {ExcelConstants.MaxCellTextLength} 个字符：" +
                 "工作簿装不下它，写出只会得到一份读回不了的档。这里不截断——截断会丢弃数据，" +
                 "请自己决定分段或改写字段后再导出。",
+
+            _ when NumericPrecisionReason(value) is { } precision => precision,
 
             _ => null
         };
@@ -226,12 +236,98 @@ internal static class ExcelWorkbookWriteGuard
             "请把该列取成文本并自己决定写出什么，或先滤掉这类值。";
 
     /// <summary>
+    /// 数值有效数字超出承诺上限时的成因文字，在承诺内时交回 <c>null</c>
+    /// </summary>
+    /// <param name="value">刚取出的行值。这五类型之外的取值（含 <c>null</c>）不归本方法判，直接交回 <c>null</c>，
+    /// 因此调用方可以把它挂在共用判定的兜底臂上</param>
+    /// <remarks>
+    /// <para>
+    /// 量的对象是该取值的<u>不变文化文本形态</u>里的有效数字：<c>long</c>、<c>ulong</c> 与 <c>decimal</c> 的文本
+    /// 就是它本身的数字，<c>double</c> 的文本是能把这个双精度值原读回来的最短形式。小数点、正负号与指数不参与计数，
+    /// 小数点前的前导零不算，整数末尾的零可以并进指数所以也不算——这样恰好在承诺位数上的取值不会因为写了小数点
+    /// 或负号而被误拒。
+    /// </para>
+    /// <para>
+    /// <see cref="float"/> 先展开成 <see cref="double"/> 再量：落进数值格的是那份双精度，按单精度自己的最短文本量
+    /// 会放过 <c>0.1f</c> 这类实际被改写成另一个数的取值。展开后落在承诺位数内的单精度值（<c>1.5f</c> 这类）
+    /// 照写，不多拒。
+    /// </para>
+    /// <para>
+    /// 拒写而不改短是政策：本组件不替呼叫端决定该舍到第几位，也不按走哪条路径给出两个不同的较短形式。
+    /// </para>
+    /// </remarks>
+    private static string? NumericPrecisionReason(object? value)
+    {
+        if (value is not long and not ulong and not decimal and not double and not float)
+        {
+            return null;
+        }
+
+        var literal = value is float single
+            ? ((double)single).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+
+        var digits = CountSignificantDigits(literal);
+
+        if (digits <= ExcelConstants.MaxExactNumericSignificantDigits)
+        {
+            return null;
+        }
+
+        return $"数值「{literal}」有 {digits} 位有效数字，多于本组件对 xlsx 数值格承诺的 " +
+            $"{ExcelConstants.MaxExactNumericSignificantDigits} 位上限。两条 xlsx 写出路径对这类取值一律拒写：" +
+            "不改写成较短的数、不降级成文本格，也不按走哪条路径交出两个不同的结果。" +
+            "需要完整精度，请由呼叫端把该值转成字符串栏位。";
+    }
+
+    /// <summary>
+    /// 数一段数字文本里的有效数字位数：取第一个非零数字到最后一个非零数字之间的数字个数
+    /// </summary>
+    /// <param name="text">数值的文本形态，可含正负号、小数点与指数</param>
+    /// <remarks>
+    /// 指数部分（<c>E</c>／<c>e</c> 之后）不参与——它移动的是小数点，不改变有效数字；全零（含 <c>0</c> 与
+    /// <c>0.0000</c>）算 1 位而不是 0 位，免得零这个最普通的取值被判成越界。
+    /// </remarks>
+    private static int CountSignificantDigits(string text)
+    {
+        var exponent = text.IndexOfAny(['E', 'e']);
+        var mantissa = exponent >= 0 ? text[..exponent] : text;
+
+        var firstSignificant = -1;
+        var lastSignificant = -1;
+        var position = 0;
+
+        foreach (var character in mantissa)
+        {
+            if (!char.IsAsciiDigit(character))
+            {
+                continue;
+            }
+
+            if (character != '0')
+            {
+                if (firstSignificant < 0)
+                {
+                    firstSignificant = position;
+                }
+
+                lastSignificant = position;
+            }
+
+            position++;
+        }
+
+        return firstSignificant < 0 ? 1 : lastSignificant - firstSignificant + 1;
+    }
+
+    /// <summary>
     /// 确认这一格取值能落进工作簿，不能则抛出点名行列的框架异常
     /// </summary>
     /// <param name="value">刚取出的行值，<c>null</c> 表示空格，直接放过</param>
     /// <param name="column">本列，用于消息里的表头文案与列键</param>
     /// <param name="position">行位置标签，形如「第 3 行」</param>
-    /// <exception cref="InvalidOperationException">取值是早于 1899-12-30 的 <see cref="DateTime"/>、非有限的浮点数，
+    /// <exception cref="InvalidOperationException">取值是早于 1899-12-30 的 <see cref="DateTime"/>、非有限的浮点数、
+    /// 有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值，
     /// 或长于 <see cref="ExcelConstants.MaxCellTextLength"/> 的字符串；消息点名行位置、表头与列键并给出成因</exception>
     internal static void EnsureWritable(object? value, ExcelColumn column, string position)
     {

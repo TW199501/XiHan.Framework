@@ -45,8 +45,11 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <para>
 /// 表名与取值的判定不走库的那一套：表名按与全量路径共用的同一份判据先拒（库会拒一部分、
 /// 又把另一部分控制字符转义成另一个名字，两者都不是明确契约）；早于 1899-12-30 的 <see cref="DateTime"/>、
-/// 非有限的浮点数与长过单元格上限的字串同样先拒——这三类在本路径会被库直接落进档里，交出一份读不回的档
-/// 或一个被改写的日期，而全量路径对它们是抛，两条路径必须判得一样。行集合元素按
+/// 非有限的浮点数、有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值
+/// 与长过单元格上限的字串同样先拒——这四类在本路径会被库直接落进档里，交出一份读不回的档、一个被改写的日期，
+/// 或一串库按自己的形式写出的数字，而全量路径对它们是抛，两条路径必须判得一样。
+/// 位数这一道尤其不能各判各的：本路径把取值的文本交给库落格，多于承诺位数的数值在这里能原样落进档、
+/// 在全量路径却会被舍短，同一份规格走哪条得到哪个数就成了走哪条的副产品，因此两边一起拒。行集合元素按
 /// <see cref="ExcelSheetSpec.RowType"/> 逐笔校验，判据与另两条路径同一份。取值委托自己抛出的异常原样上抛，
 /// 本类不吞也不改写。
 /// </para>
@@ -72,7 +75,11 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 全量路径把这两个型别交给工作簿落成文本格、值与偏移量都原样留在文字里，因此不判这一条——同一份规格走哪条
 /// 路径，早于该时刻的 <c>DateOnly</c> 能导或不能导并不相同，这是落格方式带来的差别，不是两套标准。
 /// 要保住这类日期就用全量路径，或让该列取成文本。
-/// 本类只承诺列顺序、表头文案与数值内容一致，不承诺格位型别一致。不写 <c>.xls</c>，也不承诺宏与图表。
+/// 本类只承诺列顺序与表头文案一致，不承诺格位型别一致，也不承诺数值在档里写成哪一串字符：
+/// 本路径按取值的文本落格，全量路径按工作簿的形式落格，同一份 15 位整数一边是整串数字、一边可能是
+/// <c>1E+15</c> 这样的写法。能承诺的是读回的那个数——<see cref="ExcelConstants.MaxExactNumericSignificantDigits"/>
+/// 位有效数字以内两条路径都原样交回，超出该位数的取值两条路径一起拒，不靠走哪条决定得到哪个数。
+/// 不写 <c>.xls</c>，也不承诺宏与图表。
 /// </para>
 /// </remarks>
 public sealed class MiniExcelStreamExporter
@@ -109,7 +116,9 @@ public sealed class MiniExcelStreamExporter
     /// 列清单里有两列用了同一个 <see cref="ExcelColumn.Key"/>；或某个行值装不进本路径要落的格子——
     /// 早于 1899-12-30 的 <see cref="DateTime"/>、<see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>
     /// （后两者在本路径落日期格，故只在本路径拒；全量路径把它们落成文本格、值原样读回，不判这一条）、
-    /// <c>NaN</c> 或 <c>±∞</c>、长过单元格上限的字串。消息都点名实际成因：行型不符者报出行号与期望／实际
+    /// <c>NaN</c> 或 <c>±∞</c>、有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的
+    /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>（这一条与全量路径同判）、
+    /// 长过单元格上限的字串。消息都点名实际成因：行型不符者报出行号与期望／实际
     /// 两个类型全名，重复列键者报出重复的键，取值越界者报出行位置、表头与列键。取值类的判定只在取到那一行时
     /// 才做得出来，抛出时前面的行可能已经落进流里；重复列键在调用写出库之前就被拒，输出流零字节</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消。取消在入口被观察到时
