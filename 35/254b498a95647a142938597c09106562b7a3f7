@@ -1,0 +1,22 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/ExcelImportOptions.cs
+  h_be8240d2cfaa4b 136,141-151
+framework/src/XiHan.Framework.Excel/Importing/ExcelDataReaderImporter.cs
+  h_be8240d2cfaa4b 48,50-58,62-66,209-211,284-288,291-295,302,304,306,308,311-314,316,318,320-329,334-340,342-343,345-346,348,350,352,355-362,364-367,369-378,380
+framework/src/XiHan.Framework.Excel/Importing/TextEncodingResolver.cs
+  h_be8240d2cfaa4b 14-22,41-49,57-60,63-72,84,92,94,119-221,410-423
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelDataReaderImporterTests.cs
+  h_be8240d2cfaa4b 174-250,342-375
+framework/test/XiHan.Framework.Excel.Tests/Importing/TextEncodingResolverTests.cs
+  h_be8240d2cfaa4b 349-532
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "35254b498a95647a142938597c09106562b7a3f7",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
