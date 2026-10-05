@@ -1,0 +1,16 @@
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelDataReaderImporterTests.cs
+  h_be8240d2cfaa4b 252,257-259,264-265,270,272,275-279,282-285
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/ReadCountingStream.cs
+  h_be8240d2cfaa4b 1-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2aa24d692b0d1dd4970203d8e4a0c4bd0ce68e44",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
