@@ -568,6 +568,114 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
+    /// 宿主禁同步 I/O 时成功导出照常写出：释放写出器不再为了排空缓冲做一次同步写
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 夹具 <see cref="AsyncOnlyStream" /> 复刻 Kestrel 在 <c>AllowSynchronousIO=false</c> 下的响应流：
+    /// 同步写与同步 Flush 一律抛 <see cref="InvalidOperationException" />。骨架里的写出器若以同步
+    /// <c>Dispose</c> 结束，收尾必然撞进那条同步 Flush，一次本来完全成功的导出会整体失败。
+    /// </para>
+    /// <para>
+    /// 期望串按字面算清：单列、不写表头、<c>utf-8</c> 不写 BOM，正文就是 <c>"AWB1234"</c> 七个字节加
+    /// <c>"\r\n"</c> 两个字节，共 9 字节。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 只允许异步IO的流上成功导出照常写出()
+    {
+        var stream = new AsyncOnlyStream();
+
+        var result = await new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance)
+            .ExportAsync(
+                stream, SingleColumnSpec("AWB1234"), ExcelFormat.Txt,
+                new ExcelTextOptions { EncodingName = "utf-8", IncludeHeader = false },
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(".txt", result.FileExtension);
+        Assert.Equal("AWB1234\r\n", Encoding.UTF8.GetString(stream.ToArray()));
+        Assert.Equal(9, stream.ToArray().Length);
+    }
+
+    /// <summary>
+    /// 宿主禁同步 I/O 时，取消交回的还是取消本身，不被释放写出器的同步异常顶掉
+    /// </summary>
+    /// <remarks>
+    /// 取消落在最后一笔的取值期间：这一轮之后没有下一行可拦，抛出点是落盘之前的那次检查，随后栈展开释放写出器。
+    /// 同步 <c>Dispose</c> 排空缓冲走同步写，抛出的 <c>InvalidOperationException("Synchronous operations are disallowed.")</c>
+    /// 会把调用方 <c>catch (OperationCanceledException)</c> 的分支整个架空——型别都变了，重试与取消计数的逻辑收不到东西。
+    /// <c>ThrowsAnyAsync</c> 只认取消家族，被顶掉的形态在这里必然判红，正是这条用例要在变异下拉住的现实。
+    /// </remarks>
+    [Fact]
+    public async Task 只允许异步IO的流上取消时原异常不被掩盖()
+    {
+        using var source = new CancellationTokenSource();
+
+        var columns = new ExcelColumn[]
+        {
+            new ExcelColumn<SampleRow>
+            {
+                Key = nameof(SampleRow.AwbNo),
+                Header = "提单号",
+                Value = row =>
+                {
+                    // 取消落在最后一笔的取值期间：该轮之后循环没有下一行可查
+                    if (row.AwbNo == "LAST")
+                    {
+                        source.Cancel();
+                    }
+
+                    return row.AwbNo;
+                }
+            }
+        };
+
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns = columns,
+            Rows = new[] { new SampleRow { AwbNo = "AWB1" }, new SampleRow { AwbNo = "LAST" } }
+        };
+
+        var failure = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance)
+            .ExportAsync(new AsyncOnlyStream(), spec, ExcelFormat.Txt, new ExcelTextOptions { EncodingName = "utf-8" }, source.Token));
+
+        // 交回的必须是取消家族本身；被同步 Dispose 顶掉时这里是 InvalidOperationException("Synchronous operations are disallowed.")，
+        // 上一行的 ThrowsAnyAsync 就已经判红。契约只要求 OperationCanceledException 家族，落点可能在骨架的显式检查，
+        // 也可能在带令牌的异步写作本身（后者交回派生类型 TaskCanceledException），所以不断具体型别、只断家族与来源。
+        Assert.IsAssignableFrom<OperationCanceledException>(failure);
+        Assert.DoesNotContain("Synchronous", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 宿主禁同步 I/O 时，行型不符仍交出点名行号的那条异常
+    /// </summary>
+    /// <remarks>
+    /// 这条比型别更要紧：两个异常都是 <see cref="InvalidOperationException" />，只断型别的话被顶掉也看不出来。
+    /// 被同步 <c>Dispose</c> 顶掉时消息只剩「Synchronous operations are disallowed.」，行号、期望类型与实际类型
+    /// 全部消失，调用方再也不知道是第几行装错了东西。
+    /// </remarks>
+    [Fact]
+    public async Task 只允许异步IO的流上行型错误仍点名行号()
+    {
+        var spec = new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns = Columns,
+            Rows = new object?[] { new SampleRow { AwbNo = "AWB1" }, "不是行类型" }
+        };
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance)
+            .ExportAsync(new AsyncOnlyStream(), spec, ExcelFormat.Txt, new ExcelTextOptions { EncodingName = "utf-8" }, TestContext.Current.CancellationToken));
+
+        Assert.Contains("第 2 行", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(SampleRow), exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Synchronous", exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// 取消令牌已取消时一个字节都不写
     /// </summary>
     [Fact]
@@ -714,6 +822,34 @@ public class DelimitedTextExporterTests
                 }
             ],
             Rows = rows
+        };
+    }
+
+    /// <summary>
+    /// 单列一行的规格：正文只有一个取值，成功路径写出的字节数可以按字面算清
+    /// </summary>
+    /// <remarks>
+    /// 给「只允许异步 I/O 的流」那组用例用。它们要断的是写出器释放走哪条 I/O，流里的字节数必须一眼可核，
+    /// 三列夹具那种「表头 + 多个取值」的总长度会把结论埋在换算里。
+    /// </remarks>
+    /// <param name="awbNo">唯一一列的取值</param>
+    private static ExcelSheetSpec SingleColumnSpec(string awbNo)
+    {
+        return new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(SampleRow),
+            Columns =
+            [
+                new ExcelColumn<SampleRow>
+                {
+                    Key = nameof(SampleRow.AwbNo),
+                    Header = "提单号",
+                    Order = 0,
+                    Value = row => row.AwbNo
+                }
+            ],
+            Rows = new[] { new SampleRow { AwbNo = awbNo } }
         };
     }
 

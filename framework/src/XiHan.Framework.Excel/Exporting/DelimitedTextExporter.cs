@@ -63,7 +63,10 @@ namespace XiHan.Framework.Excel.Exporting;
 /// </para>
 /// <para>
 /// 两种布局共用一份行写出骨架（<see cref="WriteTextAsync"/>）：行序、每行写前查取消令牌、行尾拼接、flush 与
-/// 聚合留痕的时机都只有一份实现，布局差异只留在「一格写出什么」与「格间插什么」上。
+/// 聚合留痕的时机都只有一份实现，布局差异只留在「一格写出什么」与「格间插什么」上。骨架里的写出器用
+/// <c>await using</c> 释放：宿主禁同步 I/O 时（例如 Kestrel 的 <c>AllowSynchronousIO=false</c>），同步
+/// <c>Dispose</c> 仍要为排空缓冲调一次同步写，会把原本要交回调用方的取消或行型错误，换成一条与本次导出无关的
+/// 「不允许同步操作」异常。
 /// </para>
 /// </remarks>
 /// <param name="logger">本导出器的日志器，用于记录改写数据的决定</param>
@@ -380,6 +383,13 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// 行序、取消时机与聚合 Warning 的落地时机（flush 之后、返回结果之前）因此只有一份实现，不会两条路径各漂一份。
     /// 取消检查共三处：每行写前、flush 之前、聚合留痕之后与回传结果之前。后两处抛出时缓冲已经落进流里，
     /// 本骨架不主张零字节，只主张不交出成功结果；改写过数据时的 Warning 在抛出之前已经记下。
+    /// <para>
+    /// 写出器用 <c>await using</c> 而不是 <c>using</c>：这条栈上的取消与行型错误都是先抛出、再由释放排空缓冲，
+    /// 同步 <c>Dispose</c> 为了刷缓冲会走一次同步写。宿主禁同步 I/O 时（Kestrel 的
+    /// <c>AllowSynchronousIO=false</c> 就是这样），那次同步写抛出的异常会把调用方正要接的原异常顶掉——
+    /// <c>catch (OperationCanceledException)</c> 接不到取消，行型错误的消息也不再点名行号。改成异步释放后
+    /// 刷缓冲走异步写，原异常原样交回；成功路径同样只是把已经 <c>FlushAsync</c> 过的空缓冲异步刷一次。
+    /// </para>
     /// </remarks>
     private async Task<ExcelExportResult> WriteTextAsync(
         Stream output,
@@ -398,7 +408,8 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
         // 声明级预检排在 new StreamWriter 之前：坏声明不写出任何字节，行集合一次都不被枚举
         var rowType = ExcelRowTypeGuard.ValidateDeclaration(sheet);
 
-        using var writer = new StreamWriter(output, encoding, leaveOpen: true);
+        // await using 不是风格问题：宿主禁同步 I/O 时，同步 Dispose 刷缓冲会走一次同步写，把正抛出的原异常顶掉（见方法注释）
+        await using var writer = new StreamWriter(output, encoding, leaveOpen: true);
 
         if (options.IncludeHeader)
         {
