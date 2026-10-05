@@ -1,0 +1,19 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelExporter.cs
+  s_58251641b98742::t_952df73e7b6376 73-74,76-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7f54e42c8d6b03cd8a440910d53c137808df7fba",
+  "prompts": {},
+  "sessions": {
+    "s_58251641b98742": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "09448835-7b31-464d-8b14-4856c781b3eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
