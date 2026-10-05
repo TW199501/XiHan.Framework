@@ -88,7 +88,6 @@
 | `EventBus.RabbitMQ` | 分布式事件总线 RabbitMQ 提供程序 |
 | `EventBus.Kafka` | 分布式事件总线 Kafka 提供程序 |
 | `EventBus.Redis` | 分布式事件总线 Redis（Streams）提供程序 |
-| `EventBus.SqlSugar` | 事件收发件箱 SqlSugar 持久化提供程序：发件箱按业务所在库落库，收件箱按消息标识去重，多实例领取互斥 |
 | `Workflow.Abstractions` | 工作流抽象：流程定义模型、活动契约、运行时实例与书签模型、存储端口、人工任务契约，不含执行实现 |
 | `Workflow` | 工作流引擎：图执行引擎、内置活动集、人工任务（审批）、表达式求值、定时器调度、内存存储默认实现 |
 | `Castle` | AOP 动态代理：Castle DynamicProxy 集成，服务拦截器注册 |
@@ -111,9 +110,7 @@
 | `Timing` | 时间策略：时区管理、时间抽象 |
 | `Templating` | 模板渲染：Scriban 引擎、模板注册表 |
 | `Tasks` | 定时任务与后台作业：调度引擎、后台服务、多租户感知 |
-| `Tasks.SqlSugar` | 任务 SqlSugar 持久化提供程序：后台作业入队与业务同事务、多实例领取互斥 |
 | `Traffic` | 流量治理：灰度路由（规则引擎 + Header / IP / 百分比 / 租户 / 用户 匹配器）；限流与熔断仅提供策略接口 |
-| `Traffic.SqlSugar` | 灰度规则 SqlSugar 持久化：`IGrayRuleRepository` 的只读落库实现，带内存缓存 |
 | `Upgrade` | 升级引擎：版本存储、迁移执行、分布式锁、启动自动检查 |
 | `AI.Abstractions` | AI 抽象层：智能体、对话、配置、护栏、提示词、RAG、技能等接口契约 |
 | `AI` | AI 集成：Microsoft.Extensions.AI 统一模型抽象、Microsoft.Agents.AI 智能体框架、MCP 协议支持 |
@@ -160,9 +157,7 @@ Utils (零第三方依赖)
               ├── Uow
               │     ├── Caching (+ Redis)
               │     └── EventBus ──→ EventBus.RabbitMQ / Kafka / Redis
-              ├── Domain.Shared ──→ Domain ──→ Data (SqlSugar) ──→ *.SqlSugar
-              │     │                                             (Auditing / Authentication / Authorization / EventBus /
-              │     │                                              Security / Settings / Tasks / Traffic / Upgrade / Workflow，共 10 个持久化子包)
+              ├── Domain.Shared ──→ Domain ──→ Data (SqlSugar)
               │     └── Application.Contracts ──→ Application
               ├── MultiTenancy.Abstractions ──→ MultiTenancy
               │     ├── Tasks

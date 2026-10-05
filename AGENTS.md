@@ -67,7 +67,6 @@ XiHan.Framework 是面向 .NET 10 的模块化应用框架。仓库以分层模�
 - 模块通过 `[DependsOn]` 声明依赖；不得通过静态服务定位、反射探测或复制代码形成隐式依赖。
 - 抽象与契约放在下层或 `.Abstractions` 项目，具体 Provider 放在上层实现项目。
 - 不允许为了复用少量代码让底层模块反向引用 Web、数据库、Redis 或应用模块。
-- 项目引用方向由 `framework/test/XiHan.Framework.Architecture.Tests` 按 slnx 的 `/1.src/<序号>.<层名>/` 目录校验：同层与向下引用合法，向上引用须在 `FrameworkDependencyPolicy` 登记理由，循环依赖一律失败，源码项目只能引用源码项目。
 
 ### 模块与生命周期
 
@@ -80,7 +79,7 @@ XiHan.Framework 是面向 .NET 10 的模块化应用框架。仓库以分层模�
 
 - 公开类型、成员和选项必须有准确 XML 文档。
 - Nullable 是契约的一部分；不要用 `!`、空字符串或默认实例掩盖非法状态。
-- 异步 API 接受并传递 `CancellationToken`；不阻塞异步调用，不吞异常。分析器规则 `XHFA002` 检查对外可见的异步方法是否把取消令牌转发给带可选令牌参数的被调方法（本仓库为警告）。
+- 异步 API 接受并传递 `CancellationToken`；不阻塞异步调用，不吞异常。
 - 破坏性 API 变更必须明确说明迁移方式，不保留推测性兼容别名或静默兜底。
 - 优先使用 .NET 内建能力；新增依赖必须有明确的框架级收益和依赖边界。
 
@@ -95,7 +94,6 @@ XiHan.Framework 是面向 .NET 10 的模块化应用框架。仓库以分层模�
 
 - 修改哪个正式模块，就在对应测试项目添加或更新测试。
 - 优先验证公开可观察行为、错误、取消、并发、边界容量和生命周期顺序。
-- 持久化提供方（发件箱、收件箱、后台作业存储）的测试项目继承 `framework/test/XiHan.Framework.ProviderContractTests` 的契约基类并按实际能力声明 `ProviderCapabilities`；需要真实数据库的夹具以环境变量门控跳过，跳过不算通过；`XIHAN_TEST_MYSQL` 须指向专用测试库，夹具会清空所用的表。
 - 修复缺陷先写能复现问题的测试，再改实现。
 - 涉及模块发现、依赖排序、配置绑定、动态代理或序列化时，补充跨项目集成验证。
 - 不以覆盖率数字代替有效断言，不删除测试或放宽 CI 阈值来通过门禁。
@@ -131,6 +129,13 @@ XiHan.Framework 是面向 .NET 10 的模块化应用框架。仓库以分层模�
 - 进 `dev` 一律经 fork PR：`gh pr create --repo TW199501/XiHan.Framework --base dev`，fork CI 通过并经维护者审查核准后以 merge commit 合并。**代理不得自行合并或推送 `dev`**，例外只有上述每日同步与上游合并后的同步。
 - 送上游：只送维护者在 fork PR 标注「送上游」的项目。从 `upstream/main` 开 `pr/<短名>`，并立刻执行 `git config branch.pr/<短名>.pushRemote origin`，否则 `git push` 会推到作者的仓库；只 cherry-pick 该主题的提交，不改模块总数等全局计数，一个 PR 只做一件事。不要把整个 `dev` 开 PR 给上游。
 - 上游审查意见在 `pr/` 分支修改，同一修正另开分支经 fork PR 带回 `dev`；上游合并后同步 `main` 并合进 `dev`，删除 `pr/` 分支与 worktree。
+- 除以下 fork 专属文件外，`dev` 合入上游后与 `upstream/main` 一致；同步上游与清理时保留这些文件，不送上游：
+    - `.coderabbit.yaml`：CodeRabbit 也审查以 `dev` 为目标的 PR。
+    - `.github/workflows/claude-code-review.yml`、`.github/workflows/claude.yml`：PR 自动审查与 `@claude` 响应，未配置 `CLAUDE_CODE_OAUTH_TOKEN` 时跳过。
+    - `AGENTS.md` 的本节。
+    - `CLAUDE.md`：只有一行 `@AGENTS.md`。
+- 把上游合进 `dev` 遇到冲突时：`AGENTS.md` 采用上游版本，再把本节原样放回「禁止事项」之前；其余 fork 专属文件保留 fork 版本；清单以外的文件采用上游版本。
+- 框架代码与上游保持一致：应用层实现写在 XiHan.BasicApp，框架缺陷不在 fork 单独修。出现上述清单以外的差异时，先确认归属再决定移除或补进清单。
 - 本地工具产物（`.superpowers/`、`.codegraph/`、`.claude/`、`.qwen/`、`.orca*/`）放在 `.git/info/exclude`，不要提交。
 - 维护者的本机私人规则在仓库外的 `../Linear.rule.md`（相对仓库根目录；主仓库与同层 worktree 都适用）。该文件存在时，开始工作前先读并遵守；与本文件冲突时以本文件为准。
 

@@ -210,6 +210,6 @@ public async Task<UpgradeStartResult> TriggerUpgrade(IUpgradeCoordinator coordin
 
 ## 相关模块
 
-- [XiHan.Framework.Data](./data) — 数据访问层，版本存储与迁移执行器由业务实现。
+- [XiHan.Framework.Data](./data) — 数据访问层，业务侧通常在此实现版本存储与迁移执行器。
 - [XiHan.Framework.Caching](./caching) — 分布式锁底座，生产环境的升级锁常基于此实现。
 - [XiHan.Framework.Timing](./timing) — 时间处理，升级历史与状态记录常用。

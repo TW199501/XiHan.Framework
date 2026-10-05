@@ -4,7 +4,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using XiHan.Framework.Tasks.ScheduledJobs.Abstractions;
 using XiHan.Framework.Tasks.ScheduledJobs.Configuration;
 using XiHan.Framework.Tasks.ScheduledJobs.Executor;
@@ -50,8 +49,7 @@ public static class XiHanTasksServiceCollectionExtensions
         // 无参调用 AddXiHanTasks() 之后 GetRequiredService<IOptions<XiHanJobOptions>>() 直接抛
         // 「No service for type ... has been registered」——同一个扩展方法给出了三种不一致的容器状态。
         // AddOptions 幂等，且不会覆盖调用方后续追加的任何 Configure，安全地补齐默认值这条路径。
-        services.AddOptions<XiHanJobOptions>().ValidateOnStart();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<XiHanJobOptions>, XiHanJobOptionsValidator>());
+        services.AddOptions<XiHanJobOptions>();
 
         if (configureOptions != null)
         {
@@ -80,7 +78,6 @@ public static class XiHanTasksServiceCollectionExtensions
 
         // 注册后台服务（AddHostedService<T> 内部就是 TryAddEnumerable，重复调用天然幂等，无需额外处理）
         services.AddHostedService<JobHostedService>();
-        services.AddHostedService<JobHistoryCleanupService>();
 
         return new XiHanJobBuilder(services);
     }
