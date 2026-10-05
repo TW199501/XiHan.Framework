@@ -34,7 +34,8 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <para>
 /// 表头行与数据行走同一套公式注入防护：判据与写出入口都只有一份。表头文案是调用方在运行时给出的
 /// <c>required string</c>，框架无从证明它出自开发者而不是终端使用者，因此不按「来源可信」豁免；
-/// 以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c> 开头的标题会多出一个可见的 <c>'</c>，这一条代价写在
+/// 以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、制表符（<c>\t</c>）或回车（<c>\r</c>）开头的标题会多出一个
+/// 可见的 <c>'</c>，这一条代价写在
 /// <see cref="ExcelTextOptions.EscapeFormulaPrefix"/> 上，关掉本设置时表头与数据一并保留原值。
 /// </para>
 /// <para>
