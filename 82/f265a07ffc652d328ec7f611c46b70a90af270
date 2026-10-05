@@ -1,0 +1,19 @@
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelTemplateRendererTests.cs
+  s_94057b8e5cf9b6::t_3101723254f696 4-5,8,10,12,344-939
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "82f265a07ffc652d328ec7f611c46b70a90af270",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
