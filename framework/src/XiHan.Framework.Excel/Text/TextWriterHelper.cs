@@ -210,7 +210,7 @@ internal static class TextWriterHelper
     /// 给可能被表格软件当公式执行的字段值加单引号前缀
     /// </summary>
     /// <param name="value">字段值文本</param>
-    /// <returns>以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c> 开头时返回加了 <c>'</c> 前缀的值，其余原样返回</returns>
+    /// <returns>以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、制表符（<c>\t</c>）或回车（<c>\r</c>）开头时返回加了 <c>'</c> 前缀的值，其余原样返回</returns>
     /// <remarks>
     /// 本方法只做变换，是否套用由调用方按选项决定；空值原样返回，不会凭空写出一个孤立的单引号。
     /// </remarks>
@@ -221,13 +221,13 @@ internal static class TextWriterHelper
     /// 判断值是否会被公式注入防护改写
     /// </summary>
     /// <param name="value">字段值文本</param>
-    /// <returns>以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c> 开头时为 <c>true</c></returns>
+    /// <returns>以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、制表符（<c>\t</c>）或回车（<c>\r</c>）开头时为 <c>true</c></returns>
     /// <remarks>
     /// 与 <see cref="EscapeFormula"/> 共用同一条前缀规则，调用方要统计「有多少字段被加了前缀」时用本判定，
     /// 不要自己再抄一遍前缀字符表，也不要靠改写前后的字符串比较反推。
     /// </remarks>
     internal static bool NeedsFormulaEscape(string value)
-        => value.Length > 0 && value[0] is '=' or '+' or '-' or '@';
+        => value.Length > 0 && value[0] is '=' or '+' or '-' or '@' or '\t' or '\r';
 
     /// <summary>
     /// 把单元格值转成文字档使用的文本

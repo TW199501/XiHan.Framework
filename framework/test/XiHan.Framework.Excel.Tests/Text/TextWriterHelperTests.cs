@@ -71,7 +71,10 @@ public class TextWriterHelperTests
     [InlineData("-5", true)]
     [InlineData("+86123", true)]
     [InlineData("@a", true)]
+    [InlineData("\t=1+1", true)]   // 制表符起首：与四个运算子并列的注入载体
+    [InlineData("\r=1+1", true)]   // 回车起首：同上
     [InlineData("正常", false)]
+    [InlineData("\u0000x", false)] // NUL 不在集合内：多拒一个字符就等于改写本来无害的数据
     [InlineData("", false)]
     public void 判定值是否会被公式防护改写(string raw, bool expected)
     {
@@ -89,15 +92,23 @@ public class TextWriterHelperTests
         => Assert.Throws<ArgumentOutOfRangeException>(() => TextWriterHelper.QuoteIfNeeded("abc", ',', (ExcelTextQuote)99));
 
     /// <summary>
-    /// 公式注入防护对四个前缀加单引号
+    /// 公式注入防护对六个起首字符加单引号，其余一律原样
     /// </summary>
+    /// <remarks>
+    /// 正例覆盖 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、制表符、回车六个起首字符；反例除「干净值」外，
+    /// 特意留一条「含运算子但不在开头」与一条「NUL 起首」，证明集合没有被扩大——多拒一个字符就多改一份原始数据。
+    /// </remarks>
     [Theory]
     [InlineData("=1+1", "'=1+1")]
     [InlineData("+86123", "'+86123")]
     [InlineData("-5", "'-5")]
     [InlineData("@a", "'@a")]
+    [InlineData("\t=1+1", "'\t=1+1")]
+    [InlineData("\r=1+1", "'\r=1+1")]
     [InlineData("正常", "正常")]
-    public void 公式注入防护对四个前缀加单引号(string raw, string expected)
+    [InlineData("1+1", "1+1")]
+    [InlineData("\u0000x", "\u0000x")]
+    public void 公式注入防护对六个起首字符加单引号(string raw, string expected)
         => Assert.Equal(expected, TextWriterHelper.EscapeFormula(raw));
 
     /// <summary>

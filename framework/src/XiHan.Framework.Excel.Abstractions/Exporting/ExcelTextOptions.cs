@@ -154,15 +154,15 @@ public sealed record ExcelTextOptions
     public ExcelTextOverflow Overflow { get; init; } = ExcelTextOverflow.Throw;
 
     /// <summary>
-    /// 是否对以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c> 开头的字段值加单引号前缀，默认开启；
-    /// <see cref="ExcelTextLayout.FixedWidth"/> 布局不解释本设置
+    /// 防公式注入：对以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、制表符（<c>\t</c>）或回车（<c>\r</c>）开头的字段值加单引号前缀，
+    /// 默认开启；<see cref="ExcelTextLayout.FixedWidth"/> 布局不解释本设置
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 开启后表格软件读取该档时不会把文本当公式执行。交给机器逐字段解析的 <c>.txt</c> 应关掉，避免原始数据被改写。
+    /// 开启后表格软件读取该档时不会把文本当公式执行，起首字符集合见规格 6.7；交给机器逐字段解析的 <c>.txt</c> 应关掉，避免原始数据被改写。
     /// 表头行与数据行同样受本设置约束：表头文案是调用方在运行时给出的 <c>required string</c>，框架无法证明它
-    /// 出自开发者而不是终端使用者，因此不按来源豁免。代价是以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c> 开头的
-    /// 标题会多出一个可见的 <c>'</c>；置为 <c>false</c> 时表头与数据一并保留原值。
+    /// 出自开发者而不是终端使用者，因此不按来源豁免。代价是以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、
+    /// 制表符或回车开头的标题会多出一个可见的 <c>'</c>；置为 <c>false</c> 时表头与数据一并保留原值。
     /// </para>
     /// <para>
     /// 本设置同样改动数据，代价容易被忽略：负数经 <c>TextFormat</c> 得到 <c>-5.00</c> 后会被写成 <c>'-5.00</c>，

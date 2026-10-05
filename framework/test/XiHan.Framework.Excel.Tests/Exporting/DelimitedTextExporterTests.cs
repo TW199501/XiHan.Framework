@@ -304,6 +304,38 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
+    /// 制表符起首的值在 <c>.csv</c> 与分隔模式 <c>.txt</c> 两条路径都被加前缀，且计入同一条聚合 Warning
+    /// </summary>
+    /// <remarks>
+    /// 起首判据把制表符、回车与四个运算子并列，规格要求按「输出路径」逐条核验，不能由「两条路径共用同一条判定」代过。
+    /// 两边的字节表现本来不同，所以各钉一条期望串：<c>.csv</c> 默认逗号分隔，加前缀后的值不含逗号，最小策略下原样写出；
+    /// <c>.txt</c> 默认制表符分隔，加前缀后的值仍含分隔符，整格被引号包住。
+    /// </remarks>
+    [Theory]
+    [InlineData(ExcelFormat.Csv, "提单号,重量,预计到达" + "\r\n" + "'\t=1+1,0.00,0001-01-01" + "\r\n")]
+    [InlineData(ExcelFormat.Txt, "提单号\t重量\t预计到达" + "\r\n" + "\"'\t=1+1\"\t0.00\t0001-01-01" + "\r\n")]
+    public async Task 制表符起首的值在csv与分隔模式txt都被加前缀(ExcelFormat format, string expectedBody)
+    {
+        var sink = new FakeLogSink();
+        using var factory = LoggerFactory.Create(b => b.AddProvider(new SinkLoggerProvider(sink)));
+        var exporter = new DelimitedTextExporter(factory.CreateLogger<DelimitedTextExporter>());
+        var stream = new MemoryStream();
+
+        var spec = BuildSpec(new SampleRow { AwbNo = "\t=1+1" });
+
+        await exporter.ExportAsync(stream, spec, format, new ExcelTextOptions(), TestContext.Current.CancellationToken);
+
+        // 整份正文逐字比对：前缀「'」紧贴在制表符之前，就是这一格被防护改写的证据
+        Assert.Equal(expectedBody, BodyOf(stream));
+
+        var warnings = sink.Entries.Where(e => e.Level == LogLevel.Warning).ToList();
+        Assert.Single(warnings);
+        Assert.Contains("有 1 个字段", warnings[0].Message, StringComparison.Ordinal);       // 制表符起首的这一格算进计数
+        Assert.Contains("第 1 行", warnings[0].Message, StringComparison.Ordinal);           // 首个触发点可定位到行
+        Assert.Contains(nameof(SampleRow.AwbNo), warnings[0].Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// 关掉公式注入防护时表头与数据一律保留原始值
     /// </summary>
     [Fact]
@@ -331,17 +363,23 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
-    /// 关掉公式注入防护后原始值不被改写
+    /// 关掉公式注入防护后原始值不被改写，制表符起首也在反例之内
     /// </summary>
-    [Fact]
-    public async Task 关闭公式注入防护时保留原始值()
+    /// <remarks>
+    /// 起首集合从四个字符扩到六个的同时，「关掉开关」这一侧的处置必须仍是原样写出：多改一个字符就是改动调用方的原始数据。
+    /// 默认逗号分隔下这两个值都不含逗号，因此不加前缀也不加引号，正文里连一个 <c>'</c> 都不该出现。
+    /// </remarks>
+    [Theory]
+    [InlineData("=1+1")]
+    [InlineData("\t=1+1")]
+    public async Task 关闭公式注入防护时保留原始值(string awbNo)
     {
-        var spec = BuildSpec(new SampleRow { AwbNo = "=1+1" });
+        var spec = BuildSpec(new SampleRow { AwbNo = awbNo });
 
         var text = BodyOf(await Export(new ExcelTextOptions { EscapeFormulaPrefix = false }, spec: spec));
 
-        Assert.Contains("\r\n=1+1,", text);
-        Assert.DoesNotContain("'=", text);
+        Assert.Equal("提单号,重量,预计到达" + "\r\n" + awbNo + ",0.00,0001-01-01" + "\r\n", text);
+        Assert.DoesNotContain("'", text);
     }
 
     /// <summary>
