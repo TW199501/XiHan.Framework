@@ -1,0 +1,104 @@
+.github/workflows/ci.yml
+  h_be8240d2cfaa4b 3,58
+AGENTS.md
+  h_be8240d2cfaa4b 82,132-138
+docs/guide/auditing.md
+  h_be8240d2cfaa4b 133,146,155,162,164-175,332
+docs/guide/authentication.md
+  h_be8240d2cfaa4b 54,102
+docs/guide/authorization.md
+  h_be8240d2cfaa4b 178,320
+docs/guide/event-bus.md
+  h_be8240d2cfaa4b 360
+docs/guide/gateway.md
+  h_be8240d2cfaa4b 224
+docs/guide/security.md
+  h_be8240d2cfaa4b 377
+docs/guide/tasks.md
+  h_be8240d2cfaa4b 410,422,438,447-448,452
+docs/guide/workflow.md
+  h_be8240d2cfaa4b 37,384-386,446
+docs/index.md
+  h_be8240d2cfaa4b 47
+docs/introduction.md
+  h_be8240d2cfaa4b 79-86
+docs/packages/analyzers.md
+  h_be8240d2cfaa4b 3,12,53-54,113
+docs/packages/authentication.md
+  h_be8240d2cfaa4b 109,129,275-277
+docs/packages/authorization.md
+  h_be8240d2cfaa4b 185
+docs/packages/data.md
+  h_be8240d2cfaa4b 131,137,158,431,530
+docs/packages/eventbus.md
+  h_be8240d2cfaa4b 60,102
+docs/packages/index.md
+  h_be8240d2cfaa4b 10
+docs/packages/security.md
+  h_be8240d2cfaa4b 223-224
+docs/packages/settings.md
+  h_be8240d2cfaa4b 93
+docs/packages/tasks.md
+  h_be8240d2cfaa4b 85,117,151-154,158-159,200,240,405,418
+docs/packages/upgrade.md
+  h_be8240d2cfaa4b 213
+docs/packages/utils.md
+  h_be8240d2cfaa4b 8,576-577
+docs/packages/workflow.md
+  h_be8240d2cfaa4b 55
+framework/README.md
+  h_be8240d2cfaa4b 160
+framework/README_cn.md
+  h_be8240d2cfaa4b 160
+framework/props/common.props
+  h_be8240d2cfaa4b 10-11
+framework/src/XiHan.Framework.Analyzers/README.md
+  h_be8240d2cfaa4b 42
+framework/src/XiHan.Framework.Analyzers/XiHan.Framework.Analyzers.csproj
+  h_be8240d2cfaa4b 23
+framework/src/XiHan.Framework.Authentication/Otp/OtpService.cs
+  h_be8240d2cfaa4b 124-130
+framework/src/XiHan.Framework.Data/SqlSugar/Initializers/DbEntityTypeProvider.cs
+  h_be8240d2cfaa4b 116,140-141
+framework/src/XiHan.Framework.Data/SqlSugar/Repository/SqlSugarRepositoryBase.cs
+  h_be8240d2cfaa4b 590,609-616,630,638,652-654,656-659,661
+framework/src/XiHan.Framework.Data/SqlSugar/Repository/SqlSugarSoftDeleteRepository.cs
+  h_be8240d2cfaa4b 63,107,181,226,316,324,364
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/BackgroundJobExecuter.cs
+  h_be8240d2cfaa4b 45,51,59-60,64-65
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/BackgroundJobWorker.cs
+  h_be8240d2cfaa4b 38,119-123,125-132,134-139,141,143-144,146-147,151-152,217,233-240
+framework/src/XiHan.Framework.Tasks/BackgroundJobs/DefaultBackgroundJobStore.cs
+  h_be8240d2cfaa4b 27,35,61,65-76,84,89,97
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Executor/JobExecutor.cs
+  h_be8240d2cfaa4b 79,93-100,113-121,123-124,126
+framework/src/XiHan.Framework.Tasks/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionExtensions.cs
+  h_be8240d2cfaa4b 52
+framework/src/XiHan.Framework.Utils/XiHan.Framework.Utils.csproj
+  h_be8240d2cfaa4b 16-19
+framework/src/XiHan.Framework.Web.Api/Extensions/DependencyInjection/XiHanWebApiServiceCollectionExtensions.cs
+  h_be8240d2cfaa4b 315
+framework/src/XiHan.Framework.Web.Api/Filters/XiHanUnitOfWorkFilter.cs
+  h_be8240d2cfaa4b 20
+framework/test/XiHan.Framework.Analyzers.Tests/XiHan.Framework.Analyzers.Tests.csproj
+  h_be8240d2cfaa4b 8-9
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Executor/JobExecutorTests.cs
+  h_be8240d2cfaa4b 315,349
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionExtensionsTests.cs
+  h_be8240d2cfaa4b 110-111
+framework/test/XiHan.Framework.Tasks.Tests/ScheduledJobs/Extensions/DependencyInjection/XiHanTasksServiceCollectionRegistrationIdempotencyTests.cs
+  h_be8240d2cfaa4b 94-95
+framework/test/XiHan.Framework.Web.Api.Tests/DynamicApiGeneration/DynamicApiUnitOfWorkTests.cs
+  h_be8240d2cfaa4b 238-285
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "583eb445ac098c29c93ecad53903c78975816de0",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
