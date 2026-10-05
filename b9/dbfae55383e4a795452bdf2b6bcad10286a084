@@ -1,0 +1,21 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Attributes/ExcelColumnAttribute.cs
+  s_94057b8e5cf9b6::t_21a29fa99b731d 15-16
+framework/src/XiHan.Framework.Excel.Abstractions/Attributes/ExcelIgnoreAttribute.cs
+  s_94057b8e5cf9b6::t_00f4e3d5fd13ae 14-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b9dbfae55383e4a795452bdf2b6bcad10286a084",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
