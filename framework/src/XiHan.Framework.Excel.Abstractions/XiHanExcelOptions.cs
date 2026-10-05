@@ -38,10 +38,21 @@ public class XiHanExcelOptions
     /// 框架侧导入行数硬上限，单次导入的 <c>ExcelImportOptions.MaxRowCount</c> 只能设得更低
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 本项是应用可用的导入行数上限，取值必须是正整数且不高于
     /// <see cref="ExcelConstants.DefaultMaxImportRows"/>：只允许在框架的绝对上界之内收紧，不允许放宽。
     /// 两条导入路径（容器与文字档、固定宽度）在构造时各取一次，配得更低就在更低处截断；越界的取值在构造点抛出，
     /// 不夹回上界。
+    /// </para>
+    /// <para>
+    /// <b>把本项收紧就算「指名」了上限</b>：单次导入没有再给 <c>ExcelImportOptions.MaxRowCount</c> 时，
+    /// 档的数据行超过本值<u>按本值截断、不报错</u>——「最多读这么多行」是应用写在配置里的请求，
+    /// 与写在调用点上的 <c>MaxRowCount</c> 同一种性质。判据是「生效的上限低于框架硬上限」，
+    /// 因此把本项配成与 <see cref="ExcelConstants.DefaultMaxImportRows"/> 相同的数与不配没有区别：
+    /// 两者生效的都是框架那道保护性硬上限，而它不属于任何请求。这时档的数据行超过上限、
+    /// 且<u>上限之后仍有数据行</u>，两条导入路径都抛 <see cref="InvalidOperationException"/>
+    /// 并点名下限值，不静默少交行。口径详见 <c>ExcelImportOptions.MaxRowCount</c> 的说明。
+    /// </para>
     /// </remarks>
     public int MaxImportRows { get; set; } = ExcelConstants.DefaultMaxImportRows;
 

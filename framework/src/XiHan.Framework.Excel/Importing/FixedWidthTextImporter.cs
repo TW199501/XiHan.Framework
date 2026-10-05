@@ -165,6 +165,9 @@ public sealed class FixedWidthTextImporter : IExcelImporter
     /// 一次只抛最先命中的那一类，并点名是第几列或哪个键；</item>
     /// <item>档的字节数超过本次生效的 <see cref="XiHanExcelOptions.MaxImportBytes"/>：消息写出档的实际大小与该上限，
     /// 整份档拒收，判据与容器路径共用一份；</item>
+    /// <item>没人指名过行数上限（<see cref="ExcelImportOptions.MaxRowCount"/> 为 <c>null</c> 且生效的上限正是
+    /// 框架硬上限 <see cref="ExcelConstants.DefaultMaxImportRows"/>），而档的数据行超过它、上限之后仍有数据行：
+    /// 消息点名下限值，已经交出的行照旧交完，不静默少交行。指名过上限时不抛，按上限截断，判据与容器路径共用一份；</item>
     /// <item>解码用的编码不能按字节切列：行尾编不成单字节的 0x0D／0x0A（UTF-16／UTF-32、EBCDIC 一类），
     /// 或分段编码与整体编码不等（ISO-2022 家族、HZ、UTF-7 一类有状态编码）。消息点名不过的是哪一条检查。</item>
     /// </list></exception>
@@ -216,6 +219,10 @@ public sealed class FixedWidthTextImporter : IExcelImporter
         var maxRows = ImportSharedRules.ResolveMaxRowCount(effective.MaxRowCount, _hardMaxRows);
         var layout = FixedColumnLayout.Create(effective.FixedColumns);
 
+        // 撞上限时抛还是截断，判据与容器路径共用一份：指名过上限（调用端或配置端）就截断，
+        // 没指名而撞上框架硬上限就抛，不静默少交行。
+        var throwsOnLimit = ImportSharedRules.ThrowsWhenRowLimitHit(effective.MaxRowCount, maxRows);
+
         cancellationToken.ThrowIfCancellationRequested();
 
         // 档大小先判：超限的档连编码都不必判。判据与容器路径共用一份，两个来源对「这份档太大」不能各说一套。
@@ -235,6 +242,7 @@ public sealed class FixedWidthTextImporter : IExcelImporter
 
         var rowNumber = 0;
         var emitted = 0;
+        var limitHit = false;
 
         while (true)
         {
@@ -282,12 +290,25 @@ public sealed class FixedWidthTextImporter : IExcelImporter
                 continue;
             }
 
+            // 走到这里说明上限之后确实还有数据行（空行不算，判定照旧）。指名过上限就按请求截断，
+            // 没指名就抛：撞的是框架的保护性硬上限，静默少交行等于交回一份看起来完整的缺尾结果。
+            // 判据与容器路径共用 ImportSharedRules 里那一份，两条路径不得各写一套。
+            if (limitHit)
+            {
+                if (throwsOnLimit)
+                {
+                    throw ImportSharedRules.RowLimitExceeded(maxRows);
+                }
+
+                break;
+            }
+
             yield return new ExcelImportRow(rowNumber, row.Values);
 
             emitted++;
             if (emitted >= maxRows)
             {
-                break;
+                limitHit = true;
             }
         }
     }

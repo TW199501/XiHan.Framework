@@ -225,7 +225,7 @@ public sealed record ExcelImportOptions
     public IReadOnlyList<ExcelFixedWidthField>? FixedColumns { get; init; }
 
     /// <summary>
-    /// 单次导入最多交出多少条数据行，默认 <c>null</c> 表示取框架硬上限
+    /// 单次导入最多交出多少条数据行，默认 <c>null</c> 表示不指名、取框架硬上限
     /// <see cref="ExcelConstants.DefaultMaxImportRows"/>
     /// </summary>
     /// <remarks>
@@ -241,6 +241,17 @@ public sealed record ExcelImportOptions
     /// <para>
     /// 非正整数（<c>0</c> 与负数）同样抛 <see cref="ArgumentOutOfRangeException"/>：「最多读 0 行」不是合法的请求，
     /// 不静默当成「不限制」。
+    /// </para>
+    /// <para>
+    /// <b>撞上上限时的行为取决于上限有没有被指名。</b>给了本设置，或应用把
+    /// <see cref="XiHan.Framework.Excel.Abstractions.XiHanExcelOptions.MaxImportRows"/> 收紧到框架硬上限之下，
+    /// 都算指名：「只取前 N 行」是请求本身的内容，档里还有更多行时<u>截断、不报错</u>，交出的就是前 N 行。
+    /// 两处都没指名时（本设置为 <c>null</c>，且生效的上限正是框架硬上限
+    /// <see cref="ExcelConstants.DefaultMaxImportRows"/>——把配置项写成与它相同的数等同于没写），
+    /// 撞上的那道界不属于任何请求：档的数据行超过它，两条导入路径都在<u>上限之后确实还有数据行</u>时
+    /// 抛 <see cref="InvalidOperationException"/> 并点名下限值，不静默少交行——静默截断交回的是一份
+    /// 看起来完整、其实缺尾的导入结果，调用方无从得知少了多少。判「还有没有数据行」要往下多读一行，
+    /// 空行照 <see cref="SkipEmptyRows"/> 的口径不算数据行，因此档的行数<u>恰好等于</u>上限时不抛。
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">值大于本次生效的行数上限，或为 <c>0</c> 与负数</exception>

@@ -115,6 +115,51 @@ internal static class ImportSharedRules
     }
 
     /// <summary>
+    /// 判断撞到行数上限时该抛出还是该按上限截断
+    /// </summary>
+    /// <param name="requestedMaxRowCount">调用方给的上限，<c>null</c> 表示没指名</param>
+    /// <param name="effectiveMaxRows">本次生效的上限，由 <see cref="ResolveMaxRowCount"/> 交回</param>
+    /// <returns>没人指名过上限、且生效的正是框架硬上限时为 <c>true</c>（抛出）；否则为 <c>false</c>（截断）</returns>
+    /// <remarks>
+    /// <para>
+    /// 「指名」包含配置面：调用端的 <see cref="ExcelImportOptions.MaxRowCount"/> 与配置端收紧过的
+    /// <see cref="XiHanExcelOptions.MaxImportRows"/> 都算。指名过的上限是<u>请求</u>的一部分——
+    /// 「只取前 3 行」要的就是 3 行，撞上去停下即可，抛出来是把正当请求当成错误；
+    /// 应用把 <see cref="XiHanExcelOptions.MaxImportRows"/> 配成 2 行也是同一种指名，
+    /// 只是名字写在配置里而不是调用点上。配置面的指名因此按「生效上限低于框架硬上限」认：
+    /// <see cref="XiHanExcelOptions.MaxImportRows"/> 是不可空的 <c>int</c>，
+    /// 「配成与框架默认值相同的数」与「根本没配」在这个类型上分不开，而两者的含义也确实相同——
+    /// 生效的都是框架那道保护性硬上限。
+    /// </para>
+    /// <para>
+    /// 没人指名时，生效的上限就是框架自己那道保护性硬上限
+    /// <see cref="ExcelConstants.DefaultMaxImportRows"/>：它不是任何人的请求，撞上它说明这份档超出了
+    /// 本组件承诺能交回的规模。这时按上限截断等于把「少了多少行」只留在档里——调用方拿到的是一份
+    /// 看起来完整、其实缺尾的导入结果，因此改为抛出。
+    /// </para>
+    /// <para>
+    /// 判据两条路径共用一份：同一份档在容器路径抛、在固定宽度路径悄悄截断，
+    /// 等于让「走哪条读取路径」决定数据丢不丢。
+    /// </para>
+    /// </remarks>
+    internal static bool ThrowsWhenRowLimitHit(int? requestedMaxRowCount, int effectiveMaxRows)
+        => requestedMaxRowCount is null && effectiveMaxRows == ExcelConstants.DefaultMaxImportRows;
+
+    /// <summary>
+    /// 造「撞上行数上限，且上限之后仍有数据行」的异常
+    /// </summary>
+    /// <param name="maxRows">本次生效的行数上限</param>
+    /// <returns>点名下限值与成因的异常</returns>
+    internal static InvalidOperationException RowLimitExceeded(int maxRows)
+        => new(
+            $"这份档的数据行超过本次导入的行数上限 {maxRows} 行：上限之后仍有数据行，导入在这里停下，" +
+            "不把少了的行悄悄丢掉。本次没有人指名过上限，撞上的是框架侧的保护性硬上限 " +
+            $"{nameof(ExcelConstants.DefaultMaxImportRows)} = {ExcelConstants.DefaultMaxImportRows} 行，" +
+            "它不是请求的一部分，因此不按截断处理。要按上限截断请指名 " +
+            $"{nameof(ExcelImportOptions.MaxRowCount)} 或 {nameof(XiHanExcelOptions.MaxImportRows)}" +
+            "（指名之后撞到上限就停，不报错）；要读完整份档请在来源侧把它分批。");
+
+    /// <summary>
     /// 判断整行皆空
     /// </summary>
     /// <param name="values">本行取值</param>

@@ -1152,6 +1152,85 @@ public class ExcelDataReaderImporterTests
         Assert.Equal("2", rows[0].Values["a"]);
     }
 
+    /// <summary>
+    /// 没指名上限、撞上的是框架硬上限时要抛；指名过（调用端或配置端收紧过）就按截断处理
+    /// </summary>
+    /// <remarks>
+    /// 这条钉的是判据本身，端到端的用例在下面两条。判据收在 <c>ImportSharedRules</c> 一处，
+    /// 两条导入路径共用，因此这里直接按数字判，不必造百万行的档。
+    /// </remarks>
+    [Fact]
+    public void 撞上限时抛还是截断按有没有指名判()
+    {
+        // 没指名，生效的就是框架硬上限 → 抛
+        Assert.True(ImportSharedRules.ThrowsWhenRowLimitHit(null, ExcelConstants.DefaultMaxImportRows));
+
+        // 配置端把上限收紧过 → 生效上限低于框架硬上限 → 截断
+        Assert.False(ImportSharedRules.ThrowsWhenRowLimitHit(null, 2));
+
+        // 调用端指名，哪怕指名的正是框架硬上限 → 截断
+        Assert.False(ImportSharedRules.ThrowsWhenRowLimitHit(3, 3));
+        Assert.False(ImportSharedRules.ThrowsWhenRowLimitHit(ExcelConstants.DefaultMaxImportRows, ExcelConstants.DefaultMaxImportRows));
+    }
+
+    /// <summary>
+    /// 没指名上限而档的数据行超过框架硬上限时抛出，已经交出的行照旧交完
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 撞的是框架的保护性硬上限，不是任何人的请求：静默截断交回的是一份看起来完整、其实缺尾的导入结果，
+    /// 调用方无从得知少了多少行，因此抛出。抛之前该交的行一行不少——这条断言的正是「不是读到一半崩掉」。
+    /// </para>
+    /// <para>
+    /// 档要有 <see cref="ExcelConstants.DefaultMaxImportRows"/> + 1 行数据才走得到这条路径：上限不可配置，
+    /// 造不出更便宜的等价场景。百万行单列的档在本机读一遍约一秒，托管峰值在十兆字节量级（逐行交出、不物化），
+    /// 因此这条用例进 CI 是可负担的。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 未指名上限而数据行超过框架硬上限时抛出()
+    {
+        using var csv = new MemoryStream(SingleColumnCsv(ExcelConstants.DefaultMaxImportRows + 1));
+        var emitted = 0;
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (var row in new ExcelDataReaderImporter()
+                .ReadAsync(csv, new ExcelImportOptions { Format = ExcelImportFormat.Csv }, TestContext.Current.CancellationToken))
+            {
+                emitted++;
+            }
+        });
+
+        Assert.Equal(ExcelConstants.DefaultMaxImportRows, emitted);
+        Assert.Contains(ExcelConstants.DefaultMaxImportRows.ToString(CultureInfo.InvariantCulture), failure.Message, StringComparison.Ordinal);
+        Assert.Contains("行数上限", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(ExcelImportOptions.MaxRowCount), failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 档的数据行恰好等于框架硬上限时不抛：抛的条件是「上限之后仍有数据行」，不是「撞到了上限」
+    /// </summary>
+    /// <remarks>
+    /// 判「还有没有数据行」要往下多读一行，因此恰等上限的档必须走完整个循环、读到档尾才收手。
+    /// 少了那一次多读，这条用例会变成误抛。
+    /// </remarks>
+    [Fact]
+    public async Task 数据行恰等框架硬上限时不抛()
+    {
+        using var csv = new MemoryStream(SingleColumnCsv(ExcelConstants.DefaultMaxImportRows));
+
+        var emitted = 0;
+
+        await foreach (var row in new ExcelDataReaderImporter()
+            .ReadAsync(csv, new ExcelImportOptions { Format = ExcelImportFormat.Csv }, TestContext.Current.CancellationToken))
+        {
+            emitted++;
+        }
+
+        Assert.Equal(ExcelConstants.DefaultMaxImportRows, emitted);
+    }
+
     private static async Task<List<ExcelImportRow>> ReadAll(Stream input, ExcelImportOptions? options = null)
     {
         return await ReadAll(new ExcelDataReaderImporter(), input, options);
@@ -1178,6 +1257,30 @@ public class ExcelDataReaderImporterTests
         var options = new ExcelImportOptions { Format = ExcelImportFormat.Csv };
 
         return ReadAll(new MemoryStream(bytes), mutate is null ? options : mutate(options));
+    }
+
+    /// <summary>
+    /// 造一份单列 CSV 的字节：表头 <c>A</c>，其后 <paramref name="dataRows"/> 行数据、每行一个 <c>1</c>
+    /// </summary>
+    /// <param name="dataRows">数据行数</param>
+    /// <returns>档字节（UTF-8 无 BOM）</returns>
+    /// <remarks>
+    /// 每行都是同一个 <c>1\r\n</c>，因此按千行一块拼：百万行的档只有 3 MB，造它是线性的，
+    /// 不必为了行数上限的用例付一遍逐行格式化的成本。
+    /// </remarks>
+    private static byte[] SingleColumnCsv(int dataRows)
+    {
+        var chunk = string.Concat(Enumerable.Repeat("1\r\n", 1000));
+        var builder = new StringBuilder(2 + (dataRows * 3)).Append("A\r\n");
+
+        for (var written = 0; written < dataRows / 1000; written++)
+        {
+            builder.Append(chunk);
+        }
+
+        builder.Append(chunk, 0, (dataRows % 1000) * "1\r\n".Length);
+
+        return ImportFixtures.Utf8NoBom.GetBytes(builder.ToString());
     }
 
     /// <summary>

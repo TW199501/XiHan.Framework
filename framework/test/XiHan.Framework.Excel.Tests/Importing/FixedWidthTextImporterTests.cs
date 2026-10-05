@@ -1,6 +1,7 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -698,6 +699,64 @@ public class FixedWidthTextImporterTests
         Assert.Equal(2, rows.Count);
         Assert.Equal("A", rows[0].Values["A"]);
         Assert.Equal("C", rows[1].Values["A"]);
+    }
+
+    /// <summary>
+    /// 没指名上限而数据行超过框架硬上限时，定宽路径同样抛出而不是静默截断
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 判据与容器路径共用 <c>ImportSharedRules</c> 里那一份，两条路径必须同一种行为：同一份档换条读取路径
+    /// 就从「抛」变成「悄悄少交行」，等于让路由决定数据丢不丢。抛之前该交的行一行不少。
+    /// </para>
+    /// <para>
+    /// 档要有 <see cref="ExcelConstants.DefaultMaxImportRows"/> + 1 行数据才走得到这条路径：上限不可配置，
+    /// 造不出更便宜的等价场景。逐行交出不物化，因此这条用例只是慢一点，不会把百万行留在内存里。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 未指名上限而数据行超过框架硬上限时定宽路径抛出()
+    {
+        var importer = new FixedWidthTextImporter(NullLogger<FixedWidthTextImporter>.Instance);
+        using var stream = new MemoryStream(SingleColumnRows(ExcelConstants.DefaultMaxImportRows + 1));
+        var emitted = 0;
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (var row in importer.ReadAsync(
+                stream, ColumnsOnly([new("A", 1)]), TestContext.Current.CancellationToken))
+            {
+                emitted++;
+            }
+        });
+
+        Assert.Equal(ExcelConstants.DefaultMaxImportRows, emitted);
+        Assert.Contains(ExcelConstants.DefaultMaxImportRows.ToString(CultureInfo.InvariantCulture), failure.Message, StringComparison.Ordinal);
+        Assert.Contains("行数上限", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(ExcelImportOptions.MaxRowCount), failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 定宽档的数据行恰好等于框架硬上限时不抛，与容器路径同一个口径
+    /// </summary>
+    /// <remarks>
+    /// 抛的条件是「上限之后仍有数据行」，因此恰等上限的档要往下多读一行、读到档尾才收手；
+    /// 少了那一次多读，这条用例会变成误抛。
+    /// </remarks>
+    [Fact]
+    public async Task 定宽档数据行恰等框架硬上限时不抛()
+    {
+        var importer = new FixedWidthTextImporter(NullLogger<FixedWidthTextImporter>.Instance);
+        using var stream = new MemoryStream(SingleColumnRows(ExcelConstants.DefaultMaxImportRows));
+        var emitted = 0;
+
+        await foreach (var row in importer.ReadAsync(
+            stream, ColumnsOnly([new("A", 1)]), TestContext.Current.CancellationToken))
+        {
+            emitted++;
+        }
+
+        Assert.Equal(ExcelConstants.DefaultMaxImportRows, emitted);
     }
 
     /// <summary>
@@ -1414,6 +1473,30 @@ public class FixedWidthTextImporterTests
     /// <param name="fields">列定义</param>
     private static ExcelImportOptions ColumnsOnly(IReadOnlyList<ExcelFixedWidthField> fields)
         => new() { FixedColumns = fields, HasHeader = false };
+
+    /// <summary>
+    /// 造一份单列定宽档的字节：<paramref name="rows"/> 行、每行一个 <c>1</c> 加 <c>\r\n</c>
+    /// </summary>
+    /// <param name="rows">行数</param>
+    /// <returns>档字节（UTF-8 无 BOM，每行 3 字节）</returns>
+    /// <remarks>
+    /// 每行都是同一段字节，因此按千行一块拼：百万行的档只有 3 MB，造它是线性的，
+    /// 不必为了行数上限的用例付一遍逐行格式化的成本。
+    /// </remarks>
+    private static byte[] SingleColumnRows(int rows)
+    {
+        var chunk = string.Concat(Enumerable.Repeat("1\r\n", 1000));
+        var builder = new StringBuilder(rows * 3);
+
+        for (var written = 0; written < rows / 1000; written++)
+        {
+            builder.Append(chunk);
+        }
+
+        builder.Append(chunk, 0, (rows % 1000) * "1\r\n".Length);
+
+        return ImportFixtures.Utf8NoBom.GetBytes(builder.ToString());
+    }
 
     /// <summary>
     /// 门面实例：两个读实现按注册时的形状当场构造，仓库测试未引 mock 框架
