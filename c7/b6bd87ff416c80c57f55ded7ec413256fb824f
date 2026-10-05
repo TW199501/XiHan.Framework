@@ -1,0 +1,16 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelTemplateRenderer.cs
+  h_be8240d2cfaa4b 24-49,58-59,65-74,81,87-92
+framework/src/XiHan.Framework.Excel/Exporting/MiniExcelTemplateRenderer.cs
+  h_be8240d2cfaa4b 7,51-64,76-77,84-86,88-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c7b6bd87ff416c80c57f55ded7ec413256fb824f",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
