@@ -209,6 +209,135 @@ public class ExcelColumnBuilderTests
     }
 
     /// <summary>
+    /// 构建器列交出的是 getter 自己的异常型别，不包一层反射包装异常
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 同一契约的两条列来源（手写 <c>ExcelColumn&lt;TRow&gt;</c> 与构建器产出的列）必须抛同一个型别：调用方按
+    /// <c>IExcelExporter</c> 文档化的型别 <c>catch</c> 时，不该因为列是谁建的对不上号。反射 <c>GetValue</c>
+    /// 会把 getter 的异常包成 <see cref="System.Reflection.TargetInvocationException"/>，那条型别不在任何
+    /// 导出入口的 <c>&lt;exception&gt;</c> 清单里。
+    /// </para>
+    /// <para>
+    /// 断 <c>InnerException</c> 为空是为的不让「包了一层但把原异常放在里面」蒙过去：包过的型别已经不是
+    /// <see cref="FormatException"/>，而 <c>Assert.Throws&lt;T&gt;</c> 按精确型别判，派生型别同样收不下。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void 构建器取值不包装getter异常()
+    {
+        var column = ExcelColumnBuilder.CreateColumns<ThrowingRow>().Single(c => c.Key == nameof(ThrowingRow.Bad));
+
+        var failure = Assert.Throws<FormatException>(() => column.GetValue(new ThrowingRow()));
+
+        Assert.Equal("取值失败", failure.Message);
+        Assert.Null(failure.InnerException);
+    }
+
+    /// <summary>
+    /// 同一个 getter 在手写列与构建器列上交出的异常型别与消息都一致
+    /// </summary>
+    [Fact]
+    public void 手写列与构建器列的取值异常型别一致()
+    {
+        var row = new ThrowingRow();
+
+        var built = ExcelColumnBuilder.CreateColumns<ThrowingRow>().Single(c => c.Key == nameof(ThrowingRow.Bad));
+        var hand = new ExcelColumn<ThrowingRow>
+        {
+            Key = nameof(ThrowingRow.Bad),
+            Header = "坏值",
+            Value = r => r.Bad
+        };
+
+        var builtFailure = Assert.Throws<FormatException>(() => built.GetValue(row));
+        var handFailure = Assert.Throws<FormatException>(() => hand.GetValue(row));
+
+        Assert.Equal(handFailure.GetType(), builtFailure.GetType());
+        Assert.Equal(handFailure.Message, builtFailure.Message);
+    }
+
+    /// <summary>
+    /// 编译成强型别委托后照常取到属性值，含值类型的装箱结果
+    /// </summary>
+    [Fact]
+    public void 构建器取值仍能读出各型别的属性值()
+    {
+        var columns = ExcelColumnBuilder.CreateColumns<ThrowingRow>();
+        var row = new ThrowingRow { Good = 7 };
+
+        Assert.Equal(7, Assert.IsType<int>(columns.Single(c => c.Key == nameof(ThrowingRow.Good)).GetValue(row)));
+        Assert.Equal("7", columns.Single(c => c.Key == nameof(ThrowingRow.Text)).GetValue(row));
+        Assert.Equal(3, columns.Count);
+    }
+
+    /// <summary>
+    /// <c>ref</c> 返回的读取器照常成列并取到值：改用编译取值不得让这种形状在建列时就抛或静默少一栏
+    /// </summary>
+    /// <remarks>
+    /// 表达式树没有「取引用所指的值」这个节点（<c>Expression.Convert(Int32&amp;, object)</c> 直接抛
+    /// <see cref="InvalidOperationException"/>，探针 <c>t13-b3-probe-shapes2.txt</c> 实测），这类属性只能留在
+    /// 反射路径上。本条钉的是该形状没有被改判成「不成列」，取出的值也仍与反射一致。
+    /// </remarks>
+    [Fact]
+    public void ref返回的读取器照常成列且取到值()
+    {
+        var columns = ExcelColumnBuilder.CreateColumns<ByRefRow>();
+        var row = new ByRefRow();
+
+        Assert.Equal(2, columns.Count);
+        Assert.Equal(7, Assert.IsType<int>(columns.Single(c => c.Key == nameof(ByRefRow.Counter)).GetValue(row)));
+        Assert.Equal("AWB1", columns.Single(c => c.Key == nameof(ByRefRow.Name)).GetValue(row));
+    }
+
+    /// <summary>
+    /// 带抛出型计算属性与多种值型别的测试行类型
+    /// </summary>
+    /// <remarks>
+    /// 只作为测试夹具，不进正式 API。<see cref="Bad"/> 的 getter 抛 <see cref="FormatException"/>，
+    /// 用于比对「构建器列」与「手写列」的异常型别。
+    /// </remarks>
+    private class ThrowingRow
+    {
+        /// <summary>
+        /// 数值属性，取值要走一次装箱
+        /// </summary>
+        public int Good { get; set; }
+
+        /// <summary>
+        /// 引用型别属性
+        /// </summary>
+        public string Text => "7";
+
+        /// <summary>
+        /// 计算属性，getter 直接抛出业务异常型别
+        /// </summary>
+        public string Bad => throw new FormatException("取值失败");
+    }
+
+    /// <summary>
+    /// 带 <c>ref</c> 返回读取器的测试行类型
+    /// </summary>
+    /// <remarks>
+    /// 只作为测试夹具。<see cref="Counter"/> 的读取器交出引用（<c>Int32&amp;</c>），反射读得出来而表达式树读不出来，
+    /// 用于钉住「构建器改用编译取值」没有把这种形状弄坏。
+    /// </remarks>
+    private class ByRefRow
+    {
+        private int _counter = 7;
+
+        /// <summary>
+        /// <c>ref</c> 返回的计算属性
+        /// </summary>
+        public ref int Counter => ref _counter;
+
+        /// <summary>
+        /// 普通属性，作对照
+        /// </summary>
+        public string Name { get; set; } = "AWB1";
+    }
+
+    /// <summary>
     /// 特性上写了非法列宽的测试行类型
     /// </summary>
     /// <remarks>

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Collections.Concurrent;
+using System.Linq.Expressions;
 using System.Reflection;
 using XiHan.Framework.Excel.Abstractions.Attributes;
 using XiHan.Framework.Excel.Abstractions.Enums;
@@ -18,6 +19,13 @@ namespace XiHan.Framework.Excel.Columns;
 /// 列来源是行类型的公共实例属性：没有公共读取器的属性和索引器不成列，标了 <see cref="ExcelIgnoreAttribute"/>
 /// 的属性不成列；标了 <see cref="ExcelColumnAttribute"/> 的属性按特性给出表头与呈现项，特性没给表头时
 /// 取属性的描述信息；两个特性都没标的属性照常成列，表头同样取描述信息，呈现项取列的默认值。
+/// </para>
+/// <para>
+/// 取值委托在建列时编译成强型别调用（每个行类型的清单进缓存，只编译一次），不在逐格走反射：
+/// 反射会把属性 getter 自己抛出的异常包成 <see cref="TargetInvocationException"/>，那与手写
+/// <see cref="ExcelColumn{TRow}"/> 的 <c>r =&gt; r.X</c> 不是同一个型别，而 <c>TargetInvocationException</c>
+/// 不在任何导出入口的 <c>&lt;exception&gt;</c> 清单里——调用方按文档化的型别去 <c>catch</c>，
+/// 偏偏因为「列是谁建的」而接不到。
 /// </para>
 /// <para>
 /// 排序规则（同一行类型每次构建结果一致）：<see cref="ExcelColumnAttribute"/> 上显式写了非负
@@ -125,11 +133,51 @@ public static class ExcelColumnBuilder
                 NumberFormat = column?.NumberFormat,
                 Alignment = column?.Alignment ?? ExcelAlignment.Auto,
                 Wrap = column?.Wrap ?? false,
-                Value = row => property.GetValue(row)
+                Value = CompileGetter<TRow>(property)
             });
         }
 
         return columns.AsReadOnly();
+    }
+
+    /// <summary>
+    /// 把属性的读取器编译成强型别取值委托
+    /// </summary>
+    /// <typeparam name="TRow">行数据类型</typeparam>
+    /// <param name="property">已经过筛选、带公共读取器的属性</param>
+    /// <returns>与手写 <c>r =&gt; r.X</c> 同形状的取值委托</returns>
+    /// <remarks>
+    /// <para>
+    /// 不用 <c>PropertyInfo.GetValue</c>：反射会把读取器自己抛出的异常包成
+    /// <see cref="TargetInvocationException"/>，于是同一契约的两条列来源（手写
+    /// <see cref="ExcelColumn{TRow}"/> 与本构建器产出的列）交出不同的异常型别——调用方按导出入口文档化的型别
+    /// <c>catch</c>，偏偏因为「列是谁建的」而接不到，而 <c>TargetInvocationException</c> 不在任何导出入口的
+    /// <c>&lt;exception&gt;</c> 清单里。编译出的委托就是对读取器的一次直接调用，异常原样上抛。
+    /// </para>
+    /// <para>
+    /// 顺带去掉每格一次反射 invoke 的代价；值型别仍在这里装箱一次，因为列的取值契约交回的就是 <c>object?</c>。
+    /// 编译只做在建列时（每个行类型的清单进缓存，见 <see cref="CreateColumns{TRow}"/>），不在逐格路径上。
+    /// </para>
+    /// <para>
+    /// 唯一的例外是 <c>ref</c> 返回的读取器（<c>public ref int Counter =&gt; ref _counter;</c>）：表达式树没有
+    /// 「取引用所指的值」这个节点，<c>Expression.Convert</c> 对 <c>Int32&amp;</c> 到 <c>object</c> 在建列时就抛
+    /// <see cref="InvalidOperationException"/>（探针 <c>t13-b3-probe-shapes2.txt</c> 实测），而反射读得出来。
+    /// 这类属性照旧成列、照旧走 <c>GetValue</c>——判它「不成列」等于让原本能导出的行类型静默少一栏，
+    /// 让建列时就抛等于新加一种失败，两条都不如留着反射这一条。代价如实记在这里：这种形状的 getter
+    /// 抛出的异常仍被包成 <see cref="TargetInvocationException"/>，只有它一条如此。
+    /// </para>
+    /// </remarks>
+    private static Func<TRow, object?> CompileGetter<TRow>(PropertyInfo property)
+    {
+        if (property.GetGetMethod()?.ReturnType.IsByRef == true)
+        {
+            return row => property.GetValue(row);
+        }
+
+        var row = Expression.Parameter(typeof(TRow), "row");
+        var access = Expression.Convert(Expression.Property(row, property), typeof(object));
+
+        return Expression.Lambda<Func<TRow, object?>>(access, row).Compile();
     }
 
     /// <summary>
