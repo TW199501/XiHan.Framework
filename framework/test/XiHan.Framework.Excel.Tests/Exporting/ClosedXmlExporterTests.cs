@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Globalization;
+using System.IO.Compression;
+using System.Text;
+using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
@@ -703,6 +706,71 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
+    /// 公式起首的值在全量路径落文字格、逐字读回，且档里不会多出撇号前缀
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这是 §6.7-① 在 xlsx 侧的真实表现，不是待补的缺口：本类把字符串交给 <c>XLCellValue</c> 的文本形态落格，
+    /// 工作簿按共享字符串存它，档里没有 <c>&lt;f&gt;</c>、<c>HasFormula</c> 为 <c>false</c>，读回的就是同一串文字。
+    /// 只有模板路径的 <c>$=</c> 占位会被写出库当成公式解析（另一批处理），xlsx 的两条路径都不解析。
+    /// </para>
+    /// <para>
+    /// 因此这里钉两件事：值逐字不变（不加 <c>'</c> 前缀——加了就是改写业务资料，逐字断言先红）、
+    /// 落格形态是文字而不是公式（改成会触发公式的写出方式时，无 <c>&lt;f&gt;</c> 那条红）。
+    /// 前导制表符与换行都属于值本身，不因起首像公式就被改写。
+    /// </para>
+    /// </remarks>
+    /// <param name="value">以公式前缀起首的字串取值</param>
+    [Theory]
+    [InlineData("=1+1")]
+    [InlineData("+1")]
+    [InlineData("-1")]
+    [InlineData("@SUM(1)")]
+    [InlineData("\t=1+1")]
+    [InlineData("\n=1+1")]
+    public async Task 公式起首的值在全量路径落文字格且逐字读回(string value)
+    {
+        var stream = await ExportAsync(BuildValueSpec(value));
+
+        Assert.False(HasFormulaElement(stream));
+
+        using (var workbook = Open(stream))
+        {
+            var cell = workbook.Worksheet(1).Cell(2, 1);
+
+            Assert.False(cell.HasFormula);
+            Assert.Equal(XLDataType.Text, cell.DataType);
+        }
+
+        var back = await ImportValueAsync(stream);
+
+        Assert.IsType<string>(back);
+        Assert.Equal(value, back);
+        Assert.False(((string)back!).StartsWith('\''));
+    }
+
+    /// <summary>
+    /// 值里的回车在档里按 XML 归一化成换行，其余逐字不变且仍是文字格
+    /// </summary>
+    /// <remarks>
+    /// 钉这个差异不是找补：XML 1.0 不允许文本内容里出现裸 <c>U+000D</c>，写出库把它归一成 <c>U+000A</c>，
+    /// 因此 <c>"\r=1+1"</c> 读回来是 <c>"\n=1+1"</c>。这一格依旧不落公式、不加撇号前缀，
+    /// 改的只是行尾字符本身，与「公式起首值不被改写成公式」是两件事。
+    /// 上面那条用例把 <c>\r</c> 排除在外正是为此——逐字往返在这类取值上不成立，硬断会变成假绿。
+    /// </remarks>
+    [Fact]
+    public async Task 值里的回车在档里归一化成换行()
+    {
+        var stream = await ExportAsync(BuildValueSpec("\r=1+1"));
+
+        Assert.False(HasFormulaElement(stream));
+
+        var back = await ImportValueAsync(stream);
+
+        Assert.Equal("\n=1+1", back);
+    }
+
+    /// <summary>
     /// 早于 1899-12-30 的 DateOnly 在本路径照能导出，且落文本格、值原样读回
     /// </summary>
     /// <remarks>
@@ -1327,6 +1395,30 @@ public class ClosedXmlExporterTests
     {
         stream.Position = 0;
         return new XLWorkbook(stream);
+    }
+
+    /// <summary>
+    /// 判断档里的工作表部件有没有公式元素（<c>&lt;f&gt;</c> 或带命名空间前缀的同名元素）
+    /// </summary>
+    /// <param name="stream">导出后的流</param>
+    /// <remarks>
+    /// 只看格子的 <c>HasFormula</c> 不足以证明「值没被当成公式解析」——那要读回档里真实落的元素。
+    /// 匹配式要求 <c>f</c> 之后紧跟空白、<c>/</c> 或 <c>&gt;</c>，因此 <c>&lt;framePr&gt;</c>、
+    /// <c>&lt;fextLdr&gt;</c> 这类同名前缀的元素不会被误判成公式。
+    /// </remarks>
+    private static bool HasFormulaElement(MemoryStream stream)
+    {
+        stream.Position = 0;
+
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+
+        var entry = archive.GetEntry("xl/worksheets/sheet1.xml");
+
+        Assert.NotNull(entry);
+
+        using var reader = new StreamReader(entry!.Open(), Encoding.UTF8);
+
+        return Regex.IsMatch(reader.ReadToEnd(), "<(?:x:)?f[\\s/>]");
     }
 
     /// <summary>

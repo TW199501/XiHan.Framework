@@ -3,6 +3,9 @@
 
 using System.Collections;
 using System.Globalization;
+using System.IO.Compression;
+using System.Text;
+using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
@@ -762,6 +765,74 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
+    /// 公式起首的值在流式路径落文字格、逐字读回，且档里不会多出撇号前缀
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 与全量路径同一件事实：本路径把字串按文本形态落格（档里是 <c>t="str"</c> 的文字值而不是公式），
+    /// 写出库不解析 <c>=</c>、<c>+</c>、<c>@</c> 起首的内容，档里没有 <c>&lt;f&gt;</c>。
+    /// 只有模板路径的 <c>$=</c> 占位会被当成公式解析（另一批处理）。
+    /// </para>
+    /// <para>
+    /// 两条路径的格位形态本来就不同，这一对用例钉的是同一个承诺：起首像公式的字串照原样交回，
+    /// 谁也不给它加 <c>'</c> 前缀——加了就是改写业务资料，逐字断言先红；改成会触发公式的写出方式，
+    /// 无 <c>&lt;f&gt;</c> 那条红。
+    /// </para>
+    /// </remarks>
+    /// <param name="value">以公式前缀起首的字串取值</param>
+    [Theory]
+    [InlineData("=1+1")]
+    [InlineData("+1")]
+    [InlineData("-1")]
+    [InlineData("@SUM(1)")]
+    [InlineData("\t=1+1")]
+    [InlineData("\n=1+1")]
+    public async Task 公式起首的值在流式路径落文字格且逐字读回(string value)
+    {
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(stream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        Assert.False(HasFormulaElement(stream));
+
+        using (var workbook = Open(stream))
+        {
+            var cell = workbook.Worksheet(1).Cell(2, 1);
+
+            Assert.False(cell.HasFormula);
+            Assert.Equal(XLDataType.Text, cell.DataType);
+        }
+
+        var back = await ImportValueAsync(stream);
+
+        Assert.IsType<string>(back);
+        Assert.Equal(value, back);
+        Assert.False(((string)back!).StartsWith('\''));
+    }
+
+    /// <summary>
+    /// 值里的回车在档里按 XML 归一化成换行，其余逐字不变且仍是文字格
+    /// </summary>
+    /// <remarks>
+    /// XML 1.0 不允许文本内容里出现裸 <c>U+000D</c>，写出库把它归一成 <c>U+000A</c>：
+    /// <c>"\r=1+1"</c> 读回来是 <c>"\n=1+1"</c>。这一格依旧不落公式、不加撇号前缀。
+    /// 与全量路径同一件事，两条各钉一条，免得日后只看见一边就以为另一边也成立。
+    /// </remarks>
+    [Fact]
+    public async Task 值里的回车在流式档里归一化成换行()
+    {
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(stream, BuildValueSpec("\r=1+1"), TestContext.Current.CancellationToken);
+
+        Assert.False(HasFormulaElement(stream));
+
+        var back = await ImportValueAsync(stream);
+
+        Assert.Equal("\n=1+1", back);
+    }
+
+    /// <summary>
     /// 不可用的表名抛出的是本组件的框架异常，不是渲染库那句英文异常，也不是被转义后的另一个名字
     /// </summary>
     /// <remarks>
@@ -989,6 +1060,30 @@ public class MiniExcelStreamExporterTests
     {
         stream.Position = 0;
         return new XLWorkbook(stream);
+    }
+
+    /// <summary>
+    /// 判断档里的工作表部件有没有公式元素（<c>&lt;f&gt;</c> 或带命名空间前缀的同名元素）
+    /// </summary>
+    /// <param name="stream">导出后的流</param>
+    /// <remarks>
+    /// 只看格子的 <c>HasFormula</c> 不足以证明「值没被当成公式解析」——那要读回档里真实落的元素。
+    /// 匹配式要求 <c>f</c> 之后紧跟空白、<c>/</c> 或 <c>&gt;</c>，因此 <c>&lt;framePr&gt;</c>、
+    /// <c>&lt;fextLdr&gt;</c> 这类同名前缀的元素不会被误判成公式。
+    /// </remarks>
+    private static bool HasFormulaElement(MemoryStream stream)
+    {
+        stream.Position = 0;
+
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+
+        var entry = archive.GetEntry("xl/worksheets/sheet1.xml");
+
+        Assert.NotNull(entry);
+
+        using var reader = new StreamReader(entry!.Open(), Encoding.UTF8);
+
+        return Regex.IsMatch(reader.ReadToEnd(), "<(?:x:)?f[\\s/>]");
     }
 
     /// <summary>
