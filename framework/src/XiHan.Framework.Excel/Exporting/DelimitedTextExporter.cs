@@ -57,9 +57,11 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <see cref="ExcelTextOptions.Delimiter"/>、<see cref="ExcelTextOptions.Quote"/> 与
 /// <see cref="ExcelTextOptions.EscapeFormulaPrefix"/> 都不参与写出，且不接受值内换行：
 /// <c>\r</c> 与 <c>\n</c> 没有可以包住它们的引号，写出会让一档被读成错行的两档，取到该行即抛。
-/// 该布局还只收能按字节切列的编码——行尾编不成单字节 <c>0x0D</c>／<c>0x0A</c>（UTF-16／UTF-32、EBCDIC）
-/// 或分段编码与整体编码不等（ISO-2022 家族等有状态编码）的编码，在写出任何字节之前就被拒，判据与导入侧共用
-/// <see cref="TextWriterHelper"/> 那一份守卫。
+/// 该布局对编码另有两条只属于定宽的拒绝，都排在写出任何字节之前：一是不能按字节切列的编码——行尾编不成单字节
+/// <c>0x0D</c>／<c>0x0A</c>（UTF-16／UTF-32、EBCDIC）或分段编码与整体编码不等（ISO-2022 家族等有状态编码），
+/// 判据与导入侧共用 <see cref="TextWriterHelper"/> 那一份守卫；二是带 BOM 前导字节的编码（含
+/// <see cref="ExcelTextOptions.EncodingName"/> 的默认值 <c>"utf-8-bom"</c>）——前导字节挤在第一条记录之前，
+/// 会把外部按字节切列的读档方整体读偏，这里抛出而不是静默剥掉前导字节。
 /// </para>
 /// <para>
 /// 两种布局共用一份行写出骨架（<see cref="WriteTextAsync"/>）：行序、每行写前查取消令牌、行尾拼接、flush 与
@@ -100,7 +102,10 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// <exception cref="ArgumentException">编码名无法解析；分隔符取 <c>\r</c> 或 <c>\n</c>（本身就是行分隔符，
     /// 两栏会被写成两行）或取引号字符 <c>"</c>（与 <see cref="ExcelTextQuote.Minimal"/>／<see cref="ExcelTextQuote.All"/>
     /// 的引号语义冲突，取 <see cref="ExcelTextQuote.None"/> 时又与值内引号不可区分）；或
-    /// <see cref="ExcelTextQuote.None"/> 与空格分隔符组合；或固定宽度布局下某列的补位字符是换行符、在目标编码下不是单字节。
+    /// <see cref="ExcelTextQuote.None"/> 与空格分隔符组合；或固定宽度布局下某列的补位字符是换行符、在目标编码下不是单字节；
+    /// 或固定宽度布局配了带 BOM 前导字节的编码（含 <see cref="ExcelTextOptions.EncodingName"/> 的默认值
+    /// <c>"utf-8-bom"</c>——那三个前导字节会把外部按字节位置切列的读档方在第一条记录上整体读偏，本布局不静默剥掉
+    /// 前导字节而是抛出，<see cref="ArgumentException.ParamName"/> 为 <c>EncodingName</c>）。
     /// 分隔符三类的 <see cref="ArgumentException.ParamName"/> 均为 <c>textOptions</c>，且都在写出任何字节之前抛出</exception>
     /// <exception cref="InvalidOperationException">行集合里有某笔元素与 <see cref="ExcelSheetSpec.RowType"/> 不符，
     /// 消息点名行位置与期望／实际两个类型全名；或固定宽度布局下某列未设置
@@ -275,6 +280,12 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// （ISO-2022 家族、HZ、UTF-7）都写不出「列位对得上声明宽度」的档，而写出去照样能读出内容，所以在这里拒掉。
     /// 判据与导入侧同一份实现，两条路径不会一边拒一边收；检查排在写出任何字节之前，坏编码不留下半份档。
     /// </para>
+    /// <para>
+    /// 带 BOM 前导字节的编码同样被拒（<see cref="RejectFixedWidthPreamble"/>），而 <c>utf-8-bom</c> 恰是
+    /// <see cref="ExcelTextOptions.EncodingName"/> 的默认值：那三个字节会挤在第一条记录之前，让外部按字节位置
+    /// 切列的读档方把每一栏都读偏。这里抛出而不是「静默不写前导字节」——定宽契约是字节位置精确，改档头等于
+    /// 替调用方决定他没决定的事；本组件自己的导入器会剥 BOM，那份「读得回来」不能当成外部读档方也对得上的证据。
+    /// </para>
     /// </remarks>
     private async Task<ExcelExportResult> ExportFixedWidthAsync(
         Stream output,
@@ -285,8 +296,10 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     {
         var encoding = TextWriterHelper.ResolveEncoding(options.EncodingName);
 
-        // 编码能不能按字节切列与列设置无关，排在列宽校验之前：连分行都不成立的编码不值得先看列定义
+        // 编码能不能按字节切列、会不会在档头塞前导字节，都与列设置无关：两条排在列宽校验与 new StreamWriter 之前
         TextWriterHelper.ValidateFixedWidthEncoding(encoding);
+
+        RejectFixedWidthPreamble(encoding);
 
         var columns = sheet.Columns;
 
@@ -513,6 +526,43 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// 在整档写出并 flush 之后、返回结果之前，落地本布局的聚合 Warning
     /// </summary>
     private delegate void ReportAggregate();
+
+    /// <summary>
+    /// 拒收会在档头塞前导字节的编码：固定宽度布局的列位从第一个字节算起
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="ExcelTextOptions.EncodingName"/> 的默认值是 <c>"utf-8-bom"</c>，固定宽度布局沿用到底，就是在第一条
+    /// 记录之前凭空写出 <c>EF BB BF</c> 三个字节。外部按字节位置切列的读档方（海关、航空、ERP 那种「一个字节都不能差」
+    /// 的接口）会把第一条记录的每一栏都读偏那么多个字节。本组件自己的导入器会剥掉 BOM，所以「写完再读回来对得上」
+    /// 证明不了外部读档方也对得上，不能拿来当放行的依据。
+    /// </para>
+    /// <para>
+    /// 处置是抛出而不是「静默不写前导字节」：定宽的契约就是字节位置精确，悄悄改掉调用方指定的编码产出的档头，
+    /// 等于替他决定他没决定的事；要写定宽档就明确指名不带 BOM 的编码。检查排在写出任何字节之前，坏组合不留下半份档。
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">解析出的编码带 BOM 前导字节（<see cref="ArgumentException.ParamName"/> 为 <c>EncodingName</c>）</exception>
+    private static void RejectFixedWidthPreamble(Encoding encoding)
+    {
+        var preamble = encoding.GetPreamble();
+
+        if (preamble.Length == 0)
+        {
+            return;
+        }
+
+        var preambleBytes = string.Join(" ", preamble.Select(static current => $"0x{current:X2}"));
+
+        throw new ArgumentException(
+            $"定宽布局不接受带 BOM 的编码「{encoding.WebName}」（代码页 {encoding.CodePage}）：它会在第一条记录之前写出 " +
+            $"{preambleBytes}（{preamble.Length} 字节），而定宽档的列位从第一个字节算起——外部按字节位置切列的读档方会把" +
+            $"第一条记录的每一栏都读偏 {preamble.Length} 字节。本框架自己的导入器会剥掉 BOM，这份「读得回来」不能当成" +
+            $"外部读档方也对得上的证据，所以不在这里替调用方悄悄去掉前导字节。" +
+            $"请将 {nameof(ExcelTextOptions.EncodingName)} 明确指名为不带 BOM 的编码（例如 \"utf-8\"、\"big5\"、\"shift_jis\"、\"gb18030\"）；" +
+            $"默认值 \"utf-8-bom\" 只适用于分隔符布局。",
+            nameof(ExcelTextOptions.EncodingName));
+    }
 
     /// <summary>
     /// 校验固定宽度布局的列设置，返回每列按目标编码成立的字节宽度

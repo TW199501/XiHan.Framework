@@ -52,6 +52,13 @@ public sealed record ExcelTextOptions
     /// 含换行的数据请用 <see cref="ExcelTextLayout.Delimited"/> 布局配 <see cref="Quote"/> 写出。
     /// 列上的 <see cref="ExcelColumn.PadChar"/> 同样不得是换行符，那一条与内容无关，在写出任何字节之前就被拒绝。
     /// </para>
+    /// <para>
+    /// 本布局还拒收带 BOM 前导字节的编码（含 <see cref="EncodingName"/> 的默认值 <c>"utf-8-bom"</c>）：那三个字节
+    /// 会挤在第一条记录之前，让外部按字节位置切列的读档方把每一栏都读偏，因此写出任何字节之前抛
+    /// <see cref="ArgumentException"/>（<see cref="ArgumentException.ParamName"/> 为 <c>EncodingName</c>）而不是
+    /// 静默剥掉前导字节——定宽的契约就是字节位置精确，改档头等于替调用方决定他没决定的事。写定宽档请明确指名
+    /// 不带 BOM 的编码（<c>"utf-8"</c>、<c>"big5"</c> 一类）。
+    /// </para>
     /// </remarks>
     public ExcelTextLayout Layout { get; init; } = ExcelTextLayout.Delimited;
 
@@ -83,6 +90,10 @@ public sealed record ExcelTextOptions
     /// 常用取值：<c>"utf-8-bom"</c> 写带 BOM 的 UTF-8；<c>"utf-8"</c> 写不带 BOM 的 UTF-8；<c>"big5"</c> 写大五码
     /// （繁体中文往来档常用，无 BOM）。其余取值按 <see cref="System.Text.Encoding.GetEncoding(string)"/> 的名称或代码页解析，
     /// 大小写不敏感。BOM 由解析出的编码自身写出，导出器不再手写，因此不会写两遍。
+    /// 本默认值只适用于分隔符布局：<see cref="Layout"/> 取 <see cref="ExcelTextLayout.FixedWidth"/> 时带 BOM 的编码
+    /// 会被拒——前导字节挤在第一条记录之前，外部按字节位置切列的读档方会把每一栏都读偏，所以定宽档必须指名
+    /// 不带 BOM 的编码（<c>"utf-8"</c>、<c>"big5"</c> 一类），沿用默认值在写出任何字节之前抛
+    /// <see cref="ArgumentException"/>。
     /// </para>
     /// <para>
     /// 解析出的编码一律带严格回退：待写出的字符不在目标编码的字符集内时（例如简体字写进 <c>"big5"</c>）抛

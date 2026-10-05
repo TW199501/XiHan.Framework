@@ -656,6 +656,63 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
+    /// 默认编码配固定宽度布局在写出任何字节之前就被拒，且不留下半份档
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这条组合是「什么都不改」的调用方拿到的形态：<see cref="ExcelTextOptions.EncodingName"/> 的默认值是
+    /// <c>"utf-8-bom"</c>，以前沿用到底就在第一条记录之前凭空写出 <c>EF BB BF</c>。本组件自己的导入器会剥 BOM，
+    /// 所以往返测试看不见它；外部按字节位置切列的读档方（海关／航空／ERP 那种一个字节都不能差的接口）
+    /// 会把第一条记录的每一栏都读偏 3 字节。
+    /// </para>
+    /// <para>
+    /// 处置按裁定取抛出而不是「静默不写前导字节」：定宽的契约就是字节位置精确，悄悄改掉调用方指定的编码产出的
+    /// 档头，等于替他决定他没决定的事，所以要他明确指名编码。断的是「抛」，不是「档头干净」。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 默认编码配定宽布局在写出前就拒且不留下半份档()
+    {
+        var stream = new MemoryStream();
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        // 只设布局，EncodingName 保持默认值：夹具里的 utf-8 一律不参与
+        var exception = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            stream, BuildSpec([Column(AwbWidth)], new SampleRow { AwbNo = "AWB1" }), ExcelFormat.Txt,
+            new ExcelTextOptions { Layout = ExcelTextLayout.FixedWidth }, TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelTextOptions.EncodingName), exception.ParamName);
+        Assert.Contains("定宽布局不接受带 BOM 的编码", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("utf-8", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("big5", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 指名 utf-8 时定宽档的第一个字节就是数据，不含任何前导字节
+    /// </summary>
+    /// <remarks>
+    /// 反例的另一面：拒收带 BOM 的编码不等于要求「额外写一遍干净的档头」。整份档逐字比对，长度就是
+    /// 表头行 + 数据行各自的列宽与行尾，没有多出来的 3 个字节。分隔符布局照常写 BOM 由
+    /// <c>DelimitedTextExporterTests.UTF8预设写BOM_指名utf8不写BOM</c> 钉住——把本处置错挂到共用骨架上时，
+    /// 那条会先红。
+    /// </remarks>
+    [Fact]
+    public async Task 指名utf8时定宽档第一个字节就是数据()
+    {
+        var spec = BuildSpec([Column(AwbWidth)], new SampleRow { AwbNo = "AB" });
+
+        var bytes = (await ExportAsync(FixedOptions(encodingName: "utf-8"), spec)).Stream.ToArray();
+
+        Assert.NotEqual([0xEF, 0xBB, 0xBF], bytes[..3]);
+        Assert.Equal(2 * (AwbWidth + 2), bytes.Length);
+        Assert.Equal(
+            "提单号" + new string(' ', AwbWidth - 9) + "\r\n" +
+            "AB" + new string(' ', AwbWidth - 2) + "\r\n",
+            Encoding.UTF8.GetString(bytes));
+    }
+
+    /// <summary>
     /// 取消令牌已取消时在写出任何字节之前停止
     /// </summary>
     [Fact]
