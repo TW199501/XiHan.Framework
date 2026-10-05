@@ -1506,6 +1506,8 @@ public class ExcelDataReaderImporterTests
     /// </para>
     /// <para>
     /// 这条是本轮的核心守门：默认值若从 200 抬到 1000，368 倍就落在界内、这份档会被放行，用例立刻红。
+    /// 「夹具比值必须高过默认上限」那条前提断言刻意排在拒收断言<u>之后</u>：默认值被抬高时，
+    /// 先看到的应该是「档被放行了」这个行为事实，而不是「前提不成立」这句自我检查。
     /// 断言里同时钉住「内部异常为 <c>null</c>」——非空意味着走的是「容器读不通」那条转译，
     /// 也就是守卫没判、档已经被交给读取器了。
     /// </para>
@@ -1514,9 +1516,6 @@ public class ExcelDataReaderImporterTests
     public async Task 实测炸弹量级的解压比在默认上限下仍被拒()
     {
         const int bombRatio = 368;
-
-        Assert.True(bombRatio > ExcelConstants.MaxImportCompressionRatio,
-            "夹具的比值必须高过默认上限，否则这条用例验不到「炸弹仍被拒」。");
 
         using var bomb = DeclaredRatioXlsx(bombRatio);
 
@@ -1528,6 +1527,8 @@ public class ExcelDataReaderImporterTests
         Assert.Contains($"是 {bombRatio} 倍", failure.Message, StringComparison.Ordinal);
         Assert.Contains(ExcelConstants.MaxImportCompressionRatio.ToString(CultureInfo.InvariantCulture), failure.Message, StringComparison.Ordinal);
         Assert.Null(failure.InnerException);
+        Assert.True(bombRatio > ExcelConstants.MaxImportCompressionRatio,
+            "夹具的比值必须高过默认上限，否则这条用例验不到「炸弹仍被拒」。");
     }
 
     /// <summary>
