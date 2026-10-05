@@ -1,0 +1,21 @@
+framework/src/XiHan.Framework.Excel/Columns/ExcelColumnBuilder.cs
+  s_2cb7b5b62c6bf3::t_d1c2d8cd724cbc 5,24-30,136,143-182
+framework/test/XiHan.Framework.Excel.Tests/Columns/ExcelColumnBuilderTests.cs
+  s_2cb7b5b62c6bf3::t_30b62113e0235f 211-339
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aa8bf06fd0fc531d6df8211e9f8e3902bbdb570f",
+  "prompts": {},
+  "sessions": {
+    "s_2cb7b5b62c6bf3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aspec-e84-2e70f88783f0799a",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
