@@ -471,6 +471,107 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
+    /// 文字导出同样先做列与声明行型别的比对：不符即在写出任何字节之前抛，行集合一次都不被枚举
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 判据与两条 xlsx 路径共用 <see cref="ExcelRowTypeGuard"/> 那一份，所以这里主要钉「本路径也走它、且排在预检」：
+    /// 零字节与 <c>rows.Count == 0</c> 两条一起才说明它没被挪到逐行循环里。分隔符布局按 <c>StreamWriter</c>
+    /// 边写边缓冲，逐行阶段的失败可能留下半份档；声明级预检不留，这正是它排在写出第一格之前的可观察差别。
+    /// </para>
+    /// <para>
+    /// 放行的坏声明交出的是「表头齐全、每格为空」的 csv：异型行经列的取值方法只回 <c>null</c>，
+    /// 而返回值仍写着 <c>StylingApplied=true</c>（文字档没有样式，该字段表示「没丢弃任何请求的样式」）。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 文字导出列行型别与声明不符时预检抛且零字节不枚举()
+    {
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        var mismatchedRows = new CountingRows(3);
+        var mismatchedStream = new MemoryStream();
+
+        var mismatched = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            mismatchedStream,
+            new ExcelSheetSpec
+            {
+                SheetName = "运单",
+                RowType = typeof(SampleRow),
+                Columns = MismatchedColumns,
+                Rows = mismatchedRows
+            },
+            ExcelFormat.Csv,
+            new ExcelTextOptions(),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.RowType), mismatched.ParamName);
+        Assert.Contains("anno-name", mismatched.Message, StringComparison.Ordinal);
+        Assert.Contains(typeof(AnnotatedRow).FullName!, mismatched.Message, StringComparison.Ordinal);
+        Assert.Contains(typeof(SampleRow).FullName!, mismatched.Message, StringComparison.Ordinal);
+        Assert.Equal(0, mismatchedStream.Length);
+        Assert.Equal(0, mismatchedRows.Count);
+
+        var widenedRows = new CountingRows(3);
+        var widenedStream = new MemoryStream();
+
+        var widened = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            widenedStream,
+            new ExcelSheetSpec
+            {
+                SheetName = "运单",
+                RowType = typeof(object),
+                Columns = Columns,
+                Rows = widenedRows
+            },
+            ExcelFormat.Csv,
+            new ExcelTextOptions(),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.RowType), widened.ParamName);
+        Assert.Contains("System.Object", widened.Message, StringComparison.Ordinal);
+        Assert.Equal(0, widenedStream.Length);
+        Assert.Equal(0, widenedRows.Count);
+    }
+
+    /// <summary>
+    /// <c>RowType</c> 是列约定行型别的派生型别时文字档照常写出，预检不得多拒
+    /// </summary>
+    [Fact]
+    public async Task RowType是列行型别的派生型别时文字照常写出()
+    {
+        var stream = await Export(new ExcelTextOptions(), spec: new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(DerivedSampleRow),
+            Columns = Columns,
+            Rows = new[] { new DerivedSampleRow { AwbNo = "AWB1", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) } }
+        });
+
+        Assert.Equal("提单号,重量,预计到达" + "\r\n" + "AWB1,1.50,2026-01-02" + "\r\n", BodyOf(stream));
+    }
+
+    /// <summary>
+    /// 只认 <see cref="AnnotatedRow"/> 的一列，用于「列清单与声明的行型别不符」的反例
+    /// </summary>
+    private static readonly ExcelColumn[] MismatchedColumns =
+    [
+        new ExcelColumn<AnnotatedRow>
+        {
+            Key = "anno-name",
+            Header = "名称",
+            Value = row => row.Name
+        }
+    ];
+
+    /// <summary>
+    /// <see cref="SampleRow"/> 的派生行类型，用于「<c>RowType</c> 比列的型别更严」的正例
+    /// </summary>
+    private sealed class DerivedSampleRow : SampleRow
+    {
+    }
+
+    /// <summary>
     /// 表标题与工作簿排版项不写进文字档
     /// </summary>
     [Fact]

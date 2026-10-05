@@ -59,6 +59,30 @@ public class ClosedXmlExporterTests
     ];
 
     /// <summary>
+    /// 只认 <see cref="AnnotatedRow"/> 的一列，用于「列清单与声明的行型别不符」的反例
+    /// </summary>
+    /// <remarks>
+    /// 列键取 <c>anno-name</c> 而不是属性名，为的是让「消息点名列键」这条断言不受别的措辞干扰。
+    /// </remarks>
+    private static readonly ExcelColumn[] MismatchedColumns =
+    [
+        new ExcelColumn<AnnotatedRow>
+        {
+            Key = "anno-name",
+            Header = "名称",
+            Order = 0,
+            Value = row => row.Name
+        }
+    ];
+
+    /// <summary>
+    /// <see cref="SampleRow"/> 的派生行类型，用于「<c>RowType</c> 比列的型别更严」的正例
+    /// </summary>
+    private sealed class DerivedSampleRow : SampleRow
+    {
+    }
+
+    /// <summary>
     /// 写出表头与数据，并证明交回的流仍可从头读回
     /// </summary>
     [Fact]
@@ -860,6 +884,116 @@ public class ClosedXmlExporterTests
         var sheet = workbook.Worksheet(1);
         Assert.Equal("#FFFFFF", HexOf(sheet.Cell(1, 1).Style.Fill.BackgroundColor));
         Assert.Equal(XLFillPatternValues.Solid, sheet.Cell(1, 1).Style.Fill.PatternType);
+    }
+
+    /// <summary>
+    /// 列约定的行型别与 <see cref="ExcelSheetSpec.RowType"/> 不符时，声明级预检在取出第一行之前就把整份规格拒掉
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 两种坏声明都要拦：列清单来自另一个行类型（复制粘贴留下的 <c>ExcelColumn&lt;AnnotatedRow&gt;</c> 配
+    /// <c>RowType = typeof(SampleRow)</c>），以及把 <c>RowType</c> 写成 <see cref="object"/> 来「放宽」。后者尤其
+    /// 危险——<c>object</c> 看着像什么都收，实际让每一格取值都落到「行类型不符返回 null」，交回的档表头齐全、
+    /// 数据全空、结果还写着 <c>StylingApplied=true</c>。
+    /// </para>
+    /// <para>
+    /// 三条断言各挡一种改法：<c>stream.Length == 0</c> 挡「照样写」，<c>rows.Count == 0</c> 挡「判据挪进逐行路径」
+    /// （那里要先枚举才看得见），消息里点名列键与两个型别全名挡「抛了但不说坏在哪一列」。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 列行型别与声明不符时在取出第一行之前就被拒()
+    {
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
+
+        var mismatchedRows = new CountingRows(3);
+        var mismatchedStream = new MemoryStream();
+
+        var mismatched = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            mismatchedStream,
+            new ExcelSheetSpec
+            {
+                SheetName = "运单",
+                RowType = typeof(SampleRow),
+                Columns = MismatchedColumns,
+                Rows = mismatchedRows
+            },
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.RowType), mismatched.ParamName);
+        Assert.Contains("anno-name", mismatched.Message, StringComparison.Ordinal);
+        Assert.Contains(typeof(AnnotatedRow).FullName!, mismatched.Message, StringComparison.Ordinal);
+        Assert.Contains(typeof(SampleRow).FullName!, mismatched.Message, StringComparison.Ordinal);
+        Assert.Equal(0, mismatchedStream.Length);
+        Assert.Equal(0, mismatchedRows.Count);
+
+        var widenedRows = new CountingRows(3);
+        var widenedStream = new MemoryStream();
+
+        var widened = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            widenedStream,
+            new ExcelSheetSpec
+            {
+                SheetName = "运单",
+                RowType = typeof(object),
+                Columns = Columns,
+                Rows = widenedRows
+            },
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.RowType), widened.ParamName);
+        Assert.Contains(typeof(SampleRow).FullName!, widened.Message, StringComparison.Ordinal);
+        Assert.Contains("System.Object", widened.Message, StringComparison.Ordinal);
+        Assert.Equal(0, widenedStream.Length);
+        Assert.Equal(0, widenedRows.Count);
+    }
+
+    /// <summary>
+    /// 零行的坏声明同样在预检被拒：判据若放进逐行路径，这里会静默交出一份只有表头的档
+    /// </summary>
+    [Fact]
+    public async Task 零行规格的列行型别不符同样在预检被拒()
+    {
+        var stream = new MemoryStream();
+        var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
+
+        await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            stream,
+            new ExcelSheetSpec
+            {
+                SheetName = "运单",
+                RowType = typeof(SampleRow),
+                Columns = MismatchedColumns,
+                Rows = Array.Empty<SampleRow>()
+            },
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// <c>RowType</c> 是列约定行型别的派生型别时照常导出，预检不得多拒
+    /// </summary>
+    /// <remarks>
+    /// 派生行类型交出的是列认识的那些属性，逐笔判定本来就放行；预检若写成「两个型别必须相等」，这条会先红。
+    /// </remarks>
+    [Fact]
+    public async Task RowType是列行型别的派生型别时照常导出()
+    {
+        var stream = await ExportAsync(new ExcelSheetSpec
+        {
+            SheetName = "运单",
+            RowType = typeof(DerivedSampleRow),
+            Columns = Columns,
+            Rows = new[] { new DerivedSampleRow { AwbNo = "AWB1", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) } }
+        });
+
+        using var workbook = Open(stream);
+        var sheet = workbook.Worksheet(1);
+
+        Assert.Equal("提单号", sheet.Cell(1, 1).GetString());
+        Assert.Equal("AWB1", sheet.Cell(2, 1).GetString());
+        Assert.Equal(1.5m, sheet.Cell(2, 2).GetValue<decimal>());
     }
 
     /// <summary>

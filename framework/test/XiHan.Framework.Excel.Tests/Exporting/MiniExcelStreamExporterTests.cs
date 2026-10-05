@@ -363,6 +363,118 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
+    /// 列约定的行型别与 <see cref="ExcelSheetSpec.RowType"/> 不符时，本路径同样在调用写出库之前就把规格拒掉
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 两种坏声明：列清单来自另一个行类型，以及把 <c>RowType</c> 写成 <see cref="object"/> 来「放宽」。本路径把每行
+    /// 投影成「列键到取值」的字典，异型行经列的取值方法只会得到 <c>null</c>，放行就是一份表头齐全、数据全空的档，
+    /// 而返回值里唯一的降级理由是「流式模式不支持样式」，看不出数据已被写空。
+    /// </para>
+    /// <para>
+    /// <c>GetEnumeratorCalls == 0</c> 是这条用例的主要证据：判据必须在碰行集合之前就拦住。夹具
+    /// <c>OneShotRows</c> 只许取一次枚举器，预检若挪进逐行路径，这里会先被枚举行集合、再在写出库里落一份空数据档。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 列行型别与声明不符时流式预检抛且零字节不枚举()
+    {
+        var exporter = new MiniExcelStreamExporter();
+
+        var mismatchedRows = new OneShotRows(Rows(3));
+        var mismatchedStream = new MemoryStream();
+
+        var mismatched = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            mismatchedStream,
+            new ExcelSheetSpec
+            {
+                SheetName = "运单",
+                RowType = typeof(SampleRow),
+                Columns = MismatchedColumns,
+                Rows = mismatchedRows
+            },
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.RowType), mismatched.ParamName);
+        Assert.Contains("anno-name", mismatched.Message, StringComparison.Ordinal);
+        Assert.Contains(typeof(AnnotatedRow).FullName!, mismatched.Message, StringComparison.Ordinal);
+        Assert.Contains(typeof(SampleRow).FullName!, mismatched.Message, StringComparison.Ordinal);
+        Assert.Equal(0, mismatchedStream.Length);
+        Assert.Equal(0, mismatchedRows.GetEnumeratorCalls);
+        Assert.Equal(0, mismatchedRows.Yielded);
+
+        var widenedRows = new OneShotRows(Rows(3));
+        var widenedStream = new MemoryStream();
+
+        var widened = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            widenedStream,
+            new ExcelSheetSpec
+            {
+                SheetName = "运单",
+                RowType = typeof(object),
+                Columns = Columns,
+                Rows = widenedRows
+            },
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.RowType), widened.ParamName);
+        Assert.Contains("System.Object", widened.Message, StringComparison.Ordinal);
+        Assert.Equal(0, widenedStream.Length);
+        Assert.Equal(0, widenedRows.GetEnumeratorCalls);
+    }
+
+    /// <summary>
+    /// <c>RowType</c> 是列约定行型别的派生型别时照常导出，流式预检不得多拒
+    /// </summary>
+    [Fact]
+    public async Task RowType是列行型别的派生型别时流式照常导出()
+    {
+        var stream = new MemoryStream();
+
+        var result = await new MiniExcelStreamExporter().ExportAsync(
+            stream,
+            new ExcelSheetSpec
+            {
+                SheetName = "运单",
+                RowType = typeof(DerivedSampleRow),
+                Columns = Columns,
+                Rows = new[]
+                {
+                    new DerivedSampleRow { AwbNo = "AWB1", Weight = 1.5m, Eta = new DateTime(2026, 1, 2) }
+                }
+            },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(ExcelFormat.Xlsx, result.Format);
+
+        using var workbook = Open(stream);
+        var sheet = workbook.Worksheet(1);
+
+        Assert.Equal("提单号", sheet.Cell(1, 2).GetString());
+        Assert.Equal("AWB1", sheet.Cell(2, 2).GetString());
+    }
+
+    /// <summary>
+    /// 只认 <see cref="AnnotatedRow"/> 的一列，用于「列清单与声明的行型别不符」的反例
+    /// </summary>
+    private static readonly ExcelColumn[] MismatchedColumns =
+    [
+        new ExcelColumn<AnnotatedRow>
+        {
+            Key = "anno-name",
+            Header = "名称",
+            Value = row => row.Name
+        }
+    ];
+
+    /// <summary>
+    /// <see cref="SampleRow"/> 的派生行类型，用于「<c>RowType</c> 比列的型别更严」的正例
+    /// </summary>
+    private sealed class DerivedSampleRow : SampleRow
+    {
+    }
+
+    /// <summary>
     /// 早于工作簿日期下限的取值在流式路径同样被拒，不交出一份日期被夹改的档
     /// </summary>
     /// <remarks>

@@ -11,7 +11,8 @@ namespace XiHan.Framework.Excel.Abstractions.Exporting;
 /// <remarks>
 /// 属性一律 <c>init</c>，构造完成后不可变，同一列实例可安全被多个导出请求复用。
 /// 非泛型基类让提供程序在不知道行类型的前提下读取列元数据并取值；行类型由泛型派生类
-/// <see cref="ExcelColumn{TRow}"/> 承担。
+/// <see cref="ExcelColumn{TRow}"/> 承担，并经 <see cref="RowType"/> 重新交出——基类擦除了 <c>TRow</c>，
+/// 而表规格的行型一致性预检必须在取值之前就问到「这一列认哪个行类型」，只能靠这个成员。
 /// </remarks>
 public abstract class ExcelColumn
 {
@@ -19,6 +20,17 @@ public abstract class ExcelColumn
     /// 列的稳定标识，供错误报表与列匹配使用，不随表头文案变化
     /// </summary>
     public required string Key { get; init; }
+
+    /// <summary>
+    /// 本列约定的行类型，即 <see cref="ExcelColumn{TRow}"/> 的泛型参数
+    /// </summary>
+    /// <remarks>
+    /// 取值只在 <see cref="GetValue"/> 收到该类型（或其派生类型）的实例时才成立。表规格的
+    /// <see cref="ExcelSheetSpec.RowType"/> 与此不符意味着每一格取值都落到「行类型不符返回 <c>null</c>」，
+    /// 交出的档表头齐全而数据全空，因此这一对型别在写出任何内容之前就被比对，见
+    /// <see cref="ExcelSheetSpec"/> 与列取值处的说明。
+    /// </remarks>
+    public abstract Type RowType { get; }
 
     /// <summary>
     /// 表头显示文案
@@ -96,6 +108,11 @@ public sealed class ExcelColumn<TRow> : ExcelColumn
     public required Func<TRow, object?> Value { get; init; }
 
     /// <summary>
+    /// 本列约定的行类型，即本类的泛型参数 <typeparamref name="TRow"/>
+    /// </summary>
+    public override Type RowType => typeof(TRow);
+
+    /// <summary>
     /// 取该列在指定行上的值
     /// </summary>
     /// <param name="row">行对象，允许为 <c>null</c></param>
@@ -103,8 +120,10 @@ public sealed class ExcelColumn<TRow> : ExcelColumn
     /// <remarks>
     /// 行集合里的 <c>null</c> 元素与异型行都是合法输入，这里返回 <c>null</c> 而不是抛异常，
     /// 让导出侧写成空单元格；数据是否应当为空由调用方在构造行集合时决定。
-    /// 框架自带的两条导出路径不会把异型行交到这里：取值之前已按 <see cref="ExcelSheetSpec.RowType"/>
-    /// 逐笔判定并抛出，因此「异型行取到 <c>null</c>」只剩调用方自己调用本方法时看得到。
+    /// 框架自带的三条导出路径（<c>.xlsx</c> 全量、<c>.xlsx</c> 流式、文字档）不会把异型行交到这里，
+    /// 也不会带着「列的 <see cref="ExcelColumn.RowType"/> 与 <see cref="ExcelSheetSpec.RowType"/> 不符」的规格走到这里：
+    /// 前者由取值前的逐笔判定拦，后者由更靠前的声明级预检拦（两条判据见框架侧的行型一致性守卫），
+    /// 因此「异型行取到 <c>null</c>」这一分支只剩调用方自己直接调用本方法时看得到。
     /// </remarks>
     public override object? GetValue(object? row)
         => row is TRow typed ? Value(typed) : null;

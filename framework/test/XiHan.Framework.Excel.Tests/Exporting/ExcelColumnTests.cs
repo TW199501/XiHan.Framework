@@ -29,6 +29,28 @@ public class ExcelColumnTests
     }
 
     /// <summary>
+    /// 列经非泛型基类就能读到自己约定的行类型，供写出前的行型一致性预检比对
+    /// </summary>
+    /// <remarks>
+    /// 预检拿到的列清单是 <see cref="ExcelColumn"/> 的列表（泛型参数已被擦除），所以它只能问这个成员；
+    /// 值必须是泛型参数本身，不能是行对象的实际类型——后者要取到一行才知道，而判据排在取值之前。
+    /// </remarks>
+    [Fact]
+    public void 列的RowType是泛型参数且能从基类读出()
+    {
+        var column = new ExcelColumn<SampleRow>
+        {
+            Key = "awb", Header = "提单号", Value = r => r.AwbNo
+        };
+
+        Assert.Equal(typeof(SampleRow), column.RowType);
+
+        ExcelColumn erased = column;
+
+        Assert.Equal(typeof(SampleRow), erased.RowType);
+    }
+
+    /// <summary>
     /// 未显式赋值时列取约定默认值，其余可空项保持为空
     /// </summary>
     [Fact]

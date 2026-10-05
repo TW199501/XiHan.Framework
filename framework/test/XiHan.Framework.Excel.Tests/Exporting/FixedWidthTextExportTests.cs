@@ -159,6 +159,51 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
+    /// 固定宽度布局与分隔符布局走同一份声明级预检：列的行型别与声明不符即在写出任何字节之前抛，行集合一次都不被枚举
+    /// </summary>
+    /// <remarks>
+    /// 定宽的逐行失败本来就会留下半份档（每格按字节补位、边写边缓冲），因此这条特别断 <c>stream.Length == 0</c>：
+    /// 坏声明必须和「已经落了几行」分开，否则调用方拿到的是按字节切列切到一半的档。
+    /// 列上的 <see cref="ExcelColumn.FixedWidth"/> 照常给出，为的是让列宽校验先放行，把这条反例真正落到行型预检上。
+    /// </remarks>
+    [Fact]
+    public async Task 定宽列行型别与声明不符时预检抛且零字节不枚举()
+    {
+        var rows = new CountingRows(3);
+        var stream = new MemoryStream();
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        var failure = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            stream,
+            new ExcelSheetSpec
+            {
+                SheetName = "运单",
+                RowType = typeof(SampleRow),
+                Columns =
+                [
+                    new ExcelColumn<AnnotatedRow>
+                    {
+                        Key = "anno-name",
+                        Header = "名称",
+                        FixedWidth = AwbWidth,
+                        Value = row => row.Name
+                    }
+                ],
+                Rows = rows
+            },
+            ExcelFormat.Txt,
+            FixedOptions(),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.RowType), failure.ParamName);
+        Assert.Contains("anno-name", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(typeof(AnnotatedRow).FullName!, failure.Message, StringComparison.Ordinal);
+        Assert.Contains(typeof(SampleRow).FullName!, failure.Message, StringComparison.Ordinal);
+        Assert.Equal(0, stream.Length);
+        Assert.Equal(0, rows.Count);
+    }
+
+    /// <summary>
     /// 整行字节数超过所有列宽之和时抛出，信息带该列列宽与实际字节数
     /// </summary>
     [Fact]
