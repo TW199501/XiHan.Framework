@@ -1,0 +1,25 @@
+framework/src/XiHan.Framework.Excel/Importing/FixedWidthTextImporter.cs
+  s_94057b8e5cf9b6::t_d28d647670228f 168-170,222-225,245,293-305,311
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelDataReaderImporterTests.cs
+  s_94057b8e5cf9b6::t_221ede739e724c 1155-1233,1262-1285
+framework/test/XiHan.Framework.Excel.Tests/Importing/FixedWidthTextImporterTests.cs
+  s_94057b8e5cf9b6::t_48b138a55a4c3b 4,704-761,1477-1500
+framework/src/XiHan.Framework.Excel/Importing/ExcelDataReaderImporter.cs
+  s_94057b8e5cf9b6::t_d8718b26bf0552 181-183,226-229,275,317-328,334
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1a98ce409cf87a321ebb348ccb22e417b1fa1142",
+  "prompts": {},
+  "sessions": {
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}

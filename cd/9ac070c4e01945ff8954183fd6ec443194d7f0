@@ -1,0 +1,19 @@
+framework/src/XiHan.Framework.Excel.Abstractions/ExcelConstants.cs
+  s_58251641b98742::t_dd2ac881e2b197 70,74-83,87-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cd9ac070c4e01945ff8954183fd6ec443194d7f0",
+  "prompts": {},
+  "sessions": {
+    "s_58251641b98742": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "09448835-7b31-464d-8b14-4856c781b3eb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,89 @@
+framework/src/XiHan.Framework.Excel.Abstractions/ExcelConstants.cs
+  s_94057b8e5cf9b6::t_87a75b417b0890 111-131
+  h_be8240d2cfaa4b 92-94
+  s_94057b8e5cf9b6::t_6c74467e2ba3f9 34-85
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelExporter.cs
+  s_94057b8e5cf9b6::t_6e95f4680c2959 75,139-140
+  s_e341848ede711f::t_aeec95745df322 82-86,141-144
+  h_be8240d2cfaa4b 55-57,128-132
+framework/src/XiHan.Framework.Excel/Exporting/ClosedXmlExporter.cs
+  s_94057b8e5cf9b6::t_e3caf31b8edead 59-61,87,92-96
+  s_93cd51a28330ba::t_97ce99ada03cde 88-91
+  s_e341848ede711f::t_e0981784422262 127-156,188-193,197-199,261-264,372-379,383,644-661
+  h_be8240d2cfaa4b 74-75,78-80,172-179,245-251,335-337,352,605,607-609,612-617,623
+framework/src/XiHan.Framework.Excel/Exporting/MiniExcelStreamExporter.cs
+  s_94057b8e5cf9b6::t_c9b86c3e0b804f 54,102-103,109,191,194
+  s_94057b8e5cf9b6::t_a13e1e5e568a1e 88-90
+  s_e341848ede711f::t_3915eac87310bc 69-75,127-160,183-186,195-197,239,326,331,338-339,341,346,357-364,388-406
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlExporterTests.cs
+  s_94057b8e5cf9b6::t_fc5fe32c4a9141 12,14,556-707,2130-2178
+  s_94057b8e5cf9b6::t_693198e5484eff 5-7,845-909,2106-2129
+  s_94057b8e5cf9b6::t_ee0a464fe0ecea 910-949
+  h_be8240d2cfaa4b 1807-2037
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlMultiSheetTests.cs
+  s_94057b8e5cf9b6::t_e176e5b7e020d7 696-735
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelStreamExporterTests.cs
+  s_8f73e51b65cc85::t_5770a4daec5153 13,15,683-776,1515-1541
+  s_94057b8e5cf9b6::t_925192894ff8e8 6-8,777-844,1491-1514
+  s_94057b8e5cf9b6::t_ecb26c5a1ebf8e 845-880
+framework/src/XiHan.Framework.Excel.Abstractions/Attributes/ExcelColumnAttribute.cs
+  s_94057b8e5cf9b6::t_e3ecf6a7962657 12
+  s_94057b8e5cf9b6::t_ddca050295b697 13-14,17
+  s_94057b8e5cf9b6::t_21a29fa99b731d 15-16
+framework/src/XiHan.Framework.Excel.Abstractions/Attributes/ExcelIgnoreAttribute.cs
+  s_94057b8e5cf9b6::t_c86915658730fe 10
+  s_94057b8e5cf9b6::t_00b61593bef6ba 11-13
+  s_94057b8e5cf9b6::t_00f4e3d5fd13ae 14-15
+framework/src/XiHan.Framework.Excel/Columns/ExcelColumnBuilder.cs
+  s_94057b8e5cf9b6::t_3c259a16b9face 31-33,39-40,42,193-195,217-218,274-276
+framework/test/XiHan.Framework.Excel.Tests/Columns/ExcelColumnBuilderTests.cs
+  s_93cd51a28330ba::t_6be9e4870a3c5f 4,299-305,308-327,530-549
+  s_94057b8e5cf9b6::t_2f5e0936fcfada 306-307,620-622
+framework/src/XiHan.Framework.Excel/Importing/FixedWidthTextImporter.cs
+  s_e341848ede711f::t_e569520ca11682 79-85,108-109,111,119,123,125-126,141,166-167,181-182,184-185,221-223
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "409a01b01d36d3f9f342cf2454013d4edc13409a",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  },
+  "sessions": {
+    "s_8f73e51b65cc85": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-arev-e85-d0cc23e882a9ad34",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_93cd51a28330ba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aimpl-e85-44d40cb530403bf3",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_94057b8e5cf9b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90574393-d99d-4685-85bc-153dc25d1750",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_e341848ede711f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db6c0729-14d9-4317-989a-dd3108172b84",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
