@@ -1,0 +1,18 @@
+framework/src/XiHan.Framework.Excel/Exporting/DelimitedTextExporter.cs
+  h_be8240d2cfaa4b 66-69,386-392,411-412
+framework/test/XiHan.Framework.Excel.Tests/Exporting/DelimitedTextExporterTests.cs
+  h_be8240d2cfaa4b 570-677,828-855
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/AsyncOnlyStream.cs
+  h_be8240d2cfaa4b 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb76fb8461e05b549adfc32b76c90527810ecb0c",
+  "prompts": {},
+  "humans": {
+    "h_be8240d2cfaa4b": {
+      "author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
