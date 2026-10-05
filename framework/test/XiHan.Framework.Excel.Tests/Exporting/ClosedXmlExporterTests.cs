@@ -771,6 +771,46 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
+    /// <see cref="DateTime"/> 按钟表时刻落格：不读 <see cref="DateTime.Kind"/>、不做时区换算
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// xlsx 的日期格只是一个带日期格式的数，没有容纳时区的地方，所以 <c>Utc</c> 与 <c>Local</c> 的实例
+    /// 都照它显示的年月日时分秒落格，读回来一律是 <see cref="DateTimeKind.Unspecified"/>。
+    /// 两条 xlsx 路径这同一副样子（流式侧见 <c>MiniExcelStreamExporterTests</c>），因此没有数据差异，
+    /// 缺的只是把「Kind 会被丢掉」写进文档——<see cref="DateTimeOffset"/> 那边早就披露了偏移量不落格，
+    /// <c>DateTime.Kind</c> 此前没人说。
+    /// </para>
+    /// <para>
+    /// 若日后有人在这里加时区换算（把 UTC 折算成本地钟点再落格），这一条按 07:08:09 断的期望会红；
+    /// 那类换算该由呼叫端在交值之前自己做。
+    /// </para>
+    /// </remarks>
+    /// <param name="kind">写出的 <see cref="DateTime"/> 带的 Kind</param>
+    [Theory]
+    [InlineData(DateTimeKind.Utc)]
+    [InlineData(DateTimeKind.Local)]
+    [InlineData(DateTimeKind.Unspecified)]
+    public async Task DateTime按钟表时刻落格且不读Kind(DateTimeKind kind)
+    {
+        var value = new DateTime(2024, 5, 6, 7, 8, 9, kind);
+
+        var stream = await ExportAsync(BuildValueSpec(value));
+
+        var back = await ImportValueAsync(stream);
+
+        Assert.IsType<DateTime>(back);
+
+        var read = (DateTime)back!;
+
+        Assert.Equal(new DateTime(2024, 5, 6, 7, 8, 9), read);
+        Assert.Equal(7, read.Hour);
+        Assert.Equal(8, read.Minute);
+        Assert.Equal(9, read.Second);
+        Assert.Equal(DateTimeKind.Unspecified, read.Kind);
+    }
+
+    /// <summary>
     /// 早于 1899-12-30 的 DateOnly 在本路径照能导出，且落文本格、值原样读回
     /// </summary>
     /// <remarks>

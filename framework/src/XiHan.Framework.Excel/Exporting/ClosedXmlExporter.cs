@@ -75,6 +75,10 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <c>TimeSpan</c> 落时长格，<c>null</c> 落空格；<c>DateOnly</c>、<c>DateTimeOffset</c> 与 <c>Guid</c> 这类
 /// 工作簿没有对应格位的型别落文本格，读出的是它的文本形式而不是日期格。这与流式路径对同一些型别的落格
 /// 可以不同（例如 <c>DateOnly</c> 在流式路径落日期格），两条路径只承诺列顺序与表头文案一致，不承诺格位型别一致。
+/// <c>DateTime</c> 按它的<u>钟表时刻</u>落格：本类不读 <see cref="DateTime.Kind"/>、不做时区换算，
+/// <c>Utc</c>／<c>Local</c> 的实例都照它显示的年月日时分秒落进日期格，读回来是
+/// <see cref="DateTimeKind.Unspecified"/>（xlsx 的日期格本身只是一个带格式的数，没有容纳时区的地方）；
+/// 要按某个时区交代同一个瞬间，由呼叫端先换算再交值。
 /// 数值这一项两边各按自己的形式落档：本类把取值交给 <see cref="ClosedXML.Excel.XLCellValue"/>，
 /// 流式路径把取值的文本交给写出库，落进档里的写法可以不同（同一份 15 位整数，一边写成 <c>1E+15</c> 这样的形式，
 /// 一边写成整串数字）。能承诺的是读回的那个数：<see cref="ExcelConstants.MaxExactNumericSignificantDigits"/>

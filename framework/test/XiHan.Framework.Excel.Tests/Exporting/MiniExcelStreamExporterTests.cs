@@ -833,6 +833,42 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
+    /// <see cref="DateTime"/> 在流式路径同样按钟表时刻落格：不读 <see cref="DateTime.Kind"/>、不做时区换算
+    /// </summary>
+    /// <remarks>
+    /// 与全量路径同一副样子（那里见 <c>ClosedXmlExporterTests</c>）：日期格没有容纳时区的地方，
+    /// <c>Utc</c>／<c>Local</c> 都照显示的年月日时分秒落格，读回来一律是
+    /// <see cref="DateTimeKind.Unspecified"/>。两条各钉一条，是因为分派器按行数决定走哪条，
+    /// 只钉一边等于让另一边无人看管。上面那条带偏移量的用例钉的是 <see cref="DateTimeOffset"/>
+    /// 丢偏移量，这一条钉的是 <c>DateTime.Kind</c> 同样被丢。
+    /// </remarks>
+    /// <param name="kind">写出的 <see cref="DateTime"/> 带的 Kind</param>
+    [Theory]
+    [InlineData(DateTimeKind.Utc)]
+    [InlineData(DateTimeKind.Local)]
+    [InlineData(DateTimeKind.Unspecified)]
+    public async Task DateTime在流式路径按钟表时刻落格且不读Kind(DateTimeKind kind)
+    {
+        var value = new DateTime(2024, 5, 6, 7, 8, 9, kind);
+
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(stream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        var back = await ImportValueAsync(stream);
+
+        Assert.IsType<DateTime>(back);
+
+        var read = (DateTime)back!;
+
+        Assert.Equal(new DateTime(2024, 5, 6, 7, 8, 9), read);
+        Assert.Equal(7, read.Hour);
+        Assert.Equal(8, read.Minute);
+        Assert.Equal(9, read.Second);
+        Assert.Equal(DateTimeKind.Unspecified, read.Kind);
+    }
+
+    /// <summary>
     /// 不可用的表名抛出的是本组件的框架异常，不是渲染库那句英文异常，也不是被转义后的另一个名字
     /// </summary>
     /// <remarks>

@@ -66,6 +66,9 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 在本路径落日期格（<c>DateTimeOffset</c> 取它的钟表时刻，偏移量不落格），在全量路径落文本格；
 /// <see cref="byte"/> 相反，在本路径落文本格、在全量路径落数值格；<see cref="TimeOnly"/> 在本路径落时长格。
 /// 这类同值异格不改变读回的值，因此不因格位不同而拒写。
+/// <see cref="DateTime"/> 按它的<u>钟表时刻</u>落格，与全量路径同一副样子：本类不读
+/// <see cref="DateTime.Kind"/>、不做时区换算，<c>Utc</c>／<c>Local</c> 的实例都照它显示的年月日时分秒落进
+/// 日期格，读回来是 <see cref="DateTimeKind.Unspecified"/>；要按某个时区交代同一个瞬间，由呼叫端先换算再交值。
 /// </para>
 /// <para>
 /// 日期格的下限是<b>本路径专属</b>的一道判定：本路径把 <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>
