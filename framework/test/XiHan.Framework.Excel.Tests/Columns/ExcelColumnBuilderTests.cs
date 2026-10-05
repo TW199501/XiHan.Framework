@@ -1,6 +1,7 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.Reflection;
 using System.Text;
 using ClosedXML.Excel;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -296,6 +297,35 @@ public class ExcelColumnBuilderTests
     }
 
     /// <summary>
+    /// <c>ref</c> 返回的读取器落在反射回退路径上，getter 的异常仍被包成 <see cref="TargetInvocationException"/>
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 「构建器列交出去包装的异常型别」这一条对 <c>ref</c> 返回的读取器不成立：表达式树表达不出「取引用所指的
+    /// 值」，这类属性留在 <c>GetValue</c> 上，反射的包装随之保留。公开文档的取值段把这一条例外写明，本条钉住
+    /// <c>ref</c> 返回这一种回退形状：包成的型别就是 <see cref="TargetInvocationException"/>，且这种形状照常
+    /// 成列。回退面另有其它形状时不在本条覆盖范围内。
+    /// </para>
+    /// <para>
+    /// <c>Assert.Throws&lt;T&gt;</c> 按精确型别判：日后表达式树支持 byref、或回退路径改成把原异常透出时，
+    /// 交出的型别变成 <see cref="FormatException"/>，本条即红，作为「文档与实现同步改」的变更信号。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void ref返回的读取器异常仍包成TargetInvocationException()
+    {
+        var columns = ExcelColumnBuilder.CreateColumns<ByRefThrowingRow>();
+        var column = columns.Single(c => c.Key == nameof(ByRefThrowingRow.Boom));
+
+        Assert.Equal(2, columns.Count);
+
+        var failure = Assert.Throws<TargetInvocationException>(() => column.GetValue(new ByRefThrowingRow()));
+
+        Assert.IsType<FormatException>(failure.InnerException);
+        Assert.Equal("取值失败", failure.InnerException!.Message);
+    }
+
+    /// <summary>
     /// <c>new</c> 遮蔽的同名属性只留一列，且留下的是 <c>DeclaringType</c> 最深的那一个
     /// </summary>
     /// <remarks>
@@ -498,6 +528,26 @@ public class ExcelColumnBuilderTests
     }
 
     /// <summary>
+    /// 带 <c>ref</c> 返回且总是抛出的读取器的测试行类型
+    /// </summary>
+    /// <remarks>
+    /// 只作为测试夹具。<see cref="Boom"/> 的读取器交出引用（<c>Int32&amp;</c>）因而走反射回退，
+    /// 用于钉住这一形状抛出的异常被包成什么型别。
+    /// </remarks>
+    private class ByRefThrowingRow
+    {
+        /// <summary>
+        /// <c>ref</c> 返回的计算属性，每次读取都抛出
+        /// </summary>
+        public ref int Boom => throw new FormatException("取值失败");
+
+        /// <summary>
+        /// 普通属性，证明抛出型读取器没有把整个行类型判成不成列
+        /// </summary>
+        public string Name { get; set; } = "AWB1";
+    }
+
+    /// <summary>
     /// <c>new</c> 遮蔽的测试行类型：基类与派生类的同名属性各有背衬，值不同
     /// </summary>
     /// <remarks>
@@ -567,8 +617,9 @@ public class ExcelColumnBuilderTests
     /// <c>IOrderBase.Id</c> 不在里面，于是接口行类型导出的档整栏少一栏且没有任何提示。
     /// </para>
     /// <para>
-    /// 键的顺序按「基接口在前、本接口自己声明的在后」写进断言：多个基接口按继承深度由远到近排，
-    /// 不依赖 <c>GetInterfaces()</c> 的返回顺序。取值要证到能落进单元格的形状，所以两列都取一遍值。
+    /// 键的顺序按「基接口在前、本接口自己声明的在后」写进断言：这里的 <c>IOrder</c> 只有一个基接口，
+    /// 断言不覆盖多个同深度互不派生基接口之间的先后（那一段仍随 <c>GetInterfaces()</c> 的返回序）。
+    /// 取值要证到能落进单元格的形状，所以两列都取一遍值。
     /// </para>
     /// </remarks>
     [Fact]

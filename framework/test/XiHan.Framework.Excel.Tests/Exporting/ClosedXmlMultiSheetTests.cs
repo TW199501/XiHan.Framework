@@ -694,6 +694,46 @@ public class ClosedXmlMultiSheetTests
     }
 
     /// <summary>
+    /// 多表入口对越界数值同样拒写，位数的判尺只有共用守卫那一份
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 数值有效数字这一道挂在逐格取值上，多表路径复用同一张写格路径，因此这里断的是「没有第二份尺」，
+    /// 不是多表入口的新能力：第二张表刻意给出可正常写出的列，被拒的是第一张表里那一格。
+    /// </para>
+    /// <para>
+    /// 消息点名的行位置是表内的数据行位置（第 1 行），与前缀一起构成定位信息；抛出时整份档尚未存盘，
+    /// 输出流零字节。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 多表入口对越界数值同样拒写()
+    {
+        var columns = new ExcelColumn[]
+        {
+            new ExcelColumn<SampleRow>
+            {
+                Key = "Value",
+                Header = "取值",
+                Value = _ => 1234567890123456L
+            }
+        };
+
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
+            .ExportAllAsync(
+                stream,
+                [Spec("运单", columns, [Row("AWB1", 1.5m)]), Spec("汇总", WaybillColumns, [Row("AWB2", 2.5m)])],
+                TestContext.Current.CancellationToken));
+
+        Assert.Contains("取值", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("键 Value", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("有 16 位有效数字", failure.Message, StringComparison.Ordinal);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
     /// 把导出后的流回到起点并交回可读的工作簿，同时证明流没有被导出器关闭
     /// </summary>
     private static XLWorkbook Open(MemoryStream stream)

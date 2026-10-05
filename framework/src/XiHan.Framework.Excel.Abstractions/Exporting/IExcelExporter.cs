@@ -52,7 +52,15 @@ public interface IExcelExporter
     /// 取引号字符、或免引号策略配空格分隔符，<see cref="ArgumentException.ParamName"/> 为
     /// <c>textOptions</c>）；或 <see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串（只在目标格式是
     /// <see cref="ExcelFormat.Xlsx"/> 且走全量工作簿路径时判——流式模式根本不写表头底色，文字档也没有底色，
-    /// 那两种场合这个值不参与写出，也不报错，与「设置了但本路径不承载的选项」的既有口径一致）</exception>
+    /// 那两种场合这个值不参与写出，也不报错，与「设置了但本路径不承载的选项」的既有口径一致）；
+    /// 或某列的 <see cref="ExcelColumn.Header"/>、<see cref="ExcelSheetSpec.Title"/> 长过
+    /// <see cref="ExcelConstants.MaxCellTextLength"/> 个字符（<see cref="ArgumentException.ParamName"/> 分别为
+    /// <c>Header</c> 与 <c>Title</c>，只在目标格式是 <see cref="ExcelFormat.Xlsx"/> 时判，两条 xlsx 路径共用
+    /// 同一份判据、抛出的消息逐字相同，文字档没有单元格因此没有这道上限——表头与标题落的也是单元格，
+    /// 与数据格共用同一道上限，超长时写出侧不截断，判定排在写出第一格之前，抛出时输出流零字节、
+    /// 行集合一次都没被枚举。<see cref="ExcelSheetSpec.Title"/> 在流式模式不落档，但声明超长照样拒：
+    /// 「本路径不承载某个选项」与「这个选项的声明非法」是两件事，前者不报错，后者两条路径一起拒，
+    /// 免得同一份规格能不能导由分派器按行数选了哪条路径决定）</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> 不在
     /// <see cref="ExcelFormat"/> 的定义范围内；或 <see cref="ExcelSheetSpec.ExpectedRowCount"/> 为负数
     /// （这一条不分格式：它是分派输入，任何目标格式下都不是合法的行数声明）；或某列的
@@ -62,11 +70,19 @@ public interface IExcelExporter
     /// <exception cref="InvalidOperationException">目标格式是 <see cref="ExcelFormat.Xlsx"/> 而
     /// <see cref="ExcelSheetSpec.ForceStreaming"/> 与 <see cref="ExcelSheetSpec.ExpectedRowCount"/>
     /// 两个都没给；或行集合里有某笔元素与 <see cref="ExcelSheetSpec.RowType"/> 不符；或某个行值是工作簿
-    /// 装不下的（早于 1899-12-30 的 <c>DateTime</c>、<c>NaN</c> 或 <c>±∞</c>、长过单元格上限的字串）；或某个取值委托交回了
+    /// 装不下的（早于 1899-12-30 的 <c>DateTime</c>、<c>NaN</c> 或 <c>±∞</c>、有效数字多于
+    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的 <c>long</c>／<c>ulong</c>／
+    /// <c>decimal</c>／<c>double</c>／<c>float</c>、长过单元格上限的字串）——四类都只在全量与流式两条 xlsx 路径判，
+    /// 且两条路径判得一样（文字档没有数值格，这类取值照原样写成文本）；或某个取值委托交回了
     /// 工作簿不接受的东西；或（仅流式模式）两列共用了同一个 <see cref="ExcelColumn.Key"/>——那一模式的行模型
     /// 按键取值，重复键会让后一列盖掉前一列；或（仅流式模式）某个行值是早于 1899-12-30 的
     /// <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>——这两个型别在流式模式落日期格、整段拒，
-    /// 走全量工作簿时它们落文本格、照能导出，因此这一条不承诺与另一条路径同判。各项消息都点名实际成因</exception>
+    /// 走全量工作簿时它们落文本格、照能导出，因此这一条不承诺与另一条路径同判；或（仅两条 xlsx 路径）
+    /// 标题行、表头行与数据行加起来要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后——单张工作表
+    /// 只有这么多行，超出的行没有可落的位置，上限按每张工作表各自计、不做整簿累计，文字档路径没有这道上限，
+    /// 消息点出上限值与「分成多张表或改用文字档」两条出路；两条 xlsx 路径数的是各自要落的那一行行号，
+    /// 全量路径把标题行算进去、流式模式不写标题行因此不算，能导的行数由落档形态决定，不是两套上限。
+    /// 各项消息都点名实际成因</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// <para>
@@ -108,14 +124,23 @@ public interface IExcelExporter
     /// <exception cref="ArgumentException"><paramref name="sheets"/> 为空清单；或清单里某张表的
     /// <see cref="ExcelSheetSpec.Columns"/> 是 <c>null</c> 或一列都没有（点名第几张）；或某张表的表名不可用、
     /// 或与清单里更早那张重名（判重不区分大小写）；或某张表的 <see cref="ExcelSheetSpec.HeaderFill"/>
-    /// 不是合法的十六进制颜色串</exception>
+    /// 不是合法的十六进制颜色串；或某张表某列的 <see cref="ExcelColumn.Header"/>、某张表的
+    /// <see cref="ExcelSheetSpec.Title"/> 长过 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符
+    /// （<see cref="ArgumentException.ParamName"/> 分别为 <c>Header</c> 与 <c>Title</c>）——表头与标题落的也是单元格，
+    /// 与数据格共用同一道上限，超长时写出侧不截断；这几类都排在写第一格之前，整份档建好才落盘一次，
+    /// 因此任何一张表触发它们，输出流都是零字节、那张表的行集合一次都没被枚举</exception>
     /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是大于 0
     /// 且不高于 255 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内；
     /// 或某张表的 <see cref="ExcelSheetSpec.ExpectedRowCount"/> 为负数（点名第几张）——多表恒走全量工作簿，
     /// 这个值在这条入口只校验成立与否、不参与分流，也不因为用不到它就静默放过</exception>
     /// <exception cref="InvalidOperationException">清单里有哪张表的 <see cref="ExcelSheetSpec.ForceStreaming"/>
     /// 为 <c>true</c>（多表流式不在本组件的承诺范围内，冲突时拒绝而不是偷偷改走全量）；或某张表的行集合里有
-    /// 某笔元素与其 <see cref="ExcelSheetSpec.RowType"/> 不符；或某个行值是工作簿装不下的</exception>
+    /// 某笔元素与其 <see cref="ExcelSheetSpec.RowType"/> 不符；或某个行值是工作簿装不下的（取值域判据与
+    /// <see cref="ExportAsync"/> 共用同一份，含有效数字多于
+    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值）；或某张表的标题行、表头行与
+    /// 数据行加起来要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后——行数上限按<u>每张工作表各自</u>计，
+    /// 不做整簿累计，因此两张各占上限六成的表能同时写进一个工作簿，而任何一张触线就整个请求被拒，
+    /// 消息点出触线那张表的表名、上限值与「分成多张表或改用文字档」两条出路</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// <para>

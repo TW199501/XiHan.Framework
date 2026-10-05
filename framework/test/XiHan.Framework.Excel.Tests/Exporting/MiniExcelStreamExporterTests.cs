@@ -3,11 +3,16 @@
 
 using System.Collections;
 using System.Globalization;
+using System.IO.Compression;
+using System.Text;
+using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Enums;
 using XiHan.Framework.Excel.Abstractions.Exporting;
+using XiHan.Framework.Excel.Abstractions.Importing;
 using XiHan.Framework.Excel.Exporting;
+using XiHan.Framework.Excel.Importing;
 using XiHan.Framework.Excel.Tests.TestSupport;
 
 namespace XiHan.Framework.Excel.Tests.Exporting;
@@ -666,6 +671,204 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
+    /// 有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值在流式路径同样拒写
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 本路径把取值的文本交给写出库落格，越界取值在这里能原样写进档里（16 位整数就是整串数字），
+    /// 看起来比全量路径「更准」，实则两条路径对同一份规格交出两个不同的数：分派器按行数决定走哪条，
+    /// 得到哪个数就成了走哪条的副产品。位数这一道按取值本身判，两条路径一起拒，判据只有 <c>ExcelWorkbookWriteGuard</c> 里那一份。
+    /// </para>
+    /// <para>
+    /// <c>float</c> 是按同一判据从条文最初的四类型扩用进来的：落进数值格的是它展开成 <see cref="double"/>
+    /// 后的那份形态，<c>0.1f</c> 展开后已是 17 位。
+    /// </para>
+    /// <para>
+    /// 与全量路径不同，本路径的取值判定发生在逐行投影期间，此时表头与建档骨架已经落进流里，
+    /// 因此这里断「抛出且没有成功结果」，不断零字节——全量路径才主张零字节（见 <c>ClosedXmlExporterTests</c>）。
+    /// </para>
+    /// </remarks>
+    /// <param name="value">要落进一格的数值取值</param>
+    /// <param name="reason">消息里该出现的成因片段（点明实际位数）</param>
+    [Theory]
+    [MemberData(nameof(OverPreciseNumericCases))]
+    public async Task 有效数字多于十五位的数值在流式路径拒写(object value, string reason)
+    {
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new MiniExcelStreamExporter()
+            .ExportAsync(stream, BuildValueSpec(value), TestContext.Current.CancellationToken));
+
+        Assert.Contains("取值", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("键 Value", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("第 1 行", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(reason, failure.Message, StringComparison.Ordinal);
+        Assert.Contains("转成字符串栏位", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 上限内的数值在流式路径照写，并由本组件的导入器读回同一份数
+    /// </summary>
+    /// <remarks>
+    /// 判尺不多拒：一位小数、恰为 15 位的整数、带负号带小数点的 15 位取值、展开后仍短的单精度都照写。
+    /// 往返判定用 <see cref="ExcelDataReaderImporter"/>，不用 ClosedXML 读自己写的档——后者会按工作簿自己的
+    /// 形式反算，把「档里被改写过」这件事掩盖掉。
+    /// </remarks>
+    /// <param name="value">要落进一格的数值取值</param>
+    /// <param name="expected">读回来该是的那份数的不变文化文本</param>
+    [Theory]
+    [MemberData(nameof(WithinPrecisionNumericCases))]
+    public async Task 上限内的数值在流式路径照写并由导入器读回原值(object value, string expected)
+    {
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(stream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        var back = await ImportValueAsync(stream);
+
+        Assert.IsType<double>(back);
+        Assert.Equal(expected, ((double)back!).ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// 越界数值案例：要落一格的取值，与消息里该出现的成因片段
+    /// </summary>
+    /// <remarks>
+    /// 与 <c>ClosedXmlExporterTests</c> 的同名案例集取同一批字面量：两条路径各一对反例是这一批的规矩，
+    /// 两处的取值保持相同才能说明判的是同一件事。
+    /// </remarks>
+    public static IEnumerable<object?[]> OverPreciseNumericCases()
+    {
+        yield return new object?[] { 1234567890123456L, "有 16 位有效数字" };
+        yield return new object?[] { 12345678901234.5678m, "有 18 位有效数字" };
+        yield return new object?[] { 12345678901234567.89m, "有 19 位有效数字" };
+        yield return new object?[] { 1.0 / 3.0, "有 16 位有效数字" };
+        yield return new object?[] { 0.1 + 0.2, "有 17 位有效数字" };
+        yield return new object?[] { 0.1f, "有 17 位有效数字" };
+        yield return new object?[] { 3.14f, "有 16 位有效数字" };
+        yield return new object?[] { 12345678901234567890UL, "有 19 位有效数字" };
+    }
+
+    /// <summary>
+    /// 上限内数值案例：要落一格的取值，与导入器读回来该是的那份数的不变文化文本
+    /// </summary>
+    public static IEnumerable<object?[]> WithinPrecisionNumericCases()
+    {
+        yield return new object?[] { 1.5m, "1.5" };
+        yield return new object?[] { 123456789012345L, "123456789012345" };
+        yield return new object?[] { 12345678901234.5m, "12345678901234.5" };
+        yield return new object?[] { -12345678901234.5m, "-12345678901234.5" };
+        yield return new object?[] { 1234567890123450L, "1234567890123450" };
+        yield return new object?[] { 999999999999999m, "999999999999999" };
+        yield return new object?[] { 1.5f, "1.5" };
+        yield return new object?[] { 0m, "0" };
+    }
+
+    /// <summary>
+    /// 公式起首的值在流式路径落文字格、逐字读回，且档里不会多出撇号前缀
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 与全量路径同一件事实：本路径把字串按文本形态落格（档里是 <c>t="str"</c> 的文字值而不是公式），
+    /// 写出库不解析 <c>=</c>、<c>+</c>、<c>@</c> 起首的内容，档里没有 <c>&lt;f&gt;</c>。
+    /// 只有模板路径的 <c>$=</c> 占位会被当成公式解析（另一批处理）。
+    /// </para>
+    /// <para>
+    /// 两条路径的格位形态本来就不同，这一对用例钉的是同一个承诺：起首像公式的字串照原样交回，
+    /// 谁也不给它加 <c>'</c> 前缀——加了就是改写业务资料，逐字断言先红；改成会触发公式的写出方式，
+    /// 无 <c>&lt;f&gt;</c> 那条红。
+    /// </para>
+    /// </remarks>
+    /// <param name="value">以公式前缀起首的字串取值</param>
+    [Theory]
+    [InlineData("=1+1")]
+    [InlineData("+1")]
+    [InlineData("-1")]
+    [InlineData("@SUM(1)")]
+    [InlineData("\t=1+1")]
+    [InlineData("\n=1+1")]
+    public async Task 公式起首的值在流式路径落文字格且逐字读回(string value)
+    {
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(stream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        Assert.False(HasFormulaElement(stream));
+
+        using (var workbook = Open(stream))
+        {
+            var cell = workbook.Worksheet(1).Cell(2, 1);
+
+            Assert.False(cell.HasFormula);
+            Assert.Equal(XLDataType.Text, cell.DataType);
+        }
+
+        var back = await ImportValueAsync(stream);
+
+        Assert.IsType<string>(back);
+        Assert.Equal(value, back);
+        Assert.False(((string)back!).StartsWith('\''));
+    }
+
+    /// <summary>
+    /// 值里的回车在档里按 XML 归一化成换行，其余逐字不变且仍是文字格
+    /// </summary>
+    /// <remarks>
+    /// XML 1.0 不允许文本内容里出现裸 <c>U+000D</c>，写出库把它归一成 <c>U+000A</c>：
+    /// <c>"\r=1+1"</c> 读回来是 <c>"\n=1+1"</c>。这一格依旧不落公式、不加撇号前缀。
+    /// 与全量路径同一件事，两条各钉一条，免得日后只看见一边就以为另一边也成立。
+    /// </remarks>
+    [Fact]
+    public async Task 值里的回车在流式档里归一化成换行()
+    {
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(stream, BuildValueSpec("\r=1+1"), TestContext.Current.CancellationToken);
+
+        Assert.False(HasFormulaElement(stream));
+
+        var back = await ImportValueAsync(stream);
+
+        Assert.Equal("\n=1+1", back);
+    }
+
+    /// <summary>
+    /// <see cref="DateTime"/> 在流式路径同样按钟表时刻落格：不读 <see cref="DateTime.Kind"/>、不做时区换算
+    /// </summary>
+    /// <remarks>
+    /// 与全量路径同一副样子（那里见 <c>ClosedXmlExporterTests</c>）：日期格没有容纳时区的地方，
+    /// <c>Utc</c>／<c>Local</c> 都照显示的年月日时分秒落格，读回来一律是
+    /// <see cref="DateTimeKind.Unspecified"/>。两条各钉一条，是因为分派器按行数决定走哪条，
+    /// 只钉一边等于让另一边无人看管。上面那条带偏移量的用例钉的是 <see cref="DateTimeOffset"/>
+    /// 丢偏移量，这一条钉的是 <c>DateTime.Kind</c> 同样被丢。
+    /// </remarks>
+    /// <param name="kind">写出的 <see cref="DateTime"/> 带的 Kind</param>
+    [Theory]
+    [InlineData(DateTimeKind.Utc)]
+    [InlineData(DateTimeKind.Local)]
+    [InlineData(DateTimeKind.Unspecified)]
+    public async Task DateTime在流式路径按钟表时刻落格且不读Kind(DateTimeKind kind)
+    {
+        var value = new DateTime(2024, 5, 6, 7, 8, 9, kind);
+
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(stream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        var back = await ImportValueAsync(stream);
+
+        Assert.IsType<DateTime>(back);
+
+        var read = (DateTime)back!;
+
+        Assert.Equal(new DateTime(2024, 5, 6, 7, 8, 9), read);
+        Assert.Equal(7, read.Hour);
+        Assert.Equal(8, read.Minute);
+        Assert.Equal(9, read.Second);
+        Assert.Equal(DateTimeKind.Unspecified, read.Kind);
+    }
+
+    /// <summary>
     /// 不可用的表名抛出的是本组件的框架异常，不是渲染库那句英文异常，也不是被转义后的另一个名字
     /// </summary>
     /// <remarks>
@@ -795,6 +998,386 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
+    /// 无标题行时，表头行加数据行正好占满上限的那一份照常写出
+    /// </summary>
+    /// <remarks>
+    /// 上限注入成 3：写出库落下的表头占第 1 行，两行数据占第 2、3 行，正好触线。这条与
+    /// <see cref="流式路径超过行数上限时抛且不回报成功结果"/> 是一对——把判定里的 <c>&gt;</c> 写成 <c>&gt;=</c>，
+    /// 这条会先红（提前一行拒），那条仍然绿，因此两条都得留着。
+    /// 真实上限是一百多万行，逐行写到触线要产出十几 MB 的档，因此边界断言改用注入的小上限，
+    /// 读点与正式入口是同一个字段。回读判定走本组件的导入器，不用工作簿读自己写的档。
+    /// </remarks>
+    [Fact]
+    public async Task 流式路径行数恰等上限时照常写出()
+    {
+        var exporter = new MiniExcelStreamExporter(3);
+        var stream = new MemoryStream();
+
+        var result = await exporter.ExportAsync(
+            stream, BuildRowLimitSpec(Rows(2), title: null), TestContext.Current.CancellationToken);
+
+        Assert.False(result.StylingApplied);
+        Assert.Equal(["AWB0", "AWB1"], await ImportAwbNosAsync(stream));
+    }
+
+    /// <summary>
+    /// 超过行数上限时抛出框架异常、不回报成功结果，且判定没有把行集合物化
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 上限注入成 3，行集合给 10 行：表头占第 1 行，第 3 行数据要落到第 4 行即触线。异常型别挡「让写出库自己去撞
+    /// 工作表的行数界」；<c>rows.Count == 3</c> 挡「为计数先 <c>ToList()</c> 或回头再枚举一遍」（物化会数到 10）；
+    /// 消息里点出上限值与两条出路挡「抛了但不说上限是多少、也不说该怎么办」。
+    /// </para>
+    /// <para>
+    /// 这里<b>不断言输出流零字节</b>：本路径边枚举行边往流里吐字节，触线时前面几行的字节可能已经落进去了，
+    /// 能主张的只有「交出异常、不交出 <see cref="ExcelExportResult"/>」，与取消落在写出中途时的口径一致。
+    /// 全量路径整份档建好才落盘一次，那边才主张零字节。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 流式路径超过行数上限时抛且不回报成功结果()
+    {
+        var exporter = new MiniExcelStreamExporter(3);
+        var rows = new CountingRows(10);
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
+            stream, BuildRowLimitSpec(rows, title: null), TestContext.Current.CancellationToken));
+
+        Assert.Equal(3, rows.Count);
+        Assert.Contains("3", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("分成多张表", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("文字档", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 本路径不写标题行，因此标题不占行数：同样的上限 3，带标题的两行数据照样放行
+    /// </summary>
+    /// <remarks>
+    /// 标题行在流式模式属于「落不下来」的那一批（返回值里已逐项点名），既然不落档就不占工作表的行。
+    /// 全量路径把标题行写在第 1 行、数据区整体下移，同样两行数据在上限 3 时是触线的——两条路径对
+    /// 「标题算不算一行」的答案不同，是因为落档的形态不同，不是两套上限。
+    /// </remarks>
+    [Fact]
+    public async Task 流式路径不写标题行因此标题不占行数()
+    {
+        var exporter = new MiniExcelStreamExporter(3);
+        var stream = new MemoryStream();
+
+        await exporter.ExportAsync(
+            stream, BuildRowLimitSpec(Rows(2), title: "运单明细"), TestContext.Current.CancellationToken);
+
+        using var workbook = Open(stream);
+        var sheet = workbook.Worksheet(1);
+
+        Assert.Equal("提单号", sheet.Cell(1, 1).GetString());
+        Assert.Equal(["AWB0", "AWB1"], await ImportAwbNosAsync(stream));
+    }
+
+    /// <summary>
+    /// 表头长过单元格上限时，本路径也在调用写出库之前把它拒掉：零字节、行集合一次都没被枚举
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 此前本路径对超长表头一声不响：40,000 字符的表头照样写出 4480 字节的档、照样回报降级成功，
+    /// 交出的是一份表头超过单元格上限的档。全量路径对同一份声明抛 <see cref="ArgumentException"/>，
+    /// 于是「同一份规格能不能导」变成了「走哪条路径」的副产品——而分派器是按行数把它送到其中一条的，
+    /// 调用方并没有选择权。表头长度是声明层属性，比行值更没理由按路径分叉。
+    /// </para>
+    /// <para>
+    /// 四条断言各挡一种改法：异常型别与 <c>ParamName</c> 挡「照旧静默写出」；<c>stream.Length == 0</c> 挡
+    /// 「先写一半再抛」——判定必须排在 <c>MiniExcel.SaveAsAsync</c> 之前；<c>rows.Count == 0</c> 挡
+    /// 「把判定挪进逐行投影」；消息不嵌超长文案本身挡「把四万个字符整段塞进异常消息」。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 流式路径表头超过单元格上限时在写出前被拒()
+    {
+        var exporter = new MiniExcelStreamExporter();
+        var rows = new CountingRows(1);
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            stream,
+            BuildTextLimitSpec(new string('A', 40_000), title: null, rows: rows),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelColumn.Header), failure.ParamName);
+        Assert.Equal(0, stream.Length);
+        Assert.Equal(0, rows.Count);
+        Assert.Contains(ExcelConstants.MaxCellTextLength.ToString(CultureInfo.InvariantCulture), failure.Message, StringComparison.Ordinal);
+        Assert.Contains("40000", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(SampleRow.AwbNo), failure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("AAAA", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 表头刚过上限一个字符（32,768）同样被拒：边界是「超过即拒」，两条路径同一把尺
+    /// </summary>
+    [Fact]
+    public async Task 流式路径表头刚过单元格上限一个字符时同样在写出前被拒()
+    {
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<ArgumentException>(async () => await new MiniExcelStreamExporter().ExportAsync(
+            stream,
+            BuildTextLimitSpec(new string('A', ExcelConstants.MaxCellTextLength + 1), title: null, rows: Rows(1)),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelColumn.Header), failure.ParamName);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 标题长过单元格上限时本路径同样拒，即使本路径根本不写标题行
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这条要单独说清：标题行在本路径属于「落不下来」的那一批，按理说一个不参与写出的值可以像
+    /// <see cref="ExcelSheetSpec.HeaderFill"/> 那样「不承载也不报错」。这里不这么做，因为全量路径对同一份声明是抛的——
+    /// 放过就等于让「同一份规格能不能导」由走哪条路径决定，而分派器是按行数替调用方选的。
+    /// 两条路径给出同一个答案，代价是本路径会拒一份它本来也不会写的标题，这个代价由「声明就是声明」承担。
+    /// </para>
+    /// <para>
+    /// 判据与表头那份是同一处，消息也逐字相同，见
+    /// <see cref="两条xlsx路径对同一份超长表头与标题给同一个答案"/>。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 流式路径标题超过单元格上限时在写出前被拒()
+    {
+        var exporter = new MiniExcelStreamExporter();
+        var rows = new CountingRows(1);
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
+            stream,
+            BuildTextLimitSpec("提单号", title: new string('B', 40_000), rows: rows),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.Title), failure.ParamName);
+        Assert.Equal(0, stream.Length);
+        Assert.Equal(0, rows.Count);
+        Assert.Contains(ExcelConstants.MaxCellTextLength.ToString(CultureInfo.InvariantCulture), failure.Message, StringComparison.Ordinal);
+        Assert.Contains("40000", failure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("BBBB", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 标题刚过上限一个字符（32,768）同样被拒
+    /// </summary>
+    [Fact]
+    public async Task 流式路径标题刚过单元格上限一个字符时同样在写出前被拒()
+    {
+        var stream = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<ArgumentException>(async () => await new MiniExcelStreamExporter().ExportAsync(
+            stream,
+            BuildTextLimitSpec("提单号", title: new string('B', ExcelConstants.MaxCellTextLength + 1), rows: Rows(1)),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.Title), failure.ParamName);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 表头恰等单元格上限（32,767）时照常写出，读回来的表头逐字不变
+    /// </summary>
+    /// <remarks>
+    /// 正例挡「把边界写成 <c>&gt;=</c> 提前一个字符拒」。读回判定走本组件的导入器，
+    /// 不用工作簿读自己写的档：导入器按 <c>HasHeader</c> 把第一行当列名交回，键名本身就是档里真实落下的那串表头。
+    /// </remarks>
+    [Fact]
+    public async Task 流式路径表头恰等单元格上限时照常写出并可读回()
+    {
+        var header = new string('A', ExcelConstants.MaxCellTextLength);
+        var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(
+            stream, BuildTextLimitSpec(header, title: null, rows: Rows(1)), TestContext.Current.CancellationToken);
+
+        var imported = await ImportRowsAsync(stream, hasHeader: true);
+
+        var row = Assert.Single(imported);
+
+        Assert.Equal(header, row.Values.Keys.Single());
+        Assert.Equal("AWB0", row.Values[header]);
+    }
+
+    /// <summary>
+    /// 标题恰等上限时本路径照常写出：标题被拒的只是「超长」那一种，长度合法的标题照旧按降级处理、不落档
+    /// </summary>
+    /// <remarks>
+    /// 这条钉住补齐预检没有顺手改掉既有降级语义：判定通过之后，标题仍然不写，第一行仍是表头行，
+    /// 返回值的降级理由里仍然点着标题行。按 <c>HasHeader = true</c> 读回时列名就是「提单号」而不是那串标题，
+    /// 这比读 <see cref="ExcelExportResult.StylingSkipReason"/> 更直接地证明标题没有落档。
+    /// </remarks>
+    [Fact]
+    public async Task 流式路径标题恰等单元格上限时照常写出且标题仍不落档()
+    {
+        var stream = new MemoryStream();
+
+        var result = await new MiniExcelStreamExporter().ExportAsync(
+            stream,
+            BuildTextLimitSpec("提单号", title: new string('B', ExcelConstants.MaxCellTextLength), rows: Rows(1)),
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.StylingApplied);
+        Assert.Contains("标题行", result.StylingSkipReason, StringComparison.Ordinal);
+
+        var imported = await ImportRowsAsync(stream, hasHeader: true);
+
+        var row = Assert.Single(imported);
+
+        Assert.Equal("提单号", row.Values.Keys.Single());
+        Assert.Equal("AWB0", row.Values["提单号"]);
+    }
+
+    /// <summary>
+    /// 同一份超长声明在两条 xlsx 路径上得到同一个答案：同型别、同 <c>ParamName</c>、同一条消息
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这条是「判据只有一份」的可观察物。表头与标题的长度判据收在一个共用守卫里，两个导出器都只调它，
+    /// 因此两边抛出的消息逐字相同；哪天有人把它拆回两处各写一份字面比较、其中一份的边界或措辞漂了，
+    /// 这条会先红——比分别断两条路径的消息文本更早、也更直接。
+    /// </para>
+    /// <para>
+    /// 消息逐字相同不等于两条路径对标题的处置相同：全量路径写标题行，流式路径不写，
+    /// 这一点由 <see cref="流式路径标题恰等单元格上限时照常写出且标题仍不落档"/> 与
+    /// <see cref="流式路径不写标题行因此标题不占行数"/> 各自钉住。这里只钉「拒或不绝、以及拒的时候怎么说」。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task 两条xlsx路径对同一份超长表头与标题给同一个答案()
+    {
+        var oversizedHeader = new string('A', 40_000);
+        var oversizedTitle = new string('B', 40_000);
+
+        var fullHeaderStream = new MemoryStream();
+        var streamHeaderStream = new MemoryStream();
+
+        var fullHeader = await Assert.ThrowsAsync<ArgumentException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
+            .ExportAsync(fullHeaderStream, BuildTextLimitSpec(oversizedHeader, title: null, rows: Rows(1)), TestContext.Current.CancellationToken));
+        var streamHeader = await Assert.ThrowsAsync<ArgumentException>(async () => await new MiniExcelStreamExporter()
+            .ExportAsync(streamHeaderStream, BuildTextLimitSpec(oversizedHeader, title: null, rows: Rows(1)), TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelColumn.Header), streamHeader.ParamName);
+        Assert.Equal(fullHeader.ParamName, streamHeader.ParamName);
+        Assert.Equal(fullHeader.Message, streamHeader.Message);
+        Assert.Equal(0, fullHeaderStream.Length);
+        Assert.Equal(0, streamHeaderStream.Length);
+
+        var fullTitleStream = new MemoryStream();
+        var streamTitleStream = new MemoryStream();
+
+        var fullTitle = await Assert.ThrowsAsync<ArgumentException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
+            .ExportAsync(fullTitleStream, BuildTextLimitSpec("提单号", title: oversizedTitle, rows: Rows(1)), TestContext.Current.CancellationToken));
+        var streamTitle = await Assert.ThrowsAsync<ArgumentException>(async () => await new MiniExcelStreamExporter()
+            .ExportAsync(streamTitleStream, BuildTextLimitSpec("提单号", title: oversizedTitle, rows: Rows(1)), TestContext.Current.CancellationToken));
+
+        Assert.Equal(nameof(ExcelSheetSpec.Title), streamTitle.ParamName);
+        Assert.Equal(fullTitle.ParamName, streamTitle.ParamName);
+        Assert.Equal(fullTitle.Message, streamTitle.Message);
+        Assert.Equal(0, fullTitleStream.Length);
+        Assert.Equal(0, streamTitleStream.Length);
+    }
+
+    /// <summary>
+    /// 构造只有一列、可指定表头与标题的表规格，专走表头与标题的长度预检
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="BuildRowLimitSpec"/> 分开：那一组的表头固定是「提单号」，这一组的表头本身就是要判的东西。
+    /// 列宽不填——本路径不承载列宽，填了也不参与写出。
+    /// </remarks>
+    private static ExcelSheetSpec BuildTextLimitSpec(string header, string? title, System.Collections.IEnumerable rows) => new()
+    {
+        SheetName = "运单",
+        Title = title,
+        RowType = typeof(SampleRow),
+        Columns =
+        [
+            new ExcelColumn<SampleRow>
+            {
+                Key = nameof(SampleRow.AwbNo),
+                Header = header,
+                Value = row => row.AwbNo
+            }
+        ],
+        Rows = rows
+    };
+
+    /// <summary>
+    /// 用本框架的导入器把导出的档整份读回
+    /// </summary>
+    /// <param name="stream">导出后的流，本方法把它回到起点，不关闭也不释放</param>
+    /// <param name="hasHeader">是否把第一行当列名，见 <see cref="ExcelImportOptions.HasHeader"/></param>
+    /// <remarks>
+    /// 往返断言的判定器一律走这里，不用 <see cref="XLWorkbook"/> 读自己写的档：工作簿会按自己的形式反算，
+    /// 读回来的东西看着与写进去的一致，恰好掩盖档里被截断或改写过这件事。
+    /// </remarks>
+    private static async Task<List<ExcelImportRow>> ImportRowsAsync(MemoryStream stream, bool hasHeader)
+    {
+        stream.Position = 0;
+
+        var rows = new List<ExcelImportRow>();
+
+        await foreach (var row in new ExcelDataReaderImporter()
+            .ReadAsync(stream, new ExcelImportOptions { Format = ExcelImportFormat.Xlsx, HasHeader = hasHeader }, TestContext.Current.CancellationToken))
+        {
+            rows.Add(row);
+        }
+
+        return rows;
+    }
+
+    /// <summary>
+    /// 构造只有一列、可指定标题行的表规格，专走行数上限判定
+    /// </summary>
+    private static ExcelSheetSpec BuildRowLimitSpec(System.Collections.IEnumerable rows, string? title) => new()
+    {
+        SheetName = "运单",
+        Title = title,
+        RowType = typeof(SampleRow),
+        Columns =
+        [
+            new ExcelColumn<SampleRow>
+            {
+                Key = nameof(SampleRow.AwbNo),
+                Header = "提单号",
+                Value = row => row.AwbNo
+            }
+        ],
+        Rows = rows
+    };
+
+    /// <summary>
+    /// 用本框架的导入器把导出的档读回，交出「提单号」这一列的逐行取值
+    /// </summary>
+    /// <param name="stream">导出后的流，本方法把它回到起点，不关闭也不释放</param>
+    /// <remarks>
+    /// 往返断言的判定器一律走这里，不用 <see cref="XLWorkbook"/> 读自己写的档：工作簿会按自己的形式反算，
+    /// 读回来的东西看着与写进去的一致，恰好掩盖档里被改写过这件事。
+    /// </remarks>
+    private static async Task<string[]> ImportAwbNosAsync(MemoryStream stream)
+    {
+        stream.Position = 0;
+
+        var values = new List<string>();
+
+        await foreach (var row in new ExcelDataReaderImporter()
+            .ReadAsync(stream, new ExcelImportOptions { Format = ExcelImportFormat.Xlsx }, TestContext.Current.CancellationToken))
+        {
+            Assert.True(row.Values.ContainsKey("提单号"));
+
+            values.Add((string)row.Values["提单号"]!);
+        }
+
+        return [.. values];
+    }
+
+    /// <summary>
     /// 造若干测试行
     /// </summary>
     private static SampleRow[] Rows(int count)
@@ -893,6 +1476,57 @@ public class MiniExcelStreamExporterTests
     {
         stream.Position = 0;
         return new XLWorkbook(stream);
+    }
+
+    /// <summary>
+    /// 判断档里的工作表部件有没有公式元素（<c>&lt;f&gt;</c> 或带命名空间前缀的同名元素）
+    /// </summary>
+    /// <param name="stream">导出后的流</param>
+    /// <remarks>
+    /// 只看格子的 <c>HasFormula</c> 不足以证明「值没被当成公式解析」——那要读回档里真实落的元素。
+    /// 匹配式要求 <c>f</c> 之后紧跟空白、<c>/</c> 或 <c>&gt;</c>，因此 <c>&lt;framePr&gt;</c>、
+    /// <c>&lt;fextLdr&gt;</c> 这类同名前缀的元素不会被误判成公式。
+    /// </remarks>
+    private static bool HasFormulaElement(MemoryStream stream)
+    {
+        stream.Position = 0;
+
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+
+        var entry = archive.GetEntry("xl/worksheets/sheet1.xml");
+
+        Assert.NotNull(entry);
+
+        using var reader = new StreamReader(entry!.Open(), Encoding.UTF8);
+
+        return Regex.IsMatch(reader.ReadToEnd(), "<(?:x:)?f[\\s/>]");
+    }
+
+    /// <summary>
+    /// 用本框架的导入器把导出的档读回，交出「取值」这一列的第一笔值
+    /// </summary>
+    /// <param name="stream">导出后的流，本方法把它回到起点，不关闭也不释放</param>
+    /// <remarks>
+    /// 往返断言的判定器一律走这里，不用 <see cref="XLWorkbook"/> 读自己写的档：工作簿会按自己的形式反算，
+    /// 读回来的数看着与写进去的一致，恰好掩盖档里被改写过这件事。导入器对数值格交回
+    /// <see cref="double"/>、对文字格交回 <see cref="string"/>，格位由档里真实落的东西决定。
+    /// </remarks>
+    private static async Task<object?> ImportValueAsync(MemoryStream stream)
+    {
+        stream.Position = 0;
+
+        var rows = new List<ExcelImportRow>();
+
+        await foreach (var row in new ExcelDataReaderImporter()
+            .ReadAsync(stream, new ExcelImportOptions { Format = ExcelImportFormat.Xlsx }, TestContext.Current.CancellationToken))
+        {
+            rows.Add(row);
+        }
+
+        Assert.Single(rows);
+        Assert.True(rows[0].Values.ContainsKey("取值"));
+
+        return rows[0].Values["取值"];
     }
 
     /// <summary>
