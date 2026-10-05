@@ -583,6 +583,79 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
+    /// 不能按字节切列的编码在定宽导出写出任何字节之前就被拒，且不留下半份档
+    /// </summary>
+    /// <remarks>
+    /// 判据与导入侧共用 <c>TextWriterHelper.ValidateFixedWidthEncoding</c> 那一份实现（两条客观检查：行尾必须各自
+    /// 编成单字节的 <c>0x0D</c>／<c>0x0A</c>；同一段文字整体编码必须等于分段编码），两条路径不会一边拒一边收。
+    /// <c>IBM037</c> 把 <c>\n</c> 编成 <c>0x25</c>，写出的档读档方永远找不到行尾、只认得到第一行；
+    /// <c>iso-2022-jp</c> 在段首补跳脱序列，逐格补位写出的字节数与声明列宽对不上，从错的那一栏起整体错位。
+    /// 两者原来都写出「看起来正常」的档并回报成功。守卫排在 <c>new StreamWriter</c> 之前，所以坏编码一个字节都不进流。
+    /// </remarks>
+    /// <param name="encodingName">要指的坏编码</param>
+    /// <param name="expectedCheck">消息应点名的检查项</param>
+    [Theory]
+    [InlineData("IBM037", "检查一")]
+    [InlineData("iso-2022-jp", "检查二")]
+    public async Task 不能按字节切列的编码在定宽导出写出前就拒(string encodingName, string expectedCheck)
+    {
+        var stream = new MemoryStream();
+        var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
+            stream, BuildSpec([Column(AwbWidth)], new SampleRow { AwbNo = "AWB1" }), ExcelFormat.Txt,
+            FixedOptions(encodingName: encodingName), TestContext.Current.CancellationToken));
+
+        Assert.Contains(expectedCheck, exception.Message, StringComparison.Ordinal);
+        Assert.Contains(encodingName, exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("字节", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(0, stream.Length);
+    }
+
+    /// <summary>
+    /// 守卫不误拒合法编码：UTF-8 与 Big5 的定宽档照写，整格字节数等于列宽
+    /// </summary>
+    /// <remarks>
+    /// 正例证明的是「该放的放」：一个汉字在 UTF-8 占 3 字节、在 Big5 占 2 字节，两种都满足守卫问的那两条性质，
+    /// 把它们一并拒掉就是让合法的简体／繁体定宽档写不出来。表头「提單號」在两种编码下分别占 9 与 6 字节，
+    /// 补位后整格都正好是列宽 12 字节，行尾各占 2 字节。
+    /// </remarks>
+    /// <param name="encodingName">合法编码名</param>
+    [Theory]
+    [InlineData("utf-8")]
+    [InlineData("big5")]
+    public async Task 合法编码在定宽导出照常写出(string encodingName)
+    {
+        var encoding = TextWriterHelper.ResolveEncoding(encodingName);
+
+        var columns = new List<ExcelColumn>
+        {
+            new ExcelColumn<SampleRow>
+            {
+                Key = nameof(SampleRow.AwbNo),
+                Header = "提單號",
+                Order = 0,
+                FixedWidth = AwbWidth,
+                Value = row => row.AwbNo
+            }
+        };
+
+        var stream = (await ExportAsync(FixedOptions(encodingName: encodingName), BuildSpec(columns, new SampleRow { AwbNo = "AWB1" }))).Stream;
+        var bytes = stream.ToArray();
+
+        // utf-8 与 big5 都不写 BOM：整份档就是表头行与数据行，各 12 字节内容 + 2 字节行尾
+        Assert.Equal(2 * (AwbWidth + 2), bytes.Length);
+
+        var lines = encoding.GetString(bytes).Split(["\r\n"], StringSplitOptions.None);
+
+        Assert.Equal(3, lines.Length);
+        Assert.Equal(AwbWidth, encoding.GetByteCount(lines[0]));
+        Assert.Equal(AwbWidth, encoding.GetByteCount(lines[1]));
+        Assert.Equal("提單號" + new string(' ', AwbWidth - encoding.GetByteCount("提單號")), lines[0]);
+        Assert.Equal("AWB1" + new string(' ', AwbWidth - 4), lines[1]);
+    }
+
+    /// <summary>
     /// 取消令牌已取消时在写出任何字节之前停止
     /// </summary>
     [Fact]

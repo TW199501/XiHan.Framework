@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using XiHan.Framework.Excel.Abstractions;
 using XiHan.Framework.Excel.Abstractions.Importing;
+using XiHan.Framework.Excel.Text;
 
 namespace XiHan.Framework.Excel.Importing;
 
@@ -40,9 +41,12 @@ namespace XiHan.Framework.Excel.Importing;
 /// 不交出半个字、替换字符或私有区字符当正常数据——那种档与列定义本来就不符。
 /// </para>
 /// <para>
-/// 不支持一个字符里可能带 <c>0x0D</c>／<c>0x0A</c> 的宽字节编码（UTF-16／UTF-32）：按字节找行尾会把一档切碎，
-/// 按字节切列会把字符切成半个，两者都是交出错位的档而不是报错。取到的编码属于这两类时抛
-/// <see cref="InvalidOperationException"/> 并点名该编码，请改用单字节前缀的编码或先转档。
+/// 只收能按字节切列的编码，判据与导出侧共用 <see cref="Text.TextWriterHelper"/> 那一份守卫，不在这里另写一条：
+/// <b>其一</b>，<c>\r</c> 与 <c>\n</c> 必须各自编成一个字节（UTF-16／UTF-32 把一个字符编成两字节、其中一个就可能
+/// 落成行尾字节，EBCDIC 把 <c>\n</c> 编成 <c>0x25</c>，两种都会把档切错位或让整档找不到行尾）；
+/// <b>其二</b>，同一段文字整体编码必须等于分段编码（ISO-2022 家族、HZ、UTF-7 一类有状态编码在段之间插状态切换
+/// 序列，按列宽写出的字节数与切列位置对不上）。取到的编码任一条不过即抛 <see cref="InvalidOperationException"/>
+/// 并点名是哪一条与该编码，不交出错位却回报成功的档。
 /// </para>
 /// <para>
 /// <see cref="ExcelImportOptions.HasHeader"/> 在本路径<u>一律按「无表头」处理</u>：<see cref="ExcelImportOptions.TrimHeaders"/>
@@ -147,7 +151,8 @@ public sealed class FixedWidthTextImporter : IExcelImporter
     /// <item>列定义不成立：清单里有空项、键是空字串或仅含空白、宽度不是正整数、多列之间键重复、
     /// 列宽总和超过硬上限 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/>。每类各报各的，
     /// 一次只抛最先命中的那一类，并点名是第几列或哪个键；</item>
-    /// <item>解码用的编码是 UTF-16／UTF-32 这类宽字节编码：按字节分行与按字节切列都会错位。</item>
+    /// <item>解码用的编码不能按字节切列：行尾编不成单字节的 0x0D／0x0A（UTF-16／UTF-32、EBCDIC 一类），
+    /// 或分段编码与整体编码不等（ISO-2022 家族、HZ、UTF-7 一类有状态编码）。消息点名不过的是哪一条检查。</item>
     /// </list></exception>
     /// <exception cref="DecoderFallbackException">档的实际字节在所用编码下解不开：编码指错，
     /// 或列边界落在一个多字节字符中间。读档在中途停下，不产出替换字符当正常数据</exception>
@@ -159,7 +164,7 @@ public sealed class FixedWidthTextImporter : IExcelImporter
     /// </para>
     /// <para>
     /// 校验顺序固定为：流的可读可定位 → <see cref="ExcelImportOptions.MaxRowCount"/> →
-    /// <see cref="ExcelImportOptions.FixedColumns"/> → 取消令牌 → 编码判别与宽字节拒收。
+    /// <see cref="ExcelImportOptions.FixedColumns"/> → 取消令牌 → 编码判别与按字节可切性守卫。
     /// 前两项排在读档之前，是因为它们是<u>请求本身</u>的问题：同一条档上，越界的上限要报「上限越界」而不是
     /// 「没给列定义」，缺列定义的请求要报「没给列定义」而不是「编码解不开」。
     /// </para>
@@ -201,7 +206,10 @@ public sealed class FixedWidthTextImporter : IExcelImporter
 
         // 编码判别与 BOM 剥除都用导入侧那一份实现，不在这里重抄一条链或一张前导字节表
         var encoding = TextEncodingResolver.Resolve(effective.TextEncodingName, input);
-        RejectWideByteEncoding(encoding);
+
+        // 按字节可切性与导出侧共用同一份守卫：两条路径对「什么编码能切列」不能各说一套
+        TextWriterHelper.ValidateFixedWidthEncoding(encoding);
+
         input.Position = TextEncodingResolver.GetPreambleSkipBytes(encoding, input);
 
         var reader = new FixedWidthLineReader(input, layout.TotalWidthBytes);
@@ -263,24 +271,6 @@ public sealed class FixedWidthTextImporter : IExcelImporter
                 break;
             }
         }
-    }
-
-    /// <summary>
-    /// 拒收按字节切就会错位的宽字节编码
-    /// </summary>
-    /// <param name="encoding">本次用来解码的编码</param>
-    /// <exception cref="InvalidOperationException">编码是 UTF-16 或 UTF-32 家族</exception>
-    private static void RejectWideByteEncoding(Encoding encoding)
-    {
-        if (encoding is not (UnicodeEncoding or UTF32Encoding))
-        {
-            return;
-        }
-
-        throw new InvalidOperationException(
-            $"固定宽度导入不支持编码「{encoding.WebName}」（代码页 {encoding.CodePage}）：" +
-            "这种编码的字符里就可能带 0x0D 或 0x0A，按字节找行尾会把一档切成错位的许多行，按字节切列也会把字符切成半个。" +
-            "请改用行尾字节唯一的编码（utf-8、big5、gb18030 一类的单字节前缀编码），或先把档转成那种编码再读。");
     }
 
     /// <summary>

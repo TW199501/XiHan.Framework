@@ -57,6 +57,9 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <see cref="ExcelTextOptions.Delimiter"/>、<see cref="ExcelTextOptions.Quote"/> 与
 /// <see cref="ExcelTextOptions.EscapeFormulaPrefix"/> 都不参与写出，且不接受值内换行：
 /// <c>\r</c> 与 <c>\n</c> 没有可以包住它们的引号，写出会让一档被读成错行的两档，取到该行即抛。
+/// 该布局还只收能按字节切列的编码——行尾编不成单字节 <c>0x0D</c>／<c>0x0A</c>（UTF-16／UTF-32、EBCDIC）
+/// 或分段编码与整体编码不等（ISO-2022 家族等有状态编码）的编码，在写出任何字节之前就被拒，判据与导入侧共用
+/// <see cref="TextWriterHelper"/> 那一份守卫。
 /// </para>
 /// <para>
 /// 两种布局共用一份行写出骨架（<see cref="WriteTextAsync"/>）：行序、每行写前查取消令牌、行尾拼接、flush 与
@@ -99,7 +102,9 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// <exception cref="InvalidOperationException">行集合里有某笔元素与 <see cref="ExcelSheetSpec.RowType"/> 不符，
     /// 消息点名行位置与期望／实际两个类型全名；或固定宽度布局下某列未设置
     /// <see cref="ExcelColumn.FixedWidth"/>、列宽不是正整数，取值转出的文本含换行，
-    /// 或内容超出列宽且 <see cref="ExcelTextOptions.Overflow"/> 为 <see cref="ExcelTextOverflow.Throw"/></exception>
+    /// 或内容超出列宽且 <see cref="ExcelTextOptions.Overflow"/> 为 <see cref="ExcelTextOverflow.Throw"/>；
+    /// 或固定宽度布局用到的编码不能按字节切列（行尾编不成单字节的 <c>0x0D</c>／<c>0x0A</c>，或分段编码与整体编码
+    /// 不等，判据见 <see cref="TextWriterHelper"/>；这类在写出任何字节之前抛出，且消息点名不过的是哪一条检查）</exception>
     /// <exception cref="EncoderFallbackException">目标编码收不下待写出的字符（详见 <see cref="TextWriterHelper"/>）</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
@@ -261,6 +266,12 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
     /// 两档，因此取到该行即抛 <see cref="InvalidOperationException"/>，不清洗也不替换。行集合是惰性游标，
     /// 值含不含换行要等取出行才知道，所以这条不可能排在写出之前——抛出时前面的行可能已经落盘。
     /// </para>
+    /// <para>
+    /// 编码先过 <see cref="TextWriterHelper.ValidateFixedWidthEncoding"/>：定宽档由读档方按字节位置切列，
+    /// 行尾编不成单字节 0x0D／0x0A 的编码（UTF-16／UTF-32、EBCDIC）与分段编码不等于整体编码的有状态编码
+    /// （ISO-2022 家族、HZ、UTF-7）都写不出「列位对得上声明宽度」的档，而写出去照样能读出内容，所以在这里拒掉。
+    /// 判据与导入侧同一份实现，两条路径不会一边拒一边收；检查排在写出任何字节之前，坏编码不留下半份档。
+    /// </para>
     /// </remarks>
     private async Task<ExcelExportResult> ExportFixedWidthAsync(
         Stream output,
@@ -270,6 +281,10 @@ public sealed class DelimitedTextExporter(ILogger<DelimitedTextExporter> logger)
         CancellationToken cancellationToken)
     {
         var encoding = TextWriterHelper.ResolveEncoding(options.EncodingName);
+
+        // 编码能不能按字节切列与列设置无关，排在列宽校验之前：连分行都不成立的编码不值得先看列定义
+        TextWriterHelper.ValidateFixedWidthEncoding(encoding);
+
         var columns = sheet.Columns;
 
         // 列宽与补位字符全部排在 new StreamWriter 之前：这几类输入不成立时一个字节都不进流

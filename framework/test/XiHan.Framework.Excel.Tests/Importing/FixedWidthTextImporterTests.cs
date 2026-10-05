@@ -327,6 +327,73 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
+    /// 行尾编不成单字节（EBCDIC）与有状态编码（ISO-2022）都在定宽导入被拒，且一条行都不交出
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 两条坏档形态来自外部审查的实测，原来都<u>回报成功</u>：<c>IBM037</c> 把 <c>\n</c> 编成 <c>0x25</c>，
+    /// <c>NewLine="\r\n"</c> 时第 2 行起每栏边界整体右移 1 字节、末栏尾部字节被当多余丢掉，
+    /// <c>NewLine="\n"</c> 时整档找不到行尾、只交出一行；<c>iso-2022-jp</c> 在段首补跳脱序列，「日本」整体 12 字节
+    /// 而分段编成 10 + 10 字节，声明 10 + 8 宽的两格实际只写出 12 字节，后面每一栏一起偏掉，
+    /// 把第二段单独解码还拿回一串 ASCII 乱码而不抛。
+    /// </para>
+    /// <para>
+    /// 判据与导出侧共用 <c>TextWriterHelper.ValidateFixedWidthEncoding</c> 那一份实现（两条客观检查：行尾字节唯一
+    /// 可寻址、分段编码等于整体编码），不在这里维护码表清单。守卫排在建立读取缓冲之前，所以抛出时一行都不该交出
+    /// ——本条用手工枚举把「零行」变成可断言的现实，而不是只断抛出型别。消息点名不过的是哪一条检查。
+    /// </para>
+    /// </remarks>
+    /// <param name="encodingName">要指的坏编码</param>
+    /// <param name="expectedCheck">消息应点名的检查项</param>
+    [Theory]
+    [InlineData("IBM037", "检查一")]
+    [InlineData("iso-2022-jp", "检查二")]
+    public async Task 不能按字节切列的编码在定宽导入被拒且零行交出(string encodingName, string expectedCheck)
+    {
+        var encoding = Encoding.GetEncoding(encodingName);
+
+        // 两行、每行两栏，声明列宽 2 + 2：坏编码写不出这种档，读它就是在交错位内容
+        var bytes = encoding.GetBytes("AB\r\nCD\r\n");
+
+        var (rows, failure) = await ReadWithOutcomeAsync(bytes, encodingName);
+
+        Assert.NotNull(failure);
+        Assert.Empty(rows);
+        Assert.IsType<InvalidOperationException>(failure);
+        Assert.Contains(expectedCheck, failure!.Message, StringComparison.Ordinal);
+        Assert.Contains(encodingName, failure.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("字节", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 守卫不多拒：合法的单字节与多字节编码照常逐行读出定宽档
+    /// </summary>
+    /// <remarks>
+    /// 定宽真正依赖的是「行尾字节唯一可寻址」与「分段编码等于整体编码」两条性质，不是「非 UTF-16/UTF-32」。
+    /// Big5、Shift-JIS、GB18030 这些一个汉字占多字节的编码都满足两条性质，把它们一并拒掉会让合法的繁体／日文／
+    /// 简体定宽档读不出来，比放行坏编码更伤人，因此正例按编码族逐个钉住。
+    /// </remarks>
+    /// <param name="encodingName">合法编码名</param>
+    [Theory]
+    [InlineData("utf-8")]
+    [InlineData("big5")]
+    [InlineData("shift_jis")]
+    [InlineData("gb18030")]
+    [InlineData("windows-1252")]
+    public async Task 合法编码在定宽导入照常逐行读出(string encodingName)
+    {
+        // 内容取 ASCII：五种编码下 "AB"／"CD" 都是 2 字节，声明列宽 2 + 2 在每个编码里都成立
+        var bytes = Encoding.ASCII.GetBytes("AB\r\nCD\r\n");
+
+        var rows = await Read(bytes, [new("A", 2), new("B", 2)], hasHeader: false,
+            mutate: o => o with { TextEncodingName = encodingName });
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("AB", rows[0].Values["A"]);
+        Assert.Equal("CD", rows[1].Values["A"]);
+    }
+
+    /// <summary>
     /// 列清单是空集合时抛，不交出一列都没有的行
     /// </summary>
     [Fact]
@@ -1353,5 +1420,53 @@ public class FixedWidthTextImporterTests
 
         return await AsyncCollector.CollectAsync(importer.ReadAsync(
             input, mutate is null ? options : mutate(options), TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// 手工枚举一份定宽档，交出<u>已经交出</u>的行与第一个异常
+    /// </summary>
+    /// <remarks>
+    /// 拒收类用例不能只断「抛了」：守卫排在建立读取缓冲之前，所以坏编码还必须一行都交不出，否则调用方手里
+    /// 就是一份「有几行对的、剩下的错位」的档。助手用 <c>GetAsyncEnumerator</c> 逐行推进，把抛出前已交出的行留下来，
+    /// <see cref="AsyncCollector" /> 那种「收集成功才返回」的助手在抛出时把行数丢掉了，做不到这件事。
+    /// </remarks>
+    /// <param name="bytes">档字节</param>
+    /// <param name="encodingName">指名的编码</param>
+    private static async Task<(List<ExcelImportRow> Rows, Exception? Failure)> ReadWithOutcomeAsync(
+        byte[] bytes,
+        string encodingName)
+    {
+        var options = new ExcelImportOptions
+        {
+            Format = ExcelImportFormat.Txt,
+            FixedColumns = [new ExcelFixedWidthField("A", 2), new ExcelFixedWidthField("B", 2)],
+            HasHeader = false,
+            TextEncodingName = encodingName
+        };
+
+        var importer = new FixedWidthTextImporter(NullLogger<FixedWidthTextImporter>.Instance);
+
+        await using var enumerator = importer
+            .ReadAsync(new MemoryStream(bytes), options, TestContext.Current.CancellationToken)
+            .GetAsyncEnumerator();
+
+        var rows = new List<ExcelImportRow>();
+
+        while (true)
+        {
+            try
+            {
+                if (!await enumerator.MoveNextAsync())
+                {
+                    return (rows, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                return (rows, ex);
+            }
+
+            rows.Add(enumerator.Current);
+        }
     }
 }

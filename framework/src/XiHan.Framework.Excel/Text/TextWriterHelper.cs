@@ -138,6 +138,167 @@ internal static class TextWriterHelper
     }
 
     /// <summary>
+    /// 检查二用的探测文字，按「该编码表示得出」的条件取第一组可用者
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>日本</c>／<c>中文</c>／<c>한글</c> 覆盖有状态编码家族实际要靠跳脱序列表示的文字面
+    /// （ISO-2022-JP／CN／KR、HZ、UTF-7 都落在其中一组里）；<c>éà</c> 服务表示不出 CJK 的单字节代码页
+    /// （windows-1252、iso-8859-1 一类）——那些编码在 CJK 探测上只会因严格回退而抛，那是「表示不出」而不是
+    /// 「有问题」，据此换下一组探测，绝不把「抛」当成拒收理由；<c>AB</c> 兜底给纯 ASCII 码页（us-ascii 一类），
+    /// 这类编码没有可以进入跳脱状态的非 ASCII 文字。
+    /// </para>
+    /// <para>
+    /// 一组都取不到时按「无法证明无状态」拒收，不静默放行：定宽路径依赖这条性质，验不了就不能当它成立。
+    /// </para>
+    /// </remarks>
+    private static readonly string[] FixedWidthStateProbes = ["日本", "中文", "한글", "éà", "AB"];
+
+    /// <summary>
+    /// 固定宽度布局的编码守卫：检查该编码能否按字节切列，导入与导出共用这一份判据
+    /// </summary>
+    /// <param name="encoding">定宽路径用来分行、切列与补位的编码，必须是带严格回退解析出来的那一份</param>
+    /// <remarks>
+    /// <para>
+    /// 定宽档的列边界是字节位置，「按字节切」要成立得有两条性质，本守卫逐条对编码自身当场探测：
+    /// <b>检查一·行尾字节唯一可寻址</b>——分行在字节层做，只认 <c>0x0D</c> 与 <c>0x0A</c>。UTF-16／UTF-32 把
+    /// <c>\n</c> 编成两个字节，而一个字符的另一个字节就可能落成 <c>0x0A</c>，按字节找行尾会把一档切成错位的许多行；
+    /// EBCDIC（如 IBM037）把 <c>\n</c> 编成 <c>0x25</c>，整档永远找不到行尾、只交出一行。两种都读得出内容却回报成功。
+    /// <b>检查二·分段编码等于整体编码</b>——每格单独按列宽补位、每列单独解码，等价于把一段文字拆开分别编码再串接。
+    /// 有状态编码（ISO-2022 家族、HZ、UTF-7 一类）会在段首补自己的跳脱序列：「日本」整体 12 字节，分两段却是
+    /// 10 + 10 字节，于是声明为 10 + 8 的两格实际只写出 12 字节，从这一栏起后面全部错位；导入侧把第二段单独解码
+    /// 也拿不回原字，还会交回一串 ASCII 乱码而不抛。
+    /// </para>
+    /// <para>
+    /// 两条都用当场探测而不是维护 codepage 黑名单：清单必然漏——ISO-2022 就有 JP／KR／CN／CN-GB 等变体，
+    /// 每个变体还对应多个代码页号（50220／50221／50222／50225／50227／50229 只是已知样本），而这两条检查对准的是
+    /// 定宽真正依赖的性质本身。消息点名不过的是哪一条。
+    /// </para>
+    /// <para>
+    /// 检查二依赖传入的编码带严格回退：宽松回退会把表示不出的探测文字换成替换字节，分段与整体就「看起来相等」。
+    /// 两条路径解析出的编码都带 <see cref="EncoderExceptionFallback"/>（见 <see cref="ResolveEncoding"/> 与
+    /// <c>TextEncodingResolver</c>），因此这个前提由解析侧负责，本守卫不另配一份编码。
+    /// </para>
+    /// <para>
+    /// 调用时机：导入侧在建立读取缓冲之前、解析出编码之后；导出侧在固定宽度布局写出任何字节之前。分隔符布局不调
+    /// 本守卫——那套布局不按字节位置切列，这两条判据与它无关，编码在该布局下的可行性另说。
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="encoding"/> 为 <c>null</c></exception>
+    /// <exception cref="InvalidOperationException">检查一或检查二不过，或一组可用探测文字都取不到、无法证明无状态</exception>
+    internal static void ValidateFixedWidthEncoding(Encoding encoding)
+    {
+        ArgumentNullException.ThrowIfNull(encoding);
+
+        RejectUnaddressableLineBreaks(encoding);
+        RejectStatefulEncoding(encoding);
+    }
+
+    /// <summary>
+    /// 检查一：行尾必须各自编成单字节的 <c>0x0D</c> 与 <c>0x0A</c>
+    /// </summary>
+    /// <remarks>
+    /// 与 <c>FixedWidthTextImporter</c> 的字节层分行器同一口径：那边只在 <c>0x0D</c>／<c>0x0A</c> 两个字节上切行，
+    /// 所以这里问的不是「该编码认什么当行尾」，而是「这两个字节能不能被独占地址到」。
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">任一行尾编不成对应的那一个字节</exception>
+    private static void RejectUnaddressableLineBreaks(Encoding encoding)
+    {
+        var carriageBytes = TryEncode(encoding, "\r") ?? [];
+        var lineFeedBytes = TryEncode(encoding, "\n") ?? [];
+
+        if (IsSingleByte(carriageBytes, (byte)'\r') && IsSingleByte(lineFeedBytes, (byte)'\n'))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"定宽路径的编码检查一不过（行尾字节不唯一可寻址）：编码「{encoding.WebName}」（代码页 {encoding.CodePage}）" +
+            $"把 \\r 编成 {DescribeBytes(carriageBytes)}、把 \\n 编成 {DescribeBytes(lineFeedBytes)}，" +
+            "而定宽档在字节层只认单字节的 0x0D 与 0x0A 来分行。这种编码要么让一个字符里藏得进行尾、把一档切成错位的" +
+            "许多行，要么让整档找不到行尾、只交出一行，两种都读得出内容却回报成功。" +
+            "请改用行尾字节唯一的编码（utf-8、big5、shift_jis、gb18030、windows-1252 一类的单字节前缀编码），" +
+            "或先把档转成那种编码。");
+    }
+
+    /// <summary>
+    /// 检查二：同一段文字整体编码的结果，必须等于分段编码后串接的结果
+    /// </summary>
+    /// <remarks>
+    /// 定宽档的写出与读入都是分段进行（逐格补位、逐列解码），因此「分段等于整体」是列位能对上声明宽度的前提。
+    /// 探测取 <see cref="FixedWidthStateProbes"/> 里第一组该编码表示得出的文字；表示不出不等于编码有问题，换下一组。
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">分段编码与整体编码不等，或一组可用探测文字都取不到</exception>
+    private static void RejectStatefulEncoding(Encoding encoding)
+    {
+        foreach (var probe in FixedWidthStateProbes)
+        {
+            var wholeBytes = TryEncode(encoding, probe);
+            var firstBytes = TryEncode(encoding, probe[..1]);
+            var secondBytes = TryEncode(encoding, probe[1..]);
+
+            if (wholeBytes is null || firstBytes is null || secondBytes is null)
+            {
+                continue;
+            }
+
+            // 目标类型写明 byte[]：集合运算式没有自然型别，var 取不到
+            byte[] splitBytes = [.. firstBytes, .. secondBytes];
+
+            if (wholeBytes.SequenceEqual(splitBytes))
+            {
+                return;
+            }
+
+            throw new InvalidOperationException(
+                $"定宽路径的编码检查二不过（该编码有状态）：编码「{encoding.WebName}」（代码页 {encoding.CodePage}）" +
+                $"把「{probe}」整体编成 {wholeBytes.Length} 字节，分段编成 {firstBytes.Length} + {secondBytes.Length} = " +
+                $"{splitBytes.Length} 字节。定宽档逐格补位、逐列解码，走的正是分段那条路；两者不相等说明该编码在段之间" +
+                "插入状态切换序列（ISO-2022 家族、HZ、UTF-7 一类），按声明列宽写出的字节数与读档方切到的字节位置不一致，" +
+                "从错的那一栏起整体错位。请改用无状态编码（utf-8、big5、shift_jis、gb18030 一类），或先把档转成那种编码。");
+        }
+
+        throw new InvalidOperationException(
+            $"定宽路径的编码检查二无法证明：编码「{encoding.WebName}」（代码页 {encoding.CodePage}）连一组探测文字" +
+            $"（{string.Join("／", FixedWidthStateProbes)}）都表示不出，框架无法验证它分段编码与整体编码是否等价。" +
+            "定宽档依赖这条性质，验不了就拒收而不是放行；请改用 utf-8、big5、shift_jis、gb18030 一类常用编码。");
+    }
+
+    /// <summary>
+    /// 用给定编码编出一段文字，编不出来时交回 <c>null</c> 而不是把探测本身变成失败
+    /// </summary>
+    /// <remarks>
+    /// 严格回退编码遇到字符集外的文字抛 <see cref="EncoderFallbackException"/>。对检查而言那只意味着「这组探测文字
+    /// 该编码用不上」，必须换下一组，不能当成编码不合格——单字节代码页（windows-1252 一类）正是这种情况，
+    /// 它们合法，只是不含 CJK。
+    /// </remarks>
+    private static byte[]? TryEncode(Encoding encoding, string text)
+    {
+        try
+        {
+            return encoding.GetBytes(text);
+        }
+        catch (EncoderFallbackException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 判断编出的字节是否恰好是期望的那一个字节
+    /// </summary>
+    private static bool IsSingleByte(byte[] bytes, byte expected)
+        => bytes.Length == 1 && bytes[0] == expected;
+
+    /// <summary>
+    /// 把探测到的字节序列写成消息里可核对的十六进制
+    /// </summary>
+    private static string DescribeBytes(byte[] bytes)
+        => bytes.Length == 0
+            ? "无法表示（严格编码器直接拒绝）"
+            : $"{string.Join(" ", bytes.Select(static b => $"0x{b:X2}"))}（{bytes.Length} 字节）";
+
+    /// <summary>
     /// 按引号策略处理单个字段值
     /// </summary>
     /// <param name="value">字段值文本</param>
