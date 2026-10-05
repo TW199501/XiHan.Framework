@@ -192,6 +192,7 @@ const packagesSidebar: DefaultTheme.SidebarItem[] = [
         items: [
           pkg("ObjectStorage 对象存储", "object-storage"),
           pkg("VirtualFileSystem 虚拟文件", "virtual-file-system"),
+          pkg("Excel 导入导出", "excel"),
           pkg("Templating 模板", "templating"),
           pkg("Tasks 定时任务", "tasks"),
           pkg("Traffic 流量治理", "traffic"),

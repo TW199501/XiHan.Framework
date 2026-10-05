@@ -34,6 +34,7 @@ JWT 签名密钥、数据库密码、第三方 AppSecret 一律用环境变量�
 | `XiHan:Workflow` / `XiHan:Workflow:Worker` | [Workflow](../packages/workflow) |
 | `XiHan:Localization` | [Localization](../packages/localization) |
 | `XiHan:ObjectStorage` | [ObjectStorage](../packages/object-storage) |
+| `XiHan:Excel` | [Excel](../packages/excel) |
 | `XiHan:Observability` | [Observability](../packages/observability) |
 | `XiHan:DistributedIds:SnowflakeId` | [DistributedIds](../packages/distributed-ids) |
 | `XiHan:Upgrade` | [Upgrade](../packages/upgrade) |
