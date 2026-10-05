@@ -232,6 +232,37 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
+    /// 带 UTF-8 前导字节的 XML 伪装档照样点名 XML，不因前导字节认不出形态
+    /// </summary>
+    [Fact]
+    public async Task 带UTF8前导字节的XML伪装档点名XML()
+    {
+        using var input = new MemoryStream(
+            [0xEF, 0xBB, 0xBF, .. "<?xml version=\"1.0\"?><Workbook>"u8.ToArray()]);
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ReadAll(input));
+
+        Assert.Contains("<?xml", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("EF BB BF 3C 3F 78 6D 6C", failure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("不是有签名可依的文字档", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// UTF-16 LE 前导字节的 HTML 伪装档同样点名 HTML
+    /// </summary>
+    [Fact]
+    public async Task 带UTF16前导字节的HTML伪装档点名HTML()
+    {
+        using var input = new MemoryStream(
+            [0xFF, 0xFE, .. new UnicodeEncoding(bigEndian: false, byteOrderMark: false).GetBytes("<html><body>")]);
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await ReadAll(input));
+
+        Assert.Contains("<html", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("FF FE 3C 00", failure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// MaxRowCount 截断交出前 N 行，行号仍是源文件里的行号
     /// </summary>
     [Fact]
