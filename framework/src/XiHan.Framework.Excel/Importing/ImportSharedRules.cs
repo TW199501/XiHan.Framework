@@ -141,6 +141,10 @@ internal static class ImportSharedRules
     /// 判据两条路径共用一份：同一份档在容器路径抛、在固定宽度路径悄悄截断，
     /// 等于让「走哪条读取路径」决定数据丢不丢。
     /// </para>
+    /// <para>
+    /// 返回 <c>false</c> 时，导入器交够最后一行后立即停止读取。
+    /// 返回 <c>true</c> 时，导入器继续读取至下一条非空数据行或档尾，以判定是否超过框架硬上限。
+    /// </para>
     /// </remarks>
     internal static bool ThrowsWhenRowLimitHit(int? requestedMaxRowCount, int effectiveMaxRows)
         => requestedMaxRowCount is null && effectiveMaxRows == ExcelConstants.DefaultMaxImportRows;
