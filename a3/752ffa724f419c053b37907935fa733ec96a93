@@ -1,0 +1,25 @@
+framework/src/XiHan.Framework.Excel/Importing/ExcelDataReaderImporter.cs
+  s_6456ca2796410e::t_c611e330739d1b 355,358,366-371
+framework/src/XiHan.Framework.Excel/Importing/FixedWidthTextImporter.cs
+  s_6456ca2796410e::t_f3b45e712c7ed5 293,296,304-309
+framework/src/XiHan.Framework.Excel/Importing/ImportSharedRules.cs
+  s_6456ca2796410e::t_8575909d587918 144-147
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExplicitRowLimitTests.cs
+  s_6456ca2796410e::t_bd0d9e93607a11 1-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a3752ffa724f419c053b37907935fa733ec96a93",
+  "prompts": {},
+  "sessions": {
+    "s_6456ca2796410e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10f39-2f9d-73f2-bbb1-e8cc2474c580",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
