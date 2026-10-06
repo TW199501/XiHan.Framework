@@ -908,6 +908,62 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
+    /// XML 1.0 非法字符在全量路径按 OOXML 转义落格，档能开、值逐字读回——本路径不受模板那道字符判据约束
+    /// </summary>
+    /// <param name="codePoint">要夹进值里的字符码点</param>
+    /// <param name="escaped">档里该出现的那份 OOXML 转义文本</param>
+    [Theory]
+    [InlineData(0x0000, "_x0000_")]
+    [InlineData(0x0001, "_x0001_")]
+    [InlineData(0x0008, "_x0008_")]
+    [InlineData(0x000B, "_x000B_")]
+    [InlineData(0x000C, "_x000C_")]
+    [InlineData(0x000E, "_x000E_")]
+    [InlineData(0x001F, "_x001F_")]
+    public async Task xml非法字符在全量路径转义落格并逐字读回(int codePoint, string escaped)
+    {
+        var value = $"a{(char)codePoint}b";
+
+        var stream = await ExportAsync(BuildValueSpec(value));
+
+        Assert.Contains(escaped, ReadWorkbookParts(stream), StringComparison.Ordinal);
+        Assert.Equal(value, Assert.IsType<string>(await ImportValueAsync(stream)));
+    }
+
+    /// <summary>
+    /// 呼叫端交出的字面转义序列文本在全量路径逐字读回，不被当成控制字符还原
+    /// </summary>
+    /// <param name="value">长得像 OOXML 转义序列的字面值</param>
+    [Theory]
+    [InlineData("a_x0001_b")]
+    [InlineData("a_x0009_b")]
+    [InlineData("a_x000D_b")]
+    public async Task 字面转义序列文本在全量路径逐字读回(string value)
+    {
+        var stream = await ExportAsync(BuildValueSpec(value));
+
+        Assert.Contains("_x005F_", ReadWorkbookParts(stream), StringComparison.Ordinal);
+        Assert.Equal(value, Assert.IsType<string>(await ImportValueAsync(stream)));
+    }
+
+    /// <summary>
+    /// XML 1.0 合法的控制字符在全量路径照写；回车按 XML 行尾处理读成换行
+    /// </summary>
+    /// <param name="value">含控制字符的字串取值</param>
+    /// <param name="expected">导入器读回来该是的那份字串</param>
+    [Theory]
+    [InlineData("a\tb", "a\tb")]
+    [InlineData("a\nb", "a\nb")]
+    [InlineData("多行\n单元格\t内容", "多行\n单元格\t内容")]
+    [InlineData("a\rb", "a\nb")]
+    public async Task xml合法的控制字符在全量路径照写(string value, string expected)
+    {
+        var stream = await ExportAsync(BuildValueSpec(value));
+
+        Assert.Equal(expected, Assert.IsType<string>(await ImportValueAsync(stream)));
+    }
+
+    /// <summary>
     /// <see cref="DateTime"/> 按钟表时刻落格：不读 <see cref="DateTime.Kind"/>、不做时区换算
     /// </summary>
     /// <remarks>
@@ -2125,6 +2181,23 @@ public class ClosedXmlExporterTests
         using var reader = new StreamReader(entry!.Open(), Encoding.UTF8);
 
         return Regex.IsMatch(reader.ReadToEnd(), "<(?:x:)?f[\\s/>]");
+    }
+
+    /// <summary>
+    /// 读取工作簿的 XML 部件，检查控制字符与字面转义文本的序列化结果
+    /// </summary>
+    private static string ReadWorkbookParts(MemoryStream stream)
+    {
+        stream.Position = 0;
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+        var parts = new StringBuilder();
+        foreach (var entry in archive.Entries.Where(entry => entry.FullName.EndsWith(".xml", StringComparison.Ordinal)))
+        {
+            using var reader = new StreamReader(entry.Open(), Encoding.UTF8);
+            parts.Append(reader.ReadToEnd());
+        }
+
+        return parts.ToString();
     }
 
     /// <summary>

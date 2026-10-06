@@ -56,6 +56,13 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 而模板没有留痕机制能交代改了什么。判据与分隔符文字导出相同，处置形态不同，这条不对称是刻意的。
 /// </para>
 /// <para>
+/// 取值域这一类里有一道只属于模板路径：字串含 XML 1.0 不允许出现在文本内容里的字符
+/// （<c>U+0000</c>–<c>U+0008</c>、<c>U+000B</c>、<c>U+000C</c>、<c>U+000E</c>–<c>U+001F</c>）时同样拒写。
+/// 渲染库把这类字符落成 XML 字符实体，而那份实体本身就不是合法的 XML 1.0 文本，产出的 XML 无效；
+/// 两条 xlsx 导出路径把同一个字符转义成 <c>_xHHHH_</c>，档能开、值能逐字读回，因此那边不拒。
+/// 制表符、换行与回车是 XML 1.0 合法的文本内容，不在这道判据里，多行单元格照写。
+/// </para>
+/// <para>
 /// 写出前校验只保证校验那一刻：走访结束后到渲染库写出之间数据被改不在本类的覆盖范围内，
 /// 调用方不得在这段时间修改数据。走访会把集合成员完整枚举一遍，排在渲染库自己那两遍之前，
 /// 因此只允许枚举一次的数据源用不了，惰性数据源会提前求值。走访不解析模板，
@@ -89,9 +96,11 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
     /// （早于 1900-01-01 的 <see cref="DateTime"/>、
     /// <see cref="DateOnly"/> 或 <see cref="DateTimeOffset"/>、非有限的浮点数、有效数字多于
     /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值、绝对值超过双精度整数上限的
-    /// <see cref="long"/>／<see cref="ulong"/>／<see cref="decimal"/>，或长于
-    /// <see cref="ExcelConstants.MaxCellTextLength"/> 的字串），消息点名键路径并给出与两条 xlsx 导出路径
-    /// 逐字相同的成因句；抛在调用渲染库之前，输出流零字节</exception>
+    /// <see cref="long"/>／<see cref="ulong"/>／<see cref="decimal"/>，长于
+    /// <see cref="ExcelConstants.MaxCellTextLength"/> 的字串，或字串里含 XML 1.0 不允许出现在文本内容里的字符
+    /// ——<c>U+0000</c>–<c>U+0008</c>、<c>U+000B</c>、<c>U+000C</c>、<c>U+000E</c>–<c>U+001F</c>，
+    /// 制表符、换行与回车不在其中），消息点名键路径并给出成因；前几类的成因句与两条 xlsx 导出路径逐字相同，
+    /// 最后一类只有本路径会拒。抛在调用渲染库之前，输出流零字节</exception>
     /// <exception cref="InvalidDataException">模板档存在但不是可用的 xlsx 容器，由渲染库抛出并原样透传；
     /// 此时输出流可能已含部分字节</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消。取消落在动手之前时
@@ -339,8 +348,8 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
     /// 公式元素写进档里，那已经不是「表格软件怎么读这格文字」的问题，六个起首字符覆盖不到它。
     /// </para>
     /// <para>
-    /// 取值域判据复用 <see cref="ExcelWorkbookWriteGuard.DescribeUnwritable"/> 那一份，成因文字原样带出，
-    /// 只把行位置换成键路径：模板没有行列表头，能点名的是数据里的键。
+    /// 取值域使用 <see cref="ExcelWorkbookWriteGuard.DescribeTemplateUnwritable"/>，复用通用判据，
+    /// 额外拒绝模板无法安全写入的非法 C0 字符。错误消息保留成因，并以键路径定位数据。
     /// </para>
     /// <para>
     /// 两道判据的异常型别沿用导出侧既有分工——公式注入是调用方给错了参数，走 <see cref="ArgumentException"/>；
@@ -359,7 +368,7 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
                 DataParameterName);
         }
 
-        if (ExcelWorkbookWriteGuard.DescribeUnwritable(value) is { } reason)
+        if (ExcelWorkbookWriteGuard.DescribeTemplateUnwritable(value) is { } reason)
         {
             throw new InvalidOperationException(
                 $"模板渲染无法完成：数据里键路径「{DisplayPath(path)}」的取值写不进工作簿。{reason}");

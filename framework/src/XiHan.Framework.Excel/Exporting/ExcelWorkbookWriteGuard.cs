@@ -40,6 +40,10 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 两边读回的都是被挪过的另一个整数，因此判据也按取值本身说，不按哪条路径写出的字串较长说。
 /// </para>
 /// <para>
+/// 模板路径通过 <see cref="DescribeTemplateUnwritable"/> 额外拒绝 XML 1.0 非法 C0 字符。
+/// 两条 xlsx 导出路径支持 OOXML 转义，不受该限制。
+/// </para>
+/// <para>
 /// 日期下限也只有一把尺，三种日期型别一起归它管：<see cref="DateTime"/>、<see cref="DateOnly"/> 与
 /// <see cref="DateTimeOffset"/> 早于 <see cref="EarliestDate"/> 时两条路径一起拒。这三个型别在两条路径落进的
 /// 格位并不相同——<see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/> 在流式路径落日期格、在全量路径落
@@ -88,8 +92,11 @@ internal static class ExcelWorkbookWriteGuard
     private const int MaximumNameInMessage = 40;
 
     /// <summary>
-    /// 工作表名不接受的字符，与工作簿的实际约束逐条对齐：既不误杀它肯收的名字，也不放过它拒绝的名字
+    /// 工作表名不接受的字符：工作簿在名字上自己拒收的那几个，加 <c>U+0000</c> 与 <c>U+0003</c>
     /// </summary>
+    /// <remarks>
+    /// 表名与单元格文本的约束不同，不与模板的字符判据共用。
+    /// </remarks>
     private static readonly char[] InvalidSheetNameCharacters = [':', '\\', '/', '?', '*', '[', ']', '\0', '\u0003'];
 
     /// <summary>
@@ -98,10 +105,16 @@ internal static class ExcelWorkbookWriteGuard
     /// <param name="sheetName">要检查的表名</param>
     /// <param name="position">表在清单里的位置，用于消息；单表路径固定为 1</param>
     /// <remarks>
-    /// 长度按 <see cref="string.Length"/>（UTF-16 代码单元）计，代理对占两个，上限 31 个字符；不接受的字符是
-    /// <c>: \ / ? * [ ]</c> 加 <c>U+0000</c> 与 <c>U+0003</c>，其余 ASCII 与控制字符工作簿都肯收，因此这里不多拒
-    /// （含竖线、尖括号、换行、全形字符的名字照样写）；首尾单引号被拒，而中间的撇号被收。
+    /// <para>
+    /// 长度按 <see cref="string.Length"/>（UTF-16 代码单元）计，代理对占两个，上限 31 个字符；本判据不接受的字符是
+    /// <c>: \ / ? * [ ]</c> 加 <c>U+0000</c> 与 <c>U+0003</c>，其余 ASCII（含竖线与尖括号）与全形字符的名字照样写；
+    /// 首尾单引号被拒，而中间的撇号被收。
     /// 表名为空或纯空白由表规格的赋值守卫拦下，这里不重复判，只为「名字里第一个字符就要取撇号」那一条留空串保护。
+    /// </para>
+    /// <para>
+    /// 此判据未覆盖全部表名控制字符。部分非法 C0 字符在全量路径由库抛出异常，流式路径则保留转义文本；
+    /// 制表符、换行与回车在全量路径原样保留，流式路径转为空格。
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentException">表名超过 31 个字符、含工作簿不接受的字符，或以单引号开头／结尾，
     /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c></exception>
@@ -225,6 +238,62 @@ internal static class ExcelWorkbookWriteGuard
 
             _ => null
         };
+
+    /// <summary>
+    /// 模板渲染路径的取值域判据：共用那份取值域判据之外，再加一道 XML 1.0 非法字符
+    /// </summary>
+    /// <param name="value">刚走访到的值，<c>null</c> 直接放过</param>
+    /// <returns>不可写的原因文字，可写（含 <c>null</c> 值）时为 <c>null</c></returns>
+    /// <remarks>
+    /// 模板将非法 C0 字符写成无效 XML 实体；两条 xlsx 导出路径支持 OOXML 转义，不调用本方法。
+    /// 制表符、换行与回车是 XML 1.0 合法字符，不在此处拒绝。
+    /// </remarks>
+    internal static string? DescribeTemplateUnwritable(object? value)
+        => value is string text && DescribeXmlIllegalCharacter(text) is { } illegal
+            ? illegal
+            : DescribeUnwritable(value);
+
+    /// <summary>
+    /// 找出字串里第一个 XML 1.0 不允许出现在文本内容里的字符，交回成因文字；整串都合法时交回 <c>null</c>
+    /// </summary>
+    /// <param name="text">刚走访到的字串值</param>
+    /// <remarks>
+    /// 仅检查 C0 中的 29 个非法字符：U+0000–U+0008、U+000B、U+000C、U+000E–U+001F。
+    /// </remarks>
+    private static string? DescribeXmlIllegalCharacter(string text)
+    {
+        for (var index = 0; index < text.Length; index++)
+        {
+            if (IsXmlIllegalCharacter(text[index]))
+            {
+                return XmlIllegalCharacterMessage(index, text[index]);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 判断一个字符是不是 XML 1.0 不允许出现在文本内容里的那一类
+    /// </summary>
+    /// <param name="character">要判断的字符</param>
+    /// <remarks>
+    /// 制表符、换行与回车虽然是控制字符，却在 XML 1.0 的合法集里，因此这三个刻意排除在外。
+    /// </remarks>
+    private static bool IsXmlIllegalCharacter(char character)
+        => character <= '\u0008'
+            || character is '\u000B' or '\u000C'
+            || character is >= '\u000E' and <= '\u001F';
+
+    /// <summary>
+    /// XML 1.0 非法字符的成因文字：点名是第几个字符与它的码点，只写政策与出路
+    /// </summary>
+    /// <param name="index">该字符在字串里的 0 起下标</param>
+    /// <param name="character">命中的字符</param>
+    private static string XmlIllegalCharacterMessage(int index, char character)
+        => $"字串在第 {index + 1} 个字符处含有 U+{(int)character:X4}：XML 1.0 不允许该字符。" +
+            "模板渲染拒绝写入，请移除该字符或替换为可见字符后重试。";
+
 
     /// <summary>
     /// 早于日期下限的成因文字：只写政策与出路，不替写出库与表格软件的行为下结论
