@@ -1,0 +1,27 @@
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelStreamExporterTests.cs
+  s_6456ca2796410e::t_9fea5742c11a22 1463-1490
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelTemplateRendererTests.cs
+  s_6456ca2796410e::t_9fea5742c11a22 645-740
+framework/src/XiHan.Framework.Excel/Exporting/MiniExcelTemplateRenderer.cs
+  s_6456ca2796410e::t_9fea5742c11a22 59-65,99-103,351-352,371
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlExporterTests.cs
+  s_6456ca2796410e::t_9fea5742c11a22 910-965,2186-2202
+framework/src/XiHan.Framework.Excel/Exporting/ExcelWorkbookWriteGuard.cs
+  s_6456ca2796410e::t_9fea5742c11a22 43-46,95,97-99,108-111,113-117,242-297
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "81446fd45c790e4ee19df548d391e0942f6a6686",
+  "prompts": {},
+  "sessions": {
+    "s_6456ca2796410e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10f39-2f9d-73f2-bbb1-e8cc2474c580",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
