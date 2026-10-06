@@ -44,11 +44,13 @@ namespace XiHan.Framework.Excel.Exporting;
 /// </para>
 /// <para>
 /// 表名与取值的判定不走库的那一套：表名按与全量路径共用的同一份判据先拒（库会拒一部分、
-/// 又把另一部分控制字符转义成另一个名字，两者都不是明确契约）；早于 1899-12-30 的 <see cref="DateTime"/>、
-/// 非有限的浮点数、有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值
-/// 与长过单元格上限的字串同样先拒——这四类在本路径会被库直接落进档里，交出一份读不回的档、一个被改写的日期，
-/// 或一串库按自己的形式写出的数字，而全量路径对它们是抛，两条路径必须判得一样。
-/// 位数这一道尤其不能各判各的：本路径把取值的文本交给库落格，多于承诺位数的数值在这里能原样落进档、
+/// 又把另一部分控制字符转义成另一个名字，两者都不是明确契约）；早于 1900-01-01 的日期
+/// （<see cref="DateTime"/>、<see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/> 三种型别同判）、
+/// 非有限的浮点数、有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值、
+/// 绝对值超过 9007199254740992（2 的 53 次方）的 <see cref="long"/>／<see cref="ulong"/>／<see cref="decimal"/>
+/// 与长过单元格上限的字串同样先拒——这五类照落交回的就不是呼叫端给的那个值，或者干脆写出一份读不回的档，
+/// 而全量路径对它们也是抛，两条路径必须判得一样、成因句逐字相同。
+/// 数值那两道尤其不能各判各的：本路径把取值的文本交给库落格，多于承诺位数的数值在这里能原样落进档、
 /// 在全量路径却会被舍短，同一份规格走哪条得到哪个数就成了走哪条的副产品，因此两边一起拒。行集合元素按
 /// <see cref="ExcelSheetSpec.RowType"/> 逐笔校验，判据与另两条路径同一份。取值委托自己抛出的异常原样上抛，
 /// 本类不吞也不改写。
@@ -88,17 +90,22 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 日期格，读回来是 <see cref="DateTimeKind.Unspecified"/>；要按某个时区交代同一个瞬间，由呼叫端先换算再交值。
 /// </para>
 /// <para>
-/// 日期格的下限是<b>本路径专属</b>的一道判定：本路径把 <see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>
-/// 落成日期格，而 1900 日期系统里早于 <c>1899-12-30</c> 的日期在这格里没有对应的计数，所以早于那一刻的
-/// 这两个型别在本路径整段拒写（<see cref="DateTime"/> 两条路径都拒，判据同一把尺）。写出库对这一段的取值
-/// 并不都报错，有些原样读得回来——那是库的宽容、不是格式的承诺，本组件不按取值远近赌哪一段安全。
-/// 全量路径把这两个型别交给工作簿落成文本格、值与偏移量都原样留在文字里，因此不判这一条——同一份规格走哪条
-/// 路径，早于该时刻的 <c>DateOnly</c> 能导或不能导并不相同，这是落格方式带来的差别，不是两套标准。
-/// 要保住这类日期就用全量路径，或让该列取成文本。
+/// 日期下限<b>不是</b>本路径专属的判定：<see cref="DateTime"/>、<see cref="DateOnly"/> 与
+/// <see cref="DateTimeOffset"/> 三种型别早于 <c>1900-01-01</c> 时两条 xlsx 写出路径一起拒，量同一把尺、
+/// 抛同一句成因。本路径把后两个型别落成日期格（<see cref="DateTimeOffset"/> 取它的钟表时刻，偏移量不落格），
+/// 全量路径把它们交给工作簿落成文本格、值与偏移量都原样留在文字里——格位并不相同，
+/// 但「哪一天之前不能写」不由落进哪种格子决定：分派器按行数替调用方选路径，若下限跟着格位走，
+/// 同一份带早年日期的规格能不能导就成了走哪条的副产品。早先这两个型别只在本路径拒、全量路径照能导出，
+/// 「要保住这类日期就用全量路径」那条出路已随之作废；早于下限的日期只能由呼叫端自己转成文本栏位再交出，
+/// 或改用不早于该日的日期。判据说的是政策：本组件不依赖写出库与表格软件各自的宽容度，
+/// 也不按取值远近划分哪一段安全。
 /// 本类只承诺列顺序与表头文案一致，不承诺格位型别一致，也不承诺数值在档里写成哪一串字符：
 /// 本路径按取值的文本落格，全量路径按工作簿的形式落格，同一份 15 位整数一边是整串数字、一边可能是
-/// <c>1E+15</c> 这样的写法。能承诺的是读回的那个数——<see cref="ExcelConstants.MaxExactNumericSignificantDigits"/>
-/// 位有效数字以内两条路径都原样交回，超出该位数的取值两条路径一起拒，不靠走哪条决定得到哪个数。
+/// <c>1E+15</c> 这样的写法。能承诺的是读回的那个数——有效数字在
+/// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位以内、且绝对值不超过 9007199254740992
+/// （2 的 53 次方）的取值两条路径都原样交回，越过任一道界的取值两条路径一起拒，
+/// 不靠走哪条决定得到哪个数。后一道界只管 <see cref="long"/>／<see cref="ulong"/>／<see cref="decimal"/>：
+/// <see cref="double"/> 与 <see cref="float"/> 交出的本来就是双精度取值，落格与读回是同一个数。
 /// 不写 <c>.xls</c>，也不承诺宏与图表。
 /// </para>
 /// </remarks>
@@ -177,11 +184,13 @@ public sealed class MiniExcelStreamExporter
     /// <see cref="ExcelConstants.MaxSheetRows"/> 行以后（单张工作表只有这么多行，超出的行没有可落的位置，
     /// 上限按每张工作表各自计、不做整簿累计，消息点出上限值、触线的那一行与「分成多张表或改用文字档」两条出路；
     /// 本路径不写标题行，因此 <see cref="ExcelSheetSpec.Title"/> 不占行数，这一点与全量路径不同）；
-    /// 或某个行值装不进本路径要落的格子——
-    /// 早于 1899-12-30 的 <see cref="DateTime"/>、<see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>
-    /// （后两者在本路径落日期格，故只在本路径拒；全量路径把它们落成文本格、值原样读回，不判这一条）、
+    /// 或某个行值越出两条 xlsx 写出路径共用的那道取值域判据——
+    /// 早于 1900-01-01 的 <see cref="DateTime"/>、<see cref="DateOnly"/> 与 <see cref="DateTimeOffset"/>
+    /// （三种型别同判，与全量路径量同一把尺、抛同一句成因；本路径把后两者落成日期格、全量路径落成文本格，
+    /// 格位不同不改变能不能写）、
     /// <c>NaN</c> 或 <c>±∞</c>、有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的
-    /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>（这一条与全量路径同判）、
+    /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>、绝对值超过 9007199254740992
+    /// （2 的 53 次方）的 <c>long</c>／<c>ulong</c>／<c>decimal</c>（数值这几条也与全量路径同判）、
     /// 长过单元格上限的字串。消息都点名实际成因：行型不符者报出行号与期望／实际
     /// 两个类型全名，重复列键者报出重复的键，取值越界者报出行位置、表头与列键。取值类与行数上限的判定只在
     /// 取到那一行时才做得出来，抛出时前面的行可能已经落进流里，调用方必须丢弃这条流的内容；
@@ -365,7 +374,7 @@ public sealed class MiniExcelStreamExporter
 
                 // 取值域判定只交回成因文字，行位置在真要抛时才拼出来：每行每格都先分配一条消息，
                 // 等于让正常路径替异常路径付钱
-                if (value is not null && ExcelWorkbookWriteGuard.DescribeUnwritableInStream(value) is { } reason)
+                if (value is not null && ExcelWorkbookWriteGuard.DescribeUnwritable(value) is { } reason)
                 {
                     throw ExcelWorkbookWriteGuard.CreateFailure(column, $"第 {rowIndex} 行", reason);
                 }

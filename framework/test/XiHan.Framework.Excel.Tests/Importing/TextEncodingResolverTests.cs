@@ -347,6 +347,190 @@ public class TextEncodingResolverTests
     }
 
     /// <summary>
+    /// 分隔文字档未指名编码、档又无 BOM 时交回原流，回退编码是严格 Big5
+    /// </summary>
+    /// <remarks>
+    /// UTF-8 那一支不由本地窗口试探负责：读取器会把整档按 UTF-8 试解一遍，试不通才用回退编码，
+    /// 因此这里只给回退，且回退带严格回退——解不开的字节要抛，不能变成替换字符。
+    /// </remarks>
+    [Fact]
+    public void 分隔文字档未指名时无BOM的回退编码是严格Big5()
+    {
+        using var input = ImportFixtures.Text("a,b\r\n1,2\r\n");
+
+        var handoff = TextEncodingResolver.ResolveForReader(null, input);
+
+        Assert.Same(input, handoff.Input);
+        Assert.False(handoff.OwnsInput);
+        Assert.Equal("big5", handoff.FallbackEncoding.WebName);
+        Assert.IsType<DecoderExceptionFallback>(handoff.FallbackEncoding.DecoderFallback);
+        Assert.IsType<EncoderExceptionFallback>(handoff.FallbackEncoding.EncoderFallback);
+    }
+
+    /// <summary>
+    /// 分隔文字档带 BOM 时回退编码按 BOM 取，不落到 Big5，也不另建流
+    /// </summary>
+    /// <param name="preamble">前导字节</param>
+    /// <param name="expectedWebName">期望的编码名</param>
+    [Theory]
+    [InlineData(new byte[] { 0xEF, 0xBB, 0xBF }, "utf-8")]
+    [InlineData(new byte[] { 0xFF, 0xFE }, "utf-16")]
+    [InlineData(new byte[] { 0xFE, 0xFF }, "utf-16BE")]
+    [InlineData(new byte[] { 0xFF, 0xFE, 0x00, 0x00 }, "utf-32")]
+    public void 分隔文字档带BOM时回退编码按BOM(byte[] preamble, string expectedWebName)
+    {
+        using var input = new MemoryStream([.. preamble, .. "a,b\r\n"u8.ToArray()]);
+
+        var handoff = TextEncodingResolver.ResolveForReader(null, input);
+
+        Assert.Same(input, handoff.Input);
+        Assert.False(handoff.OwnsInput);
+        Assert.Equal(expectedWebName, handoff.FallbackEncoding.WebName);
+    }
+
+    /// <summary>
+    /// 指名编码且档无 BOM 时不交给读取器解码：自己按指名编码转码成无 BOM UTF-8，另建一条流
+    /// </summary>
+    /// <remarks>
+    /// 读取器只在 UTF-8 试解失败时才用回退编码，档的字节构成合法 UTF-8 时指名的编码就被静默忽略。
+    /// 转码之后交出去的字节是 UTF-8，指名才真正决定读到什么字。
+    /// </remarks>
+    [Fact]
+    public void 指名编码且无BOM时转码成无BOM的UTF8()
+    {
+        using var input = ImportFixtures.Big5Text("提單號\r\nAWB1\r\n");
+
+        var handoff = TextEncodingResolver.ResolveForReader("big5", input);
+
+        Assert.True(handoff.OwnsInput);
+        Assert.NotSame(input, handoff.Input);
+        Assert.Equal("utf-8", handoff.FallbackEncoding.WebName);
+        Assert.Equal(0, handoff.Input.Position);
+
+        using var transcoded = handoff.Input;
+        var bytes = ReadAllBytes(transcoded);
+
+        // 前导字节不能再写一遍：读取器会把它当 BOM 认一次
+        Assert.False(bytes.AsSpan().StartsWith(new UTF8Encoding(true).GetPreamble()));
+        Assert.Equal("提單號\r\nAWB1\r\n", new UTF8Encoding(false, true).GetString(bytes));
+    }
+
+    /// <summary>
+    /// 档带 BOM 时指名让位：不转码、原流交出去，回退编码仍是指名的那个
+    /// </summary>
+    [Fact]
+    public void 档带BOM时指名编码让位且不转码()
+    {
+        using var input = ImportFixtures.TextWithUtf8Bom("提單號\r\nAWB1\r\n");
+
+        var handoff = TextEncodingResolver.ResolveForReader("iso-8859-1", input);
+
+        Assert.False(handoff.OwnsInput);
+        Assert.Same(input, handoff.Input);
+        Assert.Equal("iso-8859-1", handoff.FallbackEncoding.WebName);
+    }
+
+    /// <summary>
+    /// 指名解析不了时在转码之前就抛并点名，档带不带 BOM 都一样
+    /// </summary>
+    /// <param name="encodingName">解析不了的编码名</param>
+    [Theory]
+    [InlineData("utf-99")]
+    [InlineData("")]
+    [InlineData(" \t ")]
+    public void 分隔文字档的非法编码名在转码之前被拒(string encodingName)
+    {
+        using var input = ImportFixtures.Text("a\r\n");
+
+        var failure = Assert.Throws<ArgumentException>(
+            () => TextEncodingResolver.ResolveForReader(encodingName, input));
+
+        Assert.Equal(nameof(Abstractions.Importing.ExcelImportOptions.TextEncodingName), failure.ParamName);
+    }
+
+    /// <summary>
+    /// 指名编码但档的字节解不开时在转码阶段就抛解码异常，不产出替换字符当正常数据
+    /// </summary>
+    [Fact]
+    public void 指名编码解不开时抛解码异常()
+    {
+        using var input = ImportFixtures.Big5Text("提單號\r\nAWB1\r\n");
+
+        Assert.Throws<DecoderFallbackException>(() => TextEncodingResolver.ResolveForReader("utf-8", input));
+    }
+
+    /// <summary>
+    /// 转码那一支也不吃掉调用方的流：读完仍可复位重读，取到的还是源档字节
+    /// </summary>
+    [Fact]
+    public void 转码之后调用方的流仍归调用方()
+    {
+        using var input = ImportFixtures.Big5Text("提單號\r\nAWB1\r\n");
+
+        var handoff = TextEncodingResolver.ResolveForReader("big5", input);
+        using var transcoded = handoff.Input;
+
+        Assert.True(input.CanRead);
+
+        input.Position = 0;
+        Assert.Equal(0xB4, input.ReadByte());
+    }
+
+    /// <summary>
+    /// 转码逐块搬但不改换行形态：源档的 CRLF、裸 LF 与裸 CR 原样过去
+    /// </summary>
+    [Fact]
+    public void 转码保留源档的换行形态()
+    {
+        using var input = ImportFixtures.Big5Text("提單號\r\n甲\n乙\r丙\r\n");
+
+        var handoff = TextEncodingResolver.ResolveForReader("big5", input);
+        using var transcoded = handoff.Input;
+
+        Assert.Equal(
+            "提單號\r\n甲\n乙\r丙\r\n",
+            new UTF8Encoding(false, true).GetString(ReadAllBytes(transcoded)));
+    }
+
+    /// <summary>
+    /// 从起点把一条流读成字节，供断言转码结果用
+    /// </summary>
+    /// <param name="stream">要读干的流，读完位置在档尾</param>
+    private static byte[] ReadAllBytes(Stream stream)
+    {
+        stream.Position = 0;
+
+        using var buffer = new MemoryStream();
+        stream.CopyTo(buffer);
+
+        return buffer.ToArray();
+    }
+
+    /// <summary>
+    /// 这一支同样要求流可定位：认前导字节要读完复位
+    /// </summary>
+    [Fact]
+    public void 分隔文字档遇到不可定位的流时点名input()
+    {
+        using var backing = ImportFixtures.Text("a\r\n");
+        using var forward = new ForwardOnlyStream(backing);
+
+        var failure = Assert.Throws<ArgumentException>(() => TextEncodingResolver.ResolveForReader(null, forward));
+
+        Assert.Equal("input", failure.ParamName);
+    }
+
+    /// <summary>
+    /// 输入流为 null 时抛 ArgumentNullException，指名编码时也一样
+    /// </summary>
+    [Fact]
+    public void 分隔文字档的输入流为null时抛出()
+    {
+        Assert.Throws<ArgumentNullException>(() => TextEncodingResolver.ResolveForReader(null, null!));
+        Assert.Throws<ArgumentNullException>(() => TextEncodingResolver.ResolveForReader("utf-8", null!));
+    }
+
+    /// <summary>
     /// 按前导字节选对应的无 BOM 编码写出正文，让上面的表可以逐条列
     /// </summary>
     /// <param name="preamble">前导字节</param>

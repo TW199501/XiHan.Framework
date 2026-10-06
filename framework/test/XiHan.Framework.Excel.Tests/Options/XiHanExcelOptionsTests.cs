@@ -23,7 +23,7 @@ public class XiHanExcelOptionsTests
     }
 
     /// <summary>
-    /// 未赋值时四个选项取常量表的默认值
+    /// 未赋值时六个选项取常量表的默认值
     /// </summary>
     [Fact]
     public void 默认值_取常量表()
@@ -34,6 +34,8 @@ public class XiHanExcelOptionsTests
         Assert.Equal(500, options.AutoWidthSampleRows);
         Assert.Equal("utf-8-bom", options.DefaultEncodingName);
         Assert.Equal(1_000_000, options.MaxImportRows);
+        Assert.Equal(ExcelConstants.DefaultMaxImportBytes, options.MaxImportBytes);
+        Assert.Equal(ExcelConstants.MaxImportCompressionRatio, options.MaxImportCompressionRatio);
     }
 
     /// <summary>

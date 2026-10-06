@@ -133,15 +133,22 @@ public sealed record ExcelImportOptions
     public bool SkipEmptyRows { get; init; } = true;
 
     /// <summary>
-    /// 文字档的解码编码名称，默认 <c>null</c> 表示自动判别（BOM → 严格 UTF-8 试探 → Big5）
+    /// 文字档的解码编码名称，默认 <c>null</c> 表示自动判别
     /// </summary>
     /// <remarks>
     /// <para>
     /// 只对 <see cref="ExcelImportFormat.Csv"/>／<see cref="ExcelImportFormat.Txt"/> 生效。取 <c>null</c> 时的判别链见
-    /// 导入实现的说明；自动判别只能保证「按判出来的编码解不会撞到解码错误」，<u>不保证那是原档真正的编码</u>：
-    /// 纯 ASCII 档在 UTF-8 与 Big5 下都合法，一段 Big5 字节也可能正好构成合法 UTF-8 序列，判出来的会是另一种语言的字；
-    /// <u>没有 BOM 的 UTF-16 更会被判成 UTF-8</u>（ASCII 段在 UTF-16LE 下每字后跟一个 <c>0x00</c>，那是合法 UTF-8），
-    /// 整份档会解出一串夹着 NUL 的字符而不报任何错。这三类档都必须指名编码，那是唯一确定的做法。
+    /// 导入实现的说明，两条读取路径不同：分隔文字档是「BOM → 整档按 UTF-8 试解 → 严格 Big5 回退」，
+    /// 固定宽度档是「BOM → 前 <c>32KB</c> 按 UTF-8 试解 → Big5 回退」。自动判别只保证「按判出来的编码解不会撞到
+    /// 解码错误」，<u>不保证那是原档真正的编码</u>：纯 ASCII 档在 UTF-8 与 Big5 下都合法，一段 Big5 字节也可能
+    /// 正好构成合法 UTF-8 序列，判出来的会是另一种语言的字；<u>没有 BOM 的 UTF-16 更认不出来</u>——按 UTF-8 解
+    /// 会得出一串夹着 NUL 的字符，落到 Big5 回退则多半当场抛解码异常。
+    /// </para>
+    /// <para>
+    /// 指名编码时由导入实现自己按该编码解码，自动判别不再插手，读到的字由指名的编码唯一决定，因此上面这几类档
+    /// 指名编码就能确定读出原字。<u>档带 BOM 时以 BOM 为准、指名让位</u>：分隔文字档的读取器认 BOM 且优先于
+    /// 任何回退编码。指名编码的分隔文字档会整档转码成 UTF-8 再交给读取器，这一支的内存占用与档大小同量级，
+    /// 档大小的上限见 <see cref="XiHan.Framework.Excel.Abstractions.XiHanExcelOptions.MaxImportBytes"/>。
     /// </para>
     /// <para>
     /// 常用取值：<c>"utf-8"</c>、<c>"utf-8-bom"</c>、<c>"big5"</c>、<c>"gb18030"</c>，大小写与首尾空白不参与判断。
@@ -225,7 +232,7 @@ public sealed record ExcelImportOptions
     public IReadOnlyList<ExcelFixedWidthField>? FixedColumns { get; init; }
 
     /// <summary>
-    /// 单次导入最多交出多少条数据行，默认 <c>null</c> 表示取框架硬上限
+    /// 单次导入最多交出多少条数据行，默认 <c>null</c> 表示不指名、取框架硬上限
     /// <see cref="ExcelConstants.DefaultMaxImportRows"/>
     /// </summary>
     /// <remarks>
@@ -241,6 +248,17 @@ public sealed record ExcelImportOptions
     /// <para>
     /// 非正整数（<c>0</c> 与负数）同样抛 <see cref="ArgumentOutOfRangeException"/>：「最多读 0 行」不是合法的请求，
     /// 不静默当成「不限制」。
+    /// </para>
+    /// <para>
+    /// <b>撞上上限时的行为取决于上限有没有被指名。</b>给了本设置，或应用把
+    /// <see cref="XiHan.Framework.Excel.Abstractions.XiHanExcelOptions.MaxImportRows"/> 收紧到框架硬上限之下，
+    /// 都算指名：「只取前 N 行」是请求本身的内容，档里还有更多行时<u>截断、不报错</u>，交出的就是前 N 行。
+    /// 两处都没指名时（本设置为 <c>null</c>，且生效的上限正是框架硬上限
+    /// <see cref="ExcelConstants.DefaultMaxImportRows"/>——把配置项写成与它相同的数等同于没写），
+    /// 撞上的那道界不属于任何请求：档的数据行超过它，两条导入路径都在<u>上限之后确实还有数据行</u>时
+    /// 抛 <see cref="InvalidOperationException"/> 并点名下限值，不静默少交行——静默截断交回的是一份
+    /// 看起来完整、其实缺尾的导入结果，调用方无从得知少了多少。判「还有没有数据行」要往下多读一行，
+    /// 空行照 <see cref="SkipEmptyRows"/> 的口径不算数据行，因此档的行数<u>恰好等于</u>上限时不抛。
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">值大于本次生效的行数上限，或为 <c>0</c> 与负数</exception>

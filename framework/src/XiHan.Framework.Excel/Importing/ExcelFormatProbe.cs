@@ -29,7 +29,12 @@ internal static class ExcelFormatProbe
     /// <summary>
     /// 判别与错误消息用到的档头长度
     /// </summary>
-    internal const int HeaderByteCount = 8;
+    /// <remarks>
+    /// 十六字节是「最长前导字节 ＋ 起始标记」的下限：UTF-32 的前导字节占四位，UTF-16 的 <c>&lt;html</c>
+    /// 占十位，UTF-8 的 <c>&lt;?xml</c> 占八位。取八字节时带前导字节的标记语言文本认不出起始标记，
+    /// 错误消息只能说「判不出格式」，点不出它是 HTML 表格还是 XML 表格。
+    /// </remarks>
+    internal const int HeaderByteCount = 16;
 
     /// <summary>
     /// OLE 复合文件（旧版二进制工作簿容器）的 8 字节签名
@@ -40,6 +45,26 @@ internal static class ExcelFormatProbe
     /// zip 容器（Office Open XML 工作簿）的 4 字节签名
     /// </summary>
     private static readonly byte[] ZipSignature = [0x50, 0x4B, 0x03, 0x04];
+
+    /// <summary>
+    /// 宽松解码的 UTF-16 little endian，只用于认标记形态
+    /// </summary>
+    private static readonly Encoding Utf16Le = new UnicodeEncoding(bigEndian: false, byteOrderMark: false);
+
+    /// <summary>
+    /// 宽松解码的 UTF-16 big endian，只用于认标记形态
+    /// </summary>
+    private static readonly Encoding Utf16Be = new UnicodeEncoding(bigEndian: true, byteOrderMark: false);
+
+    /// <summary>
+    /// 宽松解码的 UTF-32 little endian，只用于认标记形态
+    /// </summary>
+    private static readonly Encoding Utf32Le = new UTF32Encoding(bigEndian: false, byteOrderMark: false);
+
+    /// <summary>
+    /// 宽松解码的 UTF-32 big endian，只用于认标记形态
+    /// </summary>
+    private static readonly Encoding Utf32Be = new UTF32Encoding(bigEndian: true, byteOrderMark: false);
 
     /// <summary>
     /// 读取档头并判别格式，嗅探后把流位置复原
@@ -162,18 +187,33 @@ internal static class ExcelFormatProbe
     /// <param name="header">档头字节</param>
     /// <returns>识别出来时返回起始标记（形如 <c>&lt;html</c>），否则返回 <c>null</c></returns>
     /// <remarks>
+    /// <para>
     /// 只做识别、不做猜测：返回值只出现在「判不出来、要求调用方指名格式」的消息里，不参与任何解析路径。
     /// 取不到完整标记时（档头截断在标记中间）返回可见的部分，消息照旧点名 HTML 表格与 XML 表格。
+    /// </para>
+    /// <para>
+    /// 档头的前导字节（BOM）先剥掉再认形态：标记语言档常带前导字节，SpreadsheetML 多写成
+    /// <c>EF BB BF 3C 3F 78 6D 6C</c>，UTF-16 的 HTML 写成 <c>FF FE 3C 00 68 00</c>。前导字节不是文档内容，
+    /// 留着它 <c>U+FEFF</c> 就排在 <c>&lt;</c> 前面，而它不是空白字符，起始标记因此认不出来。
+    /// UTF-32 的两个前导字节与 UTF-16 LE 的前两位相同，判定排在 UTF-16 之前。
+    /// </para>
+    /// <para>
+    /// 这里按前导字节取的编码只用来<u>认形态</u>，一律宽松解码，与文字档真正解码用的编码无关
+    /// （那一份见 <see cref="TextEncodingResolver"/>，两侧回退都是严格的）。
+    /// </para>
     /// </remarks>
     internal static string? DescribeMarkupOpening(ReadOnlySpan<byte> header)
     {
-        if (header.IsEmpty)
+        var encoding = PreambleEncoding(header, out var preambleLength);
+        var body = header[preambleLength..];
+
+        if (body.IsEmpty)
         {
             return null;
         }
 
-        // 按 UTF-8 宽松取字：这段只用来认形态，非法字节换成替换字符不影响判定
-        var text = Encoding.UTF8.GetString(header).AsSpan();
+        // 按认出来的编码宽松取字：这段只用来认形态，非法字节换成替换字符不影响判定
+        var text = encoding.GetString(body).AsSpan();
         var start = 0;
 
         while (start < text.Length && char.IsWhiteSpace(text[start]))
@@ -200,5 +240,78 @@ internal static class ExcelFormatProbe
         }
 
         return tag[..end].ToString();
+    }
+
+    /// <summary>
+    /// UTF-8 的前导字节
+    /// </summary>
+    private static ReadOnlySpan<byte> Utf8Preamble => [0xEF, 0xBB, 0xBF];
+
+    /// <summary>
+    /// UTF-16 little endian 的前导字节
+    /// </summary>
+    private static ReadOnlySpan<byte> Utf16LePreamble => [0xFF, 0xFE];
+
+    /// <summary>
+    /// UTF-16 big endian 的前导字节
+    /// </summary>
+    private static ReadOnlySpan<byte> Utf16BePreamble => [0xFE, 0xFF];
+
+    /// <summary>
+    /// UTF-32 little endian 的前导字节（前两位与 UTF-16 LE 相同，必须排在它前面判）
+    /// </summary>
+    private static ReadOnlySpan<byte> Utf32LePreamble => [0xFF, 0xFE, 0x00, 0x00];
+
+    /// <summary>
+    /// UTF-32 big endian 的前导字节
+    /// </summary>
+    private static ReadOnlySpan<byte> Utf32BePreamble => [0x00, 0x00, 0xFE, 0xFF];
+
+    /// <summary>
+    /// 认档头的前导字节，交出用它取字所用的宽松编码与该前导字节的长度
+    /// </summary>
+    /// <param name="header">档头字节</param>
+    /// <param name="preambleLength">认出来的前导字节长度，没有可识别前导字节时为 <c>0</c></param>
+    /// <returns>按前导字节选出的编码；没有可识别前导字节时是 <see cref="Encoding.UTF8"/></returns>
+    private static Encoding PreambleEncoding(ReadOnlySpan<byte> header, out int preambleLength)
+    {
+        if (header.StartsWith(Utf32LePreamble))
+        {
+            preambleLength = Utf32LePreamble.Length;
+
+            return Utf32Le;
+        }
+
+        if (header.StartsWith(Utf32BePreamble))
+        {
+            preambleLength = Utf32BePreamble.Length;
+
+            return Utf32Be;
+        }
+
+        if (header.StartsWith(Utf8Preamble))
+        {
+            preambleLength = Utf8Preamble.Length;
+
+            return Encoding.UTF8;
+        }
+
+        if (header.StartsWith(Utf16LePreamble))
+        {
+            preambleLength = Utf16LePreamble.Length;
+
+            return Utf16Le;
+        }
+
+        if (header.StartsWith(Utf16BePreamble))
+        {
+            preambleLength = Utf16BePreamble.Length;
+
+            return Utf16Be;
+        }
+
+        preambleLength = 0;
+
+        return Encoding.UTF8;
     }
 }

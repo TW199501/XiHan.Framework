@@ -53,20 +53,24 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 数字格式）；文本、空白、布尔与时长格不套格式。格式串原样交给 ClosedXML，写出侧不解析也不改写它。
 /// </para>
 /// <para>
-/// 值域超出工作簿可表示范围的输入一律抛出而不是改写：<c>DateTime</c> 早于 1899-12-30（xlsx 的 1900 日期系统起点）
-/// 会被工作簿夹到纪元时刻、静默变成另一个日期；<c>double</c> 与 <c>float</c> 的 <c>NaN</c>、<c>±∞</c> 在数值格里
+/// 值域超出工作簿可表示范围的输入一律抛出而不是改写：日期早于 1900-01-01（本组件接受的最早日期，
+/// <c>DateTime</c>、<c>DateOnly</c> 与 <c>DateTimeOffset</c> 三种型别同判，出路是改用不早于该日的日期、
+/// 或由呼叫端把该列转成文本）；<c>double</c> 与 <c>float</c> 的 <c>NaN</c>、<c>±∞</c> 在数值格里
 /// 没有对应形态；<see cref="long"/>、<see cref="ulong"/>、<see cref="decimal"/>、<see cref="double"/>、
 /// <see cref="float"/> 的有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位时，
 /// 落进数值格的会是工作簿舍短后的另一个数（16 位整数落档即回读成 15 位那个数），本类不承诺这一格交回呼叫端给的值；
-/// 字串长过 32767 个字符时工作簿装不下它。
-/// 四类都在该格抛 <see cref="InvalidOperationException"/> 并点名行位置、表头与列键，不改写成文本、不夹到边界值、
+/// <see cref="long"/>、<see cref="ulong"/>、<see cref="decimal"/> 的绝对值超过 9007199254740992（2 的 53 次方）时
+/// 同样交不回原值——数值格在档里就是一个双精度数，越过那道界之后整数不再逐个可表示，而整数末尾的一串零不计入
+/// 有效数字，位数看着不多也可能已越界（<c>double</c> 与 <c>float</c> 不在这一条里：呼叫端交出的本来就是双精度取值，
+/// 落进格里的是同一个双精度，交回的也是它）；字串长过 32767 个字符时工作簿装不下它。
+/// 五类都在该格抛 <see cref="InvalidOperationException"/> 并点名行位置、表头与列键，不改写成文本、不夹到边界值、
 /// 也不截断。颜色串必须是 <c>#RGB</c> 或 <c>#RRGGBB</c>，<c>null</c> 才表示未设置——空串与非法串不会被当成「没填」。
 /// 形状过关但工作簿仍解析不了的串（全形数字、阿拉伯-印度数字之类非 ASCII 位值）同样由本类转译成框架异常，
-/// 库的 <see cref="FormatException"/> 只作内部异常保留。这四条取值域判据与表名判据由两条 xlsx 写出路径共用一份，
-/// 这部分能导与不能导的输入集合与走哪条无关。<b>唯一的例外是日期格的下限</b>：<c>DateOnly</c> 与
-/// <c>DateTimeOffset</c> 在本类落文本格、不送进日期格，因此本类不判它们早于 1899-12-30 的情形（照能导出），
-/// 而流式路径把它们落成日期格、整段拒——同一份带这类日期的规格走哪条路径，结果并不相同，
-/// 详见流式写出器的说明。<see cref="ExcelColumn.Header"/> 与 <see cref="ExcelSheetSpec.Title"/> 落的也是单元格，
+/// 库的 <see cref="FormatException"/> 只作内部异常保留。这五条取值域判据与表名判据由两条 xlsx 写出路径共用一份，
+/// 这部分能导与不能导的输入集合与走哪条无关，日期下限也在内：<c>DateOnly</c> 与 <c>DateTimeOffset</c>
+/// 在本类落文本格、在流式路径落日期格，格位并不相同，但「哪一天之前不能写」两边量同一把尺、抛同一句成因，
+/// 因此早先「要原样保住早年日期就改走全量路径」这条出路已经作废——早于下限的日期只能由呼叫端自己转成文本栏位。
+/// <see cref="ExcelColumn.Header"/> 与 <see cref="ExcelSheetSpec.Title"/> 落的也是单元格，
 /// 与数据格共用 <see cref="ExcelConstants.MaxCellTextLength"/> 那道上限，但它们是声明而不是行值：超长时在写出
 /// 第一格之前抛 <see cref="ArgumentException"/>（<see cref="ArgumentException.ParamName"/> 为 <c>Header</c>／<c>Title</c>），
 /// 一个行元素都不取，也不截断；这份长度判据由 <see cref="ExcelCellTextGuard"/> 持有、与流式路径共用，
@@ -176,9 +180,11 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 解析不了（位值含非 ASCII 字符）」那一条带库的 <see cref="FormatException"/> 作为内部异常，形状本身不合法的那条
     /// 没有内部异常——按异常类型与 <see cref="ArgumentException.ParamName"/> 分流，不要靠读内部异常判断成因</exception>
     /// <exception cref="InvalidOperationException">行集合里有某笔元素与
-    /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是工作簿装不下的（早于 1899-12-30 的 <c>DateTime</c>、
-    /// <c>NaN</c> 或 <c>±∞</c>、有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的
-    /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>、长过单元格上限的字串）；
+    /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是工作簿装不下的（早于 1900-01-01 的
+    /// <c>DateTime</c>／<c>DateOnly</c>／<c>DateTimeOffset</c>、<c>NaN</c> 或 <c>±∞</c>、有效数字多于
+    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的
+    /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>、绝对值超过 9007199254740992
+    /// （2 的 53 次方）的 <c>long</c>／<c>ulong</c>／<c>decimal</c>、长过单元格上限的字串）；
     /// 某列的 <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串（含形状合法但解析不了的串）；
     /// 或标题行、表头行与数据行加起来要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后——单张工作表
     /// 只有这么多行，超出的行没有可落的位置，上限按每张工作表各自计、不做整簿累计，消息点出上限值、
@@ -247,9 +253,11 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内，或
     /// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/> 为负数</exception>
     /// <exception cref="InvalidOperationException">某张表的行集合里有某笔元素与其
-    /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是工作簿装不下的（早于 1899-12-30 的 <c>DateTime</c>、
-    /// <c>NaN</c> 或 <c>±∞</c>、有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的
-    /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>、长过单元格上限的字串）；
+    /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是工作簿装不下的（早于 1900-01-01 的
+    /// <c>DateTime</c>／<c>DateOnly</c>／<c>DateTimeOffset</c>、<c>NaN</c> 或 <c>±∞</c>、有效数字多于
+    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的
+    /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>、绝对值超过 9007199254740992
+    /// （2 的 53 次方）的 <c>long</c>／<c>ulong</c>／<c>decimal</c>、长过单元格上限的字串）；
     /// 某列的 <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串；或某张表的标题行、表头行与数据行加起来
     /// 要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后。行数上限按<u>每张工作表各自</u>计——
     /// 每张表都有自己的标题行与表头行，各自数各自的，不做整簿累计，因此两张各占上限六成的表能同时写进一个工作簿，
@@ -471,9 +479,12 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 写一格取值并按取值类型套 Excel 格式串
     /// </summary>
     /// <remarks>
-    /// 取值先过一道可写性判定：早于 1899-12-30 的 <c>DateTime</c>、非有限的浮点数、有效数字多于
-    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值与长过单元格上限的字串都会被拒，
-    /// 工作簿对这四类要么夹改成另一个值、要么写出读不回的档。判定与流式路径共用同一份，两条路径判得一样。
+    /// 取值先过一道可写性判定：早于 1900-01-01 的日期（<c>DateTime</c>／<c>DateOnly</c>／<c>DateTimeOffset</c>
+    /// 三种型别同判）、非有限的浮点数、有效数字多于
+    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值、绝对值超过 9007199254740992
+    /// （2 的 53 次方）的 <c>long</c>／<c>ulong</c>／<c>decimal</c>，与长过单元格上限的字串都会被拒——
+    /// 这五类照落交回的就不是呼叫端给的那个值，或者干脆写出一份读不回的档。判定与流式路径共用同一份，
+    /// 两条路径判得一样、抛出的成因句逐字相同。
     /// 取值类型决定格式串落到哪一处——数值走 <see cref="IXLStyle.NumberFormat"/>，
     /// 日期走 <see cref="IXLStyle.DateFormat"/>，其余类型套了也不改变读出值，因此不套。
     /// </remarks>

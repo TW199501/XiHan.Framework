@@ -32,6 +32,66 @@ public static class ExcelConstants
     public const int DefaultMaxImportRows = 1_000_000;
 
     /// <summary>
+    /// 默认导入档大小上限（字节），即 256 MiB
+    /// </summary>
+    /// <remarks>
+    /// 这是「一份外来档最多能有多大」的框架默认值，应用可以用 <see cref="XiHanExcelOptions.MaxImportBytes"/>
+    /// 收紧或放宽。取 256 MiB 的依据是框架自己的行数上限：<see cref="DefaultMaxImportRows"/> 行、
+    /// 每行若干列互不相同的文字，写成 xlsx 在百 MiB 量级，本值留出成倍余量，因此行数上限之内的正常档
+    /// 不会被它挡住。两条导入路径都在读第一个字节之前按它判，超限<u>拒收整份档</u>，
+    /// 不截断读取、也不「先读前面一段」——半份档交回的是看起来成功的数据损失。
+    /// </remarks>
+    public const long DefaultMaxImportBytes = 268_435_456;
+
+    /// <summary>
+    /// xlsx 容器解压后总长上限（字节），即 2 GiB
+    /// </summary>
+    /// <remarks>
+    /// xlsx 是 zip 容器，档的大小说的是<u>压缩后</u>的字节数，读它要付出的内存与 I/O 由解压后的规模决定，
+    /// 两者可以差出几百倍。本常量给「一个容器最多能展开成多少字节」定一道绝对界，与
+    /// <see cref="MaxImportCompressionRatio"/> 配合使用：比值界挡住「小档展开成巨量内容」，
+    /// 本界挡住「大档展开成更大量内容」，两者缺一都留口子。超限时导入器<u>拒收整份档</u>并点名解压后总长，
+    /// 不解压、也不交给工作簿读取器。
+    /// </remarks>
+    public const long MaxImportDecompressedBytes = 2_147_483_648;
+
+    /// <summary>
+    /// xlsx 容器里单个部件解压后长度上限（字节），即 1 GiB
+    /// </summary>
+    /// <remarks>
+    /// 总长之外再给单个部件一道界：工作簿读取器把 <c>xl/sharedStrings.xml</c> 整份载入内存，
+    /// 那一个部件的长度就直接换算成托管堆占用，而工作表部件是流式读过的，两者的内存代价并不相同。
+    /// 本常量按「行数上限之内的正常工作簿里最大的那个部件」留出成倍余量取值，超限时导入器<u>拒收整份档</u>
+    /// 并点名是哪个部件、它解压后有多长。
+    /// </remarks>
+    public const long MaxImportEntryDecompressedBytes = 1_073_741_824;
+
+    /// <summary>
+    /// xlsx 容器里单个部件解压比上限的默认值（解压后长度 ÷ 压缩后长度的倍数）
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 承载数据的工作簿部件压缩比通常在数十倍量级。上百倍意味着这个部件里几乎没有信息量——
+    /// 同一段内容被复制了成千上万次，那正是解压炸弹的形态。超过本倍数时导入器<u>拒收整份档</u>
+    /// 并点名该部件、它的解压比与生效中的上限。
+    /// </para>
+    /// <para>
+    /// <b>本常量是默认值，不是不可动的界</b>：生效值取 <see cref="XiHanExcelOptions.MaxImportCompressionRatio"/>，
+    /// 未接配置时用本常量。解压比是<u>启发式</u>——比值高低不只由内容决定，也由产出这份档的工具决定
+    /// （工作表里 <c>row</c>／<c>c</c> 的 <c>r</c> 属性在规格上可选，不写 <c>r</c> 的产出者会让整段
+    /// <c>sheetData</c> 逐字节重复，同样的数据比值可以差一个数量级），因此高度重复而完全合法的档
+    /// 可能越过本值。该选项取 <c>0</c> 或负数表示不判解压比。
+    /// </para>
+    /// <para>
+    /// 只对解压后长度不小于 1 MiB 的部件判：更小的部件即使比值难看，展开后也占不了多少内存，
+    /// 而它们的总量另有 <see cref="MaxImportDecompressedBytes"/> 兜住。真正界定内存占用的是
+    /// <see cref="MaxImportEntryDecompressedBytes"/> 与 <see cref="MaxImportDecompressedBytes"/>
+    /// 两道绝对上限，它们不可配置，也不因关掉解压比而失效。
+    /// </para>
+    /// </remarks>
+    public const int MaxImportCompressionRatio = 100;
+
+    /// <summary>
     /// 一个单元格能承载的字符数上限
     /// </summary>
     /// <remarks>
@@ -55,6 +115,19 @@ public static class ExcelConstants
     /// 两道界互不相干，不得互相代用。文字档路径没有这道上限。
     /// </remarks>
     public const int MaxSheetRows = 1_048_576;
+
+    /// <summary>
+    /// 导入时单行列数的硬上限
+    /// </summary>
+    /// <remarks>
+    /// 取 xlsx 自身的列上限（16,384 列，最后一列是 <c>XFD</c>）：正常档到不了这道界，越过它的通常是
+    /// 从别处拼出来的分隔符档或手工构造的容器。列数决定建键与每行取值的规模——每一列都要一个键名与
+    /// 一个字典项，不设上界就是让一份档决定单次导入的内存与耗时，而建键那段时间里取消令牌一次也不会被检查。
+    /// 容器导入器在<u>建键之前</u>逐行判 <c>FieldCount</c>，超限即抛出并点名实际列数：不截断列清单、
+    /// 也不交出前若干列，半行数据交回的是看起来成功的错位结果。固定宽度路径没有这道界——
+    /// 那里的列数来自调用方给的列定义而不是档，单行占用另有 <see cref="MaxFixedRowWidthBytes"/> 兜住。
+    /// </remarks>
+    public const int MaxImportColumns = 16_384;
 
     /// <summary>
     /// 本组件对 xlsx 数值格承诺能原样落格的有效数字位数上限

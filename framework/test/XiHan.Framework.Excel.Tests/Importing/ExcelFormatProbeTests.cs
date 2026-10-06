@@ -166,6 +166,81 @@ public class ExcelFormatProbeTests
         Assert.Throws<ArgumentNullException>(() => ExcelFormatProbe.ReadHeader(null!, 8));
     }
 
+    /// <summary>
+    /// 档头长度要容得下「最长前导字节 ＋ 起始标记」，否则带前导字节的伪装档认不出形态
+    /// </summary>
+    [Fact]
+    public void 档头长度容得下前导字节与起始标记()
+        => Assert.True(ExcelFormatProbe.HeaderByteCount >= 16, $"档头只取 {ExcelFormatProbe.HeaderByteCount} 字节");
+
+    /// <summary>
+    /// 带 UTF-8 前导字节的标记语言文本照样认出起始标记：前导字节不是文档内容
+    /// </summary>
+    /// <remarks>
+    /// SpreadsheetML 多写成 <c>EF BB BF 3C 3F 78 6D 6C</c>。留着前导字节时第一个字符是 <c>U+FEFF</c>，
+    /// 它不是空白字符，起始标记因此认不出来，消息只能说「判不出格式」而点不出伪装形态。
+    /// </remarks>
+    [Fact]
+    public void 带UTF8前导字节时认出起始标记()
+    {
+        byte[] header = [0xEF, 0xBB, 0xBF, .. "<?xml version"u8.ToArray()];
+
+        Assert.Equal("<?xml", ExcelFormatProbe.DescribeMarkupOpening(header));
+    }
+
+    /// <summary>
+    /// UTF-16 的两个前导字节按 UTF-16 解码再认形态，不然尖括号后面每个字符都跟着一个 <c>0x00</c>
+    /// </summary>
+    [Fact]
+    public void 带UTF16前导字节时认出起始标记()
+    {
+        byte[] littleEndian =
+            [0xFF, 0xFE, .. new UnicodeEncoding(bigEndian: false, byteOrderMark: false).GetBytes("<html><body>")];
+
+        byte[] bigEndian =
+            [0xFE, 0xFF, .. new UnicodeEncoding(bigEndian: true, byteOrderMark: false).GetBytes("<html><body>")];
+
+        Assert.Equal("<html", ExcelFormatProbe.DescribeMarkupOpening(littleEndian));
+        Assert.Equal("<html", ExcelFormatProbe.DescribeMarkupOpening(bigEndian));
+    }
+
+    /// <summary>
+    /// UTF-32 的前导字节与 UTF-16 LE 前两位相同，判定要排在 UTF-16 之前；十六字节档头只容得下三个字符，
+    /// 认出可见的那一段
+    /// </summary>
+    [Fact]
+    public void 带UTF32前导字节时认出可见的那段标记()
+    {
+        byte[] header =
+            [0xFF, 0xFE, 0x00, 0x00, .. new UTF32Encoding(bigEndian: false, byteOrderMark: false).GetBytes("<html>")];
+
+        Assert.Equal("<ht", ExcelFormatProbe.DescribeMarkupOpening(header.AsSpan(0, ExcelFormatProbe.HeaderByteCount)));
+    }
+
+    /// <summary>
+    /// 前导字节之后不是标记时不认伪装：剥掉前导字节不等于放宽判定
+    /// </summary>
+    /// <param name="preamble">前导字节</param>
+    [Theory]
+    [InlineData(new byte[] { 0xEF, 0xBB, 0xBF })]
+    [InlineData(new byte[] { 0xFF, 0xFE })]
+    public void 带前导字节的文字档不认作伪装(byte[] preamble)
+    {
+        byte[] header = [.. preamble, .. "a,b,c"u8.ToArray()];
+
+        Assert.Null(ExcelFormatProbe.DescribeMarkupOpening(header));
+    }
+
+    /// <summary>
+    /// 档头只有前导字节、没有内容时不认伪装，也不抛
+    /// </summary>
+    [Fact]
+    public void 只有前导字节时不认作伪装()
+    {
+        Assert.Null(ExcelFormatProbe.DescribeMarkupOpening([0xEF, 0xBB, 0xBF]));
+        Assert.Null(ExcelFormatProbe.DescribeMarkupOpening([0xFF, 0xFE]));
+    }
+
     private static MemoryStream HeaderStream(byte[] header) => new MemoryStream(header);
 
     private static MemoryStream TextStream(string text) => new MemoryStream(Encoding.UTF8.GetBytes(text));
