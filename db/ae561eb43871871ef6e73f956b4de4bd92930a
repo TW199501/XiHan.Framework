@@ -1,0 +1,21 @@
+framework/src/XiHan.Framework.Excel/Importing/ExcelDataReaderImporter.cs
+  s_83ad62c2b1274c::t_6bc7d54edce533 430-434
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelDataReaderImporterTests.cs
+  s_83ad62c2b1274c::t_69bfaaaf2465f7 1475
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dbae561eb43871871ef6e73f956b4de4bd92930a",
+  "prompts": {},
+  "sessions": {
+    "s_83ad62c2b1274c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17aa045d-cbf2-48d2-be14-0911593cb64c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
