@@ -643,6 +643,102 @@ public class MiniExcelTemplateRendererTests
     }
 
     /// <summary>
+    /// 值里含 XML 1.0 不允许出现在文本内容里的字符时模板路径拒写，点名键路径与字符位置且不产出半个字节
+    /// </summary>
+    /// <param name="codePoint">要夹进值里的字符码点</param>
+    /// <param name="display">消息里该点名的码点文字</param>
+    [Theory]
+    [InlineData(0x0000, "U+0000")]
+    [InlineData(0x0001, "U+0001")]
+    [InlineData(0x0003, "U+0003")]
+    [InlineData(0x0008, "U+0008")]
+    [InlineData(0x000B, "U+000B")]
+    [InlineData(0x000C, "U+000C")]
+    [InlineData(0x000E, "U+000E")]
+    [InlineData(0x001F, "U+001F")]
+    public async Task xml非法字符在模板路径拒写且不产出半个字节(int codePoint, string display)
+    {
+        using var output = new MemoryStream();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new MiniExcelTemplateRenderer()
+            .RenderAsync(
+                output,
+                TemplateFactory.Build(("A1", "{{Company}}")),
+                new { Company = $"a{(char)codePoint}b" },
+                TestContext.Current.CancellationToken));
+
+        Assert.Contains("Company", failure.Message, StringComparison.Ordinal);
+        Assert.Contains(display, failure.Message, StringComparison.Ordinal);
+        Assert.Contains("第 2 个字符处", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("XML 1.0", failure.Message, StringComparison.Ordinal);
+        Assert.Equal(0, output.Length);
+    }
+
+    /// <summary>
+    /// 集合元素里的 XML 非法字符同样点名带下标的键路径
+    /// </summary>
+    [Fact]
+    public async Task 集合元素里的xml非法字符点名带下标的键路径()
+    {
+        using var output = new MemoryStream();
+
+        var data = new
+        {
+            Items = new[]
+            {
+                new { Name = "第一项", Qty = 1 },
+                new { Name = "第二\u0001项", Qty = 2 }
+            }
+        };
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new MiniExcelTemplateRenderer()
+            .RenderAsync(output, TemplateFactory.BuildInvoiceWithFooterTemplate(), data, TestContext.Current.CancellationToken));
+
+        Assert.Contains("Items[1].Name", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("U+0001", failure.Message, StringComparison.Ordinal);
+        Assert.Equal(0, output.Length);
+    }
+
+    /// <summary>
+    /// XML 1.0 合法的控制字符在模板路径照写并逐字读回
+    /// </summary>
+    /// <param name="value">含合法控制字符的字串值</param>
+    [Theory]
+    [InlineData("a\tb")]
+    [InlineData("a\nb")]
+    [InlineData("多行\n单元格\t内容")]
+    public async Task xml合法的控制字符在模板路径照写并逐字读回(string value)
+    {
+        using var output = new MemoryStream();
+
+        await new MiniExcelTemplateRenderer().RenderAsync(
+            output,
+            TemplateFactory.Build(("A1", "{{Company}}")),
+            new { Company = value },
+            TestContext.Current.CancellationToken);
+
+        Assert.True(output.Length > 0);
+        Assert.Equal(value, Assert.IsType<string>(await ImportSingleValueAsync(output)));
+    }
+
+    /// <summary>
+    /// 值中间的回车在模板路径照写，读回时按 XML 行尾处理归一成换行
+    /// </summary>
+    [Fact]
+    public async Task 值中间的回车在模板路径照写并归一化成换行()
+    {
+        using var output = new MemoryStream();
+
+        await new MiniExcelTemplateRenderer().RenderAsync(
+            output,
+            TemplateFactory.Build(("A1", "{{Company}}")),
+            new { Company = "a\rb" },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("a\nb", Assert.IsType<string>(await ImportSingleValueAsync(output)));
+    }
+
+    /// <summary>
     /// 模板没有引用的键同样被走访：数据里带着一个越界值就渲染不了
     /// </summary>
     /// <remarks>

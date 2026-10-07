@@ -352,16 +352,10 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
                     continue;
                 }
 
-                // 走到这里说明上限之后确实还有数据行（空行不算，判定照旧）。指名过上限就按请求截断，
-                // 没指名就抛：撞的是框架的保护性硬上限，静默少交行等于交回一份看起来完整的缺尾结果。
+                // 未指名上限时，额外数据行触发框架硬上限异常。
                 if (limitHit)
                 {
-                    if (throwsOnLimit)
-                    {
-                        throw ImportSharedRules.RowLimitExceeded(maxRows);
-                    }
-
-                    break;
+                    throw ImportSharedRules.RowLimitExceeded(maxRows);
                 }
 
                 yield return new ExcelImportRow(rowNumber, values);
@@ -369,6 +363,12 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
                 emitted++;
                 if (emitted >= maxRows)
                 {
+                    if (!throwsOnLimit)
+                    {
+                        // 指名行数上限时，交够即停止读取。
+                        break;
+                    }
+
                     limitHit = true;
                 }
             }
@@ -427,10 +427,17 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// 一份 1 MiB 的炸弹和一份 1 MiB 的正常档扫起来一样快。
     /// </para>
     /// <para>
+    /// 本检查使用中央目录声明的长度，不验证实际解压内容。在 .NET 10 与 ExcelDataReader 3.9.0 的
+    /// 已测样本中，声明为 1024 字节的 8 MiB 部件最多交出 1024 字节；读取流本身不因截断抛出异常，
+    /// 被截断的共享字符串 XML 由读取器报错。该行为不代表所有损坏容器都会被拒收。
+    /// </para>
+    /// <para>
     /// 三条判据里只有解压比是<u>启发式</u>、也只有它可以由 <paramref name="maxCompressionRatio"/> 关掉：
     /// 比值高低不只由内容决定，也由产出这份档的工具决定，高度重复而合法的档可能越过默认值。
     /// 两道绝对上限（单部件解压后长度、解压后总长）不可配置，关掉解压比之后照常逐部件判——
-    /// 「不判比值」不等于「不判解压规模」，界定内存占用的一直是这两道。
+    /// 「不判比值」不等于「不判解压规模」，界定<u>解压后字节数</u>的一直是这两道。它们说的不是托管占用：
+    /// 解压后的内容进工作簿读取器还要按字符与解析结构再展开一遍，实测量级约 2 倍
+    /// （换算关系见 <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 的说明）。
     /// </para>
     /// <para>
     /// 以 <c>leaveOpen: true</c> 打开，流的所有权始终在调用方；<see cref="ZipArchive"/> 读完目录会把位置留在
@@ -465,7 +472,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
                     throw new InvalidOperationException(
                         $"xlsx 容器里的部件「{entry.FullName}」解压后有 {entry.Length} 字节，" +
                         $"超过单个部件的上限 {ExcelConstants.MaxImportEntryDecompressedBytes} 字节：整份档拒收，不建立工作簿读取器。" +
-                        "工作簿读取器开簿时把共享字串整份载进内存，单个部件的解压后长度直接换算成本进程的内存占用。");
+                        "工作簿读取器开簿时把共享字串整份载进内存，单个部件的解压后长度会按倍数换算成本进程的内存占用。");
                 }
 
                 total += entry.Length;
@@ -489,7 +496,8 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
                         $"xlsx 容器里的部件「{entry.FullName}」解压比过高：压缩后 {entry.CompressedLength} 字节，" +
                         $"解压后 {entry.Length} 字节，是 {entry.Length / entry.CompressedLength} 倍，" +
                         $"超过上限 {maxCompressionRatio} 倍：整份档拒收，不建立工作簿读取器。" +
-                        "承载数据的部件压缩比通常在数十倍量级，上百倍意味着这个部件里几乎没有信息量。" +
+                        "压缩后很小、展开后很大的部件，读它要付的内存与压缩后的体积不成比例，" +
+                        "而工作簿读取器把这份内存花在读出第一行之前。" +
                         $"这道判据是启发式：比值高低也由产出这份档的工具决定，高度重复而合法的档可能越过它，" +
                         $"那种档请调高 {nameof(XiHanExcelOptions.MaxImportCompressionRatio)}，或把它设成 0 关掉本判据" +
                         "（两道解压后长度的绝对上限不受该选项影响，照常生效）。");

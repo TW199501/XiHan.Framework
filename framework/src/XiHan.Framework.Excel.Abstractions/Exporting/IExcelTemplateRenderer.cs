@@ -24,7 +24,7 @@ namespace XiHan.Framework.Excel.Abstractions.Exporting;
 /// <para>
 /// <b>写出前校验：</b>实现在把数据交给渲染库之前走访一遍，逐值套用与两条 xlsx 导出路径同一份的判据。
 /// 命中的值一律拒写，不加前缀、不截断、不改写、不跳过，抛出时消息点名数据里的键路径（形如
-/// <c>Items[3].Name</c>，集合元素的下标从 0 起），且输出流一个字节都没有。拒写的取值分两类：
+/// <c>Items[3].Name</c>，集合元素的下标从 0 起），且输出流一个字节都没有。拒写的取值分三类：
 /// <list type="bullet">
 /// <item>公式防护——字串值以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、制表符或回车起首，或以渲染库自己的
 /// 公式指令前缀 <c>$=</c> 起首；后者会被渲染库整段改写成公式写进格子，前六种由表格软件在读取时解释，
@@ -35,6 +35,11 @@ namespace XiHan.Framework.Excel.Abstractions.Exporting;
 /// <c>decimal</c>／<c>double</c>／<c>float</c>、绝对值超过 9007199254740992（2 的 53 次方）的
 /// <c>long</c>／<c>ulong</c>／<c>decimal</c>、长过 <see cref="ExcelConstants.MaxCellTextLength"/>
 /// 的字串。这几类与两条 xlsx 导出路径判得一样，成因句逐字相同，只有点名位置从行列换成键路径。</item>
+/// <item>XML 1.0 非法字符——字串里含 <c>U+0000</c>–<c>U+0008</c>、<c>U+000B</c>、<c>U+000C</c> 或
+/// <c>U+000E</c>–<c>U+001F</c> 中的任一个。这一类<u>只有模板路径拒</u>：模板把这类字符落成 XML 字符实体，
+/// 而那份实体本身就不是合法的 XML 1.0 文本，产出的档任何读取器都打不开；两条 xlsx 导出路径把同一个字符
+/// 转义成 <c>_xHHHH_</c>，档能开、值能逐字读回，因此那边照写。制表符、换行与回车是 XML 1.0 合法的文本内容，
+/// 不在这一类里，多行单元格照写——回车被 XML 解析归一成换行是行尾处理，不是拒写。</item>
 /// </list>
 /// </para>
 /// <para>
@@ -71,6 +76,8 @@ public interface IExcelTemplateRenderer
     /// 有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的 <c>long</c>／<c>ulong</c>／
     /// <c>decimal</c>／<c>double</c>／<c>float</c>、绝对值超过 9007199254740992（2 的 53 次方）的
     /// <c>long</c>／<c>ulong</c>／<c>decimal</c>、长过 <see cref="ExcelConstants.MaxCellTextLength"/> 的字串），
+    /// 或某个字串里含 XML 1.0 不允许出现在文本内容里的字符（<c>U+0000</c>–<c>U+0008</c>、<c>U+000B</c>、
+    /// <c>U+000C</c>、<c>U+000E</c>–<c>U+001F</c>；制表符、换行与回车不在其中，这一类只有模板路径拒），
     /// 消息点名键路径并给出成因；这类失败排在调用渲染库之前，输出流零字节</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消。取消落在动手之前时
     /// 输出流零字节；落在写出的中途或最后一段时输出流可能已有内容，实现交出异常而不是「渲染完成」，

@@ -1461,6 +1461,34 @@ public class MiniExcelStreamExporterTests
     };
 
     /// <summary>
+    /// 流式工作簿支持非法 C0 字符的 OOXML 转义，且不把字面转义序列误还原为控制字符
+    /// </summary>
+    /// <param name="value">原始文本</param>
+    /// <param name="expected">读取器应交回的文本</param>
+    [Theory]
+    [InlineData("a\u0000b", "a\u0000b")]
+    [InlineData("a\u0001b", "a\u0001b")]
+    [InlineData("a\u0008b", "a\u0008b")]
+    [InlineData("a\u000Bb", "a\u000Bb")]
+    [InlineData("a\u000Cb", "a\u000Cb")]
+    [InlineData("a\u000Eb", "a\u000Eb")]
+    [InlineData("a\u001Fb", "a\u001Fb")]
+    [InlineData("a_x0001_b", "a_x0001_b")]
+    [InlineData("a_x0009_b", "a_x0009_b")]
+    [InlineData("a_x000D_b", "a_x000D_b")]
+    [InlineData("a\tb", "a\tb")]
+    [InlineData("a\nb", "a\nb")]
+    [InlineData("a\rb", "a\nb")]
+    public async Task 控制字符与字面转义序列在流式路径按原有语义读回(string value, string expected)
+    {
+        using var stream = new MemoryStream();
+
+        await new MiniExcelStreamExporter().ExportAsync(stream, BuildValueSpec(value), TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, Assert.IsType<string>(await ImportValueAsync(stream)));
+    }
+
+    /// <summary>
     /// 构造只有「取值」一列、把指定值原样交出的表规格，专走落格形态与取值域判定
     /// </summary>
     private static ExcelSheetSpec BuildValueSpec(object value) => new()

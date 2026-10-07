@@ -141,6 +141,10 @@ internal static class ImportSharedRules
     /// 判据两条路径共用一份：同一份档在容器路径抛、在固定宽度路径悄悄截断，
     /// 等于让「走哪条读取路径」决定数据丢不丢。
     /// </para>
+    /// <para>
+    /// 返回 <c>false</c> 时，导入器交够最后一行后立即停止读取。
+    /// 返回 <c>true</c> 时，导入器继续读取至下一条非空数据行或档尾，以判定是否超过框架硬上限。
+    /// </para>
     /// </remarks>
     internal static bool ThrowsWhenRowLimitHit(int? requestedMaxRowCount, int effectiveMaxRows)
         => requestedMaxRowCount is null && effectiveMaxRows == ExcelConstants.DefaultMaxImportRows;
@@ -201,7 +205,8 @@ internal static class ImportSharedRules
     /// 不在这里把 <c>&lt;= 0</c> 夹回默认值：<c>0</c> 与负数是「关掉解压比这条启发式」的明示写法，
     /// 夹回去等于把应用的意图改成别的东西。关掉它不影响两道绝对上限——
     /// <see cref="ExcelConstants.MaxImportEntryDecompressedBytes"/> 与
-    /// <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 照常判，那两道才是界定内存占用的。
+    /// <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 照常判，那两道才是界定<u>解压后字节数</u>的
+    /// （换算成托管占用还要再乘一个倍数，见 <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 的说明）。
     /// </remarks>
     internal static int ResolveMaxImportCompressionRatio(XiHanExcelOptions? options)
         => options?.MaxImportCompressionRatio ?? ExcelConstants.MaxImportCompressionRatio;

@@ -290,17 +290,10 @@ public sealed class FixedWidthTextImporter : IExcelImporter
                 continue;
             }
 
-            // 走到这里说明上限之后确实还有数据行（空行不算，判定照旧）。指名过上限就按请求截断，
-            // 没指名就抛：撞的是框架的保护性硬上限，静默少交行等于交回一份看起来完整的缺尾结果。
-            // 判据与容器路径共用 ImportSharedRules 里那一份，两条路径不得各写一套。
+            // 未指名上限时，额外数据行触发框架硬上限异常。
             if (limitHit)
             {
-                if (throwsOnLimit)
-                {
-                    throw ImportSharedRules.RowLimitExceeded(maxRows);
-                }
-
-                break;
+                throw ImportSharedRules.RowLimitExceeded(maxRows);
             }
 
             yield return new ExcelImportRow(rowNumber, row.Values);
@@ -308,6 +301,12 @@ public sealed class FixedWidthTextImporter : IExcelImporter
             emitted++;
             if (emitted >= maxRows)
             {
+                if (!throwsOnLimit)
+                {
+                    // 指名行数上限时，交够即停止读取。
+                    break;
+                }
+
                 limitHit = true;
             }
         }
