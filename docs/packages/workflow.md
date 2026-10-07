@@ -90,7 +90,7 @@ public class MyModule : XiHanModule { }
 - 算术 `+ - * / %`、比较 `== != < <= > >=`、逻辑 `&& || !`（短路）
 - 内置函数：`len` / `contains` / `startsWith` / `endsWith` / `upper` / `lower` / `trim` / `isNullOrEmpty` / `abs` / `min` / `max` / `round` / `toNumber` / `toString` / `now` / `date`
 
-数字统一以 `decimal` 求值；语法树按表达式文本缓存复用。要更强的表达能力就用 `Script` 活动（C# 脚本），或 `Replace` 掉 `IWorkflowExpressionEvaluator`。
+数字统一以 `decimal` 求值；语法树按表达式文本缓存复用。内置实现限制表达式长度为 4096 个字符、词法单元与语法树节点各 2048 个，语法嵌套和求值深度各 64 层，超限时抛出 `WorkflowException`。要更强的表达能力就用 `Script` 活动（C# 脚本），或 `Replace` 掉 `IWorkflowExpressionEvaluator`。
 
 ## 内置活动
 
