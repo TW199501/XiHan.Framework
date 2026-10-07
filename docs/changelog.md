@@ -4,7 +4,12 @@
 
 ## 未发布
 
+::: warning 升级须知
+多实例启用 OpenAPI 防重放时，需注册具备跨实例原子认领语义的 `IOpenApiReplayNonceStore`；默认本地实现只覆盖单进程。
+:::
+
 - **新增** `SseClientOptions.MaxLineBytes` / `MaxEventBytes`：SSE 客户端默认限制单行 64 KiB、单事件 1 MiB；需要接收更大数据时可按服务端契约调高上限
+- **修复** OpenAPI 防重放改为验签成功后才认领 nonce，并为默认本地存储增加容量上限；多实例部署需注册具备跨实例原子认领语义的 `IOpenApiReplayNonceStore`，不能依赖普通 `IDistributedCache` 的 Get/Set 组合
 
 ## v4.6.1 (2026-10-03)
 
