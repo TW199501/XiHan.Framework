@@ -1,0 +1,35 @@
+framework/src/XiHan.Framework.Caching/Distributed/DefaultDistributedLock.cs
+  s_d91e80be1b5795::t_d7a47220bf3013 20,42,57,59-86,103-105,110,120-121,143,145-149,162,164-176
+  s_d91e80be1b5795::t_82782ad80aa062 93-102
+framework/test/XiHan.Framework.Caching.Tests/Distributed/DefaultDistributedLockTests.cs
+  s_d91e80be1b5795::t_00e27828f9cf0e 4
+  s_d91e80be1b5795::t_d9dff989dd805a 46,53-55,58-59,64,359-361,364-365,367,370-371
+  s_d91e80be1b5795::t_99c1ee5f55fee6 21-38
+  s_d91e80be1b5795::t_59210370b20675 338-358,362-363,366,368-369,372-394,400-401
+  s_d91e80be1b5795::t_6c063e00313c9a 6,395-399
+  s_d91e80be1b5795::t_5816a71a413e94 40-45,47-52,56-57,60-63,65-78
+  s_d91e80be1b5795::t_0b669931cb6f8b 39
+framework/src/XiHan.Framework.Caching/README.md
+  s_d91e80be1b5795::t_ba75d6d2756d43 19-20
+docs/changelog.md
+  s_d91e80be1b5795::t_ba75d6d2756d43 16
+framework/src/XiHan.Framework.Caching/XiHan.Framework.Caching.csproj
+  s_d91e80be1b5795::t_00e27828f9cf0e 16-18
+  s_d91e80be1b5795::t_4e65f883e02d9d 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9864d50b3f80ec8070c880753fbe087390b05013",
+  "prompts": {},
+  "sessions": {
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
