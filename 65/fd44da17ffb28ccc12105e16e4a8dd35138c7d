@@ -1,0 +1,39 @@
+docs/packages/workflow.md
+  s_d91e80be1b5795::t_1ab397b1c7f56d 93
+framework/src/XiHan.Framework.Workflow/Expressions/ExpressionParser.cs
+  s_d91e80be1b5795::t_d4ec58e923611d 49-50,78-79,109-110,151-152,220-221,260-261,336-337,369-370,640-644,653-657,662,665-666,715-726,739-744,746-754
+  s_d91e80be1b5795::t_08a14a6f0f77e8 645,686-710,964-965,967,971-977
+  s_d91e80be1b5795::t_ec247348cb7954 738,745,765,811,823,830,835,840,845,850,855,866,874,882
+  s_83ad62c2b1274c::t_b95f027d6f7b93 755
+framework/test/XiHan.Framework.Workflow.Tests/ExpressionEvaluatorTests.cs
+  s_d91e80be1b5795::t_0244e618980b65 107-117,119-120,131-141,157
+  s_d91e80be1b5795::t_6483c8198b2594 118,121-130
+  s_d91e80be1b5795::t_50f7a3debf436d 4-5,142-155
+  s_d91e80be1b5795::t_ac6924d86668f0 156
+docs/guide/workflow.md
+  s_d91e80be1b5795::t_1ab397b1c7f56d 320
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "65fd44da17ffb28ccc12105e16e4a8dd35138c7d",
+  "prompts": {},
+  "sessions": {
+    "s_83ad62c2b1274c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17aa045d-cbf2-48d2-be14-0911593cb64c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
