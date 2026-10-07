@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Options;
 using XiHan.Framework.Templating.Contexts;
 
 namespace XiHan.Framework.Templating.Engines;
@@ -14,8 +14,41 @@ namespace XiHan.Framework.Templating.Engines;
 /// </summary>
 public class DefaultTemplateEngine : ITemplateEngine<string>
 {
-    private readonly ConcurrentDictionary<string, string> _templateCache = new();
-    private readonly ConcurrentDictionary<string, TemplateValidationResult> _validationCache = new();
+    private readonly BoundedExpiringCache<string, string> _templateCache;
+    private readonly BoundedExpiringCache<string, TemplateValidationResult> _validationCache;
+    private readonly bool _cachingEnabled;
+
+    /// <summary>
+    /// 使用默认模板选项创建引擎
+    /// </summary>
+    public DefaultTemplateEngine()
+        : this(Options.Create(new TemplatingOptions()))
+    {
+    }
+
+    /// <summary>
+    /// 使用指定选项创建引擎
+    /// </summary>
+    /// <param name="options">模板选项</param>
+    public DefaultTemplateEngine(IOptions<TemplatingOptions> options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var settings = options.Value;
+        if (settings.MaxCacheSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(settings.MaxCacheSize), "模板缓存容量必须大于零。");
+        }
+
+        if (settings.CacheExpiration < TimeSpan.Zero && settings.CacheExpiration != Timeout.InfiniteTimeSpan)
+        {
+            throw new ArgumentOutOfRangeException(nameof(settings.CacheExpiration), "模板缓存过期时间不能为负值。");
+        }
+
+        _templateCache = new BoundedExpiringCache<string, string>(settings.MaxCacheSize, settings.CacheExpiration);
+        _validationCache = new BoundedExpiringCache<string, TemplateValidationResult>(settings.MaxCacheSize, settings.CacheExpiration);
+        _cachingEnabled = settings.EnableCaching;
+    }
 
     /// <summary>
     /// 渲染模板
@@ -72,15 +105,17 @@ public class DefaultTemplateEngine : ITemplateEngine<string>
         }
 
         // 检查缓存
-        if (_validationCache.TryGetValue(templateSource, out var cachedResult))
+        if (_cachingEnabled && _validationCache.TryGetValue(templateSource, out var cachedResult))
         {
             return cachedResult;
         }
 
         var result = ValidateTemplateInternal(templateSource);
 
-        // 缓存验证结果
-        _validationCache.TryAdd(templateSource, result);
+        if (_cachingEnabled)
+        {
+            _validationCache.Set(templateSource, result);
+        }
 
         return result;
     }
@@ -403,7 +438,7 @@ public class DefaultTemplateEngine : ITemplateEngine<string>
     /// <returns>模板内容</returns>
     public string? GetCachedTemplate(string key)
     {
-        return _templateCache.TryGetValue(key, out var template) ? template : null;
+        return _cachingEnabled && _templateCache.TryGetValue(key, out var template) ? template : null;
     }
 
     /// <summary>
@@ -413,7 +448,10 @@ public class DefaultTemplateEngine : ITemplateEngine<string>
     /// <param name="template">模板内容</param>
     public void SetCachedTemplate(string key, string template)
     {
-        _templateCache.AddOrUpdate(key, template, (_, _) => template);
+        if (_cachingEnabled)
+        {
+            _templateCache.Set(key, template);
+        }
     }
 
     /// <summary>
@@ -423,7 +461,7 @@ public class DefaultTemplateEngine : ITemplateEngine<string>
     /// <returns>是否成功移除</returns>
     public bool RemoveCachedTemplate(string key)
     {
-        return _templateCache.TryRemove(key, out _);
+        return _templateCache.Remove(key);
     }
 
     /// <summary>

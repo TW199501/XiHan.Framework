@@ -2,8 +2,10 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using XiHan.Framework.Templating.Contexts;
 using XiHan.Framework.Templating.Engines;
+using XiHan.Framework.Templating.Extensions.DependencyInjection;
 
 namespace XiHan.Framework.Templating.Tests.Engines;
 
@@ -339,6 +341,89 @@ public class DefaultTemplateEngineTests : IDisposable
     }
 
     /// <summary>
+    /// 两类缓存达到容量时淘汰最久未使用项且保留近期项
+    /// </summary>
+    [Fact]
+    public void DistinctTemplates_CacheDoesNotExceedCapacity_AndEvictionPreservesRecentEntries()
+    {
+        var engine = CreateConfiguredEngine(maxCacheSize: 2);
+
+        var firstValidation = engine.Validate("first");
+        var secondValidation = engine.Validate("second");
+        Assert.Same(firstValidation, engine.Validate("first"));
+        _ = engine.Validate("third");
+
+        Assert.Same(firstValidation, engine.Validate("first"));
+        Assert.NotSame(secondValidation, engine.Validate("second"));
+
+        engine.SetCachedTemplate("first", "First {{name}}");
+        engine.SetCachedTemplate("second", "Second {{name}}");
+        Assert.Equal("First {{name}}", engine.GetCachedTemplate("first"));
+        engine.SetCachedTemplate("third", "Third {{name}}");
+
+        Assert.Equal("First 曦寒", engine.RenderCached("first", CreateContext(("name", "曦寒"))));
+        Assert.Null(engine.GetCachedTemplate("second"));
+        Assert.Equal("Third {{name}}", engine.GetCachedTemplate("third"));
+    }
+
+    /// <summary>
+    /// 关闭缓存时不保留校验结果或显式模板
+    /// </summary>
+    [Fact]
+    public void CachingDisabled_DoesNotRetainValidationOrTemplates()
+    {
+        var engine = CreateConfiguredEngine(enableCaching: false);
+
+        Assert.NotSame(engine.Validate("same"), engine.Validate("same"));
+        engine.SetCachedTemplate("key", "template");
+
+        Assert.Null(engine.GetCachedTemplate("key"));
+    }
+
+    /// <summary>
+    /// 零缓存过期时间会立即淘汰新条目
+    /// </summary>
+    [Fact]
+    public void CacheExpiration_Zero_DoesNotRetainEntries()
+    {
+        var engine = CreateConfiguredEngine(cacheExpiration: TimeSpan.Zero);
+
+        Assert.NotSame(engine.Validate("same"), engine.Validate("same"));
+        engine.SetCachedTemplate("key", "template");
+
+        Assert.Null(engine.GetCachedTemplate("key"));
+    }
+
+    /// <summary>
+    /// 非法缓存选项在创建默认引擎时被拒绝
+    /// </summary>
+    [Fact]
+    public void InvalidCacheOptions_ThrowsWhenEngineIsCreated()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => CreateConfiguredEngine(maxCacheSize: 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => CreateConfiguredEngine(cacheExpiration: TimeSpan.FromTicks(-2)));
+    }
+
+    /// <summary>
+    /// 并发写入超过容量时模板缓存仍保持有界
+    /// </summary>
+    [Fact]
+    public void ConcurrentAccess_RemainsBounded()
+    {
+        const int capacity = 16;
+        const int entryCount = 512;
+        var engine = CreateConfiguredEngine(maxCacheSize: capacity);
+
+        Parallel.For(0, entryCount, index =>
+            engine.SetCachedTemplate($"key-{index}", $"template-{index}"));
+
+        var retainedCount = Enumerable.Range(0, entryCount)
+            .Count(index => engine.GetCachedTemplate($"key-{index}") is not null);
+
+        Assert.InRange(retainedCount, 0, capacity);
+    }
+
+    /// <summary>
     /// 缓存渲染在键不存在时返回 null
     /// </summary>
     [Fact]
@@ -600,6 +685,24 @@ public class DefaultTemplateEngineTests : IDisposable
             context.SetVariable(name, value);
         }
         return context;
+    }
+
+    private static DefaultTemplateEngine CreateConfiguredEngine(
+        int maxCacheSize = 1000,
+        TimeSpan? cacheExpiration = null,
+        bool enableCaching = true)
+    {
+        var services = new ServiceCollection();
+        services.AddXiHanTemplating();
+        services.Configure<TemplatingOptions>(options =>
+        {
+            options.MaxCacheSize = maxCacheSize;
+            options.CacheExpiration = cacheExpiration ?? TimeSpan.FromMinutes(30);
+            options.EnableCaching = enableCaching;
+        });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        return (DefaultTemplateEngine)serviceProvider.GetRequiredService<ITemplateEngine<string>>();
     }
 
     /// <summary>

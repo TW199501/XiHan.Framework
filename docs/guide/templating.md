@@ -224,7 +224,7 @@ var html = FileTemplateHelper.RenderFile("template.html", new { title = "首页"
 await FileTemplateHelper.RenderToFileAsync("in.tpl", "out.html", values);
 ```
 
-`TemplateCache` 是进程级 `static` 字典，**没有过期、没有容量上限**，与 `TemplatingOptions` 的缓存字段无关，清理要自己调 `RemoveTemplate` / `ClearTemplates`。
+`Simple.TemplateCache` 是进程级 `static` 字典，**没有过期、没有容量上限**，与 `TemplatingOptions` 的缓存字段无关，清理要自己调 `RemoveTemplate` / `ClearTemplates`。它与 `DefaultTemplateEngine` 的实例级模板缓存和校验缓存是两套独立实现。
 
 ::: warning 三套 `RenderTemplate` 扩展方法并存
 `Simple.TemplateExtensions` 与 `Engines.DefaultTemplateEngineExtensions` 都定义了签名相同的 `RenderTemplate(this string, …)`，同一个文件里 `using` 两个命名空间会直接编译报 CS0121 二义性。挑一个用。
@@ -273,10 +273,12 @@ if (!result.IsSecure)
 
 `AddXiHanTemplating()` 用代码 `AddOptions<TemplatingOptions>().Configure(...)` 写死默认值，**没有绑定任何配置节**（`TemplatingOptions` 也没有 `SectionName`）。要覆盖就在应用侧再 `Configure<TemplatingOptions>`。
 
-::: warning `TemplatingOptions` 目前基本是声明位
-全仓只有 `TemplateService` 的构造函数接收了这个选项对象并存为字段，**没有任何引擎或服务读取它的字段**。`EnableCaching`、`RenderTimeout`、`MaxTemplateSize`、`EnableSecurityChecks`、`EnablePrecompilation`、`TemplateRootDirectory` 等改了都不会改变运行时行为——真正的超时、缓存上限、自动安全检查尚未接线。
+::: warning `TemplatingOptions` 目前部分字段仍未接线
+`DefaultTemplateEngine` 使用 `EnableCaching`、`CacheExpiration` 和 `MaxCacheSize` 管理实例级校验缓存与显式模板缓存。每类缓存最多保留 `MaxCacheSize` 条，采用最近最少使用淘汰；过期时间从写入时计算，过期项在后续缓存操作时清除。`CacheExpiration` 为零时不保留条目，设为 `Timeout.InfiniteTimeSpan` 时只按容量淘汰。容量必须大于零，过期时间不能为其他负值。
 
-需要这些能力，目前只能自己在调用侧实现（例如自己读 `RenderTimeout` 包一层 `CancellationTokenSource`）。
+`Simple.TemplateCache` 不受这些选项约束，仍是无容量上限的进程级静态字典。`RenderTimeout`、`MaxTemplateSize`、`EnableSecurityChecks`、`EnablePrecompilation`、`TemplateRootDirectory` 等字段也不会自动限制渲染或执行安全检查；缓存容量不限制单个模板大小或渲染结果大小。
+
+需要渲染超时、模板大小或输出大小限制时，仍需在调用侧设置边界。
 :::
 
 字段全表见 [Templating 包 → 配置](../packages/templating#配置)。

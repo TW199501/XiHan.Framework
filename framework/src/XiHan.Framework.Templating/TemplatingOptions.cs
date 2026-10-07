@@ -14,17 +14,17 @@ public class TemplatingOptions
     public string DefaultEngine { get; set; } = "Scriban";
 
     /// <summary>
-    /// 是否启用缓存
+    /// 是否启用 DefaultTemplateEngine 的模板与校验缓存
     /// </summary>
     public bool EnableCaching { get; set; } = true;
 
     /// <summary>
-    /// 缓存过期时间
+    /// DefaultTemplateEngine 缓存的绝对过期时间；零表示不保留，Timeout.InfiniteTimeSpan 表示仅按容量淘汰
     /// </summary>
     public TimeSpan CacheExpiration { get; set; } = TimeSpan.FromMinutes(30);
 
     /// <summary>
-    /// 最大缓存大小
+    /// DefaultTemplateEngine 每类缓存的最大条目数；达到上限时按最近最少使用策略淘汰
     /// </summary>
     public int MaxCacheSize { get; set; } = 1000;
 
