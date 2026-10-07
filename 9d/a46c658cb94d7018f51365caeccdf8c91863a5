@@ -1,0 +1,36 @@
+framework/test/XiHan.Framework.Authentication.Tests/Jwt/JwtTokenServiceConcurrencyTests.cs
+  s_d91e80be1b5795::t_4f8ec3914872c7 5,7,9,21,24,26,29-39
+  s_d91e80be1b5795::t_9a19d0cec061ca 65-82
+  s_d91e80be1b5795::t_7b9a079a362d3a 1-4,6,8,10-20,22-23,25,27-28,40-64,83-85
+framework/src/XiHan.Framework.Authentication/Jwt/IRefreshTokenStore.cs
+  s_d91e80be1b5795::t_a95906f0cd709d 28-37
+  s_d91e80be1b5795::t_783443fa5bf88f 27
+framework/src/XiHan.Framework.Authentication/Jwt/JwtTokenService.cs
+  s_d91e80be1b5795::t_a95906f0cd709d 210,216
+framework/test/XiHan.Framework.Authentication.Tests/Jwt/RefreshTokenStoreTests.cs
+  s_d91e80be1b5795::t_1d0e97ad479bd5 14-45
+framework/src/XiHan.Framework.Authentication/Jwt/DefaultRefreshTokenStore.cs
+  s_d91e80be1b5795::t_a95906f0cd709d 86-101,104,108,112-118
+  s_d91e80be1b5795::t_7d7ca6df0d04b9 102-103,105-107,109-111
+  s_d91e80be1b5795::t_c223032a1227b9 85
+framework/src/XiHan.Framework.Authentication/README.md
+  s_d91e80be1b5795::t_1d0e97ad479bd5 36-39
+docs/changelog.md
+  s_d91e80be1b5795::t_1d0e97ad479bd5 9,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9da46c658cb94d7018f51365caeccdf8c91863a5",
+  "prompts": {},
+  "sessions": {
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
