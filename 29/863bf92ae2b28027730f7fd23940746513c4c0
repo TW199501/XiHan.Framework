@@ -1,0 +1,23 @@
+framework/src/XiHan.Framework.ObjectStorage/README.md
+  s_d91e80be1b5795::t_c9b6f954a2bc55 18
+framework/test/XiHan.Framework.ObjectStorage.Tests/Providers/LocalFileStorageProviderTests.cs
+  s_d91e80be1b5795::t_89a9a59c3b2f79 26,36-37,90-163,784,788
+framework/src/XiHan.Framework.ObjectStorage/Providers/LocalFileStorageProvider.cs
+  s_d91e80be1b5795::t_a9a97939afd582 450-501
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "29863bf92ae2b28027730f7fd23940746513c4c0",
+  "prompts": {},
+  "sessions": {
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
