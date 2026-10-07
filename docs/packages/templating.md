@@ -98,14 +98,14 @@ return await engine.RenderAsync(templateSource, context);
 
 `AddXiHanTemplating()` 通过代码 `AddOptions<TemplatingOptions>().Configure(...)` 设默认值（未绑定独立配置节，`TemplatingOptions` 无 `SectionName`），如需覆盖可在应用侧再 `Configure<TemplatingOptions>`。
 
-> **当前版本里 `TemplatingOptions` 基本是"声明位"**：全仓搜索只有 `TemplateService` 的构造函数接收并存了这个选项对象，除 `DefaultEngine` 外（其误导性见下文说明），其余字段——包括 `EnableCaching` / `CacheExpiration` / `MaxCacheSize` / `EnableDebugMode` / `EnablePerformanceMonitoring` / `RenderTimeout` / `MaxTemplateSize` / `DefaultEncoding` / `TemplateFileExtensions` / `EnableSecurityChecks` / `EnablePrecompilation` / `TemplateRootDirectory` / `LayoutDirectory` / `PartialDirectory`——目前**均未被任何内置引擎或服务读取**，改它们不会改变任何运行时行为（真正的渲染超时/缓存上限/安全检查开关等能力尚未接线）。可以正常 `Configure<TemplatingOptions>` 覆盖这些值供业务侧自行读取使用，但不要指望框架据此自动生效。
+> `DefaultTemplateEngine` 使用 `EnableCaching`、`CacheExpiration` 和 `MaxCacheSize` 管理实例级模板与校验缓存。每类缓存最多保留 `MaxCacheSize` 条，按最近最少使用淘汰；过期时间从写入时计算，过期项在后续缓存操作时清除。零过期时间不保留条目，`Timeout.InfiniteTimeSpan` 关闭时间过期但仍受容量限制。`MaxCacheSize` 必须大于零，`CacheExpiration` 不能是其他负值。其余字段——包括 `RenderTimeout` / `MaxTemplateSize` / `EnableSecurityChecks` / `EnablePrecompilation` / `TemplateRootDirectory` 等——目前不会自动限制渲染或执行安全检查。
 
 | 字段 | 类型 | 默认值 | 含义 |
 | --- | --- | --- | --- |
 | `DefaultEngine` | `string` | `"Scriban"` | 语义上的默认引擎名。**注意**：不影响 `ITemplateService` 字符串重载（该路径固定用 `string` 类型默认引擎） |
-| `EnableCaching` | `bool` | `true` | 是否启用缓存 |
-| `CacheExpiration` | `TimeSpan` | 30 分钟 | 缓存过期 |
-| `MaxCacheSize` | `int` | `1000` | 最大缓存条目 |
+| `EnableCaching` | `bool` | `true` | 是否启用 `DefaultTemplateEngine` 的模板和校验缓存；不影响 `Simple.TemplateCache` |
+| `CacheExpiration` | `TimeSpan` | 30 分钟 | 两类默认引擎缓存的绝对过期时间；零表示不保留，`Timeout.InfiniteTimeSpan` 表示不按时间过期 |
+| `MaxCacheSize` | `int` | `1000` | 每类默认引擎缓存的最大条目数；达到上限时淘汰最久未使用项 |
 | `EnableDebugMode` | `bool` | `false` | 调试模式 |
 | `EnablePerformanceMonitoring` | `bool` | `false` | 性能监控 |
 | `RenderTimeout` | `TimeSpan` | 30 秒 | 渲染超时 |
@@ -216,7 +216,7 @@ var result = "Hello {{name}}!{{if vip}} VIP{{endif}}"
 - **文件渲染**：`RenderFileAsync` 找不到文件会抛 `FileNotFoundException`；`Simple.FileTemplateHelper` 同样会抛 `FileNotFoundException`。
 - **校验与渲染是不同引擎/路径**：`ValidateTemplate` 同样走 `string` 默认引擎，校验的是简单语法而非 Scriban 语法。
 - **三套"字符串渲染扩展方法"并存、慎重 `using`**：`Extensions.TemplateExtensions`（经 `IServiceProvider` 走 DI 注册表）、`Engines.DefaultTemplateEngineExtensions`（固定用一个模块级 `DefaultTemplateEngine` 实例，与 DI 容器无关）、`Simple.TemplateExtensions`（固定用 `Simple.TemplateEngine` 的正则实现）三者互相独立，其中后两者都定义了签名相同的 `RenderTemplate(this string, IDictionary<string, object?>)` / `RenderTemplate(this string, object?)`，同时 `using` 会导致 `CS0121` 二义性编译错误。
-- **`Simple.TemplateCache` 是进程级静态状态**：底层是 `static readonly ConcurrentDictionary`，全局唯一、无过期/无容量上限，与 `TemplatingOptions` 的缓存字段完全无关（见"配置"一节），清理需自行调用 `RemoveTemplate` / `ClearTemplates`。
+- **`Simple.TemplateCache` 是进程级静态状态**：底层是 `static readonly ConcurrentDictionary`，全局唯一、无过期/无容量上限，与 `TemplatingOptions` 的缓存字段完全无关（见"配置"一节），清理需自行调用 `RemoveTemplate` / `ClearTemplates`。`DefaultTemplateEngine` 的新容量上限也不限制单个模板大小或渲染结果大小。
 
 ## 依赖模块
 
