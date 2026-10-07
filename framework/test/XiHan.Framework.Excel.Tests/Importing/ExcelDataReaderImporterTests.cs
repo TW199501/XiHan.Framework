@@ -1472,7 +1472,7 @@ public class ExcelDataReaderImporterTests
         var ratio = declared / compressed;
 
         // 夹具自己的比值要真的落在「旧默认误拒、新默认放行」的窗口里，否则这条用例验不到改判
-        Assert.InRange(ratio, 101, ExcelConstants.MaxImportCompressionRatio - 1);
+        Assert.InRange(ratio, 101, 199);
 
         using (var accepted = new MemoryStream(bytes))
         {
