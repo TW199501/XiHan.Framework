@@ -1,0 +1,35 @@
+framework/src/XiHan.Framework.Bot.Telegram/Stores/DefaultTelegramUpdateDeduplicator.cs
+  s_d91e80be1b5795::t_292ebfb56ee652 19,43-44,80,88-89,91-97
+  s_d91e80be1b5795::t_3155b414d649ac 82,86-87,90
+framework/src/XiHan.Framework.Bot.Telegram/XiHan.Framework.Bot.Telegram.csproj
+  s_d91e80be1b5795::t_3155b414d649ac 21-23
+  s_83ad62c2b1274c::t_1031073b1fc9e6 20
+framework/test/XiHan.Framework.Bot.Telegram.Tests/Stores/DefaultTelegramUpdateDeduplicatorTests.cs
+  s_d91e80be1b5795::t_3155b414d649ac 22-26,30-32,35-36,38-39
+  s_d91e80be1b5795::t_292ebfb56ee652 27-29,33-34,37
+  s_d91e80be1b5795::t_c3c88188539dae 21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "53015f7f8818164baff5cd99cfa2e34f29ee98b6",
+  "prompts": {},
+  "sessions": {
+    "s_83ad62c2b1274c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17aa045d-cbf2-48d2-be14-0911593cb64c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
