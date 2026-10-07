@@ -1,0 +1,149 @@
+framework/src/XiHan.Framework.Excel.Abstractions/Attributes/ExcelColumnAttribute.cs
+  s_83ad62c2b1274c::t_7eb3ae463c93a8 12-14,53
+framework/src/XiHan.Framework.Excel.Abstractions/Enums/ExcelTextOverflow.cs
+  s_83ad62c2b1274c::t_034bd247b150d7 12
+framework/src/XiHan.Framework.Excel.Abstractions/Enums/ExcelTextQuote.cs
+  s_83ad62c2b1274c::t_e13152f860852a 22
+framework/src/XiHan.Framework.Excel.Abstractions/ExcelConstants.cs
+  s_83ad62c2b1274c::t_d79aee8856a67c 38-39,47-48,50,59,68,71-72,76,85-87,95-97,105-107,116,121-122,131
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/ExcelColumn.cs
+  s_83ad62c2b1274c::t_ee26c27ce3197d 12-14,27-28,118
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/ExcelExportResult.cs
+  s_83ad62c2b1274c::t_8d11ba48ab8bd9 13-14,51
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/ExcelSheetSpec.cs
+  s_83ad62c2b1274c::t_7cc9549a550125 13,16-18,104
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/ExcelTextOptions.cs
+  s_83ad62c2b1274c::t_e2f4e475c1e048 13,17,33-34,37-38,42-43,46-48,59-61,64,75-77,82,131-132,140-141,151,154-155
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/ExcelTextStyle.cs
+  s_83ad62c2b1274c::t_d17f368adf58a3 10
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelExporter.cs
+  s_83ad62c2b1274c::t_c15fa4d9e0c74e 13-15,18-19,23,41,44,49,52-53,56-57,65,67-69,75-76,79-80,83,86,111-112,115,117-118,120-121,125,128-130
+framework/src/XiHan.Framework.Excel.Abstractions/Exporting/IExcelTemplateRenderer.cs
+  s_83ad62c2b1274c::t_fb0e35f3ebfeb1 11-12,15-16,22-23,25-26,32,34,38-39,59,66-67,73,76,79-80
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/ExcelFixedWidthField.cs
+  s_83ad62c2b1274c::t_a31f1519fbddda 11-13,16-17,20
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/ExcelImportOptions.cs
+  s_83ad62c2b1274c::t_4749970264b644 13,35-36,40-41,43,53-54,57-58,99,131-134,137-138,143-144,170-171,175,185,189-192,201-203,208,218-221,226-230
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/ExcelImportRow.cs
+  s_83ad62c2b1274c::t_bf0d8339aa2312 11,17,28,32
+framework/src/XiHan.Framework.Excel.Abstractions/Importing/IExcelImporter.cs
+  s_83ad62c2b1274c::t_7c61b28e799a84 11-14,18-19,22,26-27,48,52,56
+framework/src/XiHan.Framework.Excel.Abstractions/XiHanExcelOptions.cs
+  s_83ad62c2b1274c::t_0665fae7a3fcfa 42-43,46-48,50,62,65-66,78-81,84,88
+framework/src/XiHan.Framework.Excel/Columns/ExcelColumnBuilder.cs
+  s_83ad62c2b1274c::t_74a62d833f101d 22-23,26-28,34-35,38-40,140-141,144-146,151,171-173,176,179-180,187,219
+framework/src/XiHan.Framework.Excel/Exporting/ClosedXmlExporter.cs
+  s_83ad62c2b1274c::t_b754fa832e698b 19-20,23-24,27-29,33-34,37-39,42-44,47-59,62,64-68,71-73,76-77,90,117,129,140-141,148-150,153-155,172,178,198-199,205,216-217,221,224-225,254,257,264,281-282,291,315,323,339,424-425,506,543,583,610-611,642
+framework/src/XiHan.Framework.Excel/Exporting/DelimitedTextExporter.cs
+  s_83ad62c2b1274c::t_c0bbce03c0bd5b 19-20,23-24,27-30,33-35,38-40,43,46-52,55-56,84,86,89,105-106,109,141,169,201,206,222,241-242,245-246,249-250,253-255,267,274,277,284,311,316,326,337,362-364,380,412,434,441,474,512,530,557
+framework/src/XiHan.Framework.Excel/Exporting/ExcelCellTextGuard.cs
+  s_83ad62c2b1274c::t_e7b72552f8bdf1 14-16,19,22,25-26,71,95
+framework/src/XiHan.Framework.Excel/Exporting/ExcelExporter.cs
+  s_83ad62c2b1274c::t_64b9f47fdb10a3 15-18,21,23-26,29,32,35-36,65,120,149,159,184,226
+framework/src/XiHan.Framework.Excel/Exporting/ExcelRowTypeGuard.cs
+  s_83ad62c2b1274c::t_9b062d6bb9d7de 13-15,18-19,23,26,37-38,77,82
+framework/src/XiHan.Framework.Excel/Exporting/ExcelWorkbookWriteGuard.cs
+  s_83ad62c2b1274c::t_28b289528ba97e 10,14-15,18-19,21-24,38,47-48,58,74-76,121,164-167,204,236,244,254,272,274-276,306,308,338,397,406
+framework/src/XiHan.Framework.Excel/Exporting/MiniExcelStreamExporter.cs
+  s_83ad62c2b1274c::t_6d48a04d3cb173 18-20,23-24,27,30,33,37,40-45,48-49,52-53,57-58,61-65,68,70,108,121,127,129,132-135,137-138,141,152,158,166,185,236,267-268,286,294,304,324
+framework/src/XiHan.Framework.Excel/Exporting/MiniExcelTemplateRenderer.cs
+  s_83ad62c2b1274c::t_a335188296b4ca 18,27-29,32-33,36-37,40-41,44-48,51-52,55-57,60-61,95,131,137,146,151,167,170-171,206,266,276-277,294-297,349
+framework/src/XiHan.Framework.Excel/Extensions/DependencyInjection/XiHanExcelServiceCollectionExtensions.cs
+  s_83ad62c2b1274c::t_6231d8e8874dde 31,34-36,40,43-44,47,61
+framework/src/XiHan.Framework.Excel/Importing/ExcelDataReaderImporter.cs
+  s_83ad62c2b1274c::t_618697e23eada7 22,25-26,30-31,34,37-38,41,43-46,50-51,54-55,59-61,64,67-68,71-76,79,183,213,216,221,224,227,233,236-237,244-245,285,385-386,389,392-393,396,399,417,436,456,535-536,590,611,614-615,653,698,737,766
+framework/src/XiHan.Framework.Excel/Importing/ExcelFormatProbe.cs
+  s_83ad62c2b1274c::t_d1ccd3f23d82b3 15-16,22,31-32,103,151,187-188,191-192,196
+framework/src/XiHan.Framework.Excel/Importing/ExcelImporter.cs
+  s_83ad62c2b1274c::t_b77cafc55ccb52 14-15,18,21,53-54,58
+framework/src/XiHan.Framework.Excel/Importing/FixedWidthTextImporter.cs
+  s_83ad62c2b1274c::t_4a5a337a23bdfd 19-20,23-24,27-30,33-34,37-40,43-47,51-54,57-58,60,63-64,67,69,143,161,169-170,199,204,211,328,365,443,482-483,522
+framework/src/XiHan.Framework.Excel/Importing/ImportSharedRules.cs
+  s_83ad62c2b1274c::t_a2dbf9d84ec854 14-16,22,26,38,120-122,173,184,186,198
+framework/src/XiHan.Framework.Excel/Importing/TextEncodingResolver.cs
+  s_83ad62c2b1274c::t_a98822ae49b646 16-19,21-22,25,27-28,32-33,36-37,46,66,78,82-83,112,114-117,121,145,167-168,214-215,261,266,280,294,329-330,368-369
+framework/src/XiHan.Framework.Excel/Text/TextWriterHelper.cs
+  s_83ad62c2b1274c::t_0e7be0c077895b 15,62,65-66,69,105-106,109,138-140,143,154-158,161,164,181,207,248,289-290,323-324,327,360,378,381,399,418-419,422-423,426,498,506,521,546,614-615
+framework/test/XiHan.Framework.Excel.Tests/Attributes/ExcelColumnAttributeTests.cs
+  s_83ad62c2b1274c::t_b930f55b98f0dd 45
+framework/test/XiHan.Framework.Excel.Tests/Columns/ExcelColumnBuilderTests.cs
+  s_83ad62c2b1274c::t_6d36822807dcc9 269,351,460,502,561
+framework/test/XiHan.Framework.Excel.Tests/ExcelConstantsTests.cs
+  s_83ad62c2b1274c::t_9d74af6231f664 10,13,35,48
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlExporterTests.cs
+  s_83ad62c2b1274c::t_dfd34e054efe97 24,27,112,179,212,474,538,563,567,570,588,591,637,671,674,684,703,718,729,743,746,783,818,833,892,922,959,969,972,1020,1046,1087,1241,1324,1327,1378,1491,1494,1509,1572,1622,1662,1691,1716,1740,1761,1805,1829,1852,1878,1942,1996,2035,2060
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ClosedXmlMultiSheetTests.cs
+  s_83ad62c2b1274c::t_e34ecff405f942 18,21-22,55,185,213,216-217,363,450,483,576,611,631,656,679,682,815
+framework/test/XiHan.Framework.Excel.Tests/Exporting/DelimitedTextExporterTests.cs
+  s_83ad62c2b1274c::t_3342f26cbd31c1 41,49,146,164,184,274,288,304,342,594,618,621-622,656,775,854
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ExcelColumnTests.cs
+  s_83ad62c2b1274c::t_8ba65d3e0ddbff 32
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ExcelExporterDispatchTests.cs
+  s_83ad62c2b1274c::t_f2dfe97da4a807 15,18,171,249,265,283,305,344,384,428,448,472,488,521,537,575
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ExcelSheetSpecTests.cs
+  s_83ad62c2b1274c::t_da5c5307e05709 85,101
+framework/test/XiHan.Framework.Excel.Tests/Exporting/ExcelTextOptionsTests.cs
+  s_83ad62c2b1274c::t_52a35cc06e3d97 33,49,81
+framework/test/XiHan.Framework.Excel.Tests/Exporting/FixedWidthTextExportTests.cs
+  s_83ad62c2b1274c::t_98bd92c171420e 20,98,157,297,322,390,393,417,426,491,547,602-604,668,676,790,836
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelStreamExporterTests.cs
+  s_83ad62c2b1274c::t_5e84b8156420f3 24,29,107,133,136,183,196,213,216,249,341-342,392,443,446,481-482,512,520-522,550,568,587,618-619,643-644,666,699,758,790,814,835,913-914,933-934,975,1059,1079,1082,1354-1355,1377,1422
+framework/test/XiHan.Framework.Excel.Tests/Exporting/MiniExcelTemplateRendererTests.cs
+  s_83ad62c2b1274c::t_f15e7557395de6 21-22,27,176,194,234,251,265,309,321,353,409,458,477,507,539,691,713-714,733,739,752,760,783,888,926,963,973
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelDataReaderImporterTests.cs
+  s_83ad62c2b1274c::t_745551e69e636a 171,243,276,341,448,508,603,619,655,664,924,939,979,1032,1046,1108,1123,1155,1158-1159,1195-1196,1230,1276,1292,1352,1355-1356,1367,1391,1394-1395,1420,1438-1439,1491,1514,1554-1555,1630-1633,1694-1695,1753-1754
+framework/test/XiHan.Framework.Excel.Tests/Importing/ExcelFormatProbeTests.cs
+  s_83ad62c2b1274c::t_d96af03ee11413 15,84,95,170,180,191,207
+framework/test/XiHan.Framework.Excel.Tests/Importing/FixedWidthTextImporterTests.cs
+  s_83ad62c2b1274c::t_85c4a5259bec17 27,31,171,178,200,217,281,318-319,330,347-348,427,443,446,462,494,569,572,654,733,752,854,873-874,877,954-956,1004,1007,1098,1146,1158,1169,1173-1174,1261,1339,1406,1424,1477
+framework/test/XiHan.Framework.Excel.Tests/Importing/TextEncodingResolverTests.cs
+  s_83ad62c2b1274c::t_c7345d56d017b8 53,56,68,71,325,344,399
+framework/test/XiHan.Framework.Excel.Tests/Options/XiHanExcelOptionsTests.cs
+  s_83ad62c2b1274c::t_c794d31a56acf8 42
+framework/test/XiHan.Framework.Excel.Tests/Registration/XiHanExcelRegistrationTests.cs
+  s_83ad62c2b1274c::t_ea2ee4f3032cba 22,25,122
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/AnnotatedRow.cs
+  s_83ad62c2b1274c::t_f5d1f8c1b7a5bb 79
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/AsyncCollector.cs
+  s_83ad62c2b1274c::t_2df34e28aa5d37 7
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/AsyncOnlyStream.cs
+  s_83ad62c2b1274c::t_805ae3d8742361 15
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/CancelOnFlushStream.cs
+  s_83ad62c2b1274c::t_8bc3fc9f1a202b 10
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/CancelOnWriteStream.cs
+  s_83ad62c2b1274c::t_cde3df2cde0d6b 10
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/CountingRows.cs
+  s_83ad62c2b1274c::t_e06f41f4e4e574 12
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/ForwardOnlyStream.cs
+  s_83ad62c2b1274c::t_78240672706309 12
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/ImportFixtures.cs
+  s_83ad62c2b1274c::t_811fc777fce82b 15,19,33,155
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/ReadCountingStream.cs
+  s_83ad62c2b1274c::t_9a6ef18fc84a6f 10-11
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/SampleRow.cs
+  s_83ad62c2b1274c::t_931bb15bc68cda 10
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/TemplateFactory.cs
+  s_83ad62c2b1274c::t_0c6e9d2bc0e5ae 12
+framework/test/XiHan.Framework.Excel.Tests/TestSupport/TestEncodingSetup.cs
+  s_83ad62c2b1274c::t_acc00fd3e0d553 18-19
+framework/test/XiHan.Framework.Excel.Tests/Text/FixedWidthTests.cs
+  s_83ad62c2b1274c::t_e5a78b9462e24b 14,37,56,120,136,150
+framework/test/XiHan.Framework.Excel.Tests/Text/TextWriterHelperTests.cs
+  s_83ad62c2b1274c::t_073dc5c80f2138 62,74-75,77,83,99,153,171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "83a3ef4a1cf2fed9c94d582cf7d3f82a31e3a009",
+  "prompts": {},
+  "sessions": {
+    "s_83ad62c2b1274c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17aa045d-cbf2-48d2-be14-0911593cb64c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
