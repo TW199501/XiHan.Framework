@@ -23,6 +23,7 @@ namespace XiHan.Framework.ObjectStorage.Tests.Providers;
 public sealed class LocalFileStorageProviderTests : IDisposable
 {
     private readonly string _root;
+    private readonly string _providerRoot;
     private readonly LocalFileStorageProvider _provider;
 
     /// <summary>
@@ -32,7 +33,8 @@ public sealed class LocalFileStorageProviderTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), "XiHanTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
-        _provider = CreateProvider("/uploads");
+        _providerRoot = Path.Combine(_root, "provider-root");
+        _provider = CreateProvider("/uploads", _providerRoot);
     }
 
     /// <summary>
@@ -83,6 +85,80 @@ public sealed class LocalFileStorageProviderTests : IDisposable
         Assert.NotNull(result.FullPath);
         Assert.True(File.Exists(result.FullPath));
         Assert.Equal("hello", await ReadAllTextAsync(_provider, "docs/a.txt"));
+    }
+
+    /// <summary>
+    /// 下载路径越过根目录时不能读取同名前缀的相邻目录
+    /// </summary>
+    [Fact]
+    public async Task DownloadAsync_WhenPathEscapesRoot_RejectsSiblingPrefix()
+    {
+        var siblingRoot = _providerRoot + "-sibling";
+        Directory.CreateDirectory(siblingRoot);
+        var secretPath = Path.Combine(siblingRoot, "secret.txt");
+        await File.WriteAllTextAsync(secretPath, "outside", TestContext.Current.CancellationToken);
+        var storagePath = $"../{Path.GetFileName(siblingRoot)}/secret.txt";
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            async () => await _provider.DownloadAsync(storagePath, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// 上传路径越过根目录时不能在根目录外创建文件
+    /// </summary>
+    [Fact]
+    public async Task UploadAsync_WhenPathEscapesRoot_DoesNotWriteOutsideRoot()
+    {
+        var siblingRoot = _providerRoot + "-sibling";
+        var storagePath = $"../{Path.GetFileName(siblingRoot)}/created.txt";
+
+        var result = await UploadTextAsync(_provider, storagePath, "outside");
+
+        Assert.False(result.Success);
+        Assert.False(File.Exists(Path.Combine(siblingRoot, "created.txt")));
+    }
+
+    /// <summary>
+    /// 混合使用反斜线的越界路径也不能读取根目录外的文件
+    /// </summary>
+    [Fact]
+    public async Task DownloadAsync_WhenPathEscapesRootWithBackslashes_RejectsSiblingPrefix()
+    {
+        var siblingRoot = _providerRoot + "-sibling";
+        Directory.CreateDirectory(siblingRoot);
+        var secretPath = Path.Combine(siblingRoot, "secret.txt");
+        await File.WriteAllTextAsync(secretPath, "outside", TestContext.Current.CancellationToken);
+        var storagePath = $@"..\{Path.GetFileName(siblingRoot)}\secret.txt";
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            async () => await _provider.DownloadAsync(storagePath, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// 根目录内的符号链接不能将读取重定向到根目录外
+    /// </summary>
+    [Fact]
+    public async Task DownloadAsync_WhenPathContainsSymbolicLink_RejectsLinkTraversal()
+    {
+        var siblingRoot = _providerRoot + "-sibling";
+        Directory.CreateDirectory(siblingRoot);
+        await File.WriteAllTextAsync(
+            Path.Combine(siblingRoot, "secret.txt"),
+            "outside",
+            TestContext.Current.CancellationToken);
+
+        var linkPath = Path.Combine(_providerRoot, "linked");
+        try
+        {
+            Directory.CreateSymbolicLink(linkPath, siblingRoot);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            Assert.Skip($"当前环境不允许创建目录符号链接：{exception.Message}");
+        }
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            async () => await _provider.DownloadAsync("linked/secret.txt", TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -705,11 +781,11 @@ public sealed class LocalFileStorageProviderTests : IDisposable
     /// <summary>
     /// 在当前用例的临时根目录下新建一个独立的本地存储提供程序
     /// </summary>
-    private LocalFileStorageProvider CreateProvider(string urlPrefix)
+    private LocalFileStorageProvider CreateProvider(string urlPrefix, string? rootPath = null)
     {
         var options = new LocalStorageOptions
         {
-            RootPath = Path.Combine(_root, Guid.NewGuid().ToString("N")),
+            RootPath = rootPath ?? Path.Combine(_root, Guid.NewGuid().ToString("N")),
             UrlPrefix = urlPrefix
         };
 
