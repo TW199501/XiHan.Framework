@@ -1,0 +1,28 @@
+framework/test/XiHan.Framework.Script.Tests/Core/ScriptSecurityBoundaryTests.cs
+  s_d91e80be1b5795::t_a0e7e17d4cb22a 22-27,29-34
+  s_d91e80be1b5795::t_8d4b9d46e65bb3 1-21,28,35-41
+framework/src/XiHan.Framework.Script/Options/SecurityOptions.cs
+  s_d91e80be1b5795::t_3ef7575df0684d 7,12,17,22,27,32,37,42,47,91,112
+framework/src/XiHan.Framework.Script/Options/ScriptOptions.cs
+  s_d91e80be1b5795::t_3ef7575df0684d 225
+framework/src/XiHan.Framework.Script/README.md
+  s_d91e80be1b5795::t_3ef7575df0684d 18-21
+framework/src/XiHan.Framework.Script/Core/ScriptEngine.cs
+  s_d91e80be1b5795::t_3ef7575df0684d 48-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d66aef46a7150a0d01bf436e510f107b142f715",
+  "prompts": {},
+  "sessions": {
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
