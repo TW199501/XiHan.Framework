@@ -447,7 +447,58 @@ public class LocalFileStorageProvider : FileStorageProviderBase
     private string GetFullPath(string relativePath)
     {
         var normalizedPath = NormalizeLocalPath(relativePath);
-        return Path.GetFullPath(Path.Combine(_rootPath, normalizedPath));
+        var fullPath = Path.GetFullPath(Path.Combine(_rootPath, normalizedPath));
+        var pathComparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        var rootPathPrefix = Path.EndsInDirectorySeparator(_rootPath)
+            ? _rootPath
+            : _rootPath + Path.DirectorySeparatorChar;
+
+        if (!fullPath.Equals(_rootPath, pathComparison) && !fullPath.StartsWith(rootPathPrefix, pathComparison))
+        {
+            throw new UnauthorizedAccessException("Storage path must remain within the configured root directory.");
+        }
+
+        EnsureNoReparsePoints(fullPath);
+        return fullPath;
+    }
+
+    /// <summary>
+    /// 拒绝通过根目录内已有的重解析点访问其他位置
+    /// </summary>
+    private void EnsureNoReparsePoints(string fullPath)
+    {
+        var relativePath = Path.GetRelativePath(_rootPath, fullPath);
+        if (relativePath == ".")
+        {
+            return;
+        }
+
+        var currentPath = _rootPath;
+        foreach (var segment in relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+        {
+            currentPath = Path.Combine(currentPath, segment);
+
+            FileAttributes attributes;
+            try
+            {
+                attributes = File.GetAttributes(currentPath);
+            }
+            catch (FileNotFoundException)
+            {
+                break;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                break;
+            }
+
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new UnauthorizedAccessException("Storage paths cannot traverse symbolic links or reparse points.");
+            }
+        }
     }
 
     /// <summary>
