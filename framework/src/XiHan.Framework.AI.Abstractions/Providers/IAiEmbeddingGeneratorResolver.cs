@@ -22,6 +22,9 @@ public interface IAiEmbeddingGeneratorResolver
     /// <summary>
     /// 使已缓存的嵌入生成器失效（下次 <see cref="Resolve"/> 按最新配置重建）
     /// </summary>
-    /// <remarks>配置源改动 provider 的 key/baseUrl/embeddingModel 后调用，实现热切换。</remarks>
+    /// <remarks>
+    /// 配置源改动 provider 的 key/baseUrl/embeddingModel 后调用，实现热切换。已开始的生成请求会完成后再释放旧实例；
+    /// 失效后的旧解析引用不能再启动新请求。
+    /// </remarks>
     void Invalidate(string? providerName = null);
 }
