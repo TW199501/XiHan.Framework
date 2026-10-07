@@ -1,0 +1,39 @@
+framework/src/XiHan.Framework.Templating/XiHan.Framework.Templating.csproj
+  s_d91e80be1b5795::t_ae01e8379a6ae5 21-23
+  s_d91e80be1b5795::t_bcc30e984d3d0f 20
+framework/src/XiHan.Framework.Templating/Engines/BoundedExpiringCache.cs
+  s_d91e80be1b5795::t_11e015313d96aa 1-128
+framework/src/XiHan.Framework.Templating/Engines/DefaultTemplateEngine.cs
+  s_d91e80be1b5795::t_11e015313d96aa 7,17-37,48-51,108,115-118,441,451-454,464
+  s_d91e80be1b5795::t_929c92b57044e3 38-47
+docs/packages/templating.md
+  s_d91e80be1b5795::t_43b02e7a78f22a 101,106-108,219
+framework/test/XiHan.Framework.Templating.Tests/Engines/BoundedExpiringCacheTests.cs
+  s_d91e80be1b5795::t_ae01e8379a6ae5 1-56
+framework/src/XiHan.Framework.Templating/TemplatingOptions.cs
+  s_d91e80be1b5795::t_43b02e7a78f22a 17,22,27
+framework/src/XiHan.Framework.Templating/README.md
+  s_d91e80be1b5795::t_43b02e7a78f22a 18-19
+framework/test/XiHan.Framework.Templating.Tests/Engines/DefaultTemplateEngineTests.cs
+  s_d91e80be1b5795::t_844ba6e08e45d5 5,8,343-397,408-425,690-706
+  s_d91e80be1b5795::t_929c92b57044e3 398-407
+  s_d91e80be1b5795::t_c8869e68a4314d 707
+docs/guide/templating.md
+  s_d91e80be1b5795::t_43b02e7a78f22a 227,276-277,279-281
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "369628ecc97419de6bb9880191cdb4ec9fc42876",
+  "prompts": {},
+  "sessions": {
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
