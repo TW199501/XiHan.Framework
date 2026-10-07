@@ -33,6 +33,8 @@ XiHan.Framework.Authentication 提供认证相关的基础能力与策略支持�
 - 认证策略与配置通过 Options 类型承载
 - 推荐在启动模块中统一配置认证参数与策略
 
+OIDC 签名密钥自动生成会先完整写入同目录临时文件，再以原子移动发布；共享同一密钥路径的并发实例会读取发布成功的密钥。部署在不同本地文件系统上的多个节点仍须预置相同的 `SigningKeyPem` 或 `SigningKeyPath` 文件，并关闭自动生成。
+
 ## 使用方式
 ```csharp
 [DependsOn(typeof(XiHanAuthenticationModule))]
