@@ -46,6 +46,8 @@ internal abstract class ExpressionNode
     /// <param name="context">求值上下文</param>
     /// <returns>求值结果</returns>
     public abstract object? Evaluate(ExpressionEvaluationContext context);
+
+    public abstract IEnumerable<ExpressionNode> GetChildren();
 }
 
 /// <summary>
@@ -73,6 +75,8 @@ internal sealed class LiteralNode : ExpressionNode
     {
         return _value;
     }
+
+    public override IEnumerable<ExpressionNode> GetChildren() => [];
 }
 
 /// <summary>
@@ -102,6 +106,8 @@ internal sealed class VariableNode : ExpressionNode
             ? WorkflowValueConverter.Normalize(value)
             : throw new WorkflowException($"表达式引用了不存在的变量 {_name}");
     }
+
+    public override IEnumerable<ExpressionNode> GetChildren() => [];
 }
 
 /// <summary>
@@ -141,6 +147,8 @@ internal sealed class MemberAccessNode : ExpressionNode
             _ => EvaluateByReflection(target)
         };
     }
+
+    public override IEnumerable<ExpressionNode> GetChildren() => [_target];
 
     private object? EvaluateByReflection(object target)
     {
@@ -209,6 +217,8 @@ internal sealed class IndexAccessNode : ExpressionNode
                 throw new WorkflowException($"表达式对类型 {target.GetType().Name} 使用了不支持的索引访问");
         }
     }
+
+    public override IEnumerable<ExpressionNode> GetChildren() => [_target, _index];
 }
 
 /// <summary>
@@ -247,6 +257,8 @@ internal sealed class UnaryNode : ExpressionNode
             _ => throw new WorkflowException($"不支持的一元运算符 {_operator}")
         };
     }
+
+    public override IEnumerable<ExpressionNode> GetChildren() => [_operand];
 }
 
 /// <summary>
@@ -321,6 +333,8 @@ internal sealed class BinaryNode : ExpressionNode
             _ => throw new WorkflowException($"不支持的二元运算符 {_operator}")
         };
     }
+
+    public override IEnumerable<ExpressionNode> GetChildren() => [_left, _right];
 }
 
 /// <summary>
@@ -352,6 +366,8 @@ internal sealed class FunctionCallNode : ExpressionNode
         var arguments = _arguments.Select(argument => argument.Evaluate(context)).ToArray();
         return ExpressionOperations.InvokeFunction(_name, arguments, context);
     }
+
+    public override IEnumerable<ExpressionNode> GetChildren() => _arguments;
 }
 
 /// <summary>
@@ -621,6 +637,12 @@ internal static class ExpressionOperations
 /// </remarks>
 internal static class ExpressionParser
 {
+    internal const int MaxExpressionLength = 4096;
+    private const int MaxTokenCount = 2048;
+    private const int MaxNestingDepth = 64;
+    private const int MaxUnaryChainLength = 64;
+    private const int MaxNodeCount = 2048;
+    private const int MaxEvaluationDepth = 64;
     /// <summary>
     /// 解析表达式（语法非法时抛出工作流异常）
     /// </summary>
@@ -628,13 +650,20 @@ internal static class ExpressionParser
     /// <returns>语法树根节点</returns>
     public static ExpressionNode Parse(string expression)
     {
+        if (expression.Length > MaxExpressionLength)
+        {
+            throw new WorkflowException($"表达式长度不能超过 {MaxExpressionLength} 个字符");
+        }
+
         var tokens = Tokenize(expression);
         var position = 0;
         var node = ParseOr(tokens, ref position);
 
-        return tokens[position].Type != TokenType.End
+        var root = tokens[position].Type != TokenType.End
             ? throw new WorkflowException($"表达式存在无法解析的剩余内容：{expression}")
             : node;
+        ValidateTree(root);
+        return root;
     }
 
     private enum TokenType
@@ -654,10 +683,47 @@ internal static class ExpressionParser
 
     private readonly record struct Token(TokenType Type, string Text, decimal Number);
 
+    private static void ValidateTree(ExpressionNode root)
+    {
+        var pending = new Stack<(ExpressionNode Node, int Depth)>();
+        pending.Push((root, 1));
+        var nodeCount = 0;
+
+        while (pending.TryPop(out var item))
+        {
+            if (++nodeCount > MaxNodeCount)
+            {
+                throw new WorkflowException($"表达式语法树节点不能超过 {MaxNodeCount} 个");
+            }
+
+            if (item.Depth > MaxEvaluationDepth)
+            {
+                throw new WorkflowException($"表达式求值深度不能超过 {MaxEvaluationDepth}");
+            }
+
+            foreach (var child in item.Node.GetChildren())
+            {
+                pending.Push((child, item.Depth + 1));
+            }
+        }
+    }
+
     private static List<Token> Tokenize(string expression)
     {
         var tokens = new List<Token>();
         var index = 0;
+        var nestingDepth = 0;
+        var unaryChainLength = 0;
+
+        void Add(Token token)
+        {
+            if (tokens.Count >= MaxTokenCount)
+            {
+                throw new WorkflowException($"表达式词法单元不能超过 {MaxTokenCount} 个");
+            }
+
+            tokens.Add(token);
+        }
 
         while (index < expression.Length)
         {
@@ -669,6 +735,24 @@ internal static class ExpressionParser
                 continue;
             }
 
+            if (current is not ('\'' or '"') && current is '(' or '[')
+            {
+                if (++nestingDepth > MaxNestingDepth)
+                {
+                    throw new WorkflowException($"表达式嵌套深度不能超过 {MaxNestingDepth}");
+                }
+            }
+            else if (current is not ('\'' or '"') && current is ')' or ']')
+            {
+                nestingDepth = Math.Max(0, nestingDepth - 1);
+            }
+
+            unaryChainLength = current is '!' or '-' ? unaryChainLength + 1 : 0;
+            if (unaryChainLength > MaxUnaryChainLength)
+            {
+                throw new WorkflowException($"表达式一元运算符链不能超过 {MaxUnaryChainLength} 个");
+            }
+
             if (char.IsDigit(current))
             {
                 var start = index;
@@ -678,7 +762,7 @@ internal static class ExpressionParser
                 }
 
                 var text = expression[start..index];
-                tokens.Add(!decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var number)
+                Add(!decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var number)
                     ? throw new WorkflowException($"表达式包含非法数字字面量 {text}")
                     : new Token(TokenType.Number, text, number));
                 continue;
@@ -724,7 +808,7 @@ internal static class ExpressionParser
                     throw new WorkflowException("表达式字符串字面量未闭合");
                 }
 
-                tokens.Add(new Token(TokenType.String, builder.ToString(), 0));
+                Add(new Token(TokenType.String, builder.ToString(), 0));
                 continue;
             }
 
@@ -736,39 +820,39 @@ internal static class ExpressionParser
                     index++;
                 }
 
-                tokens.Add(new Token(TokenType.Identifier, expression[start..index], 0));
+                Add(new Token(TokenType.Identifier, expression[start..index], 0));
                 continue;
             }
 
             switch (current)
             {
                 case '(':
-                    tokens.Add(new Token(TokenType.LeftParen, "(", 0));
+                    Add(new Token(TokenType.LeftParen, "(", 0));
                     index++;
                     continue;
 
                 case ')':
-                    tokens.Add(new Token(TokenType.RightParen, ")", 0));
+                    Add(new Token(TokenType.RightParen, ")", 0));
                     index++;
                     continue;
 
                 case '[':
-                    tokens.Add(new Token(TokenType.LeftBracket, "[", 0));
+                    Add(new Token(TokenType.LeftBracket, "[", 0));
                     index++;
                     continue;
 
                 case ']':
-                    tokens.Add(new Token(TokenType.RightBracket, "]", 0));
+                    Add(new Token(TokenType.RightBracket, "]", 0));
                     index++;
                     continue;
 
                 case '.':
-                    tokens.Add(new Token(TokenType.Dot, ".", 0));
+                    Add(new Token(TokenType.Dot, ".", 0));
                     index++;
                     continue;
 
                 case ',':
-                    tokens.Add(new Token(TokenType.Comma, ",", 0));
+                    Add(new Token(TokenType.Comma, ",", 0));
                     index++;
                     continue;
             }
@@ -779,7 +863,7 @@ internal static class ExpressionParser
                 var pair = expression.Substring(index, 2);
                 if (pair is "==" or "!=" or "<=" or ">=" or "&&" or "||")
                 {
-                    tokens.Add(new Token(TokenType.Operator, pair, 0));
+                    Add(new Token(TokenType.Operator, pair, 0));
                     index += 2;
                     continue;
                 }
@@ -787,7 +871,7 @@ internal static class ExpressionParser
 
             if (current is '+' or '-' or '*' or '/' or '%' or '<' or '>' or '!')
             {
-                tokens.Add(new Token(TokenType.Operator, current.ToString(), 0));
+                Add(new Token(TokenType.Operator, current.ToString(), 0));
                 index++;
                 continue;
             }
@@ -795,7 +879,7 @@ internal static class ExpressionParser
             throw new WorkflowException($"表达式包含无法识别的字符 '{current}'");
         }
 
-        tokens.Add(new Token(TokenType.End, string.Empty, 0));
+        Add(new Token(TokenType.End, string.Empty, 0));
         return tokens;
     }
 
@@ -877,14 +961,20 @@ internal static class ExpressionParser
 
     private static ExpressionNode ParseUnary(List<Token> tokens, ref int position)
     {
-        if (tokens[position] is { Type: TokenType.Operator, Text: "!" or "-" })
+        var operators = new List<string>();
+        while (tokens[position] is { Type: TokenType.Operator, Text: "!" or "-" })
         {
-            var op = tokens[position].Text;
+            operators.Add(tokens[position].Text);
             position++;
-            return new UnaryNode(op, ParseUnary(tokens, ref position));
         }
 
-        return ParsePostfix(tokens, ref position);
+        var node = ParsePostfix(tokens, ref position);
+        for (var index = operators.Count - 1; index >= 0; index--)
+        {
+            node = new UnaryNode(operators[index], node);
+        }
+
+        return node;
     }
 
     private static ExpressionNode ParsePostfix(List<Token> tokens, ref int position)
