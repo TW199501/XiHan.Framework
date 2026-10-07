@@ -222,7 +222,7 @@ public class ScriptOptions
     }
 
     /// <summary>
-    /// 启用严格安全模式
+    /// 启用严格安全模式；当前进程内引擎会拒绝执行脚本
     /// </summary>
     public ScriptOptions WithStrictSecurity()
     {

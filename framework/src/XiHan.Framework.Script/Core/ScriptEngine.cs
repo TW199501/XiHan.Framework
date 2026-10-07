@@ -45,6 +45,13 @@ public class ScriptEngine : IScriptEngine, IDisposable
 
         try
         {
+            if (options.SecurityOptions.EnableStrictMode)
+            {
+                throw new ScriptSecurityException(
+                    "严格安全模式需要进程外隔离执行器；当前脚本引擎在宿主进程内执行代码。",
+                    "StrictModeUnsupported");
+            }
+
             // 获取缓存键
             var cacheKey = options.CacheKey ?? GenerateCacheKey(scriptCode, options);
 
