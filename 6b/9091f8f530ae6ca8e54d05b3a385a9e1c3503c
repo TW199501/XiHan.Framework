@@ -1,0 +1,34 @@
+framework/src/XiHan.Framework.AI/Providers/AiEmbeddingGeneratorResolver.cs
+  s_d91e80be1b5795::t_4f60a22f34a7a2 14-17,64-66,73,76
+  s_d91e80be1b5795::t_bc18286b9257a0 23-26,34-43,53,55-61,67-69,79-80,82,84,87-97,100-103,111-112,114-126,130,132,134-153,155-234,236-244
+  s_d91e80be1b5795::t_48738291cb8bbf 154,235
+framework/src/XiHan.Framework.AI.Abstractions/Providers/IAiEmbeddingGeneratorResolver.cs
+  s_d91e80be1b5795::t_4f60a22f34a7a2 25-28
+framework/test/XiHan.Framework.AI.Tests/Providers/AiEmbeddingGeneratorResolverTests.cs
+  s_d91e80be1b5795::t_4b568319d01c5b 1-25,27-31,34-77,79-92
+  s_d91e80be1b5795::t_36d7d00109ef53 78
+  s_d91e80be1b5795::t_a7e745dd8d599d 26
+  s_d91e80be1b5795::t_fae92c33964157 32-33
+framework/src/XiHan.Framework.AI/XiHan.Framework.AI.csproj
+  s_d91e80be1b5795::t_fae92c33964157 17
+docs/guide/ai.md
+  s_d91e80be1b5795::t_4f60a22f34a7a2 125
+docs/packages/ai.md
+  s_d91e80be1b5795::t_4f60a22f34a7a2 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b9091f8f530ae6ca8e54d05b3a385a9e1c3503c",
+  "prompts": {},
+  "sessions": {
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
