@@ -1,0 +1,49 @@
+framework/test/XiHan.Framework.Web.Api.Tests/Security/LocalOpenApiReplayNonceStoreTests.cs
+  s_d91e80be1b5795::t_8baf885414d712 1-47
+docs/guide/security.md
+  s_d91e80be1b5795::t_4a99e5348985ff 333-334
+framework/src/XiHan.Framework.Web.Api/Middlewares/XiHanOpenApiSecurityMiddleware.cs
+  s_d91e80be1b5795::t_4a99e5348985ff 281,283-292
+  s_d91e80be1b5795::t_da39e77ba3fedd 24-25,27-28,125-131,268-280,282,293
+  s_d91e80be1b5795::t_98ff4c60b4e548 294-295
+framework/src/XiHan.Framework.Web.Api/Security/OpenApi/OpenApiNonceAcquisitionResult.cs
+  s_d91e80be1b5795::t_eeb7ebb51112d5 1-19
+framework/src/XiHan.Framework.Web.Api/Security/OpenApi/LocalOpenApiReplayNonceStore.cs
+  s_d91e80be1b5795::t_c986652cfa089e 32
+  s_d91e80be1b5795::t_eeb7ebb51112d5 1-31,33-63,69,71-75
+  s_d91e80be1b5795::t_da39e77ba3fedd 64-68,70
+docs/changelog.md
+  s_d91e80be1b5795::t_4a99e5348985ff 7-10
+  s_d91e80be1b5795::t_8baf885414d712 12
+framework/src/XiHan.Framework.Web.Api/Security/OpenApi/XiHanOpenApiSecurityOptions.cs
+  s_d91e80be1b5795::t_da39e77ba3fedd 47-56
+framework/src/XiHan.Framework.Web.Api/Extensions/DependencyInjection/XiHanWebApiServiceCollectionExtensions.cs
+  s_d91e80be1b5795::t_da39e77ba3fedd 61
+docs/packages/web-api.md
+  s_d91e80be1b5795::t_4a99e5348985ff 41,165
+  s_d91e80be1b5795::t_8baf885414d712 219,228-229
+framework/src/XiHan.Framework.Web.Api/Security/OpenApi/IOpenApiReplayNonceStore.cs
+  s_d91e80be1b5795::t_eeb7ebb51112d5 1-30
+framework/test/XiHan.Framework.Web.Api.Tests/Security/OpenApiNonceTests.cs
+  s_d91e80be1b5795::t_f0eb9b794d84f9 45-46,48,50-52,54-59,122,124
+  s_d91e80be1b5795::t_d04da12ee21f22 63-79,90-93,102-103,137-147
+  s_d91e80be1b5795::t_c398b3a41f376d 30,47,125,127-130
+  s_d91e80be1b5795::t_80a438aa9053e6 1-4,7-29,31-44,49,53,60-62,80-89,94-101,104-121,123,126,131-136,148-156
+  s_d91e80be1b5795::t_4fe582e262ba92 5-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f223654d40b017ec37aef1fd161eaa6c386a3aaa",
+  "prompts": {},
+  "sessions": {
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
