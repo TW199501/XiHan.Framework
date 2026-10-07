@@ -106,7 +106,6 @@ DDD 分层与应用服务契约。
 | --- | --- |
 | [ObjectStorage](./object-storage) | 对象存储：统一抽象 + 本地 / 阿里云 OSS / MinIO / 腾讯 COS 适配 |
 | [VirtualFileSystem](./virtual-file-system) | 虚拟文件系统：本地目录 + 程序集嵌入资源统一挂载、内存版本快照 |
-| [Excel](./excel) | Excel 导入导出：xlsx／csv／txt 三条写出路径、定宽与多来源惰性逐行读取、模板渲染 |
 | [Templating](./templating) | 模板渲染：默认简单占位替换引擎 + 可选 Scriban、模板注册表 |
 | [Tasks](./tasks) | 定时任务：调度引擎（Cron/间隔/延迟）、后台服务基类、多租户感知 |
 | [Traffic](./traffic) | 流量治理：灰度路由（百分比/用户/租户/请求头）、限流与熔断策略接口 |
