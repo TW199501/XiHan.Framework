@@ -1,0 +1,40 @@
+docs/changelog.md
+  s_d91e80be1b5795::t_f9fd3b07c2e8fd 15
+framework/test/XiHan.Framework.Authentication.Tests/Oidc/OidcSigningKeyProviderConcurrencyTests.cs
+  s_d91e80be1b5795::t_4fb5a12765ea00 48-62,65-100
+  s_d91e80be1b5795::t_2434b4c06bed23 1-33,35-36,38-47,101
+  s_d91e80be1b5795::t_f9fd3b07c2e8fd 34,37,63-64
+framework/src/XiHan.Framework.Authentication/Oidc/OidcSigningKeyProvider.cs
+  s_d91e80be1b5795::t_acc367726aff46 101
+  s_d91e80be1b5795::t_463761aaec2775 113,128,133,154-155,161,167,176,186
+  s_d91e80be1b5795::t_f9fd3b07c2e8fd 166,168-175
+  s_d91e80be1b5795::t_90bc4c818f4c38 32-33,102,112,129-132,134-153,156-160,162-165,177-185,187-191
+  s_d91e80be1b5795::t_0793e6feabaabb 86,90
+  s_4b458e80391909::t_16bf5c19dde896 192
+framework/src/XiHan.Framework.Authentication/README.md
+  s_d91e80be1b5795::t_f9fd3b07c2e8fd 40-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33a3e9cabe9174c9478a2bd7cf337d478e099fd9",
+  "prompts": {},
+  "sessions": {
+    "s_4b458e80391909": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cc7abdf4-9e8e-4625-907e-0af42bde178a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
