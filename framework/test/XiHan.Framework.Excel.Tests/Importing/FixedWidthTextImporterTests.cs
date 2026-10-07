@@ -24,14 +24,11 @@ namespace XiHan.Framework.Excel.Tests.Importing;
 /// 夹具一律当场造字节（<see cref="ImportFixtures" />），仓库里不留文字档样本。
 /// </para>
 /// <para>
-/// 期望字节数取自实测而不是换算：<c>Big5</c> 下一个汉字占 2 字节（<c>中</c> = <c>A4 A4</c>），
-/// <c>U+2028</c> 在 UTF-8 下占 3 字节而 <c>U+0085</c> 占 2 字节。因此「按字符切列」与「按字节切列」
-/// 会在同一份档上给出不同结果，本文件只承认后者。
+/// <c>Big5</c> 下一个汉字占 2 字节（<c>中</c> = <c>A4 A4</c>），<c>U+2028</c> 在 UTF-8 下占 3 字节而 <c>U+0085</c> 占 2 字节。
 /// </para>
 /// <para>
 /// 定宽路径把 <see cref="ExcelImportOptions.HasHeader"/> 按「无表头」处理：键名恒取列定义的键、首行就是数据、
-/// 行号从 <c>1</c> 起。所以每条用例都<u>显式写出</u>它所依赖的 <c>HasHeader</c> 取值——读取助手
-/// <c>Read(..., bool hasHeader, ...)</c> 的该参数没有默认值，不留一条靠隐式默认成立的用例。
+/// 行号从 <c>1</c> 起。每条用例都<u>显式写出</u>它所依赖的 <c>HasHeader</c> 取值。
 /// </para>
 /// </remarks>
 public class FixedWidthTextImporterTests
@@ -98,9 +95,6 @@ public class FixedWidthTextImporterTests
     /// <summary>
     /// 没给列定义时抛，不把整行当成一列交回
     /// </summary>
-    /// <remarks>
-    /// 「整行一列」看着像降级，实际是把定宽档读成谁也认不出的单列档，按「无法确定的输入直接抛」处理。
-    /// </remarks>
     [Fact]
     public async Task 未给FixedColumns时抛而不是整行当一列()
     {
@@ -156,7 +150,6 @@ public class FixedWidthTextImporterTests
     /// </summary>
     /// <remarks>
     /// 第一行的长度在读取缓冲边界前后各取一档，保证总有一档把 <c>\r</c> 留在段尾、<c>\n</c> 推到下一段开头。
-    /// 处理不当就会多交出一条空行，或让第二行少一个字符。
     /// </remarks>
     /// <param name="fillerLength">第一行的字节长度，行尾从这一格之后开始</param>
     [Theory]
@@ -175,17 +168,14 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// U+2028／U+2029／U+0085 在定宽档里不算行尾：导出侧只拒 \r 与 \n，导入侧也必须只按这两个字符分行
+    /// U+2028／U+2029／U+0085 在定宽档里不算行尾，导入侧只按 \r 与 \n 分行
     /// </summary>
     /// <remarks>
     /// <para>
     /// 本组件的行尾定义只有 <c>\r\n</c>／<c>\n</c>／<c>\r</c>，与 <see cref="ExcelTextOptions.NewLine"/> 写出的序列一致。
-    /// 定宽档的值可以含全形行分隔符（导出侧不拒它们），导入侧若把其中一个当行尾，就会把一档读成错行的两档。
     /// </para>
     /// <para>
-    /// 同一条用例顺手记下 .NET 10 上 <c>StringReader.ReadLine()</c> 的实际行为：它在这三个字符处<u>不</u>分行。
-    /// 本路径仍按字节切而不是用它，理由在「全形字错位」与「编码判别必须走严格解码器」那两条，不在这里重复；
-    /// 这条断言留着是为了哪天 ReadLine 改了口径时能被看见，而不是默认它永远不会变。
+    /// 同一条用例记下 .NET 10 上 <c>StringReader.ReadLine()</c> 的实际行为：它在这三个字符处<u>不</u>分行。
     /// </para>
     /// </remarks>
     [Fact]
@@ -207,8 +197,7 @@ public class FixedWidthTextImporterTests
     /// 列边界落在多字节字符中间时按解码失败停下，不交出半个字
     /// </summary>
     /// <remarks>
-    /// 定宽档的列边界本该由写档方按字节对齐，切在半字符上说明档与列定义不符。解码器带严格回退，
-    /// 因此这里拿到 <see cref="DecoderFallbackException"/>，而不是替换字符或私有区字符。
+    /// 断言抛 <see cref="DecoderFallbackException"/>，而不是交出替换字符或私有区字符。
     /// </remarks>
     [Fact]
     public async Task 列边界切在多字节字符中间时解码失败不交回半个字()
@@ -225,8 +214,7 @@ public class FixedWidthTextImporterTests
     /// 档带 UTF-8 BOM 时前导字节不属于第一列的数据，三种编码请求下都读不回 U+FEFF
     /// </summary>
     /// <remarks>
-    /// 指名为不带 BOM 的 <c>utf-8</c> 时也要剥：解码器不会自己认 BOM，留着就让第一列多出一个不可见字符，
-    /// 而 <see cref="ExcelImportOptions.TrimValues"/> 默认不剥空白，那个字符会一路带进业务数据。
+    /// 指名为不带 BOM 的 <c>utf-8</c> 时同样剥掉 BOM。
     /// </remarks>
     /// <param name="encodingName">指名的编码，<c>null</c> 走自动判别</param>
     [Theory]
@@ -290,12 +278,8 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// UTF-16／UTF-32 在定宽路径直接拒读：字节层找行尾会在字符中间撞到 0x0D 或 0x0A
+    /// UTF-16／UTF-32 在定宽路径直接拒读
     /// </summary>
-    /// <remarks>
-    /// 这两种编码的一个 ASCII 字符就带一个 <c>0x00</c>，而 U+0A00 一类字符的小端字节里直接含 <c>0x0A</c>，
-    /// 按字节切行会把档切碎。与其交回一份列位错开的档，不如把边界讲明白并给出可执行的改法。
-    /// </remarks>
     /// <param name="encodingName">要指的宽字节编码名</param>
     [Theory]
     [InlineData("utf-16")]
@@ -331,18 +315,8 @@ public class FixedWidthTextImporterTests
     /// 行尾编不成单字节（EBCDIC）与有状态编码（ISO-2022）都在定宽导入被拒，且一条行都不交出
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 两条坏档形态来自外部审查的实测，原来都<u>回报成功</u>：<c>IBM037</c> 把 <c>\n</c> 编成 <c>0x25</c>，
-    /// <c>NewLine="\r\n"</c> 时第 2 行起每栏边界整体右移 1 字节、末栏尾部字节被当多余丢掉，
-    /// <c>NewLine="\n"</c> 时整档找不到行尾、只交出一行；<c>iso-2022-jp</c> 在段首补跳脱序列，「日本」整体 12 字节
-    /// 而分段编成 10 + 10 字节，声明 10 + 8 宽的两格实际只写出 12 字节，后面每一栏一起偏掉，
-    /// 把第二段单独解码还拿回一串 ASCII 乱码而不抛。
-    /// </para>
-    /// <para>
-    /// 判据与导出侧共用 <c>TextWriterHelper.ValidateFixedWidthEncoding</c> 那一份实现（两条客观检查：行尾字节唯一
-    /// 可寻址、分段编码等于整体编码），不在这里维护码表清单。守卫排在建立读取缓冲之前，所以抛出时一行都不该交出
-    /// ——本条用手工枚举把「零行」变成可断言的现实，而不是只断抛出型别。消息点名不过的是哪一条检查。
-    /// </para>
+    /// 判据与导出侧共用 <c>TextWriterHelper.ValidateFixedWidthEncoding</c>（两条检查：行尾字节唯一可寻址、
+    /// 分段编码等于整体编码）。用手工枚举断言一行都不交出，消息点名不过的是哪一条检查。
     /// </remarks>
     /// <param name="encodingName">要指的坏编码</param>
     /// <param name="expectedCheck">消息应点名的检查项</param>
@@ -353,7 +327,7 @@ public class FixedWidthTextImporterTests
     {
         var encoding = Encoding.GetEncoding(encodingName);
 
-        // 两行、每行两栏，声明列宽 2 + 2：坏编码写不出这种档，读它就是在交错位内容
+        // 两行、每行两栏，声明列宽 2 + 2
         var bytes = encoding.GetBytes("AB\r\nCD\r\n");
 
         var (rows, failure) = await ReadWithOutcomeAsync(bytes, encodingName);
@@ -370,9 +344,8 @@ public class FixedWidthTextImporterTests
     /// 守卫不多拒：合法的单字节与多字节编码照常逐行读出定宽档
     /// </summary>
     /// <remarks>
-    /// 定宽真正依赖的是「行尾字节唯一可寻址」与「分段编码等于整体编码」两条性质，不是「非 UTF-16/UTF-32」。
-    /// Big5、Shift-JIS、GB18030 这些一个汉字占多字节的编码都满足两条性质，把它们一并拒掉会让合法的繁体／日文／
-    /// 简体定宽档读不出来，比放行坏编码更伤人，因此正例按编码族逐个钉住。
+    /// Big5、Shift-JIS、GB18030 等多字节编码满足「行尾字节唯一可寻址」与「分段编码等于整体编码」两条性质，
+    /// 正例按编码族逐个列出。
     /// </remarks>
     /// <param name="encodingName">合法编码名</param>
     [Theory]
@@ -409,10 +382,6 @@ public class FixedWidthTextImporterTests
     /// <summary>
     /// 列宽 0 与负数不是「未指定」的另一种写法，抛出的消息点名该列
     /// </summary>
-    /// <remarks>
-    /// 与导出侧同一口径：未指定交给 <c>null</c>，非正数是非法取值。定宽档按累计字节偏移切列，
-    /// 0 宽列让后续列位整体前移，负数更会让偏移倒退。
-    /// </remarks>
     /// <param name="widthBytes">非法列宽</param>
     [Theory]
     [InlineData(0)]
@@ -429,10 +398,6 @@ public class FixedWidthTextImporterTests
     /// <summary>
     /// 列键重复时抛，不让后一列盖掉前一列
     /// </summary>
-    /// <remarks>
-    /// 分隔符路径的表头来自源档，重复时加 <c>_n</c> 后缀把两份数据都留住；定宽列定义是开发者写的结构，
-    /// 同名两列没有「后缀一下就对了」的解释，只能要求调用方改键。
-    /// </remarks>
     [Fact]
     public async Task 定宽列键重复时抛而不是后列盖掉前列()
     {
@@ -446,10 +411,6 @@ public class FixedWidthTextImporterTests
     /// <summary>
     /// 列键是空字串或仅含空白时抛，并点名是第几列
     /// </summary>
-    /// <remarks>
-    /// 空键的那一列读回后再也取不到——字典里那个键没人写得出来。这里不替调用方补一个 <c>Col{n}</c>：
-    /// 定宽列名是开发者给的结构，补名就是把一处写错的定义读成一份「每列都有名字」的档。
-    /// </remarks>
     /// <param name="key">非法列键</param>
     [Theory]
     [InlineData("")]
@@ -463,7 +424,7 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// 列宽总和超过硬上限时抛，不让一份档的一行决定内存占用
+    /// 列宽总和超过硬上限时抛
     /// </summary>
     [Fact]
     public async Task 定宽列宽总和超过单行缓冲上限时抛()
@@ -479,12 +440,10 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// 列宽总和正好等于硬上限时不抛：这道界挡的是「超过」，把判据写成「达到即拒」就是把合法档也关掉一分
+    /// 列宽总和正好等于硬上限时不抛
     /// </summary>
     /// <remarks>
-    /// 与上一条一起把 off-by-one 钉死：两条分别喂「总和 = 上限」与「总和 = 上限 + 1」，
-    /// 判据从 <c>&gt;</c> 漂成 <c>&gt;=</c> 时这一条立刻变红。上限那一格给到 <c>B</c> 列的 1 字节，
-    /// 所以这一档的整行列宽总和恰好是 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/>。
+    /// <c>B</c> 列给 1 字节，整行列宽总和恰好是 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/>。
     /// </remarks>
     [Fact]
     public async Task 定宽列宽总和正好等于硬上限时不抛()
@@ -500,7 +459,7 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// 列清单里塞了空项时抛并点名第几项，不等到取键时才撞 NullReferenceException
+    /// 列清单里有空项时抛并点名第几项
     /// </summary>
     [Fact]
     public async Task 定宽列清单里有空项时抛并点名第几项()
@@ -514,10 +473,6 @@ public class FixedWidthTextImporterTests
     /// <summary>
     /// 定宽路径把 HasHeader 按无表头处理：两种取值都不吃行，键名恒取列定义的键，首行行号是 1
     /// </summary>
-    /// <remarks>
-    /// 定宽档没有「表头文案」这回事——列名来自调用方给的列定义，源档第一行就是数据。把表头语义套上去
-    /// 会凭空吃掉一条记录，而行号要留给错误报表定位，因此固定成「不吃行、键取列定义」。
-    /// </remarks>
     /// <param name="hasHeader">用例显式给出的表头声明</param>
     [Theory]
     [InlineData(true)]
@@ -536,8 +491,7 @@ public class FixedWidthTextImporterTests
     /// 前导行按 HeaderRowIndex 丢掉，丢掉的行仍占行号
     /// </summary>
     /// <remarks>
-    /// 定宽档常见「前两行是档头说明」的形态，这条给的就是跳过它的能力；行号口径与分隔符路径一致，
-    /// 跳过的行不重排，报表才指得回源档那一行。丢掉的前导行不切列，因此也不为它们留痕。
+    /// 丢掉的前导行不切列，也不为它们留痕。
     /// </remarks>
     [Fact]
     public async Task 定宽路径按HeaderRowIndex丢掉前导行且行号含它()
@@ -612,10 +566,10 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// 越界上限先于列校验被拒：请求本身的问题优先于档的内容
+    /// 越界上限先于列校验被拒
     /// </summary>
     /// <remarks>
-    /// 与分隔符路径同顺序——同一条缺列定义的档上，越界的 MaxRowCount 要报「上限越界」而不是「没给列定义」。
+    /// 与分隔符路径同顺序：同一条缺列定义的档上，越界的 MaxRowCount 报「上限越界」而不是「没给列定义」。
     /// </remarks>
     [Fact]
     public async Task 越界上限在定宽路径先于列校验被拒()
@@ -630,10 +584,6 @@ public class FixedWidthTextImporterTests
     /// <summary>
     /// 配置的行数上限在定宽路径同样收紧，两条导入路径认同一个上限
     /// </summary>
-    /// <remarks>
-    /// 上限判据由两条路径共用一份，配置面也必须两边都接得上：只在容器路径生效的话，同一个收紧的配置值
-    /// 会在定宽档上读出更多的行，而这正是「按配置收紧」最想避免的方向。
-    /// </remarks>
     [Fact]
     public async Task 配置的行数上限在定宽路径同样收紧()
     {
@@ -661,10 +611,6 @@ public class FixedWidthTextImporterTests
     /// <summary>
     /// 档大小超过配置上限时定宽路径整份拒收，判据与容器路径共用一份
     /// </summary>
-    /// <remarks>
-    /// 两条导入路径对「这份档太大」必须同一种报法：只在容器路径判的话，同一份超限的档换条路径读就放行了，
-    /// 而「走哪条读取路径」由列定义有没有给决定，不该顺带决定档能有多大。
-    /// </remarks>
     [Fact]
     public async Task 超过配置档大小上限的定宽档被拒()
     {
@@ -705,14 +651,7 @@ public class FixedWidthTextImporterTests
     /// 没指名上限而数据行超过框架硬上限时，定宽路径同样抛出而不是静默截断
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 判据与容器路径共用 <c>ImportSharedRules</c> 里那一份，两条路径必须同一种行为：同一份档换条读取路径
-    /// 就从「抛」变成「悄悄少交行」，等于让路由决定数据丢不丢。抛之前该交的行一行不少。
-    /// </para>
-    /// <para>
-    /// 档要有 <see cref="ExcelConstants.DefaultMaxImportRows"/> + 1 行数据才走得到这条路径：上限不可配置，
-    /// 造不出更便宜的等价场景。逐行交出不物化，因此这条用例只是慢一点，不会把百万行留在内存里。
-    /// </para>
+    /// 判据与容器路径共用 <c>ImportSharedRules</c>；抛之前已交出的行一行不少。
     /// </remarks>
     [Fact]
     public async Task 未指名上限而数据行超过框架硬上限时定宽路径抛出()
@@ -739,10 +678,6 @@ public class FixedWidthTextImporterTests
     /// <summary>
     /// 定宽档的数据行恰好等于框架硬上限时不抛，与容器路径同一个口径
     /// </summary>
-    /// <remarks>
-    /// 抛的条件是「上限之后仍有数据行」，因此恰等上限的档要往下多读一行、读到档尾才收手；
-    /// 少了那一次多读，这条用例会变成误抛。
-    /// </remarks>
     [Fact]
     public async Task 定宽档数据行恰等框架硬上限时不抛()
     {
@@ -795,7 +730,7 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// 不可定位的输入流在就读之前被拒，不把缓冲实现的失败面当契约
+    /// 不可定位的输入流在就读之前被拒
     /// </summary>
     [Fact]
     public async Task 不可定位的定宽输入流被拒()
@@ -814,7 +749,7 @@ public class FixedWidthTextImporterTests
     /// </summary>
     /// <remarks>
     /// 「只有行尾」那一条是在 <see cref="ExcelImportOptions.SkipEmptyRows"/> 默认开启下交出空序列；
-    /// 空档则是根本没有行。两者都不该是异常，也不该凭空交出一条全空记录。
+    /// 空档则是根本没有行。
     /// </remarks>
     /// <param name="text">档内容</param>
     [Theory]
@@ -916,7 +851,7 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// 行字节数正好等于列宽总和时不留痕，两条 Debug 不是每行一条的噪声
+    /// 行字节数正好等于列宽总和时不留痕
     /// </summary>
     [Fact]
     public async Task 行刚好等宽时不记留痕日志()
@@ -935,13 +870,11 @@ public class FixedWidthTextImporterTests
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 公式前缀这一趟走的是<u>显式开着</u> <see cref="ExcelTextOptions.EscapeFormulaPrefix"/>（默认即 <c>true</c>）：
-    /// 固定宽度布局不套该前缀（加 <c>'</c> 会吃掉一格字节宽度、让后续列位整体错位），所以 <c>-5.00</c>
-    /// 写出去就是 <c>-5.00</c>，读回也还是 <c>-5.00</c>。开着开关也能逐字往返是这条路径的性质，不是巧合。
+    /// 这一趟<u>显式开着</u> <see cref="ExcelTextOptions.EscapeFormulaPrefix"/>（默认即 <c>true</c>）：
+    /// 固定宽度布局不套该前缀，<c>-5.00</c> 写出去就是 <c>-5.00</c>，读回也还是 <c>-5.00</c>。
     /// </para>
     /// <para>
-    /// 相等要靠 <see cref="ExcelImportOptions.TrimValues"/> 剥掉补位空格：定宽档列宽不足的那一段本来就是空格补出来的，
-    /// 默认不剥时读回的是「原值加补位」，那是布局而不是数据。「不剥时读到什么」由
+    /// 相等靠 <see cref="ExcelImportOptions.TrimValues"/> 剥掉补位空格。「不剥时读到什么」由
     /// <see cref="TrimValues在定宽路径逐项生效"/> 钉住。
     /// </para>
     /// </remarks>
@@ -1018,10 +951,9 @@ public class FixedWidthTextImporterTests
     /// 分隔符往返关掉公式前缀后逐字段等于原值，含逗号、引号与换行的值也原样回来
     /// </summary>
     /// <remarks>
-    /// 这一条走的是「<u>显式关掉</u> <see cref="ExcelTextOptions.EscapeFormulaPrefix"/>」那一种处置：关掉之后
-    /// <c>-5.00</c> 写出去没有前缀，读回也就没有前缀，逐字段相等才谈得上成立。值里的逗号与引号由
-    /// <see cref="ExcelTextQuote.Minimal"/> 按 RFC 4180 包住并转义，读档侧还原；值里的换行被引号包住后属于同一条记录，
-    /// 因此后续记录的行号按记录递增（与 <see cref="ExcelImportRow.RowNumber"/> 的文字档口径一致）。
+    /// 这一条<u>显式关掉</u> <see cref="ExcelTextOptions.EscapeFormulaPrefix"/>：<c>-5.00</c> 写出去没有前缀，读回也没有前缀。
+    /// 值里的逗号与引号由 <see cref="ExcelTextQuote.Minimal"/> 按 RFC 4180 包住并转义，读档侧还原；值里的换行被引号包住后
+    /// 属于同一条记录，后续记录的行号按记录递增（与 <see cref="ExcelImportRow.RowNumber"/> 的文字档口径一致）。
     /// </remarks>
     [Fact]
     public async Task 分隔符往返关掉公式前缀后逐字段等于原值()
@@ -1069,11 +1001,10 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// 分隔符往返开着公式前缀时负数读回带单引号，这是把前缀算进期望值的那一种处置
+    /// 分隔符往返开着公式前缀时负数读回带单引号
     /// </summary>
     /// <remarks>
-    /// 表头与数据走同一条判据，因此这里刻意让一个表头以 <c>-</c> 起始：键名带着前缀落进集合，
-    /// 按源表头文本「-重量」取值是取不到的。「按表头文案匹配列键」的用法在这条路径上必须把前缀算进去。
+    /// 有一个表头以 <c>-</c> 起始：键名带着前缀落进集合，按源表头文本「-重量」取值取不到。
     /// </remarks>
     [Fact]
     public async Task 分隔符往返开着公式前缀时负数读回带前缀()
@@ -1147,10 +1078,6 @@ public class FixedWidthTextImporterTests
     /// <summary>
     /// 格式未指名但给了列定义时走固定宽度：路由规则只有列定义这一条，门面不做签章嗅探
     /// </summary>
-    /// <remarks>
-    /// 文字档没有可靠签名，交给容器判别只会撞到「判不出格式」；<see cref="ExcelImportOptions.Format"/> 留空
-    /// 也能读定宽档，正是因为门面不拿格式做第二道判据。
-    /// </remarks>
     [Fact]
     public async Task 门面在格式未指名但给了FixedColumns时走固定宽度()
     {
@@ -1168,7 +1095,7 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// 门面把 csv 请求交给 <see cref="ExcelDataReaderImporter" />，分隔符与表头语义不在门面里重抄一遍
+    /// 门面把 csv 请求交给 <see cref="ExcelDataReaderImporter" />
     /// </summary>
     [Fact]
     public async Task 门面把csv请求路由到ExcelDataReaderImporter()
@@ -1216,7 +1143,7 @@ public class FixedWidthTextImporterTests
         => Assert.IsAssignableFrom<IExcelImporter>(NewFacade());
 
     /// <summary>
-    /// 门面构造时拒掉缺失的读实现，不在枚举中途才交出 <c>null</c> 引用
+    /// 门面构造时拒掉缺失的读实现
     /// </summary>
     [Fact]
     public void 门面构造时要求两个读实现()
@@ -1228,7 +1155,7 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// 定宽导入器构造时要求日志器：两条留痕全靠它，不允许传 null 换「安静一点」
+    /// 定宽导入器构造时要求日志器，不接受 null
     /// </summary>
     [Fact]
     public void 定宽导入器构造时要求日志器()
@@ -1239,14 +1166,12 @@ public class FixedWidthTextImporterTests
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 定宽路径复用 <c>TextEncodingResolver</c> 而不是自己抄一份，这条用例就是那句声明的证据：把同一份字节分别交给
-    /// 两条路径，比的是<u>逐条对跑的结果</u>（取到的值，或抛出的异常型别与 ParamName），不是两条各自断言一遍。
+    /// 把同一份字节分别交给两条路径，比的是<u>逐条对跑的结果</u>（取到的值，或抛出的异常型别与 ParamName）。
     /// 五个形态覆盖 BOM、无 BOM 的非 UTF-8、编码指错、未知编码名与空档。
     /// </para>
     /// <para>
-    /// <b>不含无 BOM 的 UTF-16</b>：那条路径会按严格 UTF-8 判过去、解出一串夹着 <c>0x00</c> 的字符而不报错，
-    /// 本路径则直接拒收（<see cref="宽字节编码在定宽路径被拒"/>）。这一处分叉是刻意的，写在
-    /// <see cref="ExcelImportOptions.TextEncodingName"/> 的说明里，不该被一条「两边一样」的断言抹平。
+    /// <b>不含无 BOM 的 UTF-16</b>：分隔符路径按严格 UTF-8 解出夹着 <c>0x00</c> 的字符，
+    /// 定宽路径直接拒收（<see cref="宽字节编码在定宽路径被拒"/>）。
     /// </para>
     /// </remarks>
     /// <param name="shape">待对跑的档形态</param>
@@ -1333,9 +1258,7 @@ public class FixedWidthTextImporterTests
     /// 造一台放行 Debug 的日志工厂
     /// </summary>
     /// <remarks>
-    /// <c>LoggerFactory.Create</c> 的默认最低等级是 <c>Information</c>，
-    /// 两条行形态留痕会被挡在收集器之外，断言就只看得到「没有日志」这一种结果。等级在这里放到 <c>Debug</c>，
-    /// 让留痕断言真的问过实现。
+    /// <c>LoggerFactory.Create</c> 的默认最低等级是 <c>Information</c>，这里放到 <c>Debug</c>。
     /// </remarks>
     /// <param name="sink">日志收集器</param>
     private static ILoggerFactory NewDebugFactory(FakeLogSink sink)
@@ -1413,7 +1336,7 @@ public class FixedWidthTextImporterTests
 
         var stream = new MemoryStream();
 
-        // 公式前缀刻意保持开启：固定宽度布局不套它，正好用来证明往返不受这个开关影响
+        // 公式前缀保持开启
         await new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance).ExportAsync(
             stream,
             spec,
@@ -1480,8 +1403,7 @@ public class FixedWidthTextImporterTests
     /// <param name="rows">行数</param>
     /// <returns>档字节（UTF-8 无 BOM，每行 3 字节）</returns>
     /// <remarks>
-    /// 每行都是同一段字节，因此按千行一块拼：百万行的档只有 3 MB，造它是线性的，
-    /// 不必为了行数上限的用例付一遍逐行格式化的成本。
+    /// 每行都是同一段字节，按千行一块拼。
     /// </remarks>
     private static byte[] SingleColumnRows(int rows)
     {
@@ -1499,7 +1421,7 @@ public class FixedWidthTextImporterTests
     }
 
     /// <summary>
-    /// 门面实例：两个读实现按注册时的形状当场构造，仓库测试未引 mock 框架
+    /// 门面实例：两个读实现按注册时的形状当场构造
     /// </summary>
     private static ExcelImporter NewFacade()
         => new(new ExcelDataReaderImporter(), new FixedWidthTextImporter(NullLogger<FixedWidthTextImporter>.Instance));
@@ -1552,9 +1474,7 @@ public class FixedWidthTextImporterTests
     /// 手工枚举一份定宽档，交出<u>已经交出</u>的行与第一个异常
     /// </summary>
     /// <remarks>
-    /// 拒收类用例不能只断「抛了」：守卫排在建立读取缓冲之前，所以坏编码还必须一行都交不出，否则调用方手里
-    /// 就是一份「有几行对的、剩下的错位」的档。助手用 <c>GetAsyncEnumerator</c> 逐行推进，把抛出前已交出的行留下来，
-    /// <see cref="AsyncCollector" /> 那种「收集成功才返回」的助手在抛出时把行数丢掉了，做不到这件事。
+    /// 用 <c>GetAsyncEnumerator</c> 逐行推进，抛出时保留已交出的行。
     /// </remarks>
     /// <param name="bytes">档字节</param>
     /// <param name="encodingName">指名的编码</param>

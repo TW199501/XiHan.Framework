@@ -9,10 +9,7 @@ namespace XiHan.Framework.Excel.Tests.TestSupport;
 /// 记录被枚举次数的行集合，供自适应列宽的取样上限断言读取
 /// </summary>
 /// <remarks>
-/// 只作为测试夹具，不进正式 API。行数不可预知是
-/// <see cref="XiHan.Framework.Excel.Abstractions.Exporting.ExcelSheetSpec.Rows"/> 的常态，因此这里保持惰性：
-/// 每产出一个元素给外层计数加一，导出器若把行集合再枚举一遍或先物化成列表，
-/// 计数就会超出「写数据一遍 + 取样至多上限一遍」的上界。
+/// 只作为测试夹具，不进正式 API。集合保持惰性：每产出一个元素给外层计数加一，跨多次枚举累计。
 /// </remarks>
 public sealed class CountingRows : IEnumerable<SampleRow>
 {

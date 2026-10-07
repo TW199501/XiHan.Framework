@@ -9,15 +9,7 @@ namespace XiHan.Framework.Excel.Tests.TestSupport;
 /// 现场生成模板档写进 <see cref="MemoryStream" />，供模板渲染测试使用
 /// </summary>
 /// <remarks>
-/// <para>
-/// 只作为测试夹具，不进正式 API。模板一律当场用 ClosedXML 造，不向仓库提交二进制模板档——
-/// 二进制档看不出占位符落在哪一格，改动也没有 diff，回读断言会失去可读的依据。
-/// </para>
-/// <para>
-/// 每次调用交回一条新的流：占位符展开会把集合项写进模板所在行并下移后续行，
-/// 测试之间共用同一条流会互相污染；库渲染后还会关掉传入的模板流（实测见
-/// <c>.superpowers/sdd/2026-10-04-excel/t7-probe-miniexcel-behavior.txt</c>），复用更是不可行。
-/// </para>
+/// 只作为测试夹具，不进正式 API。模板一律当场用 ClosedXML 造，每次调用交回一条新的流。
 /// </remarks>
 public static class TemplateFactory
 {

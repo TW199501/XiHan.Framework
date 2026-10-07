@@ -16,96 +16,65 @@ namespace XiHan.Framework.Excel.Exporting;
 /// <remarks>
 /// <para>
 /// 写出顺序固定为：标题行（<see cref="ExcelSheetSpec.Title"/> 非空时占第一行并按列数合并）→ 表头行 →
-/// 逐行数据。仅含空白的 <see cref="ExcelSheetSpec.Title"/> 视为未填，不写标题行也不抛——标题是可选项，
-/// 这一口径与 <see cref="ExcelSheetSpec.SheetName"/> 不同（表名空白由该属性在 <c>init</c> 直接抛）。
-/// 列的写出顺序就是 <see cref="ExcelSheetSpec.Columns"/> 给出的顺序，写出侧不按
-/// <see cref="ExcelColumn.Order"/> 再排一次——构建器已把排定后的位置序号回写进 <c>Order</c>，
-/// 那里读到的不是调用方的声明值。
+/// 逐行数据。仅含空白的 <see cref="ExcelSheetSpec.Title"/> 视为未填，不写标题行。
+/// 列的写出顺序就是 <see cref="ExcelSheetSpec.Columns"/> 给出的顺序，不按 <see cref="ExcelColumn.Order"/> 再排。
 /// </para>
 /// <para>
-/// 行集合的元素按 <see cref="ExcelSheetSpec.RowType"/> 逐笔校验：声明本身为 <c>null</c> 属于「非法声明」，
-/// 在写出第一格之前的预检里就抛，一个行元素都不取；类型比对落在每一行上，任何一笔不符即抛，
-/// 不为一次类型检查而物化整份行集合。只判第一笔时，后面那笔异型行经列的取值方法只会交回 <c>null</c>，
-/// 放行就是写出一份表头齐全、数据全空的档。这条判据与流式、文字档两条写出路径共用一份，不各写一遍。
+/// 行集合的元素按 <see cref="ExcelSheetSpec.RowType"/> 逐笔校验：声明为 <c>null</c> 时在写出第一格之前抛出，
+/// 任何一笔类型不符即抛出。
 /// </para>
 /// <para>
-/// <see cref="ExcelSheetSpec.SheetName"/> 的可用性在写第一格之前判：长度不超过 31（按 UTF-16 代码单元，与工作簿同一量纲，
-/// 代理对算两个）、不含工作簿不接受的字符、不以单引号开头或结尾；多表路径还要求名字互不重复，判重用
-/// <see cref="StringComparer.OrdinalIgnoreCase"/>，与 Excel 和 <see cref="ClosedXML.Excel.IXLWorksheets"/> 的口径一致。
-/// 这套判据逐条对齐工作簿的实际约束：既不误杀它肯收的名字，也不放过它拒绝的名字，且不替调用方改名——
-/// 被拒的名字一律抛出，不做去空格、截断或加后缀这类静默兜底。
+/// <see cref="ExcelSheetSpec.SheetName"/> 在写第一格之前校验：长度不超过 31（按 UTF-16 代码单元，代理对算两个）、
+/// 不含工作簿不接受的字符、不以单引号开头或结尾；多表路径还要求名字互不重复，判重用
+/// <see cref="StringComparer.OrdinalIgnoreCase"/>。不合规的名字一律抛出，不改名。
 /// </para>
 /// <para>
 /// <see cref="ExcelColumn.Width"/> 是工作簿显示宽度：<c>null</c> 走自适应列宽，其余取值必须是大于 0 且不高于
-/// 255 的有限数（超过上限会被工作簿夹成约 254.29，与负数、无穷同一口径：抛）。
-/// xlsx 路径不读 <see cref="ExcelColumn.FixedWidth"/>、<see cref="ExcelColumn.PadChar"/> 与
-/// <see cref="ExcelColumn.Padding"/>——那三项是文字档的字节宽度语义。
+/// 255 的有限数。xlsx 路径不读 <see cref="ExcelColumn.FixedWidth"/>、<see cref="ExcelColumn.PadChar"/> 与
+/// <see cref="ExcelColumn.Padding"/>。
 /// </para>
 /// <para>
-/// 自适应列宽按前若干行取样：取样范围从表头行起，到「表头行 + min(实际写出的行数,
-/// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/>）」止。行集合是惰性序列，写出侧只枚举一遍，
-/// 取样读的是已经落进工作表的单元格，不再回头枚举行集合。标题行不参与取样（它跨列合并，
-/// 纳入会让每一列都按整条标题的宽度膨胀）。
+/// 自适应列宽从表头行起取样，到「表头行 + min(实际写出的行数,
+/// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/>）」止，读的是已写入工作表的单元格，不再枚举行集合。
+/// 标题行不参与取样。
 /// </para>
 /// <para>
-/// <see cref="ExcelColumn.NumberFormat"/> 是 Excel 的数字/日期格式串，只在工作簿路径生效：数值格写进
-/// <see cref="IXLStyle.NumberFormat"/>，日期格写进 <see cref="IXLStyle.DateFormat"/>（ClosedXML 里两者指向同一份
-/// 数字格式）；文本、空白、布尔与时长格不套格式。格式串原样交给 ClosedXML，写出侧不解析也不改写它。
+/// <see cref="ExcelColumn.NumberFormat"/> 是 Excel 的数字/日期格式串：数值格写进
+/// <see cref="IXLStyle.NumberFormat"/>，日期格写进 <see cref="IXLStyle.DateFormat"/>；文本、空白、布尔与时长格不套格式。
+/// 格式串原样交给 ClosedXML。
 /// </para>
 /// <para>
-/// 值域超出工作簿可表示范围的输入一律抛出而不是改写：日期早于 1900-01-01（本组件接受的最早日期，
-/// <c>DateTime</c>、<c>DateOnly</c> 与 <c>DateTimeOffset</c> 三种型别同判，出路是改用不早于该日的日期、
-/// 或由呼叫端把该列转成文本）；<c>double</c> 与 <c>float</c> 的 <c>NaN</c>、<c>±∞</c> 在数值格里
-/// 没有对应形态；<see cref="long"/>、<see cref="ulong"/>、<see cref="decimal"/>、<see cref="double"/>、
-/// <see cref="float"/> 的有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位时，
-/// 落进数值格的会是工作簿舍短后的另一个数（16 位整数落档即回读成 15 位那个数），本类不承诺这一格交回呼叫端给的值；
-/// <see cref="long"/>、<see cref="ulong"/>、<see cref="decimal"/> 的绝对值超过 9007199254740992（2 的 53 次方）时
-/// 同样交不回原值——数值格在档里就是一个双精度数，越过那道界之后整数不再逐个可表示，而整数末尾的一串零不计入
-/// 有效数字，位数看着不多也可能已越界（<c>double</c> 与 <c>float</c> 不在这一条里：呼叫端交出的本来就是双精度取值，
-/// 落进格里的是同一个双精度，交回的也是它）；字串长过 32767 个字符时工作簿装不下它。
-/// 五类都在该格抛 <see cref="InvalidOperationException"/> 并点名行位置、表头与列键，不改写成文本、不夹到边界值、
-/// 也不截断。颜色串必须是 <c>#RGB</c> 或 <c>#RRGGBB</c>，<c>null</c> 才表示未设置——空串与非法串不会被当成「没填」。
-/// 形状过关但工作簿仍解析不了的串（全形数字、阿拉伯-印度数字之类非 ASCII 位值）同样由本类转译成框架异常，
-/// 库的 <see cref="FormatException"/> 只作内部异常保留。这五条取值域判据与表名判据由两条 xlsx 写出路径共用一份，
-/// 这部分能导与不能导的输入集合与走哪条无关，日期下限也在内：<c>DateOnly</c> 与 <c>DateTimeOffset</c>
-/// 在本类落文本格、在流式路径落日期格，格位并不相同，但「哪一天之前不能写」两边量同一把尺、抛同一句成因，
-/// 因此早先「要原样保住早年日期就改走全量路径」这条出路已经作废——早于下限的日期只能由呼叫端自己转成文本栏位。
-/// <see cref="ExcelColumn.Header"/> 与 <see cref="ExcelSheetSpec.Title"/> 落的也是单元格，
-/// 与数据格共用 <see cref="ExcelConstants.MaxCellTextLength"/> 那道上限，但它们是声明而不是行值：超长时在写出
-/// 第一格之前抛 <see cref="ArgumentException"/>（<see cref="ArgumentException.ParamName"/> 为 <c>Header</c>／<c>Title</c>），
-/// 一个行元素都不取，也不截断；这份长度判据由 <see cref="ExcelCellTextGuard"/> 持有、与流式路径共用，
-/// 两边抛出的消息逐字相同。这句承诺的范围是「本类显式检查过的失败面」：
-/// 取值域、颜色解析、表名判据、表头与标题的长度，以及单张工作表的行数上限
-/// （<see cref="ExcelConstants.MaxSheetRows"/>，含标题行与表头行）在内，
-/// 工作簿自身的存盘失败（流不可写、容器损坏、磁盘满）不在内，那类按库的异常形态交回。
+/// 以下取值在该格抛 <see cref="InvalidOperationException"/> 并点名行位置、表头与列键：早于 1900-01-01 的
+/// <c>DateTime</c>、<c>DateOnly</c> 与 <c>DateTimeOffset</c>；<c>double</c> 与 <c>float</c> 的 <c>NaN</c>、<c>±∞</c>；
+/// 有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的 <see cref="long"/>、
+/// <see cref="ulong"/>、<see cref="decimal"/>、<see cref="double"/>、<see cref="float"/>；绝对值超过
+/// 9007199254740992（2 的 53 次方）的 <see cref="long"/>、<see cref="ulong"/>、<see cref="decimal"/>；
+/// 长过 32767 个字符的字串。这些取值域判据与表名判据由两条 xlsx 写出路径共用。
+/// 颜色串必须是 <c>#RGB</c> 或 <c>#RRGGBB</c>，<c>null</c> 表示未设置；工作簿解析不了的串转译成框架异常，
+/// 库的 <see cref="FormatException"/> 作为内部异常保留。
+/// <see cref="ExcelColumn.Header"/> 与 <see cref="ExcelSheetSpec.Title"/> 长过
+/// <see cref="ExcelConstants.MaxCellTextLength"/> 时在写出第一格之前抛 <see cref="ArgumentException"/>
+/// （<see cref="ArgumentException.ParamName"/> 为 <c>Header</c>／<c>Title</c>），判据由 <see cref="ExcelCellTextGuard"/> 持有。
+/// 单张工作表的行数上限为 <see cref="ExcelConstants.MaxSheetRows"/>（含标题行与表头行）。
+/// 工作簿自身的存盘失败（流不可写、容器损坏、磁盘满）按库的异常形态交回。
 /// </para>
 /// <para>
-/// 本类按 <see cref="ClosedXML.Excel.XLCellValue"/> 自己的口径落格，落进哪一类格子由取值的运行期型别决定：
+/// 落格类型由取值的运行期型别决定（按 <see cref="ClosedXML.Excel.XLCellValue"/>）：
 /// <c>DateTime</c> 落日期格，<c>decimal</c>／<c>double</c>／<c>float</c> 等落数值格，<c>bool</c> 落布尔格，
-/// <c>TimeSpan</c> 落时长格，<c>null</c> 落空格；<c>DateOnly</c>、<c>DateTimeOffset</c> 与 <c>Guid</c> 这类
-/// 工作簿没有对应格位的型别落文本格，读出的是它的文本形式而不是日期格。这与流式路径对同一些型别的落格
-/// 可以不同（例如 <c>DateOnly</c> 在流式路径落日期格），两条路径只承诺列顺序与表头文案一致，不承诺格位型别一致。
-/// <c>DateTime</c> 按它的<u>钟表时刻</u>落格：本类不读 <see cref="DateTime.Kind"/>、不做时区换算，
-/// <c>Utc</c>／<c>Local</c> 的实例都照它显示的年月日时分秒落进日期格，读回来是
-/// <see cref="DateTimeKind.Unspecified"/>（xlsx 的日期格本身只是一个带格式的数，没有容纳时区的地方）；
-/// 要按某个时区交代同一个瞬间，由呼叫端先换算再交值。
-/// 数值这一项两边各按自己的形式落档：本类把取值交给 <see cref="ClosedXML.Excel.XLCellValue"/>，
-/// 流式路径把取值的文本交给写出库，落进档里的写法可以不同（同一份 15 位整数，一边写成 <c>1E+15</c> 这样的形式，
-/// 一边写成整串数字）。能承诺的是读回的那个数：<see cref="ExcelConstants.MaxExactNumericSignificantDigits"/>
-/// 位有效数字以内两边都原样交回（按本组件的导入器读回实测一致），超出该位数的取值两边一起拒，
-/// 因此「同一份规格走哪条路径就得到哪个数」这件事不需要由调用方去猜。
+/// <c>TimeSpan</c> 落时长格，<c>null</c> 落空格；<c>DateOnly</c>、<c>DateTimeOffset</c> 与 <c>Guid</c> 落文本格。
+/// 与流式路径只承诺列顺序与表头文案一致，不承诺格位型别一致；有效数字在
+/// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位以内的数值两条路径读回相同的值。
+/// <c>DateTime</c> 按钟表时刻落格，不读 <see cref="DateTime.Kind"/>、不做时区换算，读回为
+/// <see cref="DateTimeKind.Unspecified"/>。
 /// </para>
 /// <para>
-/// 输出流的所有权在调用方：本类只写入，绝不对传入流调用 <c>Dispose</c>，
-/// 存盘后流的位置停在末尾，调用方把位置回到 0 即可读回。整份档（单表是一张，多表是清单里全部）先在内存里建好再落盘，
-/// 落盘只有 <c>SaveAs</c> 这一次：取消若在落盘之前被观察到（入口、逐行、每张表写完、存盘之前四处之一），
-/// 抛出的那一刻输出流是空的；只有存盘之后才被观察到的取消会留下一份完整的档，而交出的是异常、不是成功结果。
-/// 本类不承诺失败原子性，两种差别按取消被观察到的时机区分，不合并成一句保证。
+/// 输出流的所有权在调用方：本类只写入，不对传入流调用 <c>Dispose</c>，存盘后流的位置停在末尾。
+/// 整份档先在内存里建好，再以 <c>SaveAs</c> 一次落盘：存盘之前观察到的取消抛出时输出流为空；
+/// 存盘之后观察到的取消会留下一份完整的档并抛出异常。
 /// </para>
 /// <para>
-/// 写出全程同步：ClosedXML 没有异步面，写出侧不伪装 <c>async</c>、不起线程池任务；取消令牌在入口、逐行、
-/// 每张表写完、存盘之前与回传结果之前各检查一次，最后一笔取值期间的取消由存盘之前那一次拦下。
-/// 不写 <c>.xls</c>，也不承诺 <c>.xlsm</c> 宏、数据透视表与图表。
+/// 写出全程同步；取消令牌在入口、逐行、每张表写完、存盘之前与回传结果之前各检查一次。
+/// 不写 <c>.xls</c>，也不支持 <c>.xlsm</c> 宏、数据透视表与图表。
 /// </para>
 /// </remarks>
 /// <param name="options">Excel 选项，本导出器读取其中的 <see cref="XiHanExcelOptions.AutoWidthSampleRows"/>。</param>
@@ -118,7 +87,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     private const XLBorderStyleValues TableBorder = XLBorderStyleValues.Thin;
 
     /// <summary>
-    /// xlsx 的列宽上限（按字符数计），超过它的取值会被工作簿夹成约 254.29 而不是报错
+    /// xlsx 的列宽上限（按字符数计）
     /// </summary>
     private const double MaximumColumnWidth = 255.0;
 
@@ -136,11 +105,6 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <param name="maxSheetRows">单张工作表的行数上限，含标题行与表头行，至少 1</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> 为 <c>null</c></exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxSheetRows"/> 小于 1</exception>
-    /// <remarks>
-    /// 真实上限是一百多万行，逐行写到触线要产出十几 MB 的档并把它整份建在内存里，因此边界断言改在同一个判定上
-    /// 取一个小上限。判定只有 <see cref="_maxSheetRows"/> 这一处读点，注入与不注入走的是同一段代码；
-    /// 正式入口一律走公开构造函数，读到的就是那个常数。
-    /// </remarks>
     internal ClosedXmlExporter(XiHanExcelOptions options, int maxSheetRows)
         : this(options)
     {
@@ -150,7 +114,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     }
 
     /// <summary>
-    /// 本导出器生效的单张工作表行数上限，供接线断言确认公开入口读的就是 <see cref="ExcelConstants.MaxSheetRows"/>
+    /// 本导出器生效的单张工作表行数上限
     /// </summary>
     internal int MaxSheetRows => _maxSheetRows;
 
@@ -162,8 +126,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <param name="cancellationToken">取消令牌，取消时不再写出后续行</param>
     /// <returns>导出结果，格式为 <see cref="ExcelFormat.Xlsx"/>，<see cref="ExcelExportResult.StylingApplied"/> 为 <c>true</c></returns>
     /// <exception cref="ArgumentNullException"><paramref name="output"/> 或 <paramref name="sheet"/> 为 <c>null</c>，
-    /// 或 <see cref="ExcelSheetSpec.RowType"/> 为 <c>null</c>（<see cref="ArgumentException.ParamName"/> 为 <c>RowType</c>；
-    /// 该属性是 <c>required</c> 非空成员，null 只会来自 <c>null!</c> 的非法声明，并在写出第一格之前就被拒）</exception>
+    /// 或 <see cref="ExcelSheetSpec.RowType"/> 为 <c>null</c>（<see cref="ArgumentException.ParamName"/> 为 <c>RowType</c>）</exception>
     /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是大于 0 且不高于 255
     /// 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内，或
     /// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/> 为负数</exception>
@@ -174,29 +137,22 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <see cref="ExcelColumn.Header"/> 长过 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，此时
     /// <see cref="ArgumentException.ParamName"/> 为 <c>Header</c>；或 <see cref="ExcelSheetSpec.Title"/> 长过
     /// <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，此时 <see cref="ArgumentException.ParamName"/> 为
-    /// <c>Title</c>。表头与标题落的也是单元格，与数据格共用同一道上限，超长时写出侧<u>不截断</u>——截断会交回一份
-    /// 文案与声明不一致的档；这两条与表名、底色一样属于声明级判定，排在写出第一格之前，抛出时输出流零字节、
-    /// 行集合一次都没被枚举，消息只报长度与列键、不嵌那串超长文案本身。颜色串里只有「形状合法但工作簿
-    /// 解析不了（位值含非 ASCII 字符）」那一条带库的 <see cref="FormatException"/> 作为内部异常，形状本身不合法的那条
-    /// 没有内部异常——按异常类型与 <see cref="ArgumentException.ParamName"/> 分流，不要靠读内部异常判断成因</exception>
+    /// <c>Title</c>。以上均在写出第一格之前抛出，输出流为零字节；工作簿解析不了的颜色串带库的
+    /// <see cref="FormatException"/> 作为内部异常</exception>
     /// <exception cref="InvalidOperationException">行集合里有某笔元素与
     /// <see cref="ExcelSheetSpec.RowType"/> 不符；某个行值是工作簿装不下的（早于 1900-01-01 的
     /// <c>DateTime</c>／<c>DateOnly</c>／<c>DateTimeOffset</c>、<c>NaN</c> 或 <c>±∞</c>、有效数字多于
     /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的
     /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>、绝对值超过 9007199254740992
     /// （2 的 53 次方）的 <c>long</c>／<c>ulong</c>／<c>decimal</c>、长过单元格上限的字串）；
-    /// 某列的 <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串（含形状合法但解析不了的串）；
-    /// 或标题行、表头行与数据行加起来要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后——单张工作表
-    /// 只有这么多行，超出的行没有可落的位置，上限按每张工作表各自计、不做整簿累计，消息点出上限值、
-    /// 触线的那一行与「分成多张表或改用文字档」两条出路。各类消息都点名行位置与实际成因：行型不符者报出行号与
-    /// 期望／实际两个类型全名，取值与颜色两类报出行号、表头与列键，解析不了的那类把库的
-    /// <see cref="FormatException"/> 保留为内部异常</exception>
+    /// 某列的 <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串；
+    /// 或标题行、表头行与数据行加起来要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后（按每张工作表各自计）。
+    /// 消息点名行位置与成因</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
-    /// 值域检查（表名、列宽、对齐、表头底色、取样上限、<see cref="ExcelSheetSpec.RowType"/> 声明）全部排在写入第一格之前，
-    /// 非法输入不会留下半份文件。行集合按惰性枚举，取到一行才写一行，逐行检查取消令牌与工作表行数上限；
-    /// 存盘之前与回传结果之前各再查一次取消——前者抛出时输出流仍是零字节，后者抛出时整份档已经落盘，
-    /// 但不会交出成功结果。行数上限的判定也在逐行那一趟里，抛出时整份档尚未存盘，输出流同样是零字节。
+    /// 值域检查（表名、列宽、对齐、表头底色、取样上限、<see cref="ExcelSheetSpec.RowType"/> 声明）全部排在写入第一格之前。
+    /// 行集合按惰性枚举，逐行检查取消令牌与工作表行数上限；存盘之前与回传结果之前各再查一次取消。
+    /// 存盘之前抛出时输出流为零字节，回传结果之前抛出时整份档已经落盘。
     /// </remarks>
     public Task<ExcelExportResult> ExportAsync(
         Stream output,
@@ -213,13 +169,13 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
         using var workbook = new XLWorkbook();
         WriteSheet(workbook, sheet, cancellationToken);
 
-        // 落盘之前查一次：取消落在最后一笔的取值期间时，逐行检查已经没有下一轮可拦
+        // 落盘之前检查取消
         cancellationToken.ThrowIfCancellationRequested();
 
         // SaveAs 不关闭传入流，写完停在末尾
         workbook.SaveAs(output);
 
-        // 回传结果之前再查一次：只在这里被观察到的取消，档已落盘但不会交出成功结果
+        // 回传结果之前再检查一次取消，此时档已落盘
         cancellationToken.ThrowIfCancellationRequested();
 
         return Task.FromResult(ExcelExportResult.Styled(
@@ -239,16 +195,14 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <paramref name="sheets"/> 里有 <c>null</c> 项（<see cref="ArgumentException.ParamName"/> 为 <c>sheets</c>，
     /// 消息点名是第几项），或清单里某张表的 <see cref="ExcelSheetSpec.RowType"/> 为 <c>null</c>
     /// （<see cref="ArgumentException.ParamName"/> 为 <c>RowType</c>）</exception>
-    /// <exception cref="ArgumentException"><paramref name="sheets"/> 为空清单（工作簿至少要有一张表，
-    /// <see cref="ArgumentException.ParamName"/> 为 <c>sheets</c>），或某张表的 <see cref="ExcelSheetSpec.SheetName"/>
-    /// 不可用、或与清单里更早那张重名（判重不区分大小写），
+    /// <exception cref="ArgumentException"><paramref name="sheets"/> 为空清单（<see cref="ArgumentException.ParamName"/>
+    /// 为 <c>sheets</c>），或某张表的 <see cref="ExcelSheetSpec.SheetName"/> 不可用、或与清单里更早那张重名（判重不区分大小写），
     /// <see cref="ArgumentException.ParamName"/> 为 <c>SheetName</c>；某张表的
     /// <see cref="ExcelSheetSpec.HeaderFill"/> 不是合法的十六进制颜色串；某张表某列的
     /// <see cref="ExcelColumn.Header"/> 长过 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，此时
     /// <see cref="ArgumentException.ParamName"/> 为 <c>Header</c>；或某张表的 <see cref="ExcelSheetSpec.Title"/>
     /// 长过 <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，此时 <see cref="ArgumentException.ParamName"/>
-    /// 为 <c>Title</c>。空清单与表名两类都在建工作簿之前抛出，底色、表头长度与标题长度三类排在写第一格之前——
-    /// 整份档建好才落盘一次，因此任何一张表触这几条，输出流都是零字节</exception>
+    /// 为 <c>Title</c>。以上均在落盘之前抛出，输出流为零字节</exception>
     /// <exception cref="ArgumentOutOfRangeException">某列的 <see cref="ExcelColumn.Width"/> 不是大于 0 且不高于 255
     /// 的有限数、某列的 <see cref="ExcelColumn.Alignment"/> 不在定义范围内，或
     /// <see cref="XiHanExcelOptions.AutoWidthSampleRows"/> 为负数</exception>
@@ -259,23 +213,16 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <c>long</c>／<c>ulong</c>／<c>decimal</c>／<c>double</c>／<c>float</c>、绝对值超过 9007199254740992
     /// （2 的 53 次方）的 <c>long</c>／<c>ulong</c>／<c>decimal</c>、长过单元格上限的字串）；
     /// 某列的 <see cref="ExcelColumn.CellStyle"/> 交回非法颜色串；或某张表的标题行、表头行与数据行加起来
-    /// 要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后。行数上限按<u>每张工作表各自</u>计——
-    /// 每张表都有自己的标题行与表头行，各自数各自的，不做整簿累计，因此两张各占上限六成的表能同时写进一个工作簿，
-    /// 而任何一张触线就整个请求被拒，消息点出触线那张表的表名、上限值与「分成多张表或改用文字档」两条出路</exception>
+    /// 要落到第 <see cref="ExcelConstants.MaxSheetRows"/> 行以后。行数上限按每张工作表各自计，不做整簿累计，
+    /// 消息点出触线那张表的表名与上限值</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// <para>
-    /// 每张表走的写出路径与 <see cref="ExportAsync"/> 完全相同（同一个逐表方法），列宽、对齐、底色、行型这些守卫
-    /// 只有那一份，本方法不重写任何一条。本方法额外只做两件清单级的事：先确认清单非空，再确认表名可用且互不重名。
+    /// 每张表走与 <see cref="ExportAsync"/> 相同的逐表写出方法；本方法额外先确认清单非空，再确认表名可用且互不重名。
     /// </para>
     /// <para>
-    /// 整份档先在内存里建好再落盘，所以任何一张表失败（包括排在后面的表名非法、行型不符、令牌取消）都不会在
-    /// <paramref name="output"/> 里留下半个字节；前面那些表已经写进内存工作簿的部分随异常一起被丢弃。
-    /// 每张表写完之后查一次取消，因此某张表末尾才发生的取消不会让下一张表开始枚举行集合。
-    /// </para>
-    /// <para>
-    /// 取消落在存盘之后被观察到时，<paramref name="output"/> 里已经是一份完整的档，本方法交出异常而不是成功结果；
-    /// 这与「落盘之前抛出的失败零字节」是两种时机，写出侧不承诺失败原子性。
+    /// 整份档先在内存里建好再落盘，任何一张表失败时 <paramref name="output"/> 为零字节。每张表写完之后检查一次取消；
+    /// 取消在存盘之后才被观察到时，<paramref name="output"/> 里已是一份完整的档，本方法抛出异常。
     /// </para>
     /// </remarks>
     public Task<ExcelExportResult> ExportAllAsync(
@@ -304,18 +251,17 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
 
         foreach (var sheet in sheets)
         {
-            // 逐表写出复用单表路径的全部守卫，不在这里再判一遍
+            // 逐表写出复用单表路径的全部守卫
             WriteSheet(workbook, sheet, cancellationToken);
 
-            // 每张表写完之后查一次：取消落在某张表最后一笔的取值期间时，下一张表连行集合都不该被枚举；
-            // 清单写完这一次就是落盘之前的最后一次
+            // 每张表写完之后检查一次取消
             cancellationToken.ThrowIfCancellationRequested();
         }
 
         // SaveAs 不关闭传入流，写完停在末尾
         workbook.SaveAs(output);
 
-        // 回传结果之前再查一次：只在这里被观察到的取消，档已落盘但不会交出成功结果
+        // 回传结果之前再检查一次取消，此时档已落盘
         cancellationToken.ThrowIfCancellationRequested();
 
         return Task.FromResult(ExcelExportResult.Styled(
@@ -332,11 +278,8 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <param name="cancellationToken">取消令牌，逐行检查</param>
     /// <returns>写入完成的工作表</returns>
     /// <remarks>
-    /// 单表与多表共用这一个方法，所以这里的预检（<see cref="ExcelSheetSpec.RowType"/> 声明、列值域与表头长度、
-    /// 标题长度、表头底色）对两条路径同时生效；表名的可用性由两个入口在建工作簿之前判，不在这里判第二次。
-    /// 预检全部排在 <c>foreach</c> 之前，因此声明级的问题一个行元素都不取、一个字节也不写。
-    /// 表头与标题的长度判据不由本类自己持有，而是调 <see cref="ExcelCellTextGuard"/>——那一份与流式路径共用，
-    /// 两边抛出的消息逐字相同。
+    /// 单表与多表共用本方法。预检（<see cref="ExcelSheetSpec.RowType"/> 声明、列值域与表头长度、标题长度、表头底色）
+    /// 全部排在 <c>foreach</c> 之前；表名由两个入口在建工作簿之前校验。
     /// </remarks>
     private IXLWorksheet WriteSheet(IXLWorkbook workbook, ExcelSheetSpec sheet, CancellationToken cancellationToken)
     {
@@ -345,7 +288,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
         ValidateColumns(columns);
         var headerFill = sheet.HeaderFill is null ? null : ParseSheetColor(sheet.HeaderFill, nameof(ExcelSheetSpec.HeaderFill));
 
-        // 标题落的也是一格；长度判据与「仅含空白视为未填」的归一都收在共用守卫里，判在建工作表与枚举行集合之前
+        // 校验标题长度，排在建工作表与枚举行集合之前
         ExcelCellTextGuard.ValidateTitle(sheet.Title);
 
         var title = string.IsNullOrWhiteSpace(sheet.Title) ? null : sheet.Title;
@@ -369,7 +312,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
 
             rowIndex++;
 
-            // 行上限判定就在这一趟循环里：用的正是刚数出来的行号，不为计数把行集合物化、也不回头再枚举一遍
+            // 逐行判定工作表行数上限
             var rowNumber = headerRowNumber + rowIndex;
 
             if (rowNumber > _maxSheetRows)
@@ -377,7 +320,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
                 throw CreateRowLimitFailure(sheet.SheetName, rowIndex, rowNumber);
             }
 
-            // 每一行都判，判据与文字档路径同一份；用的就是刚取到的这一行，不物化行集合
+            // 逐行校验行类型
             ExcelRowTypeGuard.ValidateRow(rowType, row, rowIndex, "xlsx 导出");
 
             WriteDataRow(worksheet, rowNumber, columns, row, rowIndex);
@@ -393,8 +336,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 在表头上方写标题行并合并前 N 列
     /// </summary>
     /// <remarks>
-    /// 只有一列时不做合并：一格已经占满整行，1×1 的合并范围在工作簿里没有对应含义。
-    /// 合并后只有左上角有值，其余格读到空——这是 xlsx 自身的语义，写出侧不补值。
+    /// 只有一列时不合并。合并后只有左上角单元格有值。
     /// </remarks>
     private static void WriteTitleRow(IXLWorksheet worksheet, string title, int columnCount)
     {
@@ -479,14 +421,8 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 写一格取值并按取值类型套 Excel 格式串
     /// </summary>
     /// <remarks>
-    /// 取值先过一道可写性判定：早于 1900-01-01 的日期（<c>DateTime</c>／<c>DateOnly</c>／<c>DateTimeOffset</c>
-    /// 三种型别同判）、非有限的浮点数、有效数字多于
-    /// <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值、绝对值超过 9007199254740992
-    /// （2 的 53 次方）的 <c>long</c>／<c>ulong</c>／<c>decimal</c>，与长过单元格上限的字串都会被拒——
-    /// 这五类照落交回的就不是呼叫端给的那个值，或者干脆写出一份读不回的档。判定与流式路径共用同一份，
-    /// 两条路径判得一样、抛出的成因句逐字相同。
-    /// 取值类型决定格式串落到哪一处——数值走 <see cref="IXLStyle.NumberFormat"/>，
-    /// 日期走 <see cref="IXLStyle.DateFormat"/>，其余类型套了也不改变读出值，因此不套。
+    /// 取值先经 <see cref="ExcelWorkbookWriteGuard.EnsureWritable"/> 校验。数值套 <see cref="IXLStyle.NumberFormat"/>，
+    /// 日期套 <see cref="IXLStyle.DateFormat"/>，其余类型不套格式。
     /// </remarks>
     private static void WriteCellValue(IXLCell cell, ExcelColumn column, object value, string position)
     {
@@ -567,8 +503,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 落边框、冻结与筛选：作用区块从表头行起，到最后一行数据止
     /// </summary>
     /// <remarks>
-    /// 零列时整段跳过：没有列就没有可框住的区块，边框与筛选的范围也无从给出。标题行不带边框，
-    /// 它是区块上方的一条标题带；冻结行数等于标题行加表头行，数据区始终在冻结线之下。
+    /// 零列时整段跳过。标题行不带边框；冻结行数等于标题行加表头行。
     /// </remarks>
     private static void ApplyTableLayout(
         IXLWorksheet worksheet,
@@ -605,10 +540,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 在写入第一格之前检查列级值域：表头长度、列宽与对齐
     /// </summary>
     /// <remarks>
-    /// 表头长度排在最前面：它落的也是一格，与数据格共用 <see cref="ExcelConstants.MaxCellTextLength"/> 那道界，
-    /// 而下面两条的消息都要把 <see cref="ExcelColumn.Header"/> 原文嵌进去——几万字符的表头若不先拦下来，
-    /// 那句消息本身就会带着整串文案抛出。长度判据本身不由本方法持有，而是逐列交给
-    /// <see cref="ExcelCellTextGuard.ValidateHeader"/>，那一份与流式路径共用，消息只报长度与列键、不嵌表头原文。
+    /// 表头长度先于列宽与对齐校验，判据由 <see cref="ExcelCellTextGuard.ValidateHeader"/> 持有。
     /// </remarks>
     /// <exception cref="ArgumentException">某列的 <see cref="ExcelColumn.Header"/> 长过
     /// <see cref="ExcelConstants.MaxCellTextLength"/> 个字符，<see cref="ArgumentException.ParamName"/> 为
@@ -648,9 +580,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// <param name="position">触线那一行在数据行里的序号</param>
     /// <param name="rowNumber">该行要落进工作表的行号，已含标题行与表头行</param>
     /// <remarks>
-    /// 消息是政策陈述：只说本组件按 <see cref="ExcelConstants.MaxSheetRows"/> 拒写、上限按每张工作表各自计，
-    /// 不描述工作簿在这一步会做什么。判定落在逐行循环内，因此抛出时行集合可能已经被枚举到触线那一行为止，
-    /// 但整份档尚未存盘，输出流仍是零字节。
+    /// 抛出时整份档尚未存盘，输出流为零字节。
     /// </remarks>
     private InvalidOperationException CreateRowLimitFailure(string sheetName, int position, int rowNumber)
         => new(
@@ -677,10 +607,8 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 把表级颜色串解析成工作簿颜色，非法串直接抛
     /// </summary>
     /// <remarks>
-    /// 两道判定：形状先由 <see cref="ValidateHelper.IsHexColor(string)"/> 把关（其字符判定是 Unicode 感知的
-    /// <c>char.IsDigit</c>，全形数字与阿拉伯-印度数字也算形状合法），再由 <see cref="XLColor.FromHtml(string)"/> 解析——
-    /// 它只认 ASCII 位。库抛的 <see cref="FormatException"/> 在这里转成框架的 <see cref="ArgumentException"/>
-    /// 并保留内部异常，对外只暴露文档化过的失败面。
+    /// 先由 <see cref="ValidateHelper.IsHexColor(string)"/> 校验形状，再由 <see cref="XLColor.FromHtml(string)"/> 解析；
+    /// 库抛出的 <see cref="FormatException"/> 转成 <see cref="ArgumentException"/> 并保留为内部异常。
     /// </remarks>
     private static XLColor ParseSheetColor(string color, string memberName)
     {
@@ -711,8 +639,7 @@ public sealed class ClosedXmlExporter(XiHanExcelOptions options)
     /// 把格级颜色串解析成工作簿颜色，非法串抛出并点名行列
     /// </summary>
     /// <remarks>
-    /// 与表级同一套判定，差别只在异常形态：逐格样式的内容要取到行才知道，所以沿用格级失败体系点名行位置与列键，
-    /// 库的 <see cref="FormatException"/> 作为内部异常保留。
+    /// 与表级同一套判定，失败时以格级异常点名行位置与列键，库的 <see cref="FormatException"/> 作为内部异常保留。
     /// </remarks>
     private static XLColor ParseCellColor(string color, ExcelColumn column, string position, string memberName)
     {

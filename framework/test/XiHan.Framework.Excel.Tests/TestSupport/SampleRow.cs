@@ -7,8 +7,7 @@ namespace XiHan.Framework.Excel.Tests.TestSupport;
 /// 测试用行类型
 /// </summary>
 /// <remarks>
-/// 只作为测试夹具，不进正式 API。后续任务的「属性列来源」与「特性列来源」都叠加在这一个类型上，
-/// 避免每加一种列来源就多造一个行类型。
+/// 只作为测试夹具，不进正式 API。
 /// </remarks>
 public class SampleRow
 {

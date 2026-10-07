@@ -21,23 +21,12 @@ namespace XiHan.Framework.Excel.Tests.Exporting;
 /// MiniExcel 流式导出测试：表头与列顺序、可承载的排版项、显式降级与取消时机
 /// </summary>
 /// <remarks>
-/// <para>
-/// 断言一律走 <c>new XLWorkbook(stream)</c> 回读，检查档里真有什么。流式模式能写出什么不由配置对象上有没有
-/// 那个属性决定，而由落进档的结果决定：列宽、底色这类设置在本路径不生效，也照这个样子钉住，
-/// 免得日后被误读成「配置传进去了就一定生效」。
-/// </para>
-/// <para>
-/// 不物化这条契约由两条用例分头钉住，各自挡一种改法：行集合用只许取一次枚举器的夹具
-/// （<c>OneShotRows</c>），回头再枚举一遍即抛；先整份转成列表再交出去的做法只取一次枚举器，
-/// 夹具抓不到，另由「行集合未耗尽前输出流已有字节」按写出顺序抓——物化的可观察特征就是行全走完才动笔。
-/// 两种改法都会让十万行档变成十万行内存，所以两条都留在 CI 里，不靠读代码担保。
-/// </para>
+/// 断言一律用 <c>new XLWorkbook(stream)</c> 回读档内容。
 /// </remarks>
 public class MiniExcelStreamExporterTests
 {
     /// <summary>
-    /// 预计到达、提单号、重量三列：声明顺序与列上的 <see cref="ExcelColumn.Order"/> 都不同于写出顺序，
-    /// 用来证明落位取的是表规格给出的顺序
+    /// 预计到达、提单号、重量三列：声明顺序与列上的 <see cref="ExcelColumn.Order"/> 都不同于写出顺序
     /// </summary>
     private static readonly ExcelColumn[] Columns =
     [
@@ -115,13 +104,8 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
-    /// 表头行冻结与自动筛选按表规格的开关落位，不被库的默认值顶回来
+    /// 表头行冻结与自动筛选按表规格的开关落位
     /// </summary>
-    /// <remarks>
-    /// 渲染库里这两项的默认取值都是「开」。调用方关掉时必须显式交出关闭的配置，否则关掉开关的人拿到一份
-    /// 照样冻结、照样带筛选区的档，与 <see cref="ExcelSheetSpec.FreezeHeader"/>、<see cref="ExcelSheetSpec.AutoFilter"/>
-    /// 的承诺相反。
-    /// </remarks>
     /// <param name="freeze">是否冻结表头行</param>
     /// <param name="autoFilter">是否自动开启筛选</param>
     [Theory]
@@ -146,11 +130,10 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
-    /// 样式与排版项在流式模式一律不写出，降级必须由返回值显式说出来而不是静默少给
+    /// 样式与排版项在流式模式一律不写出，返回值交出降级理由
     /// </summary>
     /// <remarks>
-    /// 断的不只是 <see cref="ExcelExportResult.StylingSkipReason"/> 非空，还断它说得出丢了哪几类：边框、底色、
-    /// 加粗、逐格条件样式、标题行、列宽、对齐。少列一类，调用方就会以为那一类还在。
+    /// <see cref="ExcelExportResult.StylingSkipReason"/> 逐项点名边框、底色、加粗、逐格条件样式、标题行、列宽、对齐。
     /// </remarks>
     [Fact]
     public async Task 样式与排版项不写出并交出逐项点名的降级理由()
@@ -197,7 +180,7 @@ public class MiniExcelStreamExporterTests
         using var workbook = Open(stream);
         var sheet = workbook.Worksheet(1);
 
-        // 交出的是库自己的无样式形态：表头既没有底色也没有加粗，边框与逐格样式同样不落
+        // 表头既没有底色也没有加粗，边框与逐格样式同样不落
         Assert.Equal(XLFillPatternValues.None, sheet.Cell(1, 1).Style.Fill.PatternType);
         Assert.False(sheet.Cell(1, 1).Style.Font.Bold);
         Assert.Equal(XLBorderStyleValues.None, sheet.Cell(2, 1).Style.Border.LeftBorder);
@@ -210,12 +193,8 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
-    /// 行集合只被取用一次枚举器，实现不回头再枚举一遍
+    /// 行集合只被取用一次枚举器
     /// </summary>
-    /// <remarks>
-    /// 这一条只挡二次枚举。先整份 <c>ToList()</c> 再交出去的实现同样只取一次枚举器，抓不到它，
-    /// 由 <see cref="行集合未耗尽前输出流已有字节"/> 那条按写出顺序挡。
-    /// </remarks>
     [Fact]
     public async Task 行集合只枚举一次()
     {
@@ -231,19 +210,10 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
-    /// 行集合还没走完，写出者就已经往输出流里落了字节——这条才真钉住「不物化」
+    /// 行集合还没走完，写出者就已经往输出流里落了字节
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 物化的可观察特征是「行全走完才动笔」，所以断的是顺序而不是内存。数据量刻意给到写出侧的缓冲装不下
-    /// （每行一格数百字符、共数千行 XML 已远超库的写出缓冲），真流式的实现落点远早于行数中点，
-    /// 取中点而不是「最后一行之前」是不让这条断言靠缓冲大小取巧。
-    /// </para>
-    /// <para>
-    /// 把行集合先 <c>ToList()</c> 再交给写出库的实现里，每次取行时采到的输出流长度都是 0，
-    /// <c>FirstRowIndexWithBytesWritten</c> 保持 <c>null</c>，这条即红——
-    /// 而上一条（只许取一次枚举器）在这种情况下仍然全绿，两条合起来才把契约钉住。
-    /// </para>
+    /// 每行一格约 400 字符、共 4000 行，断言首次落字节的行早于行数中点。
     /// </remarks>
     [Fact]
     public async Task 行集合未耗尽前输出流已有字节()
@@ -259,8 +229,6 @@ public class MiniExcelStreamExporterTests
         Assert.Equal(1, rows.GetEnumeratorCalls);
         Assert.Equal(rowCount, rows.Yielded);
 
-        // 首次落字节的行号一并写进断言消息：这条判据靠「本用例的数据量大于写出侧缓冲」成立，
-        // 光看红讯看不出是「实现物化了」还是「库把缓冲加大了」，两者要的处理完全不同。
         var firstByteRow = rows.FirstRowIndexWithBytesWritten;
         var firstByteText = firstByteRow is null
             ? "整趟枚举结束前都没有落字节"
@@ -278,8 +246,7 @@ public class MiniExcelStreamExporterTests
     /// 取消落在写出的中途时抛出取消，绝不交出成功结果
     /// </summary>
     /// <remarks>
-    /// 抛出时流里可能已经有字节，而那段字节是没收尾的档，读不回来——本用例只断「抛出且没有返回结果」，
-    /// 不断字节数：这一路径先落盘后收尾，主张零字节会是假的。
+    /// 只断抛出取消，不断流里的字节数。
     /// </remarks>
     [Fact]
     public async Task 取消发生在中途时抛取消而不交出成功结果()
@@ -371,15 +338,8 @@ public class MiniExcelStreamExporterTests
     /// 列约定的行型别与 <see cref="ExcelSheetSpec.RowType"/> 不符时，本路径同样在调用写出库之前就把规格拒掉
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 两种坏声明：列清单来自另一个行类型，以及把 <c>RowType</c> 写成 <see cref="object"/> 来「放宽」。本路径把每行
-    /// 投影成「列键到取值」的字典，异型行经列的取值方法只会得到 <c>null</c>，放行就是一份表头齐全、数据全空的档，
-    /// 而返回值里唯一的降级理由是「流式模式不支持样式」，看不出数据已被写空。
-    /// </para>
-    /// <para>
-    /// <c>GetEnumeratorCalls == 0</c> 是这条用例的主要证据：判据必须在碰行集合之前就拦住。夹具
-    /// <c>OneShotRows</c> 只许取一次枚举器，预检若挪进逐行路径，这里会先被枚举行集合、再在写出库里落一份空数据档。
-    /// </para>
+    /// 两种坏声明：列清单来自另一个行类型，以及把 <c>RowType</c> 写成 <see cref="object"/>。
+    /// 断言抛出、输出流零字节且行集合未被枚举（<c>GetEnumeratorCalls == 0</c>）。
     /// </remarks>
     [Fact]
     public async Task 列行型别与声明不符时流式预检抛且零字节不枚举()
@@ -429,7 +389,7 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
-    /// <c>RowType</c> 是列约定行型别的派生型别时照常导出，流式预检不得多拒
+    /// <c>RowType</c> 是列约定行型别的派生型别时照常导出
     /// </summary>
     [Fact]
     public async Task RowType是列行型别的派生型别时流式照常导出()
@@ -480,12 +440,10 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
-    /// 早于日期下限的 DateTime 在流式路径同样被拒，不交出一份日期读不回原值的档
+    /// 早于日期下限的 DateTime 在流式路径同样被拒
     /// </summary>
     /// <remarks>
-    /// 这是两条 xlsx 路径的口径一致性检查：同一份规格走全量会抛，走流式若照落再报成功，
-    /// 分派器按行数换路径就等于换了一套「什么能导」的判据。取的是 <c>SampleRow.Eta</c> 未赋值时的
-    /// <c>0001-01-01</c>——远在 1900-01-01 那道下限之前。
+    /// 取 <c>SampleRow.Eta</c> 未赋值时的 <c>0001-01-01</c>，早于 1900-01-01 下限。
     /// </remarks>
     [Fact]
     public async Task 早于工作簿日期下限的取值被拒()
@@ -520,18 +478,8 @@ public class MiniExcelStreamExporterTests
     /// 早于日期下限的 DateOnly 与 DateTimeOffset 在本路径被拒，与全量路径同判、成因句逐字相同
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 本路径把 <c>DateOnly</c> 与 <c>DateTimeOffset</c> 落成日期格。日期下限只有一把尺，三种日期型别一起归它管，
-    /// 判据落在两条 xlsx 写出路径共用的那一个函数里，因此「哪一天之前不能写」不由落进哪种格子决定——
-    /// 分派器按行数替调用方选路径，若下限跟着格位走，同一份规格能不能导就成了走哪条的副产品。
-    /// 全量路径对同一些取值同样拒（见 <c>ClosedXmlExporterTests</c>），成因句与本路径逐字相同。
-    /// </para>
-    /// <para>
-    /// 取的点分三层：1899-12-31 与 1899-12-30 是下限的前一天与前两天（早先这两个点被当成「库能宽容住」的
-    /// 正例，本框架的导入器也确实把它们原样读回，但读回来是哪一天取决于谁来读——政策因此收成不早于
-    /// 1900-01-01 一律拒）、1899-12-29 再往前一天、1500-01-01 与 0100-01-01 是中等早年与极端早年、
-    /// <c>MinValue</c> 是最远的那一档。
-    /// </para>
+    /// 取点：1899-12-31 与 1899-12-30 是下限的前一天与前两天、1899-12-29 再往前一天、
+    /// 1500-01-01 与 0100-01-01 是中等早年与极端早年、<c>MinValue</c> 是最远的那一档。
     /// </remarks>
     /// <param name="useDateOnly">true 用 <c>DateOnly</c>，false 用带偏移量的 <c>DateTimeOffset</c></param>
     /// <param name="year">年份</param>
@@ -561,7 +509,7 @@ public class MiniExcelStreamExporterTests
         Assert.Contains("取值", failure.Message, StringComparison.Ordinal);
         Assert.Contains("键 Value", failure.Message, StringComparison.Ordinal);
 
-        // 出路里不再指点「换一条写出路径」：两条路径现在判得一样，那条出路已经作废
+        // 消息里不指点换一条写出路径
         Assert.DoesNotContain("全量", failure.Message, StringComparison.Ordinal);
     }
 
@@ -569,19 +517,9 @@ public class MiniExcelStreamExporterTests
     /// 下限当日及其后的日期型别在本路径落日期格，并由本框架的导入器读回同一个钟表时刻
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 钉的是本路径确实保得住能表示的日期，尤其是下限当日这一档：<c>1900-01-01</c> 是 1900 日期系统按
-    /// 序号 1 数出来的第一天，两条路径都把它写成 <c>&lt;v&gt;1&lt;/v&gt;</c>，本框架的导入器读回来还是这一天。
-    /// 拒写没有把边界当日与其后的值一起挡掉——那正是上一轮拒写被撤回的原因。
-    /// </para>
-    /// <para>
-    /// 判定器走 <see cref="ImportValueAsync"/>（本框架的 <c>ExcelDataReaderImporter</c>），不用工作簿读自己写的档：
-    /// 工作簿会按自己的形式反算，读回来的日期看着与写进去的一致，恰好掩盖档里被挪过这件事。
-    /// 导入器对日期格交回 <see cref="DateTime"/>，因此 <c>DateOnly</c> 断当日零点、
-    /// <c>DateTimeOffset</c> 断它的钟表时刻（偏移量不落格，由
-    /// <see cref="带偏移量的DateTimeOffset在本路径只保留钟表时刻"/> 单独写实）。
-    /// 早于下限的取值改由 <see cref="早于日期下限的DateOnly与DateTimeOffset在流式路径被拒"/> 断拒写。
-    /// </para>
+    /// <c>1900-01-01</c> 是 1900 日期系统序号 1 的那一天，档里写成 <c>&lt;v&gt;1&lt;/v&gt;</c>。
+    /// 用 <see cref="ImportValueAsync"/> 回读：导入器对日期格交回 <see cref="DateTime"/>，
+    /// <c>DateOnly</c> 断当日零点，<c>DateTimeOffset</c> 断它的钟表时刻。
     /// </remarks>
     /// <param name="useDateOnly">true 用 <c>DateOnly</c>，false 用带偏移量的 <c>DateTimeOffset</c></param>
     /// <param name="year">年份</param>
@@ -609,8 +547,7 @@ public class MiniExcelStreamExporterTests
     /// 按型别造一格日期取值：<c>DateOnly</c> 不带时刻，<c>DateTimeOffset</c> 带 <c>06:30</c> 与 <c>+08:00</c>
     /// </summary>
     /// <remarks>
-    /// <see cref="DateTimeOffset"/> 的构造本身不接受「公元 1 年再加 +08:00」这种组合（换算到 UTC 会掉出可表示范围），
-    /// 所以早到那个量级的取值只能按零偏移量造——要验的是早于下限的日期一律被拒，与偏移量取值无关。
+    /// 公元 1 年按零偏移量造：<see cref="DateTimeOffset"/> 不接受公元 1 年加 +08:00。
     /// </remarks>
     private static object DateValue(bool useDateOnly, int year, int month, int day)
     {
@@ -628,13 +565,7 @@ public class MiniExcelStreamExporterTests
     /// DateTimeOffset 在本路径落日期格且只保留钟表时刻，偏移量不随行值落格
     /// </summary>
     /// <remarks>
-    /// 与全量路径把 <c>DateTimeOffset</c> 落成带偏移量的文本格相对：本路径丢开偏移量，
-    /// 读回的是钟表时刻。这一条把「同值异格」写实，免得只写「形态可能不同」而让人以为偏移量还在。
-    /// 判定器走 <see cref="ImportValueAsync"/>：导入器对日期格交回 <see cref="DateTime"/>、
-    /// 对文字格交回 <see cref="string"/>，因此「偏移量确实没落进格里」由交回的是不带偏移量的
-    /// <see cref="DateTime"/> 直接证明，不必再靠工作簿自说自话。
-    /// 取的日子在下限之后——早于下限的 <c>DateTimeOffset</c> 由
-    /// <see cref="早于日期下限的DateOnly与DateTimeOffset在流式路径被拒"/> 断拒写。
+    /// 用 <see cref="ImportValueAsync"/> 回读，断言交回不带偏移量的 <see cref="DateTime"/>。
     /// </remarks>
     [Fact]
     public async Task 带偏移量的DateTimeOffset在本路径只保留钟表时刻()
@@ -653,7 +584,7 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
-    /// 非有限数值在流式路径同样被拒，不交出一份读不回的档
+    /// 非有限数值在流式路径同样被拒
     /// </summary>
     /// <param name="value">要写进一格的双精度值</param>
     [Theory]
@@ -684,19 +615,8 @@ public class MiniExcelStreamExporterTests
     /// 有效数字多于 <see cref="ExcelConstants.MaxExactNumericSignificantDigits"/> 位的数值在流式路径同样拒写
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 本路径把取值的文本交给写出库落格，越界取值在这里能原样写进档里（16 位整数就是整串数字），
-    /// 看起来比全量路径「更准」，实则两条路径对同一份规格交出两个不同的数：分派器按行数决定走哪条，
-    /// 得到哪个数就成了走哪条的副产品。位数这一道按取值本身判，两条路径一起拒，判据只有 <c>ExcelWorkbookWriteGuard</c> 里那一份。
-    /// </para>
-    /// <para>
-    /// <c>float</c> 是按同一判据从条文最初的四类型扩用进来的：落进数值格的是它展开成 <see cref="double"/>
-    /// 后的那份形态，<c>0.1f</c> 展开后已是 17 位。
-    /// </para>
-    /// <para>
-    /// 与全量路径不同，本路径的取值判定发生在逐行投影期间，此时表头与建档骨架已经落进流里，
-    /// 因此这里断「抛出且没有成功结果」，不断零字节——全量路径才主张零字节（见 <c>ClosedXmlExporterTests</c>）。
-    /// </para>
+    /// <c>float</c> 按展开成 <see cref="double"/> 后的形态计位数，<c>0.1f</c> 展开后是 17 位。
+    /// 只断抛出，不断零字节。
     /// </remarks>
     /// <param name="value">要落进一格的数值取值</param>
     /// <param name="reason">消息里该出现的成因片段（点明实际位数）</param>
@@ -720,9 +640,8 @@ public class MiniExcelStreamExporterTests
     /// 上限内的数值在流式路径照写，并由本组件的导入器读回同一份数
     /// </summary>
     /// <remarks>
-    /// 判尺不多拒：一位小数、恰为 15 位的整数、带负号带小数点的 15 位取值、展开后仍短的单精度都照写。
-    /// 往返判定用 <see cref="ExcelDataReaderImporter"/>，不用 ClosedXML 读自己写的档——后者会按工作簿自己的
-    /// 形式反算，把「档里被改写过」这件事掩盖掉。
+    /// 一位小数、恰为 15 位的整数、带负号带小数点的 15 位取值、展开后仍短的单精度都照写。
+    /// 用 <see cref="ExcelDataReaderImporter"/> 回读。
     /// </remarks>
     /// <param name="value">要落进一格的数值取值</param>
     /// <param name="expected">读回来该是的那份数的不变文化文本</param>
@@ -744,8 +663,7 @@ public class MiniExcelStreamExporterTests
     /// 越界数值案例：要落一格的取值，与消息里该出现的成因片段
     /// </summary>
     /// <remarks>
-    /// 与 <c>ClosedXmlExporterTests</c> 的同名案例集取同一批字面量：两条路径各一对反例是这一批的规矩，
-    /// 两处的取值保持相同才能说明判的是同一件事。
+    /// 与 <c>ClosedXmlExporterTests</c> 的同名案例集取同一批字面量。
     /// </remarks>
     public static IEnumerable<object?[]> OverPreciseNumericCases()
     {
@@ -778,16 +696,8 @@ public class MiniExcelStreamExporterTests
     /// 公式起首的值在流式路径落文字格、逐字读回，且档里不会多出撇号前缀
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 与全量路径同一件事实：本路径把字串按文本形态落格（档里是 <c>t="str"</c> 的文字值而不是公式），
+    /// 本路径把字串按文本形态落格（档里是 <c>t="str"</c> 的文字值而不是公式），
     /// 写出库不解析 <c>=</c>、<c>+</c>、<c>@</c> 起首的内容，档里没有 <c>&lt;f&gt;</c>。
-    /// 只有模板路径的 <c>$=</c> 占位会被当成公式解析（另一批处理）。
-    /// </para>
-    /// <para>
-    /// 两条路径的格位形态本来就不同，这一对用例钉的是同一个承诺：起首像公式的字串照原样交回，
-    /// 谁也不给它加 <c>'</c> 前缀——加了就是改写业务资料，逐字断言先红；改成会触发公式的写出方式，
-    /// 无 <c>&lt;f&gt;</c> 那条红。
-    /// </para>
     /// </remarks>
     /// <param name="value">以公式前缀起首的字串取值</param>
     [Theory]
@@ -824,9 +734,7 @@ public class MiniExcelStreamExporterTests
     /// 值里的回车在档里按 XML 归一化成换行，其余逐字不变且仍是文字格
     /// </summary>
     /// <remarks>
-    /// XML 1.0 不允许文本内容里出现裸 <c>U+000D</c>，写出库把它归一成 <c>U+000A</c>：
     /// <c>"\r=1+1"</c> 读回来是 <c>"\n=1+1"</c>。这一格依旧不落公式、不加撇号前缀。
-    /// 与全量路径同一件事，两条各钉一条，免得日后只看见一边就以为另一边也成立。
     /// </remarks>
     [Fact]
     public async Task 值里的回车在流式档里归一化成换行()
@@ -846,11 +754,8 @@ public class MiniExcelStreamExporterTests
     /// <see cref="DateTime"/> 在流式路径同样按钟表时刻落格：不读 <see cref="DateTime.Kind"/>、不做时区换算
     /// </summary>
     /// <remarks>
-    /// 与全量路径同一副样子（那里见 <c>ClosedXmlExporterTests</c>）：日期格没有容纳时区的地方，
     /// <c>Utc</c>／<c>Local</c> 都照显示的年月日时分秒落格，读回来一律是
-    /// <see cref="DateTimeKind.Unspecified"/>。两条各钉一条，是因为分派器按行数决定走哪条，
-    /// 只钉一边等于让另一边无人看管。上面那条带偏移量的用例钉的是 <see cref="DateTimeOffset"/>
-    /// 丢偏移量，这一条钉的是 <c>DateTime.Kind</c> 同样被丢。
+    /// <see cref="DateTimeKind.Unspecified"/>。
     /// </remarks>
     /// <param name="kind">写出的 <see cref="DateTime"/> 带的 Kind</param>
     [Theory]
@@ -882,8 +787,7 @@ public class MiniExcelStreamExporterTests
     /// 不可用的表名抛出的是本组件的框架异常，不是渲染库那句英文异常，也不是被转义后的另一个名字
     /// </summary>
     /// <remarks>
-    /// 渲染库自己会拒一部分坏名字（英文消息），也会把某些控制字符转义成另一个名字写进档——那等于静默改名。
-    /// 表名判据与全量路径共用一份，因此这里断的是同一句中文消息与同一个 <c>ParamName</c>。
+    /// 断言表名判据交出的中文消息与 <c>ParamName</c>。
     /// </remarks>
     /// <param name="sheetName">要试的表名</param>
     [Theory]
@@ -907,8 +811,7 @@ public class MiniExcelStreamExporterTests
     /// 空行集合交出一张空表并仍回报降级，不抛
     /// </summary>
     /// <remarks>
-    /// 渲染库要靠第一行确定列集，零行时连表头行都不写；这与全量路径（表头照样落档）不同，是本路径的现实。
-    /// 把它钉成用例而不是只在文档里写一句，免得日后被当成缺陷改掉，或被读文档的人误以为两条路径完全一致。
+    /// 零行时连表头行都不写。
     /// </remarks>
     [Fact]
     public async Task 空行集合交出空表并回报降级()
@@ -929,12 +832,8 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
-    /// 两列共用一个列键时被拒，不交出少一栏却报成功的档
+    /// 两列共用一个列键时被拒
     /// </summary>
-    /// <remarks>
-    /// 流式模式把每行投影成按键取值的字典，键重复时后写的盖掉先写的；全量路径按列的下标落格、没这个问题，
-    /// 因此这条判定归本路径，而不是塞进表规格。
-    /// </remarks>
     [Fact]
     public async Task 重复列键在流式路径被拒()
     {
@@ -1011,11 +910,8 @@ public class MiniExcelStreamExporterTests
     /// 无标题行时，表头行加数据行正好占满上限的那一份照常写出
     /// </summary>
     /// <remarks>
-    /// 上限注入成 3：写出库落下的表头占第 1 行，两行数据占第 2、3 行，正好触线。这条与
-    /// <see cref="流式路径超过行数上限时抛且不回报成功结果"/> 是一对——把判定里的 <c>&gt;</c> 写成 <c>&gt;=</c>，
-    /// 这条会先红（提前一行拒），那条仍然绿，因此两条都得留着。
-    /// 真实上限是一百多万行，逐行写到触线要产出十几 MB 的档，因此边界断言改用注入的小上限，
-    /// 读点与正式入口是同一个字段。回读判定走本组件的导入器，不用工作簿读自己写的档。
+    /// 上限注入成 3：写出库落下的表头占第 1 行，两行数据占第 2、3 行，正好触线。
+    /// 用本组件的导入器回读。
     /// </remarks>
     [Fact]
     public async Task 流式路径行数恰等上限时照常写出()
@@ -1034,16 +930,8 @@ public class MiniExcelStreamExporterTests
     /// 超过行数上限时抛出框架异常、不回报成功结果，且判定没有把行集合物化
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 上限注入成 3，行集合给 10 行：表头占第 1 行，第 3 行数据要落到第 4 行即触线。异常型别挡「让写出库自己去撞
-    /// 工作表的行数界」；<c>rows.Count == 3</c> 挡「为计数先 <c>ToList()</c> 或回头再枚举一遍」（物化会数到 10）；
-    /// 消息里点出上限值与两条出路挡「抛了但不说上限是多少、也不说该怎么办」。
-    /// </para>
-    /// <para>
-    /// 这里<b>不断言输出流零字节</b>：本路径边枚举行边往流里吐字节，触线时前面几行的字节可能已经落进去了，
-    /// 能主张的只有「交出异常、不交出 <see cref="ExcelExportResult"/>」，与取消落在写出中途时的口径一致。
-    /// 全量路径整份档建好才落盘一次，那边才主张零字节。
-    /// </para>
+    /// 上限注入成 3，行集合给 10 行：表头占第 1 行，第 3 行数据要落到第 4 行即触线。
+    /// 断言行集合只取到第 3 行、消息点出上限值与两条出路；不断言输出流零字节。
     /// </remarks>
     [Fact]
     public async Task 流式路径超过行数上限时抛且不回报成功结果()
@@ -1064,11 +952,6 @@ public class MiniExcelStreamExporterTests
     /// <summary>
     /// 本路径不写标题行，因此标题不占行数：同样的上限 3，带标题的两行数据照样放行
     /// </summary>
-    /// <remarks>
-    /// 标题行在流式模式属于「落不下来」的那一批（返回值里已逐项点名），既然不落档就不占工作表的行。
-    /// 全量路径把标题行写在第 1 行、数据区整体下移，同样两行数据在上限 3 时是触线的——两条路径对
-    /// 「标题算不算一行」的答案不同，是因为落档的形态不同，不是两套上限。
-    /// </remarks>
     [Fact]
     public async Task 流式路径不写标题行因此标题不占行数()
     {
@@ -1089,17 +972,7 @@ public class MiniExcelStreamExporterTests
     /// 表头长过单元格上限时，本路径也在调用写出库之前把它拒掉：零字节、行集合一次都没被枚举
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 此前本路径对超长表头一声不响：40,000 字符的表头照样写出 4480 字节的档、照样回报降级成功，
-    /// 交出的是一份表头超过单元格上限的档。全量路径对同一份声明抛 <see cref="ArgumentException"/>，
-    /// 于是「同一份规格能不能导」变成了「走哪条路径」的副产品——而分派器是按行数把它送到其中一条的，
-    /// 调用方并没有选择权。表头长度是声明层属性，比行值更没理由按路径分叉。
-    /// </para>
-    /// <para>
-    /// 四条断言各挡一种改法：异常型别与 <c>ParamName</c> 挡「照旧静默写出」；<c>stream.Length == 0</c> 挡
-    /// 「先写一半再抛」——判定必须排在 <c>MiniExcel.SaveAsAsync</c> 之前；<c>rows.Count == 0</c> 挡
-    /// 「把判定挪进逐行投影」；消息不嵌超长文案本身挡「把四万个字符整段塞进异常消息」。
-    /// </para>
+    /// 消息不嵌超长表头本身。
     /// </remarks>
     [Fact]
     public async Task 流式路径表头超过单元格上限时在写出前被拒()
@@ -1142,18 +1015,6 @@ public class MiniExcelStreamExporterTests
     /// <summary>
     /// 标题长过单元格上限时本路径同样拒，即使本路径根本不写标题行
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 这条要单独说清：标题行在本路径属于「落不下来」的那一批，按理说一个不参与写出的值可以像
-    /// <see cref="ExcelSheetSpec.HeaderFill"/> 那样「不承载也不报错」。这里不这么做，因为全量路径对同一份声明是抛的——
-    /// 放过就等于让「同一份规格能不能导」由走哪条路径决定，而分派器是按行数替调用方选的。
-    /// 两条路径给出同一个答案，代价是本路径会拒一份它本来也不会写的标题，这个代价由「声明就是声明」承担。
-    /// </para>
-    /// <para>
-    /// 判据与表头那份是同一处，消息也逐字相同，见
-    /// <see cref="两条xlsx路径对同一份超长表头与标题给同一个答案"/>。
-    /// </para>
-    /// </remarks>
     [Fact]
     public async Task 流式路径标题超过单元格上限时在写出前被拒()
     {
@@ -1195,8 +1056,7 @@ public class MiniExcelStreamExporterTests
     /// 表头恰等单元格上限（32,767）时照常写出，读回来的表头逐字不变
     /// </summary>
     /// <remarks>
-    /// 正例挡「把边界写成 <c>&gt;=</c> 提前一个字符拒」。读回判定走本组件的导入器，
-    /// 不用工作簿读自己写的档：导入器按 <c>HasHeader</c> 把第一行当列名交回，键名本身就是档里真实落下的那串表头。
+    /// 用本组件的导入器回读：按 <c>HasHeader</c> 把第一行当列名交回，键名就是档里落下的表头。
     /// </remarks>
     [Fact]
     public async Task 流式路径表头恰等单元格上限时照常写出并可读回()
@@ -1216,12 +1076,10 @@ public class MiniExcelStreamExporterTests
     }
 
     /// <summary>
-    /// 标题恰等上限时本路径照常写出：标题被拒的只是「超长」那一种，长度合法的标题照旧按降级处理、不落档
+    /// 标题恰等上限时本路径照常写出，标题按降级处理、不落档
     /// </summary>
     /// <remarks>
-    /// 这条钉住补齐预检没有顺手改掉既有降级语义：判定通过之后，标题仍然不写，第一行仍是表头行，
-    /// 返回值的降级理由里仍然点着标题行。按 <c>HasHeader = true</c> 读回时列名就是「提单号」而不是那串标题，
-    /// 这比读 <see cref="ExcelExportResult.StylingSkipReason"/> 更直接地证明标题没有落档。
+    /// 降级理由点着标题行；按 <c>HasHeader = true</c> 读回时列名是「提单号」而不是那串标题。
     /// </remarks>
     [Fact]
     public async Task 流式路径标题恰等单元格上限时照常写出且标题仍不落档()
@@ -1247,18 +1105,6 @@ public class MiniExcelStreamExporterTests
     /// <summary>
     /// 同一份超长声明在两条 xlsx 路径上得到同一个答案：同型别、同 <c>ParamName</c>、同一条消息
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 这条是「判据只有一份」的可观察物。表头与标题的长度判据收在一个共用守卫里，两个导出器都只调它，
-    /// 因此两边抛出的消息逐字相同；哪天有人把它拆回两处各写一份字面比较、其中一份的边界或措辞漂了，
-    /// 这条会先红——比分别断两条路径的消息文本更早、也更直接。
-    /// </para>
-    /// <para>
-    /// 消息逐字相同不等于两条路径对标题的处置相同：全量路径写标题行，流式路径不写，
-    /// 这一点由 <see cref="流式路径标题恰等单元格上限时照常写出且标题仍不落档"/> 与
-    /// <see cref="流式路径不写标题行因此标题不占行数"/> 各自钉住。这里只钉「拒或不绝、以及拒的时候怎么说」。
-    /// </para>
-    /// </remarks>
     [Fact]
     public async Task 两条xlsx路径对同一份超长表头与标题给同一个答案()
     {
@@ -1297,10 +1143,6 @@ public class MiniExcelStreamExporterTests
     /// <summary>
     /// 构造只有一列、可指定表头与标题的表规格，专走表头与标题的长度预检
     /// </summary>
-    /// <remarks>
-    /// 与 <see cref="BuildRowLimitSpec"/> 分开：那一组的表头固定是「提单号」，这一组的表头本身就是要判的东西。
-    /// 列宽不填——本路径不承载列宽，填了也不参与写出。
-    /// </remarks>
     private static ExcelSheetSpec BuildTextLimitSpec(string header, string? title, System.Collections.IEnumerable rows) => new()
     {
         SheetName = "运单",
@@ -1323,10 +1165,6 @@ public class MiniExcelStreamExporterTests
     /// </summary>
     /// <param name="stream">导出后的流，本方法把它回到起点，不关闭也不释放</param>
     /// <param name="hasHeader">是否把第一行当列名，见 <see cref="ExcelImportOptions.HasHeader"/></param>
-    /// <remarks>
-    /// 往返断言的判定器一律走这里，不用 <see cref="XLWorkbook"/> 读自己写的档：工作簿会按自己的形式反算，
-    /// 读回来的东西看着与写进去的一致，恰好掩盖档里被截断或改写过这件事。
-    /// </remarks>
     private static async Task<List<ExcelImportRow>> ImportRowsAsync(MemoryStream stream, bool hasHeader)
     {
         stream.Position = 0;
@@ -1366,10 +1204,6 @@ public class MiniExcelStreamExporterTests
     /// 用本框架的导入器把导出的档读回，交出「提单号」这一列的逐行取值
     /// </summary>
     /// <param name="stream">导出后的流，本方法把它回到起点，不关闭也不释放</param>
-    /// <remarks>
-    /// 往返断言的判定器一律走这里，不用 <see cref="XLWorkbook"/> 读自己写的档：工作簿会按自己的形式反算，
-    /// 读回来的东西看着与写进去的一致，恰好掩盖档里被改写过这件事。
-    /// </remarks>
     private static async Task<string[]> ImportAwbNosAsync(MemoryStream stream)
     {
         stream.Position = 0;
@@ -1410,10 +1244,6 @@ public class MiniExcelStreamExporterTests
     /// <summary>
     /// 造若干行、每行提单号给数百字符，让整份行集合的 XML 远超写出侧的缓冲
     /// </summary>
-    /// <remarks>
-    /// 只给「不物化」那条用例用：数据量不够时，实现就算真的边取边写，字节也可能全压在库自己的缓冲里
-    /// 没落到输出流上，那条断言就会靠缓冲大小而不是行为来判，失去意义。
-    /// </remarks>
     private static SampleRow[] BulkyRows(int count)
     {
         var rows = new SampleRow[count];
@@ -1521,9 +1351,8 @@ public class MiniExcelStreamExporterTests
     /// </summary>
     /// <param name="stream">导出后的流</param>
     /// <remarks>
-    /// 只看格子的 <c>HasFormula</c> 不足以证明「值没被当成公式解析」——那要读回档里真实落的元素。
-    /// 匹配式要求 <c>f</c> 之后紧跟空白、<c>/</c> 或 <c>&gt;</c>，因此 <c>&lt;framePr&gt;</c>、
-    /// <c>&lt;fextLdr&gt;</c> 这类同名前缀的元素不会被误判成公式。
+    /// 匹配式要求 <c>f</c> 之后紧跟空白、<c>/</c> 或 <c>&gt;</c>，<c>&lt;framePr&gt;</c>、
+    /// <c>&lt;fextLdr&gt;</c> 这类同名前缀的元素不算公式。
     /// </remarks>
     private static bool HasFormulaElement(MemoryStream stream)
     {
@@ -1545,9 +1374,7 @@ public class MiniExcelStreamExporterTests
     /// </summary>
     /// <param name="stream">导出后的流，本方法把它回到起点，不关闭也不释放</param>
     /// <remarks>
-    /// 往返断言的判定器一律走这里，不用 <see cref="XLWorkbook"/> 读自己写的档：工作簿会按自己的形式反算，
-    /// 读回来的数看着与写进去的一致，恰好掩盖档里被改写过这件事。导入器对数值格交回
-    /// <see cref="double"/>、对文字格交回 <see cref="string"/>，格位由档里真实落的东西决定。
+    /// 导入器对数值格交回 <see cref="double"/>、对文字格交回 <see cref="string"/>。
     /// </remarks>
     private static async Task<object?> ImportValueAsync(MemoryStream stream)
     {
@@ -1592,8 +1419,7 @@ public class MiniExcelStreamExporterTests
         /// 第一次采到输出流已有字节时已经交出去的行号，<c>null</c> 表示交完全部行仍是空的
         /// </summary>
         /// <remarks>
-        /// 只在建了 <paramref name="writtenBytes"/> 采样器时才有值。它把「边取边写」与「先攒完再动笔」分开：
-        /// 后者在每次取行时采到的输出流长度都是 0，这个属性也就一直是 <c>null</c>。
+        /// 只在建了 <c>writtenBytes</c> 采样器时才有值。
         /// </remarks>
         public int? FirstRowIndexWithBytesWritten { get; private set; }
 

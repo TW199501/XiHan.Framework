@@ -11,20 +11,14 @@ namespace XiHan.Framework.Excel.Importing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 路由规则只有一条：<see cref="ExcelImportOptions.FixedColumns"/> 非 <c>null</c> 就走固定宽度，
-/// 否则就走 ExcelDataReader。<b><see cref="ExcelImportOptions.Format"/> 不参与路由</b>——格式留空且列定义也留空时，
-/// 档头判别该判什么由 <see cref="ExcelDataReaderImporter"/> 自己判并自己抛，门面不重复那道判定；
-/// 列定义是空集合时仍然走固定宽度，由那条路径把「一列都没有」报出来，门面不悄悄改投另一条路径。
+/// <see cref="ExcelImportOptions.FixedColumns"/> 非 <c>null</c> 就走固定宽度，否则走 ExcelDataReader；
+/// <b><see cref="ExcelImportOptions.Format"/> 不参与路由</b>。列定义是空集合时仍然走固定宽度。
 /// </para>
 /// <para>
-/// 门面<u>不做任何业务判断</u>：不嗅探签章、不解析编码、不预检选项、不代任何一边改写异常。
-/// 这些能力各有一份实现，重复一遍就多出两套会各自漂动的口径。因此入参检查落在哪一格、
-/// 什么时候落（<see cref="IExcelImporter.ReadAsync"/> 的方法体要到首次取行才运行），
-/// 完全由被选中的那个实现决定；门面要在开始枚举之前就拒绝非法选项的调用方得自己先判。
+/// 门面不嗅探签章、不解析编码、不预检选项、不改写异常；入参检查由被选中的实现在首次取行时执行。
 /// </para>
 /// <para>
-/// 流所有权仍在调用方：本类型不碰传入的流（连复位位置都不做，那是被选中那条路径的事），也不关闭它。
-/// 两个实现都是无状态的读取器，可以并发共用同一个门面实例；注册侧把它们各自按单例提供，本门面只持有引用。
+/// 本类型不碰传入的流，也不关闭它。两个实现都是无状态的读取器，可以并发共用同一个门面实例。
 /// </para>
 /// </remarks>
 /// <param name="excelDataReaderImporter">容器与分隔符路径的读取器，<see cref="ExcelImportOptions.FixedColumns"/> 为 <c>null</c> 时使用</param>
@@ -56,13 +50,12 @@ public sealed class ExcelImporter(
     /// 应用把 <see cref="XiHan.Framework.Excel.Abstractions.XiHanExcelOptions.MaxImportRows"/> 配得更低时以配置值为准，
     /// 两条读取路径同判</exception>
     /// <exception cref="InvalidOperationException">档头判不出格式、容器读不通、表名不存在，
-    /// 或列定义不成立（缺列定义、空集合、键为空或重复、宽度非正、编码是宽字节）。
-    /// 抛出的具体那一格由被选中的实现决定，两条路径的异常面各自写在它们的 <see cref="ReadAsync"/> 说明里</exception>
+    /// 或列定义不成立（缺列定义、空集合、键为空或重复、宽度非正、编码是宽字节）；
+    /// 具体由被选中的实现决定，见各实现的 <see cref="ReadAsync"/> 说明</exception>
     /// <exception cref="System.Text.DecoderFallbackException">文字档的实际字节在所用编码下解不开</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
-    /// 这些异常都在<u>首次取行</u>时才抛出：本方法只是选一条路径并把它交回的异步序列原样给出，
-    /// 自己不做任何会抛的检查（构造门面时除外——缺任一个读实现就在构造时抛）。
+    /// 这些异常都在<u>首次取行</u>时才抛出；本方法本身不做会抛的检查。
     /// </remarks>
     public IAsyncEnumerable<ExcelImportRow> ReadAsync(
         Stream input,

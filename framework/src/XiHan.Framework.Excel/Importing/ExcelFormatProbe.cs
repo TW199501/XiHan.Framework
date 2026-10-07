@@ -12,16 +12,14 @@ namespace XiHan.Framework.Excel.Importing;
 /// <remarks>
 /// <para>
 /// 判据只有两类可靠签名：OLE 复合文件的 8 字节 <c>D0 CF 11 E0 A1 B1 1A E1</c>（旧版 <c>.xls</c> 容器）与
-/// zip 的 4 字节 <c>50 4B 03 04</c>（<c>.xlsx</c> 容器）。其余一律返回 <c>null</c>：文字档没有签名，
-/// HTML 表格、XML 表格等「伪装成 Excel 的文本」也没有任何一段固定字节可以当成身份依据，
-/// 猜一个格式就会把外来数据当正常数据交回调用方。
+/// zip 的 4 字节 <c>50 4B 03 04</c>（<c>.xlsx</c> 容器）。其余一律返回 <c>null</c>，包括文字档与
+/// HTML 表格、XML 表格等伪装成 Excel 的文本。
 /// </para>
 /// <para>
 /// 副档名不参与判断：本类型只看字节，档名叫 <c>.xls</c> 而内容是 <c>.xlsx</c> 判为 <see cref="ExcelImportFormat.Xlsx"/>。
 /// </para>
 /// <para>
-/// 嗅探要求流可定位，因为「不吃掉调用方的流」是硬要求：读完档头一定把位置复位。不可定位的流复位不了，
-/// 只读掉前几字节就把格式判回来，等于把调用方的流留在半读状态，因此直接拒绝。
+/// 嗅探要求流可定位：读完档头把位置复原，不可定位的流直接拒绝。
 /// </para>
 /// </remarks>
 internal static class ExcelFormatProbe
@@ -30,9 +28,8 @@ internal static class ExcelFormatProbe
     /// 判别与错误消息用到的档头长度
     /// </summary>
     /// <remarks>
-    /// 十六字节是「最长前导字节 ＋ 起始标记」的下限：UTF-32 的前导字节占四位，UTF-16 的 <c>&lt;html</c>
-    /// 占十位，UTF-8 的 <c>&lt;?xml</c> 占八位。取八字节时带前导字节的标记语言文本认不出起始标记，
-    /// 错误消息只能说「判不出格式」，点不出它是 HTML 表格还是 XML 表格。
+    /// 十六字节容得下前导字节加起始标记：UTF-32 的前导字节占四位，UTF-16 的 <c>&lt;html</c>
+    /// 占十位，UTF-8 的 <c>&lt;?xml</c> 占八位。
     /// </remarks>
     internal const int HeaderByteCount = 16;
 
@@ -103,8 +100,7 @@ internal static class ExcelFormatProbe
     /// <param name="count">要读的字节数，不足时返回实际读到的字节</param>
     /// <returns>档头字节；空档返回长度 <c>0</c> 的数组，不抛</returns>
     /// <remarks>
-    /// 「档头」永远在流的<u>起点</u>，所以本方法从 0 开始读，而不是从调用方留下的位置读：位置停在中间的流上
-    /// 读出来的那段既不是文件身份也不是文档开头，判据在它上没有意义。读完把位置复原回原处，嗅探不吃调用方的流。
+    /// 从流的起点（位置 0）开始读，而不是从调用方留下的位置读；读完把位置复原回原处。
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="input"/> 为 <c>null</c></exception>
     /// <exception cref="ArgumentException"><paramref name="input"/> 不可读或不可定位</exception>
@@ -152,7 +148,7 @@ internal static class ExcelFormatProbe
         }
         finally
         {
-            // 无论读到几个字节都要复位到调用方留下的位置，嗅探不能吃调用方的流
+            // 无论读到几个字节都复位到调用方留下的位置
             input.Position = origin;
         }
     }
@@ -188,18 +184,16 @@ internal static class ExcelFormatProbe
     /// <returns>识别出来时返回起始标记（形如 <c>&lt;html</c>），否则返回 <c>null</c></returns>
     /// <remarks>
     /// <para>
-    /// 只做识别、不做猜测：返回值只出现在「判不出来、要求调用方指名格式」的消息里，不参与任何解析路径。
-    /// 取不到完整标记时（档头截断在标记中间）返回可见的部分，消息照旧点名 HTML 表格与 XML 表格。
+    /// 返回值只用于判别失败的消息，不参与任何解析路径。
+    /// 档头截断在标记中间时返回可见的部分。
     /// </para>
     /// <para>
-    /// 档头的前导字节（BOM）先剥掉再认形态：标记语言档常带前导字节，SpreadsheetML 多写成
-    /// <c>EF BB BF 3C 3F 78 6D 6C</c>，UTF-16 的 HTML 写成 <c>FF FE 3C 00 68 00</c>。前导字节不是文档内容，
-    /// 留着它 <c>U+FEFF</c> 就排在 <c>&lt;</c> 前面，而它不是空白字符，起始标记因此认不出来。
+    /// 先剥掉档头的前导字节（BOM）再认形态，例如 SpreadsheetML 的 <c>EF BB BF 3C 3F 78 6D 6C</c>、
+    /// UTF-16 HTML 的 <c>FF FE 3C 00 68 00</c>。
     /// UTF-32 的两个前导字节与 UTF-16 LE 的前两位相同，判定排在 UTF-16 之前。
     /// </para>
     /// <para>
-    /// 这里按前导字节取的编码只用来<u>认形态</u>，一律宽松解码，与文字档真正解码用的编码无关
-    /// （那一份见 <see cref="TextEncodingResolver"/>，两侧回退都是严格的）。
+    /// 这里按前导字节取的编码只用来认形态，一律宽松解码，与 <see cref="TextEncodingResolver"/> 无关。
     /// </para>
     /// </remarks>
     internal static string? DescribeMarkupOpening(ReadOnlySpan<byte> header)

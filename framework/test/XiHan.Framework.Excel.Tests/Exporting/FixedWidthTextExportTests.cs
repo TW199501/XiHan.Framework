@@ -17,15 +17,7 @@ namespace XiHan.Framework.Excel.Tests.Exporting;
 /// 固定宽度布局的文字档导出测试
 /// </summary>
 /// <remarks>
-/// <para>
-/// 断言一律落在字节上：固定宽度档由读档方按字节位置切列，所以每条用例检查的是「整行字节数等于各列宽之和」
-/// 与「每格字节数等于该列列宽」，不是字符数。多数夹具取 <c>EncodingName = "utf-8"</c>（不写 BOM），让流的字节数
-/// 正好等于表头行 + 数据行 + 行尾，不必先剥 BOM 再算。
-/// </para>
-/// <para>
-/// 列宽、补位方向与补位字符是列级设置，超宽策略与编码是档级设置，因此夹具逐列给出
-/// <see cref="ExcelColumn.FixedWidth"/>。
-/// </para>
+/// 断言一律按字节：整行字节数等于各列宽之和，每格字节数等于该列列宽。多数夹具取 <c>EncodingName = "utf-8"</c>（不写 BOM）。
 /// </remarks>
 public class FixedWidthTextExportTests
 {
@@ -103,7 +95,7 @@ public class FixedWidthTextExportTests
     {
         var encoding = Encoding.UTF8;
 
-        // 「已到港」在 UTF-8 下 9 字节、3 个字符；列宽 12 字节，差额 3 按字节补。按字符补只会补到 6 字节
+        // 「已到港」在 UTF-8 下 9 字节、3 个字符；列宽 12 字节，差额 3 按字节补
         var spec = BuildSpec([Column(AwbWidth)], new SampleRow { AwbNo = "已到港" });
 
         var stream = (await ExportAsync(FixedOptions(), spec)).Stream;
@@ -162,9 +154,7 @@ public class FixedWidthTextExportTests
     /// 固定宽度布局与分隔符布局走同一份声明级预检：列的行型别与声明不符即在写出任何字节之前抛，行集合一次都不被枚举
     /// </summary>
     /// <remarks>
-    /// 定宽的逐行失败本来就会留下半份档（每格按字节补位、边写边缓冲），因此这条特别断 <c>stream.Length == 0</c>：
-    /// 坏声明必须和「已经落了几行」分开，否则调用方拿到的是按字节切列切到一半的档。
-    /// 列上的 <see cref="ExcelColumn.FixedWidth"/> 照常给出，为的是让列宽校验先放行，把这条反例真正落到行型预检上。
+    /// 列上照常给出 <see cref="ExcelColumn.FixedWidth"/>，使列宽校验放行。
     /// </remarks>
     [Fact]
     public async Task 定宽列行型别与声明不符时预检抛且零字节不枚举()
@@ -304,13 +294,8 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
-    /// 特性驱动的列不带字节宽度，固定宽度布局下按「缺宽度」抛出而不是猜一个宽度
+    /// 特性驱动的列不带字节宽度，固定宽度布局下按「缺宽度」抛出
     /// </summary>
-    /// <remarks>
-    /// 列特性没有字节宽度成员，构建器也从不写 <see cref="ExcelColumn.FixedWidth"/>（特性上的 <c>Width</c>
-    /// 是工作簿显示宽度，与这里的字节宽度不是同一件事）。因此 <c>Layout = FixedWidth</c> 时列必须由调用方自己
-    /// 构造并给 <c>FixedWidth</c>，本条把该现实钉住。
-    /// </remarks>
     [Fact]
     public async Task 特性构建的列在固定宽度布局下缺字节宽度()
     {
@@ -334,7 +319,7 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
-    /// 列宽必须是正整数：零宽与负宽都在写出前失败，不静默当成「未指定」
+    /// 列宽必须是正整数：零宽与负宽都在写出前失败
     /// </summary>
     [Theory]
     [InlineData(0)]
@@ -386,10 +371,6 @@ public class FixedWidthTextExportTests
     /// <summary>
     /// 值内含换行在固定宽度布局下不可写出：取到该行即抛，信息点行位置与列键
     /// </summary>
-    /// <remarks>
-    /// 本布局没有可以包住换行的引号，写出后读档方会把一档当成错行的两档，因此不清洗、不替换、不静默截断，直接抛。
-    /// 抛出时机与 <c>Overflow = Throw</c> 的超宽抛出同一层：都在渲染那一格时，前面已有的行不受影响。
-    /// </remarks>
     [Theory]
     [InlineData("A\nB")]      // 换行符
     [InlineData("A\rB")]      // 回车
@@ -406,11 +387,10 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
-    /// 换行抛出时前面的行已经落盘：该档是半成品，调用方不能把它当完整档交出
+    /// 值含换行抛出时前面的行已经落盘
     /// </summary>
     /// <remarks>
-    /// 行集合是惰性游标，值含不含换行要取到那一行才知道，因此这条不可能「写出任何字节之前」失败；用例刻意让
-    /// 前 200 行的字节量超过 <see cref="StreamWriter"/> 的缓冲，把「已经落盘」变成可断言的现实。
+    /// 前 200 行的字节量超过 <see cref="StreamWriter"/> 的缓冲，使前面的行先落盘。
     /// </remarks>
     [Fact]
     public async Task 值含换行时前面的行已经落盘()
@@ -434,7 +414,7 @@ public class FixedWidthTextExportTests
 
         Assert.Contains("第 201 行", exception.Message, StringComparison.Ordinal);
 
-        // 前若干行已进流：这里不保证零字节残留，只保证出问题的那一行没有落进档里
+        // 前面的行已进流，出问题的那一行没有落进档里
         Assert.True(stream.Length > 0, $"第 201 行抛出前应该已有行落盘，实际流长 {stream.Length}");
 
         var written = BodyOf(stream);
@@ -443,7 +423,7 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
-    /// 补位字符是换行时等于凭空造行，与内容无关，因此在写出任何字节之前就失败
+    /// 补位字符是换行时在写出任何字节之前就失败
     /// </summary>
     [Theory]
     [InlineData('\n')]
@@ -478,10 +458,6 @@ public class FixedWidthTextExportTests
     /// <summary>
     /// 固定宽度布局不解释分隔符、引号策略与公式前缀，三者一律无效
     /// </summary>
-    /// <remarks>
-    /// 档按字节位置解析：引号与分隔符没有对应的解析位，公式前缀会吃掉一格字节宽度、破坏列宽契约，
-    /// 因此三者不参与写出，写出的是原值补位到列宽。
-    /// </remarks>
     [Fact]
     public async Task 固定宽度下分隔符引号与公式前缀无效()
     {
@@ -512,12 +488,8 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
-    /// 分隔符的三条拒写在定宽布局不适用：本布局根本不读 Delimiter，换行分隔符既不报错也不生效
+    /// 定宽布局不读 Delimiter，换行分隔符既不报错也不生效
     /// </summary>
-    /// <remarks>
-    /// 定宽档按字节位置切列，分隔符没有对应的解析位，因此 <c>\r</c>／<c>\n</c>／<c>"</c> 这些在分隔符布局里
-    /// 无法成立的取值，对本布局不构成坏输入。真正会被拒的是列上的补位字符取换行（与内容无关，排在预写校验里）。
-    /// </remarks>
     [Fact]
     public async Task 定宽布局不拒换行分隔符()
     {
@@ -572,12 +544,8 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
-    /// 目标编码收不下的字符在固定宽度路径同样抛出，不产出问号字节的坏档
+    /// 目标编码收不下的字符在固定宽度路径同样抛出
     /// </summary>
-    /// <remarks>
-    /// 与分隔符路径同一标准：简体表头不在 Big5（代码页 950）字符集内，严格编码器在算字节数时就拒绝。
-    /// 本条不断言残留字节数为零——缓冲区决定何时落盘，这里只保证不产出「看起来成功」的坏档。
-    /// </remarks>
     [Fact]
     public async Task 不可映射字符在固定宽度下抛编码回退异常()
     {
@@ -631,11 +599,9 @@ public class FixedWidthTextExportTests
     /// 不能按字节切列的编码在定宽导出写出任何字节之前就被拒，且不留下半份档
     /// </summary>
     /// <remarks>
-    /// 判据与导入侧共用 <c>TextWriterHelper.ValidateFixedWidthEncoding</c> 那一份实现（两条客观检查：行尾必须各自
-    /// 编成单字节的 <c>0x0D</c>／<c>0x0A</c>；同一段文字整体编码必须等于分段编码），两条路径不会一边拒一边收。
-    /// <c>IBM037</c> 把 <c>\n</c> 编成 <c>0x25</c>，写出的档读档方永远找不到行尾、只认得到第一行；
-    /// <c>iso-2022-jp</c> 在段首补跳脱序列，逐格补位写出的字节数与声明列宽对不上，从错的那一栏起整体错位。
-    /// 两者原来都写出「看起来正常」的档并回报成功。守卫排在 <c>new StreamWriter</c> 之前，所以坏编码一个字节都不进流。
+    /// 校验由 <c>TextWriterHelper.ValidateFixedWidthEncoding</c> 执行：检查一要求行尾各自编成单字节的 <c>0x0D</c>／<c>0x0A</c>，
+    /// 检查二要求同一段文字整体编码等于分段编码。<c>IBM037</c> 把 <c>\n</c> 编成 <c>0x25</c>，违反检查一；
+    /// <c>iso-2022-jp</c> 在段首补跳脱序列，违反检查二。
     /// </remarks>
     /// <param name="encodingName">要指的坏编码</param>
     /// <param name="expectedCheck">消息应点名的检查项</param>
@@ -660,11 +626,6 @@ public class FixedWidthTextExportTests
     /// <summary>
     /// 守卫不误拒合法编码：UTF-8 与 Big5 的定宽档照写，整格字节数等于列宽
     /// </summary>
-    /// <remarks>
-    /// 正例证明的是「该放的放」：一个汉字在 UTF-8 占 3 字节、在 Big5 占 2 字节，两种都满足守卫问的那两条性质，
-    /// 把它们一并拒掉就是让合法的简体／繁体定宽档写不出来。表头「提單號」在两种编码下分别占 9 与 6 字节，
-    /// 补位后整格都正好是列宽 12 字节，行尾各占 2 字节。
-    /// </remarks>
     /// <param name="encodingName">合法编码名</param>
     [Theory]
     [InlineData("utf-8")]
@@ -704,16 +665,7 @@ public class FixedWidthTextExportTests
     /// 默认编码配固定宽度布局在写出任何字节之前就被拒，且不留下半份档
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 这条组合是「什么都不改」的调用方拿到的形态：<see cref="ExcelTextOptions.EncodingName"/> 的默认值是
-    /// <c>"utf-8-bom"</c>，以前沿用到底就在第一条记录之前凭空写出 <c>EF BB BF</c>。本组件自己的导入器会剥 BOM，
-    /// 所以往返测试看不见它；外部按字节位置切列的读档方（海关／航空／ERP 那种一个字节都不能差的接口）
-    /// 会把第一条记录的每一栏都读偏 3 字节。
-    /// </para>
-    /// <para>
-    /// 处置按裁定取抛出而不是「静默不写前导字节」：定宽的契约就是字节位置精确，悄悄改掉调用方指定的编码产出的
-    /// 档头，等于替他决定他没决定的事，所以要他明确指名编码。断的是「抛」，不是「档头干净」。
-    /// </para>
+    /// <see cref="ExcelTextOptions.EncodingName"/> 的默认值是带 BOM 的 <c>"utf-8-bom"</c>。
     /// </remarks>
     [Fact]
     public async Task 默认编码配定宽布局在写出前就拒且不留下半份档()
@@ -721,7 +673,7 @@ public class FixedWidthTextExportTests
         var stream = new MemoryStream();
         var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
 
-        // 只设布局，EncodingName 保持默认值：夹具里的 utf-8 一律不参与
+        // 只设布局，EncodingName 保持默认值
         var exception = await Assert.ThrowsAsync<ArgumentException>(async () => await exporter.ExportAsync(
             stream, BuildSpec([Column(AwbWidth)], new SampleRow { AwbNo = "AWB1" }), ExcelFormat.Txt,
             new ExcelTextOptions { Layout = ExcelTextLayout.FixedWidth }, TestContext.Current.CancellationToken));
@@ -736,12 +688,6 @@ public class FixedWidthTextExportTests
     /// <summary>
     /// 指名 utf-8 时定宽档的第一个字节就是数据，不含任何前导字节
     /// </summary>
-    /// <remarks>
-    /// 反例的另一面：拒收带 BOM 的编码不等于要求「额外写一遍干净的档头」。整份档逐字比对，长度就是
-    /// 表头行 + 数据行各自的列宽与行尾，没有多出来的 3 个字节。分隔符布局照常写 BOM 由
-    /// <c>DelimitedTextExporterTests.UTF8预设写BOM_指名utf8不写BOM</c> 钉住——把本处置错挂到共用骨架上时，
-    /// 那条会先红。
-    /// </remarks>
     [Fact]
     public async Task 指名utf8时定宽档第一个字节就是数据()
     {
@@ -841,7 +787,7 @@ public class FixedWidthTextExportTests
         => Encoding.UTF8.GetString(stream.ToArray()).TrimStart('\uFEFF');
 
     /// <summary>
-    /// 构造固定宽度选项，夹具默认用不带 BOM 的 UTF-8 以便逐字节核对
+    /// 构造固定宽度选项，默认用不带 BOM 的 UTF-8
     /// </summary>
     private static ExcelTextOptions FixedOptions(
         ExcelTextOverflow overflow = ExcelTextOverflow.Throw,
@@ -887,7 +833,7 @@ public class FixedWidthTextExportTests
     }
 
     /// <summary>
-    /// 第一行交出后取消，用于验证每行写出前都检查取消令牌
+    /// 第一行交出后取消
     /// </summary>
     private static IEnumerable<SampleRow> RowsThatCancelAfterFirst(CancellationTokenSource source)
     {

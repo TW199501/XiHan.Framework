@@ -42,7 +42,7 @@ public class ExcelColumnAttributeTests
     {
         var attribute = new ExcelColumnAttribute();
 
-        // -1 与 0 是「未指定」的标记值：可空数值不能作特性参数，所以这两个成员用非可空类型加标记值表达
+        // -1 与 0 是「未指定」的标记值
         Assert.Equal(-1, attribute.Order);
         Assert.Equal(0, attribute.Width);
         Assert.Null(attribute.NumberFormat);

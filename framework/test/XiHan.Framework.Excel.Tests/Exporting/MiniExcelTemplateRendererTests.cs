@@ -18,20 +18,13 @@ namespace XiHan.Framework.Excel.Tests.Exporting;
 /// MiniExcel 固定版式模板渲染测试
 /// </summary>
 /// <remarks>
-/// <para>
-/// 模板由 <see cref="TemplateFactory" /> 当场生成写进内存流，仓库里不留二进制模板档。
-/// 断言一律 ClosedXML 回读渲染产物，格位按实测的展开方式写（取证见
-/// <c>.superpowers/sdd/2026-10-04-excel/t7-probe-miniexcel-behavior.txt</c>）：集合占位从它所在那一行原地起写，
-/// 第一项落在占位行本身，模板下方的静态行被整体下移。
-/// </para>
-/// <para>
-/// 每条测试各自建模板流：实测 MiniExcel 渲染后会关掉传入的模板流，复用会让下一条用例拿到已关闭的流。
-/// </para>
+/// 模板由 <see cref="TemplateFactory" /> 生成到内存流，每条测试各自建模板流。
+/// 断言用 ClosedXML 回读渲染产物：集合占位从所在行原地起写，第一项落在占位行本身，模板下方的静态行整体下移。
 /// </remarks>
 public class MiniExcelTemplateRendererTests
 {
     /// <summary>
-    /// 单值占位与集合占位都被数据替换，格位按实测的原地展开
+    /// 单值占位与集合占位都被数据替换，集合占位原地展开
     /// </summary>
     [Fact]
     public async Task 模板占位符被数据替换()
@@ -115,10 +108,6 @@ public class MiniExcelTemplateRendererTests
     /// <summary>
     /// 数据里缺键时该格留空而不是抛，也不把占位符原文留下
     /// </summary>
-    /// <remarks>
-    /// 这是库的默认口径（<c>IgnoreTemplateParameterMissing</c> 默认为真），本组件不透出该配置，
-    /// 因此把它钉成契约并写进接口文档：缺键交回空格，不报错也不猜值。
-    /// </remarks>
     [Fact]
     public async Task 数据缺键时该格留空而不抛()
     {
@@ -139,10 +128,6 @@ public class MiniExcelTemplateRendererTests
     /// <summary>
     /// 数值与日期按库的形态落格：数值仍是数值，日期落成文本而不是日期格
     /// </summary>
-    /// <remarks>
-    /// 实测（<c>t7-probe-miniexcel-behavior.txt</c> 的 case18）日期占位渲染出来是 <c>Text</c> 格，
-    /// 与 ClosedXML 导出路径的日期格不同——固定版式模板要拿它做日期运算的调用方必须自己转。
-    /// </remarks>
     [Fact]
     public async Task 数值格保持数值而日期格落成文本()
     {
@@ -167,10 +152,6 @@ public class MiniExcelTemplateRendererTests
     /// <summary>
     /// 三个参数为 null 各自抛 ArgumentNullException 并点名参数，且不产出半个字节
     /// </summary>
-    /// <remarks>
-    /// 实测 MiniExcel 对 null 模板与 null 数据直接交回 <c>NullReferenceException</c>（case9a/case9c），
-    /// 那是不能被当成契约的失败面，所以在入口自己判。
-    /// </remarks>
     [Fact]
     public async Task 入参为null时抛ArgumentNullException并点名参数()
     {
@@ -192,7 +173,7 @@ public class MiniExcelTemplateRendererTests
     }
 
     /// <summary>
-    /// 模板流不可读时抛 ArgumentException，不走库的失败面
+    /// 模板流不可读时抛 ArgumentException
     /// </summary>
     [Fact]
     public async Task 模板流不可读时抛ArgumentException()
@@ -210,7 +191,7 @@ public class MiniExcelTemplateRendererTests
     }
 
     /// <summary>
-    /// 模板流不可定位时抛 ArgumentException：实测库要求模板可 seek，否则自己抛英文异常
+    /// 模板流不可定位时抛 ArgumentException
     /// </summary>
     [Fact]
     public async Task 模板流不可定位时抛ArgumentException()
@@ -250,9 +231,7 @@ public class MiniExcelTemplateRendererTests
     /// 取消落在渲染期间时只抛异常，不交出「渲染完成」的假象
     /// </summary>
     /// <remarks>
-    /// 输出流的所有权在调用方，本方法不能把它关掉，能主张的只有两件事：抛出 <see cref="OperationCanceledException"/>，
-    /// 以及绝不正常返回。夹具在第一次被写入时就把令牌取消，正好落在「库已经动手写、还没写完」的那一段；
-    /// 而渲染完成后、回传之前这一窗口的取消由本类在返回前补查一次拦住，否则调用方会拿到一份没人宣告完成的档。
+    /// 夹具在输出流第一次被写入时把令牌取消。
     /// </remarks>
     [Fact]
     public async Task 渲染期间取消时抛异常而不正常返回()
@@ -269,9 +248,7 @@ public class MiniExcelTemplateRendererTests
     /// 取消落在渲染完成之后、回传之前这一窗口时同样抛异常，不让调用方读到「渲染已完成」
     /// </summary>
     /// <remarks>
-    /// 夹具把取消压到最后一次 flush，此时渲染库已经写完、自己不会再查令牌；只有本方法在返回前补查一次，
-    /// 这个窗口才不会交出成功。这与 <see cref="ClosedXmlExporter"/> 和 <see cref="DelimitedTextExporter"/>
-    /// 的回传前检查是同一条口径。
+    /// 夹具在输出流最后一次 flush 时把令牌取消。
     /// </remarks>
     [Fact]
     public async Task 渲染完成后回传前取消也不交出完成()
@@ -285,7 +262,7 @@ public class MiniExcelTemplateRendererTests
     }
 
     /// <summary>
-    /// 模板不是 xlsx 容器时库的容器异常原样透传，且实测此时输出流没有半个字节
+    /// 模板不是 xlsx 容器时库的容器异常原样透传，且输出流零字节
     /// </summary>
     [Fact]
     public async Task 损坏模板透传容器异常()
@@ -302,10 +279,6 @@ public class MiniExcelTemplateRendererTests
     /// <summary>
     /// 渲染后模板流被库关闭，重复渲染必须每次交回新的模板流
     /// </summary>
-    /// <remarks>
-    /// 这条把实测到的库行为钉成契约（<c>t7-probe-miniexcel-behavior.txt</c> 的 case1 与 case12），
-    /// 提醒门面与调用方：组件不接管、也不归还模板流的所有权。
-    /// </remarks>
     [Fact]
     public async Task 渲染后模板流被关闭而产物流仍可用()
     {
@@ -333,7 +306,7 @@ public class MiniExcelTemplateRendererTests
     }
 
     /// <summary>
-    /// 渲染器实现抽象契约，供门面按接口分派
+    /// 渲染器实现模板渲染契约
     /// </summary>
     [Fact]
     public void 渲染器实现模板渲染契约()
@@ -345,17 +318,7 @@ public class MiniExcelTemplateRendererTests
     /// 六个公式起首字符与渲染库自己的公式指令前缀一律拒写，抛在写出任何字节之前并点名键路径
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 六个起首字符（<c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、制表符、回车）复用的是分隔符文字导出那一份判据，
-    /// 模板路径只换处置形态：不加单引号前缀而是拒写，因为加前缀等于改写业务数据而模板没有留痕机制。
-    /// 实测这六个值经模板渲染都落文字格，其中制表符与回车还会被渲染库静默吃掉（<c>"\t1"</c> 读回成 <c>"1"</c>），
-    /// 拒写照样成立——静默改写与静默丢弃都不是本组件肯交出的结果。
-    /// </para>
-    /// <para>
-    /// <c>$=</c> 是渲染库自己的公式指令前缀，命中的值被写成公式元素而不是文字格：
-    /// <c>"$=1+1"</c> 落 <c>&lt;x:f&gt;1+1&lt;/x:f&gt;</c>，<c>"$=HYPERLINK(...)"</c> 与 <c>"$=WEBSERVICE(...)"</c>
-    /// 同样落成真公式且渲染回报成功，读回端拿到的是没有缓存值的空格。六个起首字符覆盖不到它，因此另判一道。
-    /// </para>
+    /// 六个起首字符是 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、制表符、回车；<c>$=</c> 是渲染库的公式指令前缀。
     /// </remarks>
     /// <param name="value">要渲染的字串值</param>
     /// <param name="expectedHit">消息里应当点名的那一段起首形态</param>
@@ -387,8 +350,7 @@ public class MiniExcelTemplateRendererTests
     /// 集合元素里的命中值点名带下标的键路径，形如 <c>Items[3].Name</c>
     /// </summary>
     /// <remarks>
-    /// 走访深度与模板占位符 <c>{{键}}</c>／<c>{{键.子键}}</c> 一致，因此集合元素的成员也在范围内；
-    /// 下标从 0 起，与调用方数得出位置的那一份一致。
+    /// 下标从 0 起。
     /// </remarks>
     [Fact]
     public async Task 集合元素里的公式起首值点名带下标的键路径()
@@ -444,9 +406,7 @@ public class MiniExcelTemplateRendererTests
     /// 公式字符不在起首时照渲染：读回原值不变，产物里也没有公式元素
     /// </summary>
     /// <remarks>
-    /// 判据只看第一个字符，因此值中间出现 <c>=</c> 或 <c>$=</c> 都不算命中；这一族正例同时钉住变异
-    /// 「把共用判据换成只查 <c>$=</c>」——那种写法会让六个起首字符的用例全红。
-    /// 判定器走 <see cref="ExcelDataReaderImporter"/> 与产物 XML，不用工作簿读自己写的档。
+    /// 读回用 <see cref="ExcelDataReaderImporter"/> 与产物 XML 判定。
     /// </remarks>
     /// <param name="value">公式字符不在起首的字串值</param>
     [Theory]
@@ -495,12 +455,8 @@ public class MiniExcelTemplateRendererTests
     }
 
     /// <summary>
-    /// 非有限浮点拒写：渲染库会按当前文化把它写成文字，输出随文化变
+    /// 非有限浮点拒写
     /// </summary>
-    /// <remarks>
-    /// 实测 <c>double.NaN</c> 在 zh-TW 下写成「非數值」、在 de-DE 与 en-US 下写成「NaN」，
-    /// <c>double.PositiveInfinity</c> 写成「∞」——数值列里凭空多出字串，且写出的文字由执行环境的文化决定。
-    /// </remarks>
     [Fact]
     public async Task 非有限浮点拒写()
     {
@@ -518,12 +474,8 @@ public class MiniExcelTemplateRendererTests
     }
 
     /// <summary>
-    /// 早于日期下限的三种日期型别一起拒写，与两条 xlsx 导出路径同一把尺
+    /// 早于日期下限的三种日期型别一起拒写
     /// </summary>
-    /// <remarks>
-    /// 模板路径把日期落成文字格而不是日期格，但「哪一天之前不能写」不由落进哪种格子决定：
-    /// 分派器按行数替调用方选路径，下限若跟着格位走，同一份数据能不能导就成了走哪条路的副产品。
-    /// </remarks>
     [Fact]
     public async Task 早于日期下限的三种日期型别一起拒写()
     {
@@ -552,10 +504,7 @@ public class MiniExcelTemplateRendererTests
     /// 有效数字多于十五位的数值拒写，五种数值型别一并覆盖
     /// </summary>
     /// <remarks>
-    /// <see cref="float"/> 先展开成 <see cref="double"/> 再量，因此 <c>0.1f</c> 这类实际被改写成另一个数的单精度值同样拦得住：
-    /// 实测它经模板渲染写出 <c>0.1</c>、读回也是 <c>0.1</c>，看着没事，但落进数值格的那份双精度是
-    /// <c>0.10000000149011612</c>，与呼叫端交出的单精度不是同一个数。
-    /// <c>12345678901234.5678m</c> 同类：写全十八位、读回成了 <c>12345678901234.568</c>。
+    /// <see cref="float"/> 先展开成 <see cref="double"/> 再判定有效数字位数。
     /// </remarks>
     [Fact]
     public async Task 有效数字多于十五位的数值拒写()
@@ -587,10 +536,7 @@ public class MiniExcelTemplateRendererTests
     /// 绝对值超过双精度整数上限的 <see cref="long"/>／<see cref="ulong"/>／<see cref="decimal"/> 拒写
     /// </summary>
     /// <remarks>
-    /// 用例一律取「有效数字在承诺位数内、量级却越过界」的形态（末尾带一串零），这样命中的是量级那一道而不是位数那一道：
-    /// 两道都在同一份共用判据里，位数排在前面，十六位数字的 <c>9007199254740993L</c> 会先被位数拦下。
-    /// 实测 <c>1000000000000000000L</c> 经模板渲染写全十九位、读回成了双精度 <c>1E+18</c>，交不回原值。
-    /// <see cref="double"/> 不归这一道管，见 <c>double 大值不受整数上限约束</c>。
+    /// 用例一律取有效数字在十五位内、量级越过上限的形态（末尾带一串零），命中的是量级判定而不是位数判定。
     /// </remarks>
     [Fact]
     public async Task 超过双精度整数上限的整数拒写()
@@ -742,8 +688,7 @@ public class MiniExcelTemplateRendererTests
     /// 模板没有引用的键同样被走访：数据里带着一个越界值就渲染不了
     /// </summary>
     /// <remarks>
-    /// 走访不解析模板，因此覆盖数据的全部顶層成员与集合元素成员。这是刻意的取舍——模板是一条流、渲染库读完就关掉，
-    /// 为挑出被引用的键先把版面读一遍等于读两次；跳过没被引用的键则会让「哪一份数据能渲染」由模板里恰好写了哪些占位符决定。
+    /// 走访不解析模板，覆盖数据的全部顶层成员与集合元素成员。
     /// </remarks>
     [Fact]
     public async Task 模板没有引用的键同样被走访()
@@ -765,9 +710,8 @@ public class MiniExcelTemplateRendererTests
     /// 边界内的取值照渲染，并用导入器读回原值
     /// </summary>
     /// <remarks>
-    /// 恰等的边界都要绿：三万二千七百六十七个字符的字串、日期下限当天、十五位有效数字、
-    /// 以及「十五位有效数字且量级刚好压在双精度整数上限之下」的 <c>9007199254740990L</c>。
-    /// 读回判定一律走 <see cref="ExcelDataReaderImporter"/>，不用工作簿读自己写的档。
+    /// 覆盖恰等的边界：32767 个字符的字串、日期下限当天、十五位有效数字、
+    /// 以及量级刚好在双精度整数上限之下的 <c>9007199254740990L</c>。读回走 <see cref="ExcelDataReaderImporter"/>。
     /// </remarks>
     [Fact]
     public async Task 边界内的取值照渲染并读回原值()
@@ -786,13 +730,13 @@ public class MiniExcelTemplateRendererTests
 
         Assert.Equal(-9007199254740990d, Assert.IsType<double>(await RenderSingleAsync(-9007199254740990L)), 0);
 
-        // 日期下限当天照渲染。渲染库把日期落成文字格，文字形态随当前文化变，因此只断言年份与「不是空值」
+        // 日期下限当天照渲染，日期落成文字格，只断言年份
         var earliest = Assert.IsType<string>(await RenderSingleAsync(new DateTime(1900, 1, 1)));
         Assert.Contains("1900", earliest, StringComparison.Ordinal);
     }
 
     /// <summary>
-    /// <see cref="double"/> 的大值不受整数上限那一道约束：呼叫端交出的本来就是双精度，落格与读回都是它
+    /// <see cref="double"/> 的大值不受整数上限约束
     /// </summary>
     [Fact]
     public async Task double大值不受整数上限约束()
@@ -805,7 +749,7 @@ public class MiniExcelTemplateRendererTests
             new { V = 1e300 },
             TestContext.Current.CancellationToken);
 
-        // 渲染库把这一个值落成文字格（写出「1E+300」一类形态），本用例只钉「不被拒写」，不钉文字形态
+        // 只断言不被拒写，不断言文字形态
         Assert.False(string.IsNullOrEmpty(await ImportSingleValueAsync(output) as string));
     }
 
@@ -813,8 +757,7 @@ public class MiniExcelTemplateRendererTests
     /// 走访把集合枚举一遍，且只有一遍
     /// </summary>
     /// <remarks>
-    /// 模板里没有集合占位时渲染库根本不碰这个集合（实测取枚举器 0 次），因此这里的计数纯粹是走访自己那一遍；
-    /// 走访若把集合枚举两次，或者先物化成清单再遍历，计数就会超过 1。
+    /// 模板里没有集合占位，渲染库不枚举这个集合。
     /// </remarks>
     [Fact]
     public async Task 走访只把集合枚举一遍()
@@ -837,8 +780,7 @@ public class MiniExcelTemplateRendererTests
     /// 有集合占位时的枚举次数是「走访一遍 + 渲染库自己两遍」，走访没有多走
     /// </summary>
     /// <remarks>
-    /// 实测渲染库对同一个集合取两次枚举器（展开集合行一次、写值一次），本组件不接管也不改这一点；
-    /// 这一条钉的是走访只加一遍：走访若走两次，计数会变成 4。
+    /// 渲染库对同一个集合取两次枚举器（展开集合行一次、写值一次）。
     /// </remarks>
     [Fact]
     public async Task 走访一遍之外渲染库自己枚举两遍()
@@ -905,11 +847,6 @@ public class MiniExcelTemplateRendererTests
     /// 用本框架的导入器把渲染产物读回，交出第一格的取值
     /// </summary>
     /// <param name="output">渲染后的流，本方法把它回到起点，不关闭也不释放</param>
-    /// <remarks>
-    /// 往返断言的判定器一律走这里，不用 <see cref="XLWorkbook"/> 读自己写的档：工作簿会按自己的形式反算，
-    /// 读回来的东西看着与写进去的一致，恰好掩盖档里被改写过这件事。公式格没有缓存值时导入器交回空值，
-    /// 因此「读回原值」同时证明了这一格是文字格。
-    /// </remarks>
     private static async Task<object?> ImportSingleValueAsync(MemoryStream output)
     {
         var rows = await ImportRowsAsync(output);
@@ -948,8 +885,7 @@ public class MiniExcelTemplateRendererTests
     /// <param name="output">渲染后的流，本方法不关闭也不释放它</param>
     /// <returns>公式元素的个数</returns>
     /// <remarks>
-    /// 直接看档里的 XML，不经任何工作簿对象模型：公式格在档里就是一个公式元素，
-    /// 而渲染库写出的公式没有缓存值，读回端只会拿到空格。
+    /// 直接读档里的 XML，不经工作簿对象模型。
     /// </remarks>
     private static int CountFormulaElements(MemoryStream output)
     {
@@ -987,7 +923,7 @@ public class MiniExcelTemplateRendererTests
     }
 
     /// <summary>
-    /// 记录被枚举次数的集合，用来证明写出前走访只把资料消费一遍
+    /// 记录被枚举次数的集合
     /// </summary>
     private sealed class CountingItems : IEnumerable<ItemRow>
     {
@@ -1024,7 +960,7 @@ public class MiniExcelTemplateRendererTests
     }
 
     /// <summary>
-    /// 集合元素型别：只有公开属性，与渲染库在集合元素上认得的成员形态一致
+    /// 集合元素型别，只有公开属性
     /// </summary>
     private sealed class ItemRow
     {
@@ -1034,7 +970,7 @@ public class MiniExcelTemplateRendererTests
     }
 
     /// <summary>
-    /// 只能顺序读、不可定位的流，用来证明入口对模板流的可 seek 要求
+    /// 只能顺序读、不可定位的流
     /// </summary>
     private sealed class ForwardOnlyStream(Stream inner) : Stream
     {

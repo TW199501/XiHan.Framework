@@ -17,10 +17,6 @@ namespace XiHan.Framework.Excel.Tests.Importing;
 /// <see cref="TextWriterHelper.ResolveEncoding(string)"/>；<b>自动判别</b>那一支是 BOM → 严格 UTF-8 试探 → Big5，
 /// 且读档头之后必须把流位置复原。
 /// </para>
-/// <para>
-/// 「指名的解析与既有实现等价」这件事不能只列几个同结论的样本，因此下面有一条按边界输入逐条对跑、
-/// 数分歧个数的差异探测。
-/// </para>
 /// </remarks>
 public class TextEncodingResolverTests
 {
@@ -54,11 +50,10 @@ public class TextEncodingResolverTests
     }
 
     /// <summary>
-    /// 代码页编号不是编码名：两侧都解析不到，本类型不另开一条按编号取编码的路
+    /// 代码页编号不是编码名：两侧都解析不到
     /// </summary>
     /// <remarks>
-    /// <c>Encoding.GetEncoding(string)</c> 只认名称与别名，<c>"950"</c> 取不到 Big5。这条把口径钉住，
-    /// 免得后来人以为 <see cref="Abstractions.Importing.ExcelImportOptions.TextEncodingName"/> 可以填编号。
+    /// <c>Encoding.GetEncoding(string)</c> 只认名称与别名，<c>"950"</c> 取不到 Big5。
     /// </remarks>
     [Fact]
     public void 代码页编号不是编码名()
@@ -70,11 +65,10 @@ public class TextEncodingResolverTests
     }
 
     /// <summary>
-    /// 差异探测：新写的严格 UTF-8 用法与既有解析对同一批边界输入逐条对跑，分歧必须为零
+    /// 差异探测：直接构造的严格 UTF-8 与既有解析对同一批边界输入逐条对跑，分歧必须为零
     /// </summary>
     /// <remarks>
-    /// 对跑的两侧是「<see cref="UTF8Encoding"/> 直接构造（简报点名的形状）」与
-    /// 「<see cref="TextWriterHelper.ResolveEncoding(string)"/> 取到的（实现真正用的）」，
+    /// 对跑的两侧是「<see cref="UTF8Encoding"/> 直接构造」与「<see cref="TextWriterHelper.ResolveEncoding(string)"/> 取到的」，
     /// 每个输入比四件事：整段解码的结果或抛出的异常型别、<b>试探实际用的</b> <c>GetDecoder().GetCharCount</c>、
     /// BOM 前导字节、以及编码器对孤立代理字尾的行为。分歧清单非空即失败，并把分歧条数报出来。
     /// </remarks>
@@ -246,9 +240,6 @@ public class TextEncodingResolverTests
     /// <summary>
     /// 窗口之外的非法字节不在判别范围内：判出来仍是 UTF-8，报错由解码那一步负责
     /// </summary>
-    /// <remarks>
-    /// 这条把「判别只看前 32KB」这个现实钉住，避免以后有人以为自动判别能整档验码。
-    /// </remarks>
     [Fact]
     public void 超出窗口的非法字节不影响判别()
     {
@@ -331,7 +322,7 @@ public class TextEncodingResolverTests
     }
 
     /// <summary>
-    /// 认出的编码一律带严格解码回退，宽松解码永远不会失败也就永远察觉不到判错编码
+    /// 认出的编码一律带严格解码回退
     /// </summary>
     [Theory]
     [InlineData("big5")]
@@ -350,8 +341,7 @@ public class TextEncodingResolverTests
     /// 分隔文字档未指名编码、档又无 BOM 时交回原流，回退编码是严格 Big5
     /// </summary>
     /// <remarks>
-    /// UTF-8 那一支不由本地窗口试探负责：读取器会把整档按 UTF-8 试解一遍，试不通才用回退编码，
-    /// 因此这里只给回退，且回退带严格回退——解不开的字节要抛，不能变成替换字符。
+    /// UTF-8 由读取器整档试解，本类型只给回退编码，且回退带严格回退。
     /// </remarks>
     [Fact]
     public void 分隔文字档未指名时无BOM的回退编码是严格Big5()
@@ -391,10 +381,6 @@ public class TextEncodingResolverTests
     /// <summary>
     /// 指名编码且档无 BOM 时不交给读取器解码：自己按指名编码转码成无 BOM UTF-8，另建一条流
     /// </summary>
-    /// <remarks>
-    /// 读取器只在 UTF-8 试解失败时才用回退编码，档的字节构成合法 UTF-8 时指名的编码就被静默忽略。
-    /// 转码之后交出去的字节是 UTF-8，指名才真正决定读到什么字。
-    /// </remarks>
     [Fact]
     public void 指名编码且无BOM时转码成无BOM的UTF8()
     {
@@ -410,7 +396,7 @@ public class TextEncodingResolverTests
         using var transcoded = handoff.Input;
         var bytes = ReadAllBytes(transcoded);
 
-        // 前导字节不能再写一遍：读取器会把它当 BOM 认一次
+        // 转码结果不带 UTF-8 前导字节
         Assert.False(bytes.AsSpan().StartsWith(new UTF8Encoding(true).GetPreamble()));
         Assert.Equal("提單號\r\nAWB1\r\n", new UTF8Encoding(false, true).GetString(bytes));
     }

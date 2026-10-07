@@ -10,9 +10,8 @@ namespace XiHan.Framework.Excel.Abstractions.Exporting;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 样式相关两个字段的配对关系固定为：当且仅当 <see cref="StylingApplied"/> 为 <c>false</c> 时
-/// <see cref="StylingSkipReason"/> 才有值。请经由 <see cref="Styled"/> 与 <see cref="Degraded"/> 两个工厂构造，
-/// 不要在调用点自己拼这两个字段：<see cref="Degraded"/> 当场拒掉空的理由，配对关系因此不是靠自觉维持的。
+/// 当且仅当 <see cref="StylingApplied"/> 为 <c>false</c> 时 <see cref="StylingSkipReason"/> 才有值。
+/// 请经由 <see cref="Styled"/> 与 <see cref="Degraded"/> 两个工厂构造；<see cref="Degraded"/> 拒收空的理由。
 /// </para>
 /// <para>
 /// 文本档（<c>.csv</c>、<c>.txt</c>）本身没有样式概念，写出这些档式时 <c>StylingApplied</c> 为 <c>true</c>
@@ -49,8 +48,7 @@ public sealed record ExcelExportResult(
     /// <param name="contentType">实际写出的内容类型</param>
     /// <param name="reason">样式被跳过的原因，必须说出丢了什么</param>
     /// <returns>导出结果，样式已落地标记为 <c>false</c></returns>
-    /// <exception cref="ArgumentException"><paramref name="reason"/> 为 <c>null</c>、空串或仅含空白字符：
-    /// 一个没有理由的降级结果与成功结果读起来一样体面，调用方再也问不出丢了什么</exception>
+    /// <exception cref="ArgumentException"><paramref name="reason"/> 为 <c>null</c>、空串或仅含空白字符</exception>
     public static ExcelExportResult Degraded(ExcelFormat format, string fileExtension, string contentType, string reason)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);

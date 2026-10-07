@@ -11,22 +11,19 @@ namespace XiHan.Framework.Excel.Importing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 这几条判据与来源无关：<see cref="ExcelImportOptions.MaxRowCount"/> 的上界校验在容器路径与固定宽度路径
-/// 必须是同一个数、同一种报法，<see cref="XiHanExcelOptions.MaxImportBytes"/> 说的「这份档太大」也不能
-/// 一个来源拒、另一个来源照读，<see cref="ExcelImportOptions.SkipEmptyRows"/> 说的「整行皆空」同样不能一个来源
-/// 只看 <c>null</c>、另一个来源把空格也算空。抽在这里，两个导入器共用一份，不再各写一遍。
+/// 容器路径与固定宽度路径共用这几条判据：<see cref="ExcelImportOptions.MaxRowCount"/> 的上界校验、
+/// <see cref="XiHanExcelOptions.MaxImportBytes"/> 的档大小判定，以及
+/// <see cref="ExcelImportOptions.SkipEmptyRows"/> 的「整行皆空」判定。
 /// </para>
 /// <para>
 /// 行数上限有两层。<see cref="ExcelConstants.DefaultMaxImportRows"/> 是框架侧不可突破的绝对上界；
 /// <see cref="XiHanExcelOptions.MaxImportRows"/> 是应用在这条界之内收紧的本次上限，
 /// 由 <see cref="ResolveHardMaxRows"/> 校验并交回，两个导入器在构造时各取一次。
-/// 请求的 <see cref="ExcelImportOptions.MaxRowCount"/> 只能落在本次上限之内，报出的也是本次上限——
-/// 应用把上限配成 2 行却被告知「不能超过 1000000 行」等于把配置当成装饰。
+/// 请求的 <see cref="ExcelImportOptions.MaxRowCount"/> 只能落在本次上限之内，报错点名的也是本次上限。
 /// </para>
 /// <para>
 /// 档大小上限只有一层：<see cref="XiHanExcelOptions.MaxImportBytes"/>，未接配置时取
-/// <see cref="ExcelConstants.DefaultMaxImportBytes"/>。容器路径在这道界之外还要按 zip 元数据判解压规模，
-/// 那部分只对 xlsx 有意义，因此留在容器导入器里，不在这里。
+/// <see cref="ExcelConstants.DefaultMaxImportBytes"/>。xlsx 的解压规模判定在容器导入器里。
 /// </para>
 /// </remarks>
 internal static class ImportSharedRules
@@ -38,9 +35,7 @@ internal static class ImportSharedRules
     /// <returns>本次可用的行数上限</returns>
     /// <exception cref="ArgumentOutOfRangeException">配置的上限不是正整数，或高过框架的绝对上界</exception>
     /// <remarks>
-    /// 抛在构造点而不是等到取行：配置越界意味着这份读取器不可能按承诺工作，越早报越接近真正的成因
-    /// （选项绑定的那一刻），也不会有人把「解析服务失败」当成档的问题。越界一律抛出，不夹回上界——
-    /// 夹回等于把「配了 200 万行、实际得到 100 万行」这件事变成静默改写。
+    /// 在导入器构造点调用。越界一律抛出，不夹回上界。
     /// </remarks>
     internal static int ResolveHardMaxRows(XiHanExcelOptions? options)
     {
@@ -122,24 +117,9 @@ internal static class ImportSharedRules
     /// <returns>没人指名过上限、且生效的正是框架硬上限时为 <c>true</c>（抛出）；否则为 <c>false</c>（截断）</returns>
     /// <remarks>
     /// <para>
-    /// 「指名」包含配置面：调用端的 <see cref="ExcelImportOptions.MaxRowCount"/> 与配置端收紧过的
-    /// <see cref="XiHanExcelOptions.MaxImportRows"/> 都算。指名过的上限是<u>请求</u>的一部分——
-    /// 「只取前 3 行」要的就是 3 行，撞上去停下即可，抛出来是把正当请求当成错误；
-    /// 应用把 <see cref="XiHanExcelOptions.MaxImportRows"/> 配成 2 行也是同一种指名，
-    /// 只是名字写在配置里而不是调用点上。配置面的指名因此按「生效上限低于框架硬上限」认：
-    /// <see cref="XiHanExcelOptions.MaxImportRows"/> 是不可空的 <c>int</c>，
-    /// 「配成与框架默认值相同的数」与「根本没配」在这个类型上分不开，而两者的含义也确实相同——
-    /// 生效的都是框架那道保护性硬上限。
-    /// </para>
-    /// <para>
-    /// 没人指名时，生效的上限就是框架自己那道保护性硬上限
-    /// <see cref="ExcelConstants.DefaultMaxImportRows"/>：它不是任何人的请求，撞上它说明这份档超出了
-    /// 本组件承诺能交回的规模。这时按上限截断等于把「少了多少行」只留在档里——调用方拿到的是一份
-    /// 看起来完整、其实缺尾的导入结果，因此改为抛出。
-    /// </para>
-    /// <para>
-    /// 判据两条路径共用一份：同一份档在容器路径抛、在固定宽度路径悄悄截断，
-    /// 等于让「走哪条读取路径」决定数据丢不丢。
+    /// 「指名」包含调用端的 <see cref="ExcelImportOptions.MaxRowCount"/> 与配置端收紧过的
+    /// <see cref="XiHanExcelOptions.MaxImportRows"/>。配置面的指名按「生效上限低于框架硬上限」认定，
+    /// 配成与框架默认值相同的数视同未配置。
     /// </para>
     /// <para>
     /// 返回 <c>false</c> 时，导入器交够最后一行后立即停止读取。
@@ -190,8 +170,7 @@ internal static class ImportSharedRules
     /// <param name="options">Excel 选项，传 <c>null</c> 表示不接配置、用框架默认上限</param>
     /// <returns>本次可用的档大小上限</returns>
     /// <remarks>
-    /// 与行数上限不同，本值不在这里判越界：行数上限是框架承诺的取值域，只能收紧；
-    /// 档大小上限是部署侧的取舍（本进程愿意为一份外来档读多少字节），两个方向都由应用自己定。
+    /// 本值不判越界，可由应用调高或调低。
     /// </remarks>
     internal static long ResolveMaxImportBytes(XiHanExcelOptions? options)
         => options?.MaxImportBytes ?? ExcelConstants.DefaultMaxImportBytes;
@@ -202,11 +181,9 @@ internal static class ImportSharedRules
     /// <param name="options">Excel 选项，传 <c>null</c> 表示不接配置、用框架默认上限</param>
     /// <returns>本次可用的解压比上限；<c>0</c> 或负数表示不判解压比</returns>
     /// <remarks>
-    /// 不在这里把 <c>&lt;= 0</c> 夹回默认值：<c>0</c> 与负数是「关掉解压比这条启发式」的明示写法，
-    /// 夹回去等于把应用的意图改成别的东西。关掉它不影响两道绝对上限——
+    /// <c>&lt;= 0</c> 不夹回默认值。关掉解压比不影响
     /// <see cref="ExcelConstants.MaxImportEntryDecompressedBytes"/> 与
-    /// <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 照常判，那两道才是界定<u>解压后字节数</u>的
-    /// （换算成托管占用还要再乘一个倍数，见 <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 的说明）。
+    /// <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 两道绝对上限。
     /// </remarks>
     internal static int ResolveMaxImportCompressionRatio(XiHanExcelOptions? options)
         => options?.MaxImportCompressionRatio ?? ExcelConstants.MaxImportCompressionRatio;
@@ -218,9 +195,7 @@ internal static class ImportSharedRules
     /// <param name="maxImportBytes">本次生效的上限，由 <see cref="ResolveMaxImportBytes"/> 交回</param>
     /// <exception cref="InvalidOperationException">档的字节数超过上限</exception>
     /// <remarks>
-    /// 判在读第一个字节之前：超限的档连格式都不必判，也不该先付一遍解析成本再回头拒。
-    /// 拒收的是<u>整份档</u>，不做「读到上限为止」的截断——那样交回的是一份看起来成功、
-    /// 其实少了后半段的导入结果，调用方无从得知少了什么。
+    /// 判在读第一个字节之前。超限时拒收整份档，不做「读到上限为止」的截断。
     /// </remarks>
     internal static void ValidateImportBytes(long length, long maxImportBytes)
     {

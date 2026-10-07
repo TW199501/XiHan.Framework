@@ -76,7 +76,7 @@ public class MixedRow
 /// </summary>
 /// <remarks>
 /// <see cref="Unordered"/> 只写标题不写 <c>Order</c>，用于验证「未指定顺序的特性列排在所有显式指定顺序的列之后」；
-/// <see cref="ZeroOrder"/> 写的是 <c>Order = 0</c>，证明 0 是合法的显式值，不再兼作「未指定」的默认值。
+/// <see cref="ZeroOrder"/> 写的是 <c>Order = 0</c>，证明 0 是合法的显式值。
 /// <see cref="Tail"/> 完全没有特性，与 <see cref="Unordered"/> 同组，按声明顺序排在它之后。
 /// </remarks>
 public class PartlyOrderedRow

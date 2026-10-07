@@ -82,14 +82,8 @@ public class ExcelSheetSpecTests
     }
 
     /// <summary>
-    /// 降级理由缺失时当场被拒，让「未表态的降级」无法构造出来
+    /// 降级理由为空串或全空白时构造即抛异常
     /// </summary>
-    /// <remarks>
-    /// 类契约写的是「当且仅当 <see cref="ExcelExportResult.StylingApplied"/> 为 <c>false</c> 时
-    /// <see cref="ExcelExportResult.StylingSkipReason"/> 才有值」，靠约定守不住：一个理由为空的降级结果
-    /// 读起来和「样式全部落地」一样体面，调用方再也问不出丢了什么。空串与全空白同样算「没填」，
-    /// 而 <c>null</c> 按引用参数的老规矩交回 <see cref="ArgumentNullException"/>。
-    /// </remarks>
     /// <param name="reason">要试的降级理由</param>
     [Theory]
     [InlineData("")]
@@ -104,7 +98,7 @@ public class ExcelSheetSpecTests
     }
 
     /// <summary>
-    /// 降级理由为 <c>null</c> 时交回 <see cref="ArgumentNullException"/>，与非空的两种空值形态分得开
+    /// 降级理由为 <c>null</c> 时抛 <see cref="ArgumentNullException"/>
     /// </summary>
     [Fact]
     public void 导出结果_降级理由为null即抛()

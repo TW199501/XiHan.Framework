@@ -11,9 +11,7 @@ namespace XiHan.Framework.Excel.Tests.Text;
 /// 固定宽度补位与截断算法测试
 /// </summary>
 /// <remarks>
-/// 全部用例按字节判定，不按字符判定：固定宽度档由读档方按字节位置切列，字符数与字节数不等时（一个汉字在
-/// Big5 下 2 字节、在 UTF-8 下 3 字节）按字符补位会直接让整行列位错位。编码一律取
-/// <see cref="TextWriterHelper.ResolveEncoding"/> 产出的严格回退编码，与导出器实际用的那一份一致。
+/// 全部用例按字节判定，不按字符判定。编码一律取 <see cref="TextWriterHelper.ResolveEncoding"/> 产出的严格回退编码。
 /// </remarks>
 public class FixedWidthTests
 {
@@ -36,7 +34,7 @@ public class FixedWidthTests
     }
 
     /// <summary>
-    /// 内容字节数不足列宽时补满到列宽：UTF-8 下一个汉字占 3 字节，按字符补位会少补 2 格
+    /// 内容字节数不足列宽时补满到列宽：UTF-8 下一个汉字占 3 字节
     /// </summary>
     [Fact]
     public void UTF8下按字节补满宽度差额()
@@ -55,8 +53,7 @@ public class FixedWidthTests
     [Fact]
     public void 超宽时预设抛异常且信息带列宽与实际字节数()
     {
-        // 「中中中中」在 Big5 下 8 字节，列宽 4 字节；短横以下的字符一律取 Big5 收得下的汉字，
-        // 免得用例被编码回退异常干扰（不可映射的行为另有专门用例）
+        // 「中中中中」在 Big5 下 8 字节，列宽 4 字节
         var ex = Assert.Throws<InvalidOperationException>(() => TextWriterHelper.PadToWidth(
             "中中中中", 4, TextWriterHelper.ResolveEncoding("big5"),
             ExcelTextPadding.Right, ' ', ExcelTextOverflow.Throw));
@@ -120,7 +117,7 @@ public class FixedWidthTests
     }
 
     /// <summary>
-    /// 补位字符在目标编码下不是单字节时抛异常：按字节差额填多字节字符会直接超出列宽
+    /// 补位字符在目标编码下不是单字节时抛异常
     /// </summary>
     [Theory]
     [InlineData("utf-8", '中')]                              // UTF-8 下 3 字节
@@ -136,7 +133,7 @@ public class FixedWidthTests
     }
 
     /// <summary>
-    /// 补位字符在目标编码里根本收不下时同样按非法补位字符拒绝，不交给编码器留半档
+    /// 补位字符在目标编码里根本收不下时同样按非法补位字符拒绝
     /// </summary>
     [Fact]
     public void 补位字符不可映射时按非法补位字符抛异常()
@@ -150,12 +147,8 @@ public class FixedWidthTests
     }
 
     /// <summary>
-    /// 补位字符是换行时按非法补位字符拒绝：整格补位会凭空写出行尾，一档被读成两档
+    /// 补位字符是换行时按非法补位字符拒绝
     /// </summary>
-    /// <remarks>
-    /// 这一条与字节数无关（<c>\r</c> 与 <c>\n</c> 在 UTF-8、Big5 下都是 1 字节），单列一条判定：
-    /// 固定宽度档按行解析，换行只能出现在行尾，不能来自补位。
-    /// </remarks>
     [Theory]
     [InlineData('\n')]
     [InlineData('\r')]
@@ -172,10 +165,6 @@ public class FixedWidthTests
     /// <summary>
     /// 待写内容在目标编码收不下时抛编码回退异常，不静默替换成问号字节
     /// </summary>
-    /// <remarks>
-    /// 与分隔符路径同一标准：固定宽度按字节位置切列，一个被替换成 <c>?</c> 的字符会让该格字节数变化、后续列整体错位，
-    /// 因此补位前算字节数用的就是严格回退编码，收不下直接抛。
-    /// </remarks>
     [Fact]
     public void 内容不可映射时抛编码回退异常()
     {

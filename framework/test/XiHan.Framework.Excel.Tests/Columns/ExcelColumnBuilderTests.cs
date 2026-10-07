@@ -217,18 +217,6 @@ public class ExcelColumnBuilderTests
     /// <summary>
     /// 构建器列交出的是 getter 自己的异常型别，不包一层反射包装异常
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 同一契约的两条列来源（手写 <c>ExcelColumn&lt;TRow&gt;</c> 与构建器产出的列）必须抛同一个型别：调用方按
-    /// <c>IExcelExporter</c> 文档化的型别 <c>catch</c> 时，不该因为列是谁建的而接不到。反射 <c>GetValue</c>
-    /// 会把 getter 的异常包成 <see cref="System.Reflection.TargetInvocationException"/>，那条型别不在任何
-    /// 导出入口的 <c>&lt;exception&gt;</c> 清单里，调用方 <c>catch (MyDomainException)</c> 直接落空。
-    /// </para>
-    /// <para>
-    /// 断 <c>InnerException</c> 为空是为的不让「包了一层但把原异常放在里面」蒙过去：包过的型别已经不是
-    /// <see cref="FormatException"/>，而 <c>Assert.Throws&lt;T&gt;</c> 按精确型别判，派生型别同样收不下。
-    /// </para>
-    /// </remarks>
     [Fact]
     public void 构建器取值不包装getter异常()
     {
@@ -278,13 +266,8 @@ public class ExcelColumnBuilderTests
     }
 
     /// <summary>
-    /// <c>ref</c> 返回的读取器照常成列并取到值：改成编译取值不得让这种形状在建列时就抛或静默少一栏
+    /// <c>ref</c> 返回的读取器照常成列并取到值
     /// </summary>
-    /// <remarks>
-    /// 表达式树没有「取引用所指的值」这个节点（<c>Expression.Convert(Int32&amp;, object)</c> 直接抛
-    /// <see cref="InvalidOperationException"/>，探针 <c>t13-b3-probe-shapes2.txt</c> 实测），这类属性只能留在
-    /// 反射路径上。本条钉的是形状没有被改判成「不成列」，值也仍与反射一致。
-    /// </remarks>
     [Fact]
     public void ref返回的读取器照常成列且取到值()
     {
@@ -299,18 +282,6 @@ public class ExcelColumnBuilderTests
     /// <summary>
     /// <c>ref</c> 返回的读取器落在反射回退路径上，getter 的异常仍被包成 <see cref="TargetInvocationException"/>
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 「构建器列交出去包装的异常型别」这一条对 <c>ref</c> 返回的读取器不成立：表达式树表达不出「取引用所指的
-    /// 值」，这类属性留在 <c>GetValue</c> 上，反射的包装随之保留。公开文档的取值段把这一条例外写明，本条钉住
-    /// <c>ref</c> 返回这一种回退形状：包成的型别就是 <see cref="TargetInvocationException"/>，且这种形状照常
-    /// 成列。回退面另有其它形状时不在本条覆盖范围内。
-    /// </para>
-    /// <para>
-    /// <c>Assert.Throws&lt;T&gt;</c> 按精确型别判：日后表达式树支持 byref、或回退路径改成把原异常透出时，
-    /// 交出的型别变成 <see cref="FormatException"/>，本条即红，作为「文档与实现同步改」的变更信号。
-    /// </para>
-    /// </remarks>
     [Fact]
     public void ref返回的读取器异常仍包成TargetInvocationException()
     {
@@ -328,16 +299,6 @@ public class ExcelColumnBuilderTests
     /// <summary>
     /// <c>new</c> 遮蔽的同名属性只留一列，且留下的是 <c>DeclaringType</c> 最深的那一个
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <c>GetProperties(Public | Instance)</c> 会把 <c>ShadowRow.Id</c>（<c>Int32</c>）与被它遮蔽的
-    /// <c>ShadowBaseRow.Id</c>（<c>Object</c>）一起交出，不去重就是两列同键 <c>Id</c>。留哪一个按 CLR 可见成员
-    /// 语义定：派生类那个才是 <c>ShadowRow.Id</c>，基类那个交出的是另一份背衬的旧值。
-    /// </para>
-    /// <para>
-    /// 「留第一个」不够——反射交出的顺序不是承诺，两个候选的先后随运行时而变；必须比 <c>DeclaringType</c>。
-    /// </para>
-    /// </remarks>
     [Fact]
     public void 遮蔽属性只留派生类那一列并取到派生值()
     {
@@ -364,11 +325,6 @@ public class ExcelColumnBuilderTests
     /// <summary>
     /// 忽略标记标在遮蔽出来的派生属性上时整个键不成列，被盖住的基类属性不得顶上来
     /// </summary>
-    /// <remarks>
-    /// 判定顺序是「先去重、后判忽略」：同名之间代表这个键的是 CLR 看得见的 <c>ShadowIgnoredRow.Id</c>，
-    /// 它标了忽略就该整键没有这一栏。反过来先判忽略的话，<c>ShadowIgnoredBaseRow.Id</c> 会顶上来，
-    /// 交出一栏调用方明明标了不要、值还是基类那份过时的。
-    /// </remarks>
     [Fact]
     public void 忽略标在遮蔽属性上时整个键不成列()
     {
@@ -392,15 +348,7 @@ public class ExcelColumnBuilderTests
     /// 遮蔽属性在同一份规格走三条导出路径时同判：都只落一栏 <c>Id</c>，取的都是派生类那个值
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 这一条不看构建器自己的清单，看落进档的结果：去重前流式路径被「重复列键」拒掉（抛），
-    /// 而 xlsx 全量与文字档照常写出两个 <c>Id</c> 栏位、其中一栏是基类旧值——同一份规格三条路径三套表现。
-    /// 去重之后「同判」是自然结果，不是另加的一致性补丁。
-    /// </para>
-    /// <para>
-    /// 三条路径各自回读自己格式的产物：xlsx 走工作簿回读，文字档按正文字面比。流式那条同时证明
-    /// 它不再走进 <c>EnsureDistinctKeys</c> 的拒绝分支。
-    /// </para>
+    /// 三条路径各自回读自己格式的产物：xlsx 走工作簿回读，文字档按正文字面比。
     /// </remarks>
     [Fact]
     public async Task 遮蔽属性在三条导出路径都只落一栏()
@@ -509,8 +457,7 @@ public class ExcelColumnBuilderTests
     /// 带 <c>ref</c> 返回读取器的测试行类型
     /// </summary>
     /// <remarks>
-    /// 只作为测试夹具。<see cref="Counter"/> 的读取器交出引用（<c>Int32&amp;</c>），反射读得出来而表达式树读不出来，
-    /// 用于钉住「构建器改用编译取值」没有把这种形状弄坏。
+    /// 只作为测试夹具。<see cref="Counter"/> 的读取器交出引用（<c>Int32&amp;</c>），反射读得出来而表达式树读不出来。
     /// </remarks>
     private class ByRefRow
     {
@@ -552,8 +499,7 @@ public class ExcelColumnBuilderTests
     /// </summary>
     /// <remarks>
     /// <c>GetProperties(Public | Instance)</c> 对 <see cref="ShadowRow"/> 交出两个 <c>Id</c>
-    /// （<c>decl=ShadowRow Int32</c> 与 <c>decl=ShadowBaseRow Object</c>，探针
-    /// <c>t13-b3-probe-shapes2.txt</c> 实测），不去重就是两列同键。
+    /// （<c>decl=ShadowRow Int32</c> 与 <c>decl=ShadowBaseRow Object</c>）。
     /// </remarks>
     private class ShadowBaseRow
     {
@@ -612,15 +558,7 @@ public class ExcelColumnBuilderTests
     /// 接口行类型纳入继承接口声明的属性
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 类沿继承链给出属性，接口不给：<c>typeof(IOrder).GetProperties()</c> 只交本接口自己声明的 <c>No</c>，
-    /// <c>IOrderBase.Id</c> 不在里面，于是接口行类型导出的档整栏少一栏且没有任何提示。
-    /// </para>
-    /// <para>
-    /// 键的顺序按「基接口在前、本接口自己声明的在后」写进断言：这里的 <c>IOrder</c> 只有一个基接口，
-    /// 断言不覆盖多个同深度互不派生基接口之间的先后（那一段仍随 <c>GetInterfaces()</c> 的返回序）。
-    /// 取值要证到能落进单元格的形状，所以两列都取一遍值。
-    /// </para>
+    /// 断言键序为基接口在前、本接口自己声明的在后，不覆盖多个同深度互不派生基接口之间的先后。两列都取一遍值。
     /// </remarks>
     [Fact]
     public void 接口行类型纳入继承接口的属性()
@@ -733,10 +671,6 @@ public class ExcelColumnBuilderTests
     /// <summary>
     /// 特性上写了非法列宽的测试行类型
     /// </summary>
-    /// <remarks>
-    /// <c>double.NaN</c> 与无穷大不是合法的特性参数（编译期常量表达式，CS0182），只有负数能从特性侧抵达，
-    /// 因此这里只钉负数这一条可达分支。
-    /// </remarks>
     private class NegativeWidthRow
     {
         /// <summary>

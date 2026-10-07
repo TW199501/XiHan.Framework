@@ -21,12 +21,10 @@ namespace XiHan.Framework.Excel.Tests.Exporting;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 断言一律走 <c>new XLWorkbook(stream)</c> 回读工作簿属性，不检查导出器内部对象：样式、格式串、合并范围、
-/// 冻结与筛选只有落进 xlsx 才算兑现，回读是唯一能证明「文件里真是这样」的口径。
+/// 断言一律用 <c>new XLWorkbook(stream)</c> 回读工作簿属性。
 /// </para>
 /// <para>
-/// 颜色按 <see cref="XLColor.Color"/> 的 RGB 分量比成 <c>#RRGGBB</c> 文本，不比 <see cref="XLColor"/> 的相等性——
-/// 存盘后 ClosedXML 可能以索引色或主题色交回同一个颜色，相等性会随写入路径漂移。
+/// 颜色按 <see cref="XLColor.Color"/> 的 RGB 分量比成 <c>#RRGGBB</c> 文本。
 /// </para>
 /// </remarks>
 public class ClosedXmlExporterTests
@@ -66,9 +64,6 @@ public class ClosedXmlExporterTests
     /// <summary>
     /// 只认 <see cref="AnnotatedRow"/> 的一列，用于「列清单与声明的行型别不符」的反例
     /// </summary>
-    /// <remarks>
-    /// 列键取 <c>anno-name</c> 而不是属性名，为的是让「消息点名列键」这条断言不受别的措辞干扰。
-    /// </remarks>
     private static readonly ExcelColumn[] MismatchedColumns =
     [
         new ExcelColumn<AnnotatedRow>
@@ -114,10 +109,7 @@ public class ClosedXmlExporterTests
     /// 数值格式与日期格式各按自己的属性回读，且值本身仍是数值与日期
     /// </summary>
     /// <remarks>
-    /// 简报要求两者分开断言。ClosedXML 0.105.1 没有 <c>Style.DateFormatString</c>，
-    /// <see cref="IXLStyle.NumberFormat"/> 与 <see cref="IXLStyle.DateFormat"/> 指向同一份数字格式，
-    /// 因此这里按写出路径分别取证：数值列走 <see cref="IXLStyle.NumberFormat"/>，日期列走
-    /// <see cref="IXLStyle.DateFormat"/>，并检查两列的格式串没有互串。
+    /// 数值列读 <see cref="IXLStyle.NumberFormat"/>，日期列读 <see cref="IXLStyle.DateFormat"/>，并检查两列的格式串没有互串。
     /// </remarks>
     [Fact]
     public async Task 数字格式与日期格式落到单元格()
@@ -184,10 +176,7 @@ public class ClosedXmlExporterTests
     /// 表头行冻结与自动筛选范围生效
     /// </summary>
     /// <remarks>
-    /// 简报把这条用例命名为「冻结首列」，但它的断言正文与 <see cref="ExcelSheetSpec.FreezeHeader"/> 都是冻结表头行，
-    /// 规格里也没有冻结列的开关，故按冻结表头行取证，并额外断言冻结列数保持 0，证明写出侧没有多冻结一列。
-    /// ClosedXML 0.105.1 的 <see cref="IXLSheetView"/> 没有 <c>FrozenRows</c> 属性，冻结行数的回读属性是
-    /// <see cref="IXLSheetView.SplitRow"/>。
+    /// 冻结行数从 <see cref="IXLSheetView.SplitRow"/> 回读，并断言冻结列数为 0。
     /// </remarks>
     [Fact]
     public async Task 冻结首列与自动筛选生效()
@@ -220,7 +209,7 @@ public class ClosedXmlExporterTests
         await new ClosedXmlExporter(new XiHanExcelOptions { AutoWidthSampleRows = 500 })
             .ExportAsync(new MemoryStream(), spec, TestContext.Current.CancellationToken);
 
-        // 写数据枚举 1200 次 + 取样至多 500 次 = 1700；若实现忘了限量会达到 2400（1200 + 1200）
+        // 写数据枚举 1200 次 + 取样至多 500 次 = 1700
         Assert.True(counter.Count <= 1700, $"自动列宽取样枚举了 {counter.Count} 行，超过 1200 + 500 的上限");
     }
 
@@ -482,20 +471,8 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
-    /// 非有限数值与超长字串按框架异常拒写，理由同下一组用例
+    /// 非有限数值与超长字串按框架异常拒写并点名行列
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 取值域与列宽同一条判据：工作簿的数值格只有有限十进制数，字串格另有 32767 字符的硬上限，越界的值在工作簿里
-    /// 根本没有对应形态。判据由两条 xlsx 写出路径共用的一份守卫交出，因此下面几条断的都是框架自己的
-    /// <see cref="InvalidOperationException"/> 并点名行列，而不是工作簿自己那句英文异常。
-    /// </para>
-    /// <para>
-    /// 非有限数一律抛出，不做「写成空格里装个字符串」这类改写：把 <c>NaN</c> 变成 <c>"NaN"</c> 会让读回的数值列
-    /// 多出字串，把 <c>∞</c> 夹成最大有限数会凭空造出一个数据里不存在的数。字串超长同样抛而不截断——
-    /// 截断会丢弃数据，与本组件对超宽输入的一贯取向一致。
-    /// </para>
-    /// </remarks>
     /// <param name="value">要写进一格的双精度值</param>
     [Theory]
     [InlineData(double.NaN)]
@@ -558,20 +535,7 @@ public class ClosedXmlExporterTests
     /// 不交出一份被舍短的另一份数
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 这条界不是「双精度装不装得下」。16 位整数 <c>1234567890123456</c> 在 2^53 以内、双精度装得下，
-    /// 但落进数值格时写进档里的是 <c>1.23456789012346E+15</c>，用本组件的导入器读回得到
-    /// <c>1234567890123460</c>——数据被改了，导出却回报成功。同一份取值走流式路径读回又是原样，
-    /// 「同一份规格走哪条路径拿到哪个数」就成了走哪条的副产品。这一格现在先拒。
-    /// </para>
-    /// <para>
-    /// <c>float</c> 不在条文最初列的四个型别里，是按同一判据扩用进来的：落进数值格的是它展开成
-    /// <c>double</c> 后的那份形态，<c>0.1f</c> 展开后已是 17 位，与上面是同一类静默改写。
-    /// </para>
-    /// <para>
-    /// 拒写而不改短是政策：本组件不替呼叫端决定该舍到第几位。消息里的出路只有一条——需要完整精度的值
-    /// 由呼叫端转成字符串栏位；不写「让该列取成文本」，因为导出侧不会自动替取值换格位。
-    /// </para>
+    /// <c>float</c> 按展开成 <c>double</c> 后的形态数位数。
     /// </remarks>
     /// <param name="value">要落进一格的数值取值</param>
     /// <param name="reason">消息里该出现的成因片段（点明实际位数）</param>
@@ -596,18 +560,14 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
-    /// 上限内的数值照写，并由本组件的导入器读回同一份数，判尺不多拒
+    /// 上限内的数值照写，并由本组件的导入器读回同一份数
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 判尺只拦「交不回呼叫端给的那个数」的取值：一位小数、恰为 15 位的整数、末尾带零的 15 位整数都照写。
-    /// 带负号与带小数点那两条专门挡「按文本长度数位数」的改法——<c>-12345678901234.5</c> 的文本长 17 个字符，
-    /// 有效数字却只有 15 位，按长度数会把它误拒。
+    /// 案例含一位小数、恰为 15 位的整数、末尾带零的 15 位整数，以及文本长于 15 个字符但有效数字只有 15 位的带负号、带小数点取值。
     /// </para>
     /// <para>
-    /// 往返判定用的是本框架的 <see cref="ExcelDataReaderImporter"/>，不用 ClosedXML 读自己写的档：
-    /// 工作簿会按自己的形式反算，读回来的数看着和写进去的一样，恰好掩盖档里被改写过这件事。
-    /// 导入器对数值格交回 <see cref="double"/>，因此按不变文化文本比读回的数。
+    /// 往返判定用本框架的 <see cref="ExcelDataReaderImporter"/>；读回的数按不变文化文本比对。
     /// </para>
     /// </remarks>
     /// <param name="value">要落进一格的数值取值</param>
@@ -625,11 +585,10 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
-    /// 同一份越界取值在两条 xlsx 路径一起被拒，且成因句逐字相同——判尺只有一份的直接验证
+    /// 同一份越界取值在两条 xlsx 路径一起被拒，且成因句逐字相同
     /// </summary>
     /// <remarks>
-    /// 两条路径的消息前缀各自点名行位置、表头与列键，这里比的是前缀之后那句成因：它由
-    /// <c>ExcelWorkbookWriteGuard</c> 里同一个函数交出。若位数的判定被抄成两份，两条措辞迟早分叉。
+    /// 两条路径的消息前缀各自点名行位置、表头与列键，这里比的是前缀之后那句成因。
     /// </remarks>
     /// <param name="value">要落进一格的数值取值</param>
     /// <param name="reason">消息里该出现的成因片段</param>
@@ -675,8 +634,7 @@ public class ClosedXmlExporterTests
     /// 越界数值案例：要落一格的取值，与消息里该出现的成因片段
     /// </summary>
     /// <remarks>
-    /// 位数按取值的不变文化文本数（指数、小数点与正负号不参与）。取值一律用字面量写死，
-    /// 免得用例自己的算式变成第二处判尺。
+    /// 位数按取值的不变文化文本数（指数、小数点与正负号不参与）。取值一律用字面量写死。
     /// </remarks>
     public static IEnumerable<object?[]> OverPreciseNumericCases()
     {
@@ -710,15 +668,10 @@ public class ClosedXmlExporterTests
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 双精度的最短往返文本在量级够大或够小时会写成指数形态（<c>9.87654321012345E+18</c>、
-    /// <c>1.23456789012345E-10</c>），此时判据只数 <c>E</c> 之前的尾数：指数移动的是小数点，不增加有效数字。
-    /// 两档的尾数都恰好是承诺上限 15 位，因此照写；把剥离指数那一段去掉，指数里的数字会被一起数进去
-    /// （17 位与 16 位），两档立刻被判成越界——这条用例就是钉住那一段真在起作用，不是死码。
+    /// 两档的最短往返文本是指数形态，尾数恰为 15 位，指数部分不计入位数。
     /// </para>
     /// <para>
-    /// 这两档是 <c>double</c>，因此不受整数大小那道约束：呼叫端交出的本来就是双精度取值，
-    /// 落进数值格的是同一个双精度，交回的也是它（量级超过 2^53 的那一道只管
-    /// <c>long</c>／<c>ulong</c>／<c>decimal</c>，见 <see cref="超过整数上限的数值在两条xlsx路径一起拒写"/>）。
+    /// 这两档是 <c>double</c>，不受整数大小那道约束（那道只管 <c>long</c>／<c>ulong</c>／<c>decimal</c>，见 <see cref="超过整数上限的数值在两条xlsx路径一起拒写"/>）。
     /// </para>
     /// </remarks>
     /// <param name="value">要落进一格的双精度取值，它的不变文化文本是指数形态</param>
@@ -728,7 +681,7 @@ public class ClosedXmlExporterTests
     [InlineData(1.23456789012345E-10d, "1.23456789012345E-10")]
     public async Task 指数形态的数值按尾数数位数并在两条xlsx路径照写(double value, string expected)
     {
-        // 前提自证：这一档的最短往返文本确实是指数形态，否则本用例就测不到剥离指数那一段
+        // 前提：这一档的最短往返文本是指数形态
         Assert.Contains("E", value.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
 
         var fullStream = await ExportAsync(BuildValueSpec(value));
@@ -747,21 +700,7 @@ public class ClosedXmlExporterTests
     /// 绝对值超过数值格能逐个表示的整数上限的取值在两条 xlsx 路径一起被拒，且成因句逐字相同
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 这一道补的是位数那道的漏。位数按「第一个非零数字到最后一个非零数字」数，整数末尾的一串零不计入，
-    /// 于是 <c>9876543210123450000</c> 这个 19 位整数只算 15 位有效数字、在位数那道恰好过关；而它的量级已经
-    /// 越过双精度能逐个表示整数的界（2^53 = 9007199254740992，这一段相邻可表示值的间距是 2048），
-    /// 落进数值格再读回来是 9876543210123450368——数据被挪了，导出却回报成功。两条路径都是这个结果：
-    /// 全量路径把 <c>9.87654321012345E+18</c> 写进档，流式路径把整串数字原样写进档，
-    /// 而数值格在档里就是一个双精度数，读回时两边都只能落到最近的那个可表示值上。
-    /// <c>decimal</c> 同样在列——它有 28 到 29 位十进制精度，量级越界之后一样交不回原值。
-    /// </para>
-    /// <para>
-    /// 判的是「绝对值超过那道界」而不是「这个取值恰好落在两个可表示值之间」：<c>18000000000000000000</c>
-    /// 只有 2 位有效数字、而且恰好是双精度可精确表示的，实测原样往返，但它在界外所以一并拒——
-    /// 与位数那道同一取向（<c>1000000000000001</c> 在 2^53 以内、可精确表示，却因 16 位有效数字被拒），
-    /// 按一把简单可预测的尺判，宁可多拒不静默改值。
-    /// </para>
+    /// 位数那道不计整数末尾的零，<c>9876543210123450000</c> 只算 15 位有效数字。这一道按绝对值是否超过 2^53 判，<c>decimal</c> 同样在列，界外可精确表示的取值（如 <c>18000000000000000000</c>）也拒。
     /// </remarks>
     /// <param name="value">要落进一格的取值</param>
     [Theory]
@@ -776,7 +715,7 @@ public class ClosedXmlExporterTests
         var streamFailure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new MiniExcelStreamExporter()
             .ExportAsync(streamStream, BuildValueSpec(value), TestContext.Current.CancellationToken));
 
-        // 上限值写死在断言里：它是判据的一部分，改动它就是要改动对外承诺，不该由判据自己报出来算数
+        // 断言消息含写死的上限值
         Assert.Contains("绝对值超过 xlsx 数值格能逐个表示的整数上限 9007199254740992", fullFailure.Message, StringComparison.Ordinal);
         Assert.Contains("绝对值超过 xlsx 数值格能逐个表示的整数上限 9007199254740992", streamFailure.Message, StringComparison.Ordinal);
         Assert.Contains("键 Value", fullFailure.Message, StringComparison.Ordinal);
@@ -787,8 +726,7 @@ public class ClosedXmlExporterTests
     /// 整数上限案例：有效数字都在 15 位以内（位数那道过关），量级却已越过 2^53
     /// </summary>
     /// <remarks>
-    /// 取值一律用字面量写死。<c>9876543210123450000</c> 写不成 <c>long</c>（超出 <see cref="long.MaxValue"/>），
-    /// 因此正的这一档只能用 <c>ulong</c>，负的对照另取 <c>long</c> 范围内的量级。
+    /// 取值一律用字面量写死。正的一档超出 <see cref="long.MaxValue"/>，用 <c>ulong</c>；负的对照取 <c>long</c> 范围内的量级。
     /// </remarks>
     public static IEnumerable<object?[]> OverMagnitudeIntegerCases()
     {
@@ -802,14 +740,10 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
-    /// 量级在上限以内的整数照写，并由导入器读回同一个数——大小那道界不提前拒
+    /// 量级在上限以内的整数照写，并由导入器读回同一个数
     /// </summary>
     /// <remarks>
-    /// 取的几档都只有很少的有效数字（位数那道本来就放行），量级分别落在 2^53 之内、紧贴它、以及为负：
-    /// 用来钉住新增的那一道没有把界内的取值一起挡掉。<c>9000000000000000</c> 小于 9007199254740992，
-    /// 是界内能量级最大的一档；再往上一档（<c>18000000000000000000</c>）已在界外，由上一组用例断拒写。
-    /// 恰好等于 2^53 的那一档（<c>9007199254740992</c>）有 16 位有效数字，先在位数那道被拒，
-    /// 因此不在这里当正例——两道界各判各的，谁先命中由 <c>DescribeUnwritable</c> 的臂序决定。
+    /// 几档有效数字都很少，量级分别落在 2^53 之内、紧贴它、以及为负；<c>9000000000000000</c> 是界内量级最大的一档。
     /// </remarks>
     /// <param name="value">要落进一格的取值</param>
     /// <param name="expected">读回来该是的那份数的不变文化文本</param>
@@ -846,16 +780,7 @@ public class ClosedXmlExporterTests
     /// 公式起首的值在全量路径落文字格、逐字读回，且档里不会多出撇号前缀
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 这是 §6.7-① 在 xlsx 侧的真实表现，不是待补的缺口：本类把字符串交给 <c>XLCellValue</c> 的文本形态落格，
-    /// 工作簿按共享字符串存它，档里没有 <c>&lt;f&gt;</c>、<c>HasFormula</c> 为 <c>false</c>，读回的就是同一串文字。
-    /// 只有模板路径的 <c>$=</c> 占位会被写出库当成公式解析（另一批处理），xlsx 的两条路径都不解析。
-    /// </para>
-    /// <para>
-    /// 因此这里钉两件事：值逐字不变（不加 <c>'</c> 前缀——加了就是改写业务资料，逐字断言先红）、
-    /// 落格形态是文字而不是公式（改成会触发公式的写出方式时，无 <c>&lt;f&gt;</c> 那条红）。
-    /// 前导制表符与换行都属于值本身，不因起首像公式就被改写。
-    /// </para>
+    /// 值按文本落格（共享字符串），档里没有 <c>&lt;f&gt;</c>、<c>HasFormula</c> 为 <c>false</c>。断言值逐字不变（不加 <c>'</c> 前缀）且落格形态是文字；前导制表符与换行属于值本身。
     /// </remarks>
     /// <param name="value">以公式前缀起首的字串取值</param>
     [Theory]
@@ -890,10 +815,7 @@ public class ClosedXmlExporterTests
     /// 值里的回车在档里按 XML 归一化成换行，其余逐字不变且仍是文字格
     /// </summary>
     /// <remarks>
-    /// 钉这个差异不是找补：XML 1.0 不允许文本内容里出现裸 <c>U+000D</c>，写出库把它归一成 <c>U+000A</c>，
-    /// 因此 <c>"\r=1+1"</c> 读回来是 <c>"\n=1+1"</c>。这一格依旧不落公式、不加撇号前缀，
-    /// 改的只是行尾字符本身，与「公式起首值不被改写成公式」是两件事。
-    /// 上面那条用例把 <c>\r</c> 排除在外正是为此——逐字往返在这类取值上不成立，硬断会变成假绿。
+    /// <c>"\r=1+1"</c> 读回是 <c>"\n=1+1"</c>；这一格仍是文字格、不加撇号前缀。
     /// </remarks>
     [Fact]
     public async Task 值里的回车在档里归一化成换行()
@@ -908,7 +830,7 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
-    /// XML 1.0 非法字符在全量路径按 OOXML 转义落格，档能开、值逐字读回——本路径不受模板那道字符判据约束
+    /// XML 1.0 非法字符在全量路径按 OOXML 转义落格，档能开、值逐字读回
     /// </summary>
     /// <param name="codePoint">要夹进值里的字符码点</param>
     /// <param name="escaped">档里该出现的那份 OOXML 转义文本</param>
@@ -967,17 +889,7 @@ public class ClosedXmlExporterTests
     /// <see cref="DateTime"/> 按钟表时刻落格：不读 <see cref="DateTime.Kind"/>、不做时区换算
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// xlsx 的日期格只是一个带日期格式的数，没有容纳时区的地方，所以 <c>Utc</c> 与 <c>Local</c> 的实例
-    /// 都照它显示的年月日时分秒落格，读回来一律是 <see cref="DateTimeKind.Unspecified"/>。
-    /// 两条 xlsx 路径这同一副样子（流式侧见 <c>MiniExcelStreamExporterTests</c>），因此没有数据差异，
-    /// 缺的只是把「Kind 会被丢掉」写进文档——<see cref="DateTimeOffset"/> 那边早就披露了偏移量不落格，
-    /// <c>DateTime.Kind</c> 此前没人说。
-    /// </para>
-    /// <para>
-    /// 若日后有人在这里加时区换算（把 UTC 折算成本地钟点再落格），这一条按 07:08:09 断的期望会红；
-    /// 那类换算该由呼叫端在交值之前自己做。
-    /// </para>
+    /// xlsx 日期格不带时区，<c>Utc</c> 与 <c>Local</c> 都按显示的年月日时分秒落格，读回一律是 <see cref="DateTimeKind.Unspecified"/>。
     /// </remarks>
     /// <param name="kind">写出的 <see cref="DateTime"/> 带的 Kind</param>
     [Theory]
@@ -1007,19 +919,7 @@ public class ClosedXmlExporterTests
     /// 早于日期下限的三种日期型别在两条 xlsx 路径一起被拒，且成因句逐字相同
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 日期下限只有一把尺，判据落在两条 xlsx 写出路径共用的那一个函数里，因此「哪一天之前不能写」不由
-    /// 落进哪种格子决定。<c>DateOnly</c> 与 <c>DateTimeOffset</c> 在本路径落文本格（值原样留在文字里）、
-    /// 在流式路径落日期格，早先因此判得不对称——本路径照能导出、流式路径整段拒；分派器按行数替调用方选路径，
-    /// 于是「同一份带早年日期的规格能不能导」成了走哪条的副产品。现在两边一起拒。
-    /// </para>
-    /// <para>
-    /// 1899-12-31 与 1899-12-30 这两档是本次收口的核心：它们在改动前是本路径的正例（落文本格、原样读回），
-    /// 而流式路径把它们写成日期序号 0 与 0.2708…，本框架的导入器读回是 1899-12-31 与 1899-12-31 06:30，
-    /// 表格软件按 1900 日期系统显示的却是「1900-01-00」这一类不在日历上的日子——同一份档读回来是哪一天，
-    /// 取决于谁来读。政策因此收成「不早于 1900-01-01」，不再赌写出库与表格软件各自的宽容度。
-    /// 这段取证只写在这里与提交信息里，不写进对外消息。
-    /// </para>
+    /// <c>DateOnly</c> 与 <c>DateTimeOffset</c> 在本路径落文本格、在流式路径落日期格，两条路径按同一下限拒写。
     /// </remarks>
     /// <param name="kind">0 用 <c>DateTime</c>，1 用 <c>DateOnly</c>，2 用带偏移量的 <c>DateTimeOffset</c></param>
     /// <param name="year">年份</param>
@@ -1056,7 +956,7 @@ public class ClosedXmlExporterTests
         Assert.Equal(0, fullStream.Length);
         Assert.Equal(CauseOf(fullFailure.Message), CauseOf(streamFailure.Message));
 
-        // 「要保住这类日期就走全量路径」这条出路已随两路同拒作废，消息里不许再指点换路径
+        // 消息里不指点换路径
         Assert.DoesNotContain("全量", fullFailure.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("流式", fullFailure.Message, StringComparison.Ordinal);
     }
@@ -1066,18 +966,10 @@ public class ClosedXmlExporterTests
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <c>1900-01-01</c> 是恰等正例：两条路径都把它写成日期序号 <c>1</c>，本框架的
-    /// <see cref="ExcelDataReaderImporter"/> 读回来还是 <c>1900-01-01</c>，端到端往返闭合——
-    /// 这道下限收得再紧也没有把边界当日挡在外面。判定器一律走导入器（<see cref="ImportValueAsync"/>），
-    /// 不用工作簿读自己写的档：工作簿会按自己的位移规则反算，读回来的日期看着与写进去的一致，
-    /// 恰好掩盖档里被挪过这件事——C3 那条发现正是这样被盖住的。
+    /// <c>1900-01-01</c> 是恰等正例，两条路径都写成日期序号 <c>1</c>。读回一律走导入器（<see cref="ImportValueAsync"/>）。
     /// </para>
     /// <para>
-    /// 格位差异照旧存在，只是不再影响能不能导：<c>DateTime</c> 两条路径都落日期格，导入器交回
-    /// <see cref="DateTime"/>，逐值可比；<c>DateOnly</c> 与 <c>DateTimeOffset</c> 在本路径落文本格、
-    /// 导入器交回 <see cref="string"/>，文本的排法是库按不变文化格式排的（形如 <c>01/01/1900</c>），
-    /// 改排法不算改契约，因此只断它是文本、带该年份；同两类型在流式路径落日期格，交回
-    /// <see cref="DateTime"/>，逐值可比。
+    /// <c>DateTime</c> 两条路径都落日期格，逐值比对；<c>DateOnly</c> 与 <c>DateTimeOffset</c> 在本路径落文本格，只断是文本且带该年份，在流式路径落日期格，逐值比对。
     /// </para>
     /// </remarks>
     /// <param name="kind">0 用 <c>DateTime</c>，1 用 <c>DateOnly</c>，2 用带偏移量的 <c>DateTimeOffset</c></param>
@@ -1125,11 +1017,7 @@ public class ClosedXmlExporterTests
     /// 下限当日及其后的 DateOnly 与 DateTimeOffset 在本路径落文本格
     /// </summary>
     /// <remarks>
-    /// 钉的是落格形态：工作簿没有这两个型别的格位，本类把它们交给 <c>XLCellValue</c> 的文本形态。
-    /// 这道形态差异在日期下限收口之后仍然存在，只是不再决定「能不能导」——早于下限的取值两条路径一起拒，
-    /// 见 <see cref="早于日期下限的三种日期型别在两条xlsx路径一起拒写"/>；读回的值由
-    /// <see cref="下限当日及其后的三种日期型别在两条xlsx路径都照写"/> 用导入器断。
-    /// 因此这里只断格位型别，不比对整串文本（那是库按不变文化格式排出来的，改排法不算改契约）。
+    /// 工作簿没有这两个型别的格位，本类按文本落格。这里只断格位型别，读回的值见 <see cref="下限当日及其后的三种日期型别在两条xlsx路径都照写"/>。
     /// </remarks>
     /// <param name="kind">1 用 <c>DateOnly</c>，2 用带偏移量的 <c>DateTimeOffset</c></param>
     /// <param name="year">年份</param>
@@ -1155,8 +1043,7 @@ public class ClosedXmlExporterTests
     /// <c>DateTimeOffset</c> 带 <c>06:30</c> 与 <c>+08:00</c>
     /// </summary>
     /// <remarks>
-    /// <see cref="DateTimeOffset"/> 的构造本身不接受「公元 1 年再加 +08:00」这种组合（换算到 UTC 会掉出可表示范围），
-    /// 所以早到那个量级的取值只能按零偏移量造——要验的是早于下限的日期一律被拒，与偏移量取值无关。
+    /// <see cref="DateTimeOffset"/> 不接受公元 1 年加 +08:00 的组合，早到那个量级的取值按零偏移量造。
     /// </remarks>
     /// <param name="kind">0 用 <c>DateTime</c>，1 用 <c>DateOnly</c>，2 用带偏移量的 <c>DateTimeOffset</c></param>
     /// <param name="year">年份</param>
@@ -1197,7 +1084,7 @@ public class ClosedXmlExporterTests
         var failure = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await exporter.ExportAsync(
             stream, BuildSpec([new SampleRow { AwbNo = "AWB1" }], columns), TestContext.Current.CancellationToken));
 
-        // 超过 xlsx 上限 255 的宽度会被工作簿静默夹到 254.29，与负数、无穷同一口径：一律抛，并写明上限
+        // 超过 xlsx 上限 255 的宽度同样抛，并写明上限
         Assert.Contains("255", failure.Message, StringComparison.Ordinal);
         Assert.Equal(0, stream.Length);
     }
@@ -1219,7 +1106,6 @@ public class ClosedXmlExporterTests
         var stream = new MemoryStream();
         var exporter = new ClosedXmlExporter(new XiHanExcelOptions());
 
-        // 异型行经 ExcelColumn<TRow>.GetValue 只会取到 null，放行就是交出一份「表头齐全、数据全空、还报成功」的档
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await exporter.ExportAsync(
             stream, spec, TestContext.Current.CancellationToken));
 
@@ -1268,10 +1154,6 @@ public class ClosedXmlExporterTests
     /// <summary>
     /// 行型一致性逐笔判定：首笔正确、次笔异型时抛出并点名第二行的行号与两个类型
     /// </summary>
-    /// <remarks>
-    /// 「只判第一笔」正是本条要拦的形态：第一笔过了就再不判，第二笔的异型行经列的取值方法只会得到 null，
-    /// 于是档落成「表头齐全、第二行全空」，结果仍写着 <c>StylingApplied=true</c>。
-    /// </remarks>
     [Fact]
     public async Task 第二笔异型时逐笔判定抛出并点名行号()
     {
@@ -1356,9 +1238,7 @@ public class ClosedXmlExporterTests
     /// 形状像十六进制但用非 ASCII 数字的表头底色，抛框架自己的 ArgumentException 而不是库内异常
     /// </summary>
     /// <remarks>
-    /// 全形数字与阿拉伯-印度数字都过得了 <c>ValidateHelper.IsHexColor</c>（其字符判定是 Unicode 感知的
-    /// <c>char.IsDigit</c>），但 <c>XLColor.FromHtml</c> 只认 ASCII 位，会抛 <see cref="FormatException"/>。
-    /// 这条用例钉的是：这类串对外仍只暴露文档化过的 <see cref="ArgumentException"/>，且原始异常作为内部异常保留。
+    /// 全形数字与阿拉伯-印度数字能通过 <c>ValidateHelper.IsHexColor</c>，但 <c>XLColor.FromHtml</c> 会抛 <see cref="FormatException"/>；断言对外抛 <see cref="ArgumentException"/>，原始异常作为内部异常保留。
     /// </remarks>
     [Fact]
     public async Task 非ASCII数字的表头底色抛框架异常并点名参数名()
@@ -1441,14 +1321,10 @@ public class ClosedXmlExporterTests
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 两种坏声明都要拦：列清单来自另一个行类型（复制粘贴留下的 <c>ExcelColumn&lt;AnnotatedRow&gt;</c> 配
-    /// <c>RowType = typeof(SampleRow)</c>），以及把 <c>RowType</c> 写成 <see cref="object"/> 来「放宽」。后者尤其
-    /// 危险——<c>object</c> 看着像什么都收，实际让每一格取值都落到「行类型不符返回 null」，交回的档表头齐全、
-    /// 数据全空、结果还写着 <c>StylingApplied=true</c>。
+    /// 覆盖两种坏声明：列清单来自另一个行类型，以及 <c>RowType</c> 写成 <see cref="object"/>。
     /// </para>
     /// <para>
-    /// 三条断言各挡一种改法：<c>stream.Length == 0</c> 挡「照样写」，<c>rows.Count == 0</c> 挡「判据挪进逐行路径」
-    /// （那里要先枚举才看得见），消息里点名列键与两个型别全名挡「抛了但不说坏在哪一列」。
+    /// 断言输出流零字节、行集合一次都没被枚举，消息点名列键与两个型别全名。
     /// </para>
     /// </remarks>
     [Fact]
@@ -1499,7 +1375,7 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
-    /// 零行的坏声明同样在预检被拒：判据若放进逐行路径，这里会静默交出一份只有表头的档
+    /// 零行的坏声明同样在预检被拒
     /// </summary>
     [Fact]
     public async Task 零行规格的列行型别不符同样在预检被拒()
@@ -1524,9 +1400,6 @@ public class ClosedXmlExporterTests
     /// <summary>
     /// <c>RowType</c> 是列约定行型别的派生型别时照常导出，预检不得多拒
     /// </summary>
-    /// <remarks>
-    /// 派生行类型交出的是列认识的那些属性，逐笔判定本来就放行；预检若写成「两个型别必须相等」，这条会先红。
-    /// </remarks>
     [Fact]
     public async Task RowType是列行型别的派生型别时照常导出()
     {
@@ -1615,11 +1488,10 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
-    /// 最后一笔取值期间才取消时抛出且零字节：逐行检查没有下一轮可拦，靠的是存盘之前那一次
+    /// 最后一笔取值期间才取消时抛出且零字节
     /// </summary>
     /// <remarks>
-    /// xlsx 的落盘只发生在 <c>SaveAs</c>，取消检查排在它之前，所以这一处的取消仍然可以主张输出流零字节；
-    /// 这与文字档路径（<c>StreamWriter</c> 边写边缓冲，不保证零字节残留）是两套现实，不合并成一句承诺。
+    /// 取消检查排在 <c>SaveAs</c> 之前，输出流零字节。
     /// </remarks>
     [Fact]
     public async Task 最后一笔取值期间取消时抛且零字节()
@@ -1634,7 +1506,7 @@ public class ClosedXmlExporterTests
                 Header = "提单号",
                 Value = row =>
                 {
-                    // 取消发生在最后一笔的取值委托里：循环已经取到这一行，不会再有下一轮的逐行检查
+                    // 取消发生在最后一笔的取值委托里
                     if (row.AwbNo == "LAST")
                     {
                         source.Cancel();
@@ -1657,10 +1529,6 @@ public class ClosedXmlExporterTests
     /// <summary>
     /// 取消只在存盘之后被观察到时，档已经落盘但不回传成功结果
     /// </summary>
-    /// <remarks>
-    /// 这一条不主张零字节——落盘已经发生，能主张的只有「不交出成功结果」。写出侧不承诺失败原子性：
-    /// 要么尚未存盘（零字节），要么整份档完整落盘而没有成功结果被交出，两者按取消被观察到的时机区分。
-    /// </remarks>
     [Fact]
     public async Task 存盘之后才观察到的取消不回传成功结果()
     {
@@ -1701,11 +1569,7 @@ public class ClosedXmlExporterTests
     /// 无标题行时，表头行加数据行正好占满上限的那一份照常写出
     /// </summary>
     /// <remarks>
-    /// 上限注入成 3：表头占第 1 行，两行数据占第 2、3 行，正好触线。这条与
-    /// <see cref="全量路径超过行数上限时抛且不留下任何字节"/> 是一对——把判定里的 <c>&gt;</c> 写成 <c>&gt;=</c>，
-    /// 这条会先红（提前一行拒），那条仍然绿，因此两条都得留着。
-    /// 真实上限是一百多万行，逐行写到触线要产出十几 MB 的档并整份建在内存里，因此边界断言改用注入的小上限，
-    /// 读点与正式入口是同一个字段。
+    /// 上限注入成 3：表头占第 1 行，两行数据占第 2、3 行，正好触线。与 <see cref="全量路径超过行数上限时抛且不留下任何字节"/> 是一对。
     /// </remarks>
     [Fact]
     public async Task 全量路径行数恰等上限时照常写出()
@@ -1755,16 +1619,7 @@ public class ClosedXmlExporterTests
     /// 超过行数上限时抛出框架异常，输出流零字节，且判定没有把行集合物化
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 上限注入成 3，行集合给 10 行：表头占第 1 行，第 3 行数据要落到第 4 行即触线。四条断言各挡一种改法——
-    /// 异常型别挡「把库的 <see cref="ArgumentOutOfRangeException"/> 原样交出去」；<c>stream.Length == 0</c> 挡
-    /// 「照样存盘」；<c>rows.Count == 3</c> 挡「为计数先 <c>ToList()</c> 或回头再枚举一遍」（物化会数到 10）；
-    /// 消息里点出上限值与两条出路挡「抛了但不说上限是多少、也不说该怎么办」。
-    /// </para>
-    /// <para>
-    /// 全量路径整份档先在内存里建好、<c>SaveAs</c> 只落盘一次，因此这里能主张零字节；流式路径边写边吐，
-    /// 主张的是「不回报成功结果」，两边的失败语义不同，见流式导出测试。
-    /// </para>
+    /// 上限注入成 3，行集合给 10 行：表头占第 1 行，第 3 行数据要落到第 4 行即触线。断言异常型别、输出流零字节、行集合只枚举到 3 行、消息点出上限值与两条出路。
     /// </remarks>
     [Fact]
     public async Task 全量路径超过行数上限时抛且不留下任何字节()
@@ -1787,10 +1642,6 @@ public class ClosedXmlExporterTests
     /// <summary>
     /// 标题行计入行数：上限 3 时「标题 + 表头 + 2 行数据」共 4 行，已经触线
     /// </summary>
-    /// <remarks>
-    /// 这条专门挡「计数漏掉标题行」的改法：把 <c>headerRowNumber + rowIndex</c> 写成 <c>1 + rowIndex</c>，
-    /// 这一份只有 3 行会被数到，判定放行，本条即红——而写出来的档里第 4 行确实有内容，超了声明的上限。
-    /// </remarks>
     [Fact]
     public async Task 全量路径标题行计入行数上限()
     {
@@ -1808,8 +1659,7 @@ public class ClosedXmlExporterTests
     /// 多表路径按每张工作表各自计数，两张各占上限六成的表能同时写进一个工作簿
     /// </summary>
     /// <remarks>
-    /// 上限注入成 10，两张表各 4 行数据（各占 5 行）：合计 10 行，若按整簿累计就会正好触线、再多一行即抛。
-    /// 这里两份都放行，证明累计的是每张表自己的行号而不是整簿的行数。
+    /// 上限注入成 10，两张表各 4 行数据（各占 5 行），合计 10 行。
     /// </remarks>
     [Fact]
     public async Task 多表路径每张工作表各自计数不做整簿累计()
@@ -1838,8 +1688,7 @@ public class ClosedXmlExporterTests
     /// 多表路径里任何一张表触线，整份请求即抛且输出流零字节
     /// </summary>
     /// <remarks>
-    /// 第一张表 4 行数据放行，第二张 10 行数据要落到第 11 行、超过注入的上限 10。整份档先在内存里建好再落盘，
-    /// 所以前面那张表已经写进工作簿的部分随异常一起被丢弃，输出流不会留下半个字节。
+    /// 第一张表 4 行数据放行，第二张 10 行数据要落到第 11 行、超过注入的上限 10。
     /// </remarks>
     [Fact]
     public async Task 多表路径某张表触线时整份抛且零字节()
@@ -1864,18 +1713,7 @@ public class ClosedXmlExporterTests
     /// 表头长过单元格上限时，在写出第一格之前就被拒：零字节、行集合一次都没被枚举
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 表头落的也是单元格，与数据格共用 <see cref="ExcelConstants.MaxCellTextLength"/> 那道界。此前这一条没有预检，
-    /// 超长表头一路走到赋值那一步，交回的是工作簿自己那句英文异常
-    /// （<see cref="ArgumentOutOfRangeException"/>，<c>ParamName</c> 为 <c>text</c>），与本文件教调用方
-    /// 「按异常类型与 <see cref="ArgumentException.ParamName"/> 分流」的口径冲突。
-    /// </para>
-    /// <para>
-    /// 三条断言各挡一种改法：异常型别与 <c>ParamName</c> 挡「照旧把库的异常交出去」；<c>stream.Length == 0</c>
-    /// 挡「先写一半再抛」；<c>rows.Count == 0</c> 挡「把判定挪进逐行路径」——那里要先取到一行才看得见，
-    /// 与 §4 的行型预检同层，声明级的问题一个行元素都不该取。消息里不嵌入表头原文，
-    /// 否则四万个字符会整段进异常消息。
-    /// </para>
+    /// 表头与数据格共用 <see cref="ExcelConstants.MaxCellTextLength"/> 那道界。断言异常型别与 <c>ParamName</c>、输出流零字节、行集合一次都没被枚举，消息里不嵌入表头原文。
     /// </remarks>
     [Fact]
     public async Task 表头超过单元格上限时在写出前被拒()
@@ -1899,7 +1737,7 @@ public class ClosedXmlExporterTests
     }
 
     /// <summary>
-    /// 表头刚过上限一个字符（32,768）同样被拒：边界是「超过即拒」，不是「超过一个档位才拒」
+    /// 表头刚过上限一个字符（32,768）同样被拒
     /// </summary>
     [Fact]
     public async Task 表头刚过单元格上限一个字符时同样在写出前被拒()
@@ -1920,8 +1758,7 @@ public class ClosedXmlExporterTests
     /// 标题长过单元格上限时，在写出第一格之前就被拒：零字节、行集合一次都没被枚举
     /// </summary>
     /// <remarks>
-    /// 标题行落的也是一格（跨列合并后只有左上角有值，那一格照样受单元格上限约束）。
-    /// <c>ParamName</c> 是 <c>Title</c>，与表头那条区分开——调用方按它就知道该改哪一项。
+    /// 标题行跨列合并后只有左上角一格有值，同样受单元格上限约束；<c>ParamName</c> 是 <c>Title</c>。
     /// </remarks>
     [Fact]
     public async Task 标题超过单元格上限时在写出前被拒()
@@ -1965,9 +1802,7 @@ public class ClosedXmlExporterTests
     /// 表头恰等单元格上限（32,767）时照常写出，读回来的表头逐字不变
     /// </summary>
     /// <remarks>
-    /// 正例挡的是「把边界写成 <c>&gt;=</c> 提前一个字符拒」。读回判定走本组件的导入器
-    /// （<see cref="ExcelDataReaderImporter"/>），不用工作簿读自己写的档：导入器按 <c>HasHeader</c> 把第一行
-    /// 当列名交回，因此键名本身就是档里真实落下的那串表头文字，长度与内容都能直接比。
+    /// 读回走本组件的导入器（<see cref="ExcelDataReaderImporter"/>），按 <c>HasHeader</c> 把第一行当列名交回，键名就是档里落下的表头文字。
     /// </remarks>
     [Fact]
     public async Task 表头恰等单元格上限时照常写出并可读回()
@@ -1991,8 +1826,7 @@ public class ClosedXmlExporterTests
     /// 标题恰等单元格上限（32,767）时照常写出，读回来的标题逐字不变
     /// </summary>
     /// <remarks>
-    /// 按 <c>HasHeader = false</c> 读回，三行依次是标题行、表头行与那一行数据，因此能同时钉住
-    /// 「标题落在第 1 行」与「标题文字没有被截断」。
+    /// 按 <c>HasHeader = false</c> 读回，三行依次是标题行、表头行与那一行数据。
     /// </remarks>
     [Fact]
     public async Task 标题恰等单元格上限时照常写出并可读回()
@@ -2015,8 +1849,7 @@ public class ClosedXmlExporterTests
     /// 多表路径里某张表的表头超长时，整份请求在写出前被拒且输出流零字节
     /// </summary>
     /// <remarks>
-    /// 表头预检落在单表与多表共用的那个逐表方法里，因此清单里排在后面的表也一样先判后写；
-    /// 整份档建好才落盘一次，前面那些表已经写进内存工作簿的部分随异常一起被丢弃。
+    /// 表头预检落在单表与多表共用的逐表方法里，排在后面的表也先判后写。
     /// </remarks>
     [Fact]
     public async Task 多表路径某张表表头超长时整份在写出前被拒()
@@ -2042,7 +1875,7 @@ public class ClosedXmlExporterTests
     /// 构造只有一列、可指定表头与标题的表规格，专走表头与标题的长度预检
     /// </summary>
     /// <remarks>
-    /// 列宽给定值，避免自适应列宽去量那串几万字符的表头——本组用例要判的是长度预检，不是列宽。
+    /// 列宽给定值，不走自适应列宽。
     /// </remarks>
     private static ExcelSheetSpec BuildTextLimitSpec(
         string header,
@@ -2072,10 +1905,6 @@ public class ClosedXmlExporterTests
     /// </summary>
     /// <param name="stream">导出后的流，本方法把它回到起点，不关闭也不释放</param>
     /// <param name="hasHeader">是否把第一行当列名，见 <see cref="ExcelImportOptions.HasHeader"/></param>
-    /// <remarks>
-    /// 往返断言的判定器一律走这里，不用 <see cref="XLWorkbook"/> 读自己写的档：工作簿会按自己的形式反算，
-    /// 读回来的东西看着与写进去的一致，恰好掩盖档里被截断或改写过这件事。
-    /// </remarks>
     private static async Task<List<ExcelImportRow>> ImportRowsAsync(MemoryStream stream, bool hasHeader)
     {
         stream.Position = 0;
@@ -2110,7 +1939,7 @@ public class ClosedXmlExporterTests
     /// 构造只有一列、可指定标题行与表名的表规格，专走行数上限判定
     /// </summary>
     /// <remarks>
-    /// 只留一列是为了让「第几行有内容」这件事在回读时不掺别的列；列宽给定值，避免自适应宽度去动别的行。
+    /// 只留一列，列宽给定值，不走自适应宽度。
     /// </remarks>
     private static ExcelSheetSpec BuildRowLimitSpec(System.Collections.IEnumerable rows, string? title, string sheetName = "运单")
         => new()
@@ -2164,9 +1993,7 @@ public class ClosedXmlExporterTests
     /// </summary>
     /// <param name="stream">导出后的流</param>
     /// <remarks>
-    /// 只看格子的 <c>HasFormula</c> 不足以证明「值没被当成公式解析」——那要读回档里真实落的元素。
-    /// 匹配式要求 <c>f</c> 之后紧跟空白、<c>/</c> 或 <c>&gt;</c>，因此 <c>&lt;framePr&gt;</c>、
-    /// <c>&lt;fextLdr&gt;</c> 这类同名前缀的元素不会被误判成公式。
+    /// 匹配式要求 <c>f</c> 之后紧跟空白、<c>/</c> 或 <c>&gt;</c>，<c>&lt;framePr&gt;</c> 这类同名前缀的元素不算公式。
     /// </remarks>
     private static bool HasFormulaElement(MemoryStream stream)
     {
@@ -2205,9 +2032,7 @@ public class ClosedXmlExporterTests
     /// </summary>
     /// <param name="stream">导出后的流，本方法把它回到起点，不关闭也不释放</param>
     /// <remarks>
-    /// 往返断言的判定器一律走这里，不用 <see cref="XLWorkbook"/> 读自己写的档：工作簿会按自己的形式反算，
-    /// 读回来的数看着与写进去的一致，恰好掩盖档里被改写过这件事。导入器对数值格交回
-    /// <see cref="double"/>、对文字格交回 <see cref="string"/>，格位由档里真实落的东西决定。
+    /// 导入器对数值格交回 <see cref="double"/>、对文字格交回 <see cref="string"/>。
     /// </remarks>
     private static async Task<object?> ImportValueAsync(MemoryStream stream)
     {
@@ -2232,8 +2057,7 @@ public class ClosedXmlExporterTests
     /// </summary>
     /// <param name="message">框架异常的完整消息</param>
     /// <remarks>
-    /// 分界取第一处「）」加句号之后的文字：那一段由 <c>ExcelWorkbookWriteGuard</c> 的判定函数交出，
-    /// 两条 xlsx 路径共用同一份，因此这一段是「判尺只有一份」的直接可观察物。
+    /// 分界取第一处「）」加句号之后的文字，那一段由 <c>ExcelWorkbookWriteGuard</c> 的判定函数交出。
     /// </remarks>
     private static string CauseOf(string message)
     {

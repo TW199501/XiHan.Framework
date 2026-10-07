@@ -10,13 +10,9 @@ namespace XiHan.Framework.Excel.Tests.TestSupport;
 /// <para>
 /// 只作为测试夹具，不进正式 API。它复刻的是 Kestrel 在 <c>AllowSynchronousIO=false</c> 下的
 /// <c>HttpRequestStream</c>：同步写抛 <see cref="InvalidOperationException"/>，异步写正常。
-/// 用它跑导出，观察的是「写出器释放时走的是哪条 I/O」——骨架里的 <c>StreamWriter</c> 若以同步
-/// <c>Dispose</c> 结束，为了排空缓冲必然撞进本夹具的同步写，抛出与本次导出无关的异常。
 /// </para>
 /// <para>
-/// 内部自持一份 <see cref="MemoryStream" />，异步重载直接交给它落笔，不借用 <see cref="Stream" />
-/// 那些「异步默认实现其实同步写」的基类行为——正因为那个默认实现会把异步写转成同步写，光派生
-/// <see cref="MemoryStream" /> 再改写同步成员是不够的：不重写异步成员时它们照样会抛，夹具就废了。
+/// 内部自持一份 <see cref="MemoryStream" />，异步重载直接交给它落笔。
 /// </para>
 /// </remarks>
 internal sealed class AsyncOnlyStream : Stream

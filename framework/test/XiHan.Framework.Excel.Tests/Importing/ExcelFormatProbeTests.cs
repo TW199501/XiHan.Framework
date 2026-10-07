@@ -12,7 +12,7 @@ namespace XiHan.Framework.Excel.Tests.Importing;
 /// 档头签章判别测试
 /// </summary>
 /// <remarks>
-/// 判据只有两类固定签名，其余一律判不出来；嗅探绝不吃调用方的流，因此「位置复原」是本类型最要紧的一条断言。
+/// 判据只有两类固定签名，其余一律判不出来；嗅探后流位置复原。
 /// </remarks>
 public class ExcelFormatProbeTests
 {
@@ -81,7 +81,7 @@ public class ExcelFormatProbeTests
         using var stream = HeaderStream([0x50, 0x4B, 0x03, 0x04, 0x00, 0x00, 0x00, 0x00]);
         stream.Position = 3;
 
-        // 位置停在中间也按流起点判：中间那段既不是文件身份也不是文档开头
+        // 位置停在中间也按流起点判
         Assert.Equal(ExcelImportFormat.Xlsx, ExcelFormatProbe.Detect(stream));
         Assert.Equal(3, stream.Position);
 
@@ -92,7 +92,7 @@ public class ExcelFormatProbeTests
     }
 
     /// <summary>
-    /// 不可定位的流直接拒绝：嗅探做不到复位，不能把调用方的流留在半读状态
+    /// 不可定位的流直接拒绝
     /// </summary>
     [Fact]
     public void 不可定位的流被拒并点名input()
@@ -167,7 +167,7 @@ public class ExcelFormatProbeTests
     }
 
     /// <summary>
-    /// 档头长度要容得下「最长前导字节 ＋ 起始标记」，否则带前导字节的伪装档认不出形态
+    /// 档头长度容得下「最长前导字节 ＋ 起始标记」
     /// </summary>
     [Fact]
     public void 档头长度容得下前导字节与起始标记()
@@ -177,8 +177,7 @@ public class ExcelFormatProbeTests
     /// 带 UTF-8 前导字节的标记语言文本照样认出起始标记：前导字节不是文档内容
     /// </summary>
     /// <remarks>
-    /// SpreadsheetML 多写成 <c>EF BB BF 3C 3F 78 6D 6C</c>。留着前导字节时第一个字符是 <c>U+FEFF</c>，
-    /// 它不是空白字符，起始标记因此认不出来，消息只能说「判不出格式」而点不出伪装形态。
+    /// SpreadsheetML 多写成 <c>EF BB BF 3C 3F 78 6D 6C</c>。
     /// </remarks>
     [Fact]
     public void 带UTF8前导字节时认出起始标记()
@@ -189,7 +188,7 @@ public class ExcelFormatProbeTests
     }
 
     /// <summary>
-    /// UTF-16 的两个前导字节按 UTF-16 解码再认形态，不然尖括号后面每个字符都跟着一个 <c>0x00</c>
+    /// UTF-16 的两个前导字节按 UTF-16 解码再认形态
     /// </summary>
     [Fact]
     public void 带UTF16前导字节时认出起始标记()
@@ -205,8 +204,7 @@ public class ExcelFormatProbeTests
     }
 
     /// <summary>
-    /// UTF-32 的前导字节与 UTF-16 LE 前两位相同，判定要排在 UTF-16 之前；十六字节档头只容得下三个字符，
-    /// 认出可见的那一段
+    /// UTF-32 的前导字节不被误认成 UTF-16 LE；十六字节档头只容得下三个字符，认出可见的那一段
     /// </summary>
     [Fact]
     public void 带UTF32前导字节时认出可见的那段标记()

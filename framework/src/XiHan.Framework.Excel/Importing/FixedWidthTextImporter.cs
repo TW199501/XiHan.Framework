@@ -16,72 +16,57 @@ namespace XiHan.Framework.Excel.Importing;
 /// <remarks>
 /// <para>
 /// 逐行惰性交出 <see cref="ExcelImportRow"/>，不物化整档：行号、<see cref="ExcelImportOptions.MaxRowCount"/>
-/// 与取消都落在行与行之间。单次枚举占用的内存不随档的大小增长，上限是「列宽总和一份 + 一块读取缓冲」，
-/// 列宽总和本身另有硬上限 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/>。
+/// 与取消都落在行与行之间。单次枚举占用的内存为「列宽总和一份 + 一块读取缓冲」，
+/// 列宽总和另有硬上限 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/>。
 /// </para>
 /// <para>
-/// <b>流所有权在调用方。</b>本类只读取不关闭传入的流，枚举结束后调用方仍可复位重读。读取总是从流的<u>起点</u>
-/// 开始（调用方预设的流位置不会被尊重），并在起点之后剥掉该编码自己的 BOM，因此「从流中间续读」不是本类的能力。
-/// 输入流必须可读且可定位：编码判别与 BOM 比对都要回读档头，不可定位的流直接拒绝，不把缓冲实现的失败面当契约。
+/// 流所有权在调用方：本类只读取不关闭传入的流。读取总是从流的起点开始，并剥掉该编码自己的 BOM。
+/// 输入流必须可读且可定位，不可定位的流直接拒绝。
 /// </para>
 /// <para>
-/// <b>分行在字节层做，只认 <c>\r\n</c>、<c>\n</c>、<c>\r</c> 三种行尾</b>，与
-/// <see cref="Abstractions.Exporting.ExcelTextOptions.NewLine"/> 写出的序列同一口径。跨段落的 <c>\r\n</c>
-/// 算一个行尾，不会多交出一条空行；档尾正好落在行尾上时不会多出空行，最后一个<u>没有行尾</u>的残段算一行。
-/// 不用 <c>StringReader.ReadLine()</c> 或 <see cref="StreamReader"/> 切行，理由有三：本组件的行尾定义要自己说了算
-/// （那两个 API 认哪些字符当行尾由运行时决定，与导出侧写的序列不是同一件事）；整行要先按字节切列再解码，
-/// 用文本读取器就得把整行解码两次；解码必须走 <see cref="TextEncodingResolver"/> 给的那个带严格回退的编码，
-/// 而 <see cref="StreamReader"/> 的探测与宽松回退会把「编码指错」这件事悄悄吃掉。
+/// 分行在字节层做，只认 <c>\r\n</c>、<c>\n</c>、<c>\r</c> 三种行尾，与
+/// <see cref="Abstractions.Exporting.ExcelTextOptions.NewLine"/> 写出的序列一致。跨缓冲块的 <c>\r\n</c>
+/// 算一个行尾；档尾正好落在行尾上时不会多出空行，最后一个没有行尾的残段算一行。
+/// 解码使用 <see cref="TextEncodingResolver"/> 给出的带严格回退的编码。
 /// </para>
 /// <para>
-/// <b>切列也在字节层做</b>：按 <see cref="ExcelImportOptions.FixedColumns"/> 的累计字节宽度取子数组，各自解码。
-/// 一个汉字在 Big5 下占 2 字节、在 UTF-8 下占 3 字节，先解码再按字符切会让该列之后的每一列整体错位，
-/// 因此宽度一律按字节。列边界正好落在一个多字节字符中间时，取到的那段字节在该编码下解不开：
-/// UTF-8 与带严格回退的 Big5 都抛 <see cref="DecoderFallbackException"/>，读档在这里停下，
-/// 不交出半个字、替换字符或私有区字符当正常数据——那种档与列定义本来就不符。
+/// 切列也在字节层做：按 <see cref="ExcelImportOptions.FixedColumns"/> 的累计字节宽度取子数组，各自解码。
+/// 列边界落在一个多字节字符中间时抛 <see cref="DecoderFallbackException"/>，读档在这里停下。
 /// </para>
 /// <para>
-/// 只收能按字节切列的编码，判据与导出侧共用 <see cref="Text.TextWriterHelper"/> 那一份守卫，不在这里另写一条：
-/// <b>其一</b>，<c>\r</c> 与 <c>\n</c> 必须各自编成一个字节（UTF-16／UTF-32 把一个字符编成两字节、其中一个就可能
-/// 落成行尾字节，EBCDIC 把 <c>\n</c> 编成 <c>0x25</c>，两种都会把档切错位或让整档找不到行尾）；
-/// <b>其二</b>，同一段文字整体编码必须等于分段编码（ISO-2022 家族、HZ、UTF-7 一类有状态编码在段之间插状态切换
-/// 序列，按列宽写出的字节数与切列位置对不上）。取到的编码任一条不过即抛 <see cref="InvalidOperationException"/>
-/// 并点名是哪一条与该编码，不交出错位却回报成功的档。
+/// 只收能按字节切列的编码，判据与导出侧共用 <see cref="Text.TextWriterHelper"/> 的守卫：
+/// 其一，<c>\r</c> 与 <c>\n</c> 必须各自编成一个字节（排除 UTF-16／UTF-32、EBCDIC 一类）；
+/// 其二，同一段文字整体编码必须等于分段编码（排除 ISO-2022 家族、HZ、UTF-7 一类有状态编码）。
+/// 任一条不过即抛 <see cref="InvalidOperationException"/>，并点名是哪一条与该编码。
 /// </para>
 /// <para>
-/// <see cref="ExcelImportOptions.HasHeader"/> 在本路径<u>一律按「无表头」处理</u>：<see cref="ExcelImportOptions.TrimHeaders"/>
-/// 没有对象可处理，源档的每一行都是数据，键名恒取列定义里的 <see cref="ExcelFixedWidthField.Key"/>，
-/// 第一条数据行的 <see cref="ExcelImportRow.RowNumber"/> 是 <c>1</c>。定宽档的列名来自开发者给的列定义而不是
-/// 源档文案，把表头语义套上去会凭空吃掉一条记录，而行号要留给错误报表定位。
-/// <see cref="ExcelImportOptions.HeaderRowIndex"/> 仍然解释：前导那么多行丢掉、不切列也不留痕，丢掉的行照样占行号。
-/// <see cref="ExcelImportOptions.Format"/> 与 <see cref="ExcelImportOptions.Delimiter"/>、
+/// <see cref="ExcelImportOptions.HasHeader"/> 在本路径一律按「无表头」处理：<see cref="ExcelImportOptions.TrimHeaders"/>
+/// 不生效，源档的每一行都是数据，键名取列定义里的 <see cref="ExcelFixedWidthField.Key"/>，
+/// 第一条数据行的 <see cref="ExcelImportRow.RowNumber"/> 是 <c>1</c>。
+/// <see cref="ExcelImportOptions.HeaderRowIndex"/> 仍然生效：前导行丢掉、不切列，丢掉的行照样占行号。
+/// <see cref="ExcelImportOptions.Format"/>、<see cref="ExcelImportOptions.Delimiter"/> 与
 /// <see cref="ExcelImportOptions.SheetName"/> 在本路径不解释，不报错也不生效。
 /// </para>
 /// <para>
-/// 取值一律是 <see cref="string"/>（定宽档没有格型概念），空字段是空字串而不是 <c>null</c>。
-/// 行字节数不足列宽总和时缺的列补空字串，超出列宽时多出的部分丢弃——这两种情况<u>各记一条 Debug 日志</u>，
-/// 报出行号与实际字节数，因为两者都在改写调用方期望的数据形态。
-/// <see cref="ExcelImportOptions.TrimValues"/> 与 <see cref="ExcelImportOptions.SkipEmptyRows"/>
-/// 在本路径照常生效，判「整行皆空」的口径与另一条导入路径共用同一份实现。
+/// 取值一律是 <see cref="string"/>，空字段是空字串而不是 <c>null</c>。
+/// 行字节数不足列宽总和时缺的列补空字串，超出列宽时多出的部分丢弃，两种情况各记一条 Debug 日志，
+/// 报出行号与实际字节数。<see cref="ExcelImportOptions.TrimValues"/> 与 <see cref="ExcelImportOptions.SkipEmptyRows"/>
+/// 照常生效，「整行皆空」的判定与另一条导入路径共用同一份实现。
 /// </para>
 /// <para>
-/// 与导出侧的关系：固定宽度布局写出的档（<c>Layout = FixedWidth</c>）可以由本类逐字段读回原值，
-/// 该布局不套公式注入前缀，也不做引号与分隔符转义；补位空格属于布局，要拿回原值请显式设
-/// <see cref="ExcelImportOptions.TrimValues"/> 为 <c>true</c>。列宽必须与写档时的编码一致：
+/// 固定宽度布局（<c>Layout = FixedWidth</c>）写出的档可以由本类逐字段读回；补位空格属于布局，
+/// 要拿回原值请设 <see cref="ExcelImportOptions.TrimValues"/> 为 <c>true</c>。列宽必须与写档时的编码一致：
 /// <see cref="ExcelImportOptions.TextEncodingName"/> 不指名时走自动判别（BOM → 严格 UTF-8 试探 → Big5 回退），
-/// 自动判别只保证「按判出来的编码解不会撞到解码错误」，不保证那是原档真正的编码，已知来源编码请指名。
+/// 自动判别不保证判出的是原档真正的编码。
 /// </para>
 /// <para>
-/// 行数上限取构造时算好的那一份：只给日志器的构造用框架默认硬上限，收 <see cref="XiHanExcelOptions"/> 的那个
-/// 构造用 <see cref="XiHanExcelOptions.MaxImportRows"/> 收紧后的值。两个构造差在数字上，判定与报错文字同一份，
-/// 与容器路径也同一份；配置越出框架硬上限或不是正整数时在构造点抛出，不等第一次取行，也不夹回上限。
+/// 行数上限在构造时确定：只给日志器的构造用框架默认硬上限，收 <see cref="XiHanExcelOptions"/> 的构造用
+/// <see cref="XiHanExcelOptions.MaxImportRows"/>；配置越出框架硬上限或不是正整数时在构造点抛出。
 /// </para>
 /// <para>
-/// 档大小上限同样取构造时算好的那一份（<see cref="XiHanExcelOptions.MaxImportBytes"/>，
+/// 档大小上限同样在构造时确定（<see cref="XiHanExcelOptions.MaxImportBytes"/>，
 /// 未接配置时用 <see cref="ExcelConstants.DefaultMaxImportBytes"/>），判据与容器路径共用
-/// <see cref="ImportSharedRules"/> 里的那一条，超限拒收整份档。定宽档是纯文字、没有压缩容器，
-/// 因此容器路径那三道解压侧上限在本路径没有对象可判；本路径按行缓冲，单行占用另有
-/// <see cref="ExcelConstants.MaxFixedRowWidthBytes"/> 兜住。
+/// <see cref="ImportSharedRules"/>，超限拒收整份档。
 /// </para>
 /// </remarks>
 public sealed class FixedWidthTextImporter : IExcelImporter
@@ -129,9 +114,6 @@ public sealed class FixedWidthTextImporter : IExcelImporter
     /// <exception cref="ArgumentOutOfRangeException">
     /// <see cref="XiHanExcelOptions.MaxImportRows"/> 不是正整数，或高过框架硬上限
     /// <see cref="ExcelConstants.DefaultMaxImportRows"/></exception>
-    /// <remarks>
-    /// 上限判据与容器路径共用一份，配置面也两边都接：只接一边就等于让「走哪条读取路径」决定能不能读到那么多行。
-    /// </remarks>
     public FixedWidthTextImporter(XiHanExcelOptions options, ILogger<FixedWidthTextImporter> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -158,8 +140,7 @@ public sealed class FixedWidthTextImporter : IExcelImporter
     /// 上限由构造本类的选项决定，默认是框架硬上限 <see cref="ExcelConstants.DefaultMaxImportRows"/> 行）</exception>
     /// <exception cref="InvalidOperationException">
     /// <list type="bullet">
-    /// <item><see cref="ExcelImportOptions.FixedColumns"/> 是 <c>null</c> 或空集合：没有列位置就切不出列，
-    /// 「整行当一列」不是可用的降级；</item>
+    /// <item><see cref="ExcelImportOptions.FixedColumns"/> 是 <c>null</c> 或空集合；</item>
     /// <item>列定义不成立：清单里有空项、键是空字串或仅含空白、宽度不是正整数、多列之间键重复、
     /// 列宽总和超过硬上限 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/>。每类各报各的，
     /// 一次只抛最先命中的那一类，并点名是第几列或哪个键；</item>
@@ -177,21 +158,17 @@ public sealed class FixedWidthTextImporter : IExcelImporter
     /// <remarks>
     /// <para>
     /// 方法体在<u>首次取行</u>时才运行（异步迭代器），上面这些检查因此都在第一次
-    /// <c>MoveNextAsync</c> 时才抛出；调用 <see cref="ReadAsync"/> 本身不会抛，门面也不替它提前判。
+    /// <c>MoveNextAsync</c> 时才抛出；调用 <see cref="ReadAsync"/> 本身不会抛。
     /// </para>
     /// <para>
     /// 校验顺序固定为：流的可读可定位 → <see cref="ExcelImportOptions.MaxRowCount"/> →
     /// <see cref="ExcelImportOptions.FixedColumns"/> → 取消令牌 →
     /// <see cref="XiHanExcelOptions.MaxImportBytes"/> → 编码判别与按字节可切性守卫。
-    /// 前两项排在读档之前，是因为它们是<u>请求本身</u>的问题：同一条档上，越界的上限要报「上限越界」而不是
-    /// 「没给列定义」，缺列定义的请求要报「没给列定义」而不是「编码解不开」。档大小排在取消令牌之后，
-    /// 是因为它要先取得流的 <c>Length</c>，而取消的优先级高于任何档侧判据。
     /// </para>
     /// <para>
-    /// <see cref="ExcelImportRow.RowNumber"/> 是本档内的 1 起始记录序号：表头语义在本路径不存在，
-    /// 因此没有行被吃掉；<see cref="ExcelImportOptions.HeaderRowIndex"/> 丢掉的前导行与
+    /// <see cref="ExcelImportRow.RowNumber"/> 是本档内的 1 起始记录序号，同时也是档里的物理行号；
+    /// <see cref="ExcelImportOptions.HeaderRowIndex"/> 丢掉的前导行与
     /// <see cref="ExcelImportOptions.SkipEmptyRows"/> 跳过的空行都照样占号，不随跳过动作重排。
-    /// 定宽档一行就是一条记录，值里不可能有换行，所以这个序号同时也是档里的物理行号。
     /// </para>
     /// </remarks>
     public async IAsyncEnumerable<ExcelImportRow> ReadAsync(
@@ -219,21 +196,19 @@ public sealed class FixedWidthTextImporter : IExcelImporter
         var maxRows = ImportSharedRules.ResolveMaxRowCount(effective.MaxRowCount, _hardMaxRows);
         var layout = FixedColumnLayout.Create(effective.FixedColumns);
 
-        // 撞上限时抛还是截断，判据与容器路径共用一份：指名过上限（调用端或配置端）就截断，
-        // 没指名而撞上框架硬上限就抛，不静默少交行。
+        // 指名过上限（调用端或配置端）就截断，没指名而撞上框架硬上限就抛
         var throwsOnLimit = ImportSharedRules.ThrowsWhenRowLimitHit(effective.MaxRowCount, maxRows);
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        // 档大小先判：超限的档连编码都不必判。判据与容器路径共用一份，两个来源对「这份档太大」不能各说一套。
+        // 档大小判在编码判别之前
         ImportSharedRules.ValidateImportBytes(input.Length, _maxImportBytes);
 
         input.Position = 0;
 
-        // 编码判别与 BOM 剥除都用导入侧那一份实现，不在这里重抄一条链或一张前导字节表
         var encoding = TextEncodingResolver.Resolve(effective.TextEncodingName, input);
 
-        // 按字节可切性与导出侧共用同一份守卫：两条路径对「什么编码能切列」不能各说一套
+        // 按字节可切性守卫，与导出侧共用
         TextWriterHelper.ValidateFixedWidthEncoding(encoding);
 
         input.Position = TextEncodingResolver.GetPreambleSkipBytes(encoding, input);
@@ -350,8 +325,7 @@ public sealed class FixedWidthTextImporter : IExcelImporter
         /// </summary>
         /// <param name="columns">列定义清单</param>
         /// <remarks>
-        /// 这几类非法取值各报各的，一次只抛最先命中的那一类：调用方通常是一次只错一类，把几类堆进一条消息
-        /// 反而看不清先改哪个。校验顺序与消息里的点名方式同导出侧的固定宽度预检一致。
+        /// 几类非法取值各报各的，一次只抛最先命中的那一类。校验顺序与消息里的点名方式同导出侧的固定宽度预检一致。
         /// </remarks>
         /// <exception cref="InvalidOperationException">列定义为 <c>null</c> 或空集合，键为空、宽度非正、键重复，
         /// 或列宽总和超过硬上限 <see cref="ExcelConstants.MaxFixedRowWidthBytes"/></exception>
@@ -388,7 +362,7 @@ public sealed class FixedWidthTextImporter : IExcelImporter
 
                 if (column is null)
                 {
-                    // 集合里塞了空项：让它在这里说清楚是第几项，不留到取键时撞一个 NullReferenceException
+                    // 记下空项是第几项
                     nullColumns.Add($"第 {index + 1} 项");
                     continue;
                 }
@@ -466,7 +440,7 @@ public sealed class FixedWidthTextImporter : IExcelImporter
         /// <returns>本行取值集合，以及取不满的列清单（整行凑到列宽总和时为空）</returns>
         /// <remarks>
         /// 取不满的列包含两种情况：一列完全没有字节进来，以及一列只进来一部分字节（行尾来得比列宽早）。
-        /// 两种都交空字串或该段的实际内容，并在留痕消息里一起点名，因为它们都是「档比列定义短」这一个原因。
+        /// 两种都交空字串或该段的实际内容，并在日志里一起点名。
         /// </remarks>
         internal RowReadResult ReadRow(byte[] line, int lineBytes, Encoding encoding, bool trimValues)
         {
@@ -505,9 +479,8 @@ public sealed class FixedWidthTextImporter : IExcelImporter
     /// 字节层切行器：按块读入，只在 <c>\r\n</c>／<c>\n</c>／<c>\r</c> 处分行，每行只留下列宽总和那么多字节
     /// </summary>
     /// <remarks>
-    /// 读入的字节先落在一块固定大小的缓冲上：列范围内的字节存进行缓冲，超出列宽总和的字节只计数不保存
-    /// （那些字节本来就要丢弃，留着只是让一行的畸形长度换成一次内存增长）。行尾 <c>\r\n</c> 跨在两块缓冲边界上时
-    /// 由 <c>_pendingLineFeed</c> 认成同一个行尾，因此不会多交出一条空行。
+    /// 读入的字节先落在一块固定大小的缓冲上：列范围内的字节存进行缓冲，超出列宽总和的字节只计数不保存。
+    /// 行尾 <c>\r\n</c> 跨在两块缓冲边界上时由 <c>_pendingLineFeed</c> 认成同一个行尾。
     /// </remarks>
     private sealed class FixedWidthLineReader(Stream input, int totalWidthBytes)
     {
@@ -546,8 +519,7 @@ public sealed class FixedWidthTextImporter : IExcelImporter
             _lineBytes = 0;
             _extraBytes = 0;
 
-            // 上一行以 \r 收尾时，紧跟其后的 \n 属于那个行尾，先吃掉再开始本行；
-            // 不这么做就会把 "\r\n" 拆成「一行 + 一个空行」，多造一条谁也没写过的记录。
+            // 上一行以 \r 收尾时，紧跟其后的 \n 属于同一个行尾，先吃掉再开始本行
             if (_pendingLineFeed)
             {
                 _pendingLineFeed = false;

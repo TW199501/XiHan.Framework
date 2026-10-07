@@ -7,8 +7,7 @@ namespace XiHan.Framework.Excel.Tests.TestSupport;
 /// 第一次被写入时就把取消令牌取消的内存流，用来模拟「取消落在存盘期间」
 /// </summary>
 /// <remarks>
-/// 只作为测试夹具，不进正式 API。导出器把取消检查排在落盘之前与回传结果之前两处，本夹具专门造出后者才观察得到的
-/// 那个窗口：写出侧完成落盘后令牌已经取消，此时已经没有「零字节」可以主张，能主张的只有「不回传成功结果」。
+/// 只作为测试夹具，不进正式 API。令牌在第一次写入时取消，落盘完成时令牌已是取消状态。
 /// </remarks>
 internal sealed class CancelOnWriteStream(CancellationTokenSource source) : MemoryStream
 {

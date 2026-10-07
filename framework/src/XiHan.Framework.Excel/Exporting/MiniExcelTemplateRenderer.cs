@@ -15,7 +15,7 @@ namespace XiHan.Framework.Excel.Exporting;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 适用场景是版面已经画在模板里的单据：抬头、 logo、合并格、公式、打印区域都原样保留，本类只把占位符换成值。
+/// 版面画在模板里：抬头、logo、合并格、公式、打印区域都原样保留，本类只把占位符换成值。
 /// 占位符写成 <c>{{键名}}</c>，集合写成 <c>{{键名.子键名}}</c>；两者都区分大小写，也不接受花括号内侧带空格的写法
 /// ——<c>{{ Company }}</c> 解析不到值，键名以 <c>Company</c> 给出才成立。
 /// </para>
@@ -24,53 +24,41 @@ namespace XiHan.Framework.Excel.Exporting;
 /// 同一行的多个集合占位（如 <c>{{Items.Name}}</c> 与 <c>{{Items.Qty}}</c>）按同一项并行展开。
 /// </para>
 /// <para>
-/// 输入检查排在调用渲染库之前：三个入参为 <c>null</c> 时交回 <see cref="ArgumentNullException"/>——渲染库对
-/// null 模板与 null 数据抛出的是 <c>NullReferenceException</c>，那不构成可依赖的契约，必须由本类前移；
-/// 模板不可读、不可定位或内容为空时交回 <see cref="ArgumentException"/>，其中内容为空的消息固定含「模板内容为空」。
+/// 三个入参为 <c>null</c> 时抛 <see cref="ArgumentNullException"/>；模板不可读、不可定位或内容为空时抛
+/// <see cref="ArgumentException"/>，其中内容为空的消息固定含「模板内容为空」。这些检查排在调用渲染库之前，
+/// 不可定位的模板不会被拷进内存。
 /// </para>
 /// <para>
-/// 渲染库要求模板可定位（<see cref="Stream.CanSeek"/>），不可定位时它自己抛英文 <see cref="ArgumentException"/>；
-/// 本类把这条要求前移成带中文说明的 <see cref="ArgumentException"/>，不代为拷进内存——拷一份等于把模板规模变成
-/// 固定的内存开销，是否要这种代价应由调用方决定。
+/// 模板档不是 xlsx 容器（随便一段字节、被截断的档、缺工作簿部件）时，容器异常原样透传；
+/// 此时输出流可能已含部分字节，调用方必须丢弃输出内容。
 /// </para>
 /// <para>
-/// 模板档不是 xlsx 容器（随便一段字节、被截断的档、缺工作簿部件）时，容器异常原样透传，本类不做二次解析；
-/// 这种失败可能已经往输出流写过部分字节，调用方必须丢弃输出内容。空模板与只读不可定位的模板都在入口就拦下，
-/// 因此那两种失败输出流零字节。
+/// 输出流的所有权在调用方：本类不对它调用 <c>Dispose</c>，渲染后位置停在末尾。
+/// 模板流由渲染库读完后关闭，一份模板流只能渲染一次。
 /// </para>
 /// <para>
-/// 输出流的所有权在调用方：本类绝不对它调用 <c>Dispose</c>，渲染后位置停在末尾，把位置回到 0 即可读回。
-/// 模板流则相反——渲染库读完就把它关掉，所以一份模板流只能渲染一次，重复渲染要每次交回一份新流。
+/// 取消令牌在调用渲染库之前（此时输出流零字节）与渲染返回之后各查一次。后一次抛出时输出流里可能已有内容、
+/// 甚至已是一份完整的档，调用方必须丢弃它。
 /// </para>
 /// <para>
-/// 取消令牌在本类查两次：调用渲染库之前一次（此时输出流零字节），渲染返回之后一次。渲染库自己只在动手前查，
-/// 取消落在写出的中途或最后一段时没人再查，本类补上后一次，为的是不交出「渲染完成」这个假象；
-/// 抛出时输出流里可能已经落了内容、甚至已是一份完整的档，调用方必须丢弃它，本类不承诺失败原子性。
+/// 数据在交给渲染库之前先被走访一遍：字串值以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、制表符或回车起首，
+/// 或以渲染库的公式指令前缀 <c>$=</c> 起首时抛 <see cref="ArgumentException"/>
+/// （<see cref="ArgumentException.ParamName"/> 为 <c>data</c>）；取值是工作簿装不下的那一类时抛
+/// <see cref="InvalidOperationException"/>。两者都点名键路径、都抛在写出第一个字节之前。
+/// 命中公式判据的值被拒写，不加单引号前缀。
 /// </para>
 /// <para>
-/// 数据在交给渲染库之前先被走访一遍，逐值套用与两条 xlsx 导出路径同一份的判据：字串值以 <c>=</c>、<c>+</c>、
-/// <c>-</c>、<c>@</c>、制表符或回车起首，或以渲染库自己的公式指令前缀 <c>$=</c>
-/// 起首时拒写（<see cref="ArgumentException"/>，<see cref="ArgumentException.ParamName"/> 为 <c>data</c>）；
-/// 取值是工作簿装不下的那一类时同样拒写（<see cref="InvalidOperationException"/>）。两者都点名键路径、
-/// 都抛在写出第一个字节之前，因此输出流零字节。处置是拒写而不是加单引号前缀：加前缀等于改写业务数据，
-/// 而模板没有留痕机制能交代改了什么。判据与分隔符文字导出相同，处置形态不同，这条不对称是刻意的。
+/// 字串含 XML 1.0 不允许出现在文本内容里的字符（<c>U+0000</c>–<c>U+0008</c>、<c>U+000B</c>、<c>U+000C</c>、
+/// <c>U+000E</c>–<c>U+001F</c>）时同样拒写；制表符、换行与回车不在此列。
 /// </para>
 /// <para>
-/// 取值域这一类里有一道只属于模板路径：字串含 XML 1.0 不允许出现在文本内容里的字符
-/// （<c>U+0000</c>–<c>U+0008</c>、<c>U+000B</c>、<c>U+000C</c>、<c>U+000E</c>–<c>U+001F</c>）时同样拒写。
-/// 渲染库把这类字符落成 XML 字符实体，而那份实体本身就不是合法的 XML 1.0 文本，产出的 XML 无效；
-/// 两条 xlsx 导出路径把同一个字符转义成 <c>_xHHHH_</c>，档能开、值能逐字读回，因此那边不拒。
-/// 制表符、换行与回车是 XML 1.0 合法的文本内容，不在这道判据里，多行单元格照写。
+/// 校验只保证走访那一刻，调用方不得在走访与写出之间修改数据。走访会把集合成员完整枚举一遍，
+/// 只允许枚举一次的数据源不可用，惰性数据源会提前求值。走访不解析模板，模板没有引用的键同样在校验范围内；
+/// 缺键留空、不报错。
 /// </para>
 /// <para>
-/// 写出前校验只保证校验那一刻：走访结束后到渲染库写出之间数据被改不在本类的覆盖范围内，
-/// 调用方不得在这段时间修改数据。走访会把集合成员完整枚举一遍，排在渲染库自己那两遍之前，
-/// 因此只允许枚举一次的数据源用不了，惰性数据源会提前求值。走访不解析模板，
-/// 模板没有引用的键同样在校验范围内；缺键仍然留空、不报错。
-/// </para>
-/// <para>
-/// 值类型按渲染库自己的形态落格：数值仍是数值格，日期落成文本格（与 <see cref="ClosedXmlExporter"/> 的日期格不同），
-/// <c>null</c> 值写空。不承诺宏、数据透视表与图表，也不写 <c>.xls</c>。
+/// 数值落数值格，日期落文本格（与 <see cref="ClosedXmlExporter"/> 不同），<c>null</c> 值写空。
+/// 不支持宏、数据透视表与图表，也不写 <c>.xls</c>。
 /// </para>
 /// </remarks>
 public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
@@ -104,8 +92,7 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
     /// <exception cref="InvalidDataException">模板档存在但不是可用的 xlsx 容器，由渲染库抛出并原样透传；
     /// 此时输出流可能已含部分字节</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消。取消落在动手之前时
-    /// 输出流零字节；落在写出的中途或最后一段时，输出流可能已有内容、甚至已是一份完整的档，但本方法交出的是异常，
-    /// 不是「渲染完成」——调用方必须丢弃该流的内容，不承诺失败原子性</exception>
+    /// 输出流零字节；落在写出期间时输出流可能已有内容、甚至已是一份完整的档，调用方必须丢弃该流的内容</exception>
     public async Task RenderAsync(
         Stream output,
         Stream template,
@@ -141,14 +128,13 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
                 nameof(template));
         }
 
-        // 写出前走访：判据与两条 xlsx 导出路径同一份，但处置是拒写而不是加前缀，详见方法与类注释
+        // 写出前走访数据，命中判据即拒写
         EnsureWritableData(data, cancellationToken);
 
         await MiniExcel.SaveAsByTemplateAsync(output, template, data, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        // 回传结果之前再查一次：渲染库只在动手前查令牌，取消落在最后一段写出期间时没人再查，
-        // 本方法若就此返回，调用方读到的就是「渲染完成」，而产出的那份档未必收得下整个渲染
+        // 渲染返回之后再检查一次取消
         cancellationToken.ThrowIfCancellationRequested();
     }
 
@@ -157,32 +143,18 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
     /// 与模板占位符 <c>{{键}}</c> 和 <c>{{键.子键}}</c> 能点到的深度一致
     /// </summary>
     /// <remarks>
-    /// 深度是有意的硬界而不是「走到没有成员为止」：模板占位符最多两级，再深的值根本落不进任何一格，
-    /// 走访下去只会让一份渲染不出问题的数据被拒；同时这道界也让自引用的对象图不可能把走访拉成无限递归。
+    /// 自引用的对象图同样受此深度限制。
     /// </remarks>
     private const int MaximumWalkDepth = 3;
 
     /// <summary>
-    /// 取值检查抛出时点名的参数名：出事的值来自 <c>data</c>，与模板那三条 <c>ArgumentException</c> 的 <c>template</c> 分开
+    /// 取值检查抛出时使用的参数名
     /// </summary>
     private const string DataParameterName = "data";
 
     /// <summary>
     /// 渲染库自己的公式指令前缀：值以它起首时，渲染库把余下整段当公式写进格子，而不是当文字
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 这一道与 <see cref="TextWriterHelper.NeedsFormulaEscape"/> 量的不是同一件事：那一份量的是「表格软件读到
-    /// 这一格文字时会不会自己当公式执行」，这一道量的是「渲染库在落格之前会不会先把这段文字改成公式」，
-    /// 因此两道各判各的，不是把同一判据抄成两份。
-    /// </para>
-    /// <para>
-    /// 触发条件实测只有恰好在值起首的 <c>$=</c>：<c>"$=1+1"</c> 落成公式元素，<c>"$=HYPERLINK(...)"</c> 与
-    /// <c>"$=WEBSERVICE(...)"</c> 同样落成真公式；<c>"$"</c>、<c>"$$=1+1"</c>、<c>"$ =1+1"</c> 与
-    /// <c>"合计$=1+1"</c> 都落文字格。占位符后面还跟着模板文案时（形如 <c>{{V}}元</c>）照样成公式，
-    /// 渲染库把模板文案一并算进公式体，因此不能靠「占位符是不是占满整格」缩小这道检查。
-    /// </para>
-    /// </remarks>
     private const string TemplateFormulaDirective = "$=";
 
     /// <summary>
@@ -192,20 +164,11 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
     /// <param name="cancellationToken">取消令牌，每走访一个字典项或集合元素之前查一次</param>
     /// <remarks>
     /// <para>
-    /// 走访范围是顶層成员与 <see cref="IEnumerable"/> 元素成员，按成员名取值，不区分属性与字段：
-    /// 渲染库在顶層两种成员都取值，在集合元素只取属性（对只有字段的元素它自己抛
-    /// <c>NullReferenceException</c>），这里按更宽的那一份走访，宁可多拒不放过。
+    /// 走访范围是顶层成员与 <see cref="IEnumerable"/> 元素成员，按成员名取值，属性与字段都走访。
     /// </para>
     /// <para>
-    /// 走访不看模板，因此覆盖的是数据的全部顶層成员与集合元素成员，不限于模板真正引用的那些键——
-    /// 模板是一条流，渲染库读完就关掉，为挑出被引用的键先解析一遍模板等于把版面读两次。
-    /// 代价是数据里带着一个模板没引用的越界值时同样被拒，以及成员取值器自己抛出时原样透传；
-    /// 两者都不做静默跳过，跳过就是把「哪一份数据能渲染」交给模板里恰好写了哪些占位符决定。
-    /// </para>
-    /// <para>
-    /// 集合成员会被完整枚举一遍，且这一遍排在渲染库自己那两遍之前（实测渲染库对同一集合枚举两次），
-    /// 因此惰性数据源会提前求值、只读一次的数据源不能用；走访与渲染之间数据被改属调用方违约，见类注释。
-    /// 型别到成员的映射按本次走访就地缓存，缓存的寿命只到走访结束，不是常驻表。
+    /// 走访不看模板，覆盖数据的全部顶层成员与集合元素成员；成员取值器抛出的异常原样透传。
+    /// 型别到成员的映射在本次走访内缓存。
     /// </para>
     /// <para>
     /// 只拆「按键名取值」的容器，见 <see cref="IsKeyContainer"/>：日期、时距、<see cref="Guid"/>、
@@ -240,7 +203,7 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
             return;
         }
 
-        // 字串先判：它同时是 IEnumerable，落到集合分支会被拆成一个个字符
+        // 字串同时是 IEnumerable，先于集合分支判定
         if (node is string text)
         {
             EnsureWritableValue(text, path);
@@ -300,7 +263,7 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
             }
         }
 
-        // 走到这里的都是会整份落进格子的那一个值：可能是深度已经用尽，也可能是这个型别本来就不按键名再拆
+        // 深度用尽或型别不按键名再拆时，整份值判定
         EnsureWritableValue(node, path);
     }
 
@@ -310,17 +273,8 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
     /// <param name="type">节点的运行期型别</param>
     /// <returns>应当继续按成员名往下拆时为 <c>true</c></returns>
     /// <remarks>
-    /// <para>
-    /// 模板占位符只认三种容器：字典按键查、集合按下标展开、调用方自己的数据类型按成员名查。其余型别在渲染库
-    /// 那边一律按整份值落格，不会按键名再拆，因此走访也不拆。判据取命名空间：<c>System</c> 与其子命名空间下的
-    /// 型别（日期与时距、<see cref="Guid"/>、<see cref="decimal"/>、各种数值型别、枚举，以及执行期类型如
-    /// <see cref="System.Threading.CancellationToken"/>）都当值处理；匿名类型没有命名空间，
-    /// 而它正是模板数据最常见的一种形态，因此归到容器那一侧。
-    /// </para>
-    /// <para>
-    /// 这一道不是洁癖：<see cref="DateTime"/> 有自己的公开属性，照着成员名拆下去会走到 <c>Ticks</c>
-    /// 一类内部表示，那是一份十九位的整数，会把完全合法的日期判成越界。
-    /// </para>
+    /// 字典、集合与调用方自己的数据类型按键名取值。<c>System</c> 与其子命名空间下的型别当值处理；
+    /// 匿名类型没有命名空间，归为容器。
     /// </remarks>
     private static bool IsKeyContainer(Type type)
     {
@@ -337,24 +291,10 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
     /// <param name="value">刚走访到的值，非 <c>null</c></param>
     /// <param name="path">这个值的键路径，写进消息用</param>
     /// <remarks>
-    /// <para>
-    /// 起首字符那一道复用 <see cref="TextWriterHelper.NeedsFormulaEscape"/> 那一份，不在这里另抄一张字符表：
-    /// 模板路径要与一般导出套用相同的公式防护，「相同」指的是判据相同。要复用的是这个<b>判定</b>，
-    /// 不是它旁边的 <see cref="TextWriterHelper.EscapeFormula"/>——那一个会给值加单引号前缀，等于改写业务数据，
-    /// 而模板没有留痕机制能交代改了什么，所以模板路径的处置是拒写。
-    /// </para>
-    /// <para>
-    /// 渲染库自己的公式指令前缀另判一道，见 <see cref="TemplateFormulaDirective"/>：它命中的值会被渲染库改成
-    /// 公式元素写进档里，那已经不是「表格软件怎么读这格文字」的问题，六个起首字符覆盖不到它。
-    /// </para>
-    /// <para>
-    /// 取值域使用 <see cref="ExcelWorkbookWriteGuard.DescribeTemplateUnwritable"/>，复用通用判据，
-    /// 额外拒绝模板无法安全写入的非法 C0 字符。错误消息保留成因，并以键路径定位数据。
-    /// </para>
-    /// <para>
-    /// 两道判据的异常型别沿用导出侧既有分工——公式注入是调用方给错了参数，走 <see cref="ArgumentException"/>；
-    /// 取值域是数据装不进工作簿，走 <see cref="InvalidOperationException"/>。这里不新造型别。
-    /// </para>
+    /// 起首字符判据复用 <see cref="TextWriterHelper.NeedsFormulaEscape"/>，另判渲染库的公式指令前缀
+    /// <see cref="TemplateFormulaDirective"/>，命中即抛 <see cref="ArgumentException"/>。
+    /// 取值域使用 <see cref="ExcelWorkbookWriteGuard.DescribeTemplateUnwritable"/>，越界抛
+    /// <see cref="InvalidOperationException"/>，消息保留成因并以键路径定位数据。
     /// </remarks>
     private static void EnsureWritableValue(object value, string path)
     {
@@ -406,7 +346,7 @@ public sealed class MiniExcelTemplateRenderer : IExcelTemplateRenderer
     /// <param name="type">节点型别</param>
     /// <param name="cache">本次走访内的缓存，就地读写</param>
     /// <remarks>
-    /// 索引器不算成员：它要参数才取得到值，模板占位符也点不到它。
+    /// 索引器不算成员。
     /// </remarks>
     private static MemberInfo[] GetMembers(Type type, IDictionary<Type, MemberInfo[]> cache)
     {

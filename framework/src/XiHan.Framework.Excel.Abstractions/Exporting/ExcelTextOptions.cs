@@ -10,16 +10,11 @@ namespace XiHan.Framework.Excel.Abstractions.Exporting;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 全部为写一次即可读的配置，属性用 <c>init</c> 访问器，构造完成后交给导出器读取。传 <c>null</c> 选项对象给导出器
-/// 等同于使用本类型的默认值。
-/// </para>
-/// <para>
-/// 取 <c>record</c> 而非 <c>class</c>：调用方要「在本份设置上改一项再导出」时，写 <c>options with { Quote = ... }</c>
-/// 得到派生副本，原对象保持不变，不必整份重抄，也不会把共享的选项对象改坏。
+/// 属性用 <c>init</c> 访问器；传 <c>null</c> 选项对象给导出器等同于使用本类型的默认值。
 /// </para>
 /// <para>
 /// 列宽、补位方向与补位字符是列级设置，放在 <see cref="ExcelColumn"/> 上；编码名、换行符与超宽策略是整份文件的
-/// 设置，放在本类型上，两级设置不混用。
+/// 设置，放在本类型上。
 /// </para>
 /// </remarks>
 public sealed record ExcelTextOptions
@@ -35,29 +30,22 @@ public sealed record ExcelTextOptions
     /// <remarks>
     /// <para>
     /// <see cref="ExcelTextLayout.FixedWidth"/> 下每格宽度取列上的 <see cref="ExcelColumn.FixedWidth"/>（按
-    /// <see cref="EncodingName"/> 的字节数计），超宽处置取 <see cref="Overflow"/>，档按字节位置切列，因此
-    /// <see cref="Delimiter"/>、<see cref="Quote"/> 与 <see cref="EscapeFormulaPrefix"/> 三项没有对应的解析位，
-    /// 写出时一律不解释：<c>Delimiter</c> 与 <c>Quote</c> 是分隔符布局的字段边界手段，加公式前缀还会吃掉一格字节宽度、
-    /// 让后续列位整体错位。给出这三项不报错也不生效，要逐字往返请留在默认的
-    /// <see cref="ExcelTextLayout.Delimited"/> 布局。
+    /// <see cref="EncodingName"/> 的字节数计），超宽处置取 <see cref="Overflow"/>；
+    /// <see cref="Delimiter"/>、<see cref="Quote"/> 与 <see cref="EscapeFormulaPrefix"/> 给出不报错也不生效。
     /// </para>
     /// <para>
-    /// 列特性不带字节宽度，因此本布局下列必须由调用方构造并给出 <see cref="ExcelColumn.FixedWidth"/>；
-    /// 缺该设置的列在写出任何字节之前抛 <see cref="InvalidOperationException"/> 并列出缺宽度的列键。
+    /// 本布局下列必须给出 <see cref="ExcelColumn.FixedWidth"/>；缺该设置的列在写出任何字节之前抛
+    /// <see cref="InvalidOperationException"/> 并列出缺宽度的列键。
     /// </para>
     /// <para>
     /// 本布局不接受值内换行：<see cref="ExcelColumn"/> 取值转出的文本含 <c>\r</c> 或 <c>\n</c> 时抛
-    /// <see cref="InvalidOperationException"/>，不清洗也不替换——定宽档没有可以包住换行的引号，写出去会让一档
-    /// 被读成错行的两档。该判定要等取到那一行才做得出（行集合是惰性游标），所以抛出时前面的行可能已经落盘；
-    /// 含换行的数据请用 <see cref="ExcelTextLayout.Delimited"/> 布局配 <see cref="Quote"/> 写出。
-    /// 列上的 <see cref="ExcelColumn.PadChar"/> 同样不得是换行符，那一条与内容无关，在写出任何字节之前就被拒绝。
+    /// <see cref="InvalidOperationException"/>，不清洗也不替换。该判定在取到那一行时才做，抛出时前面的行可能已经写出。
+    /// 列上的 <see cref="ExcelColumn.PadChar"/> 不得是换行符，在写出任何字节之前就被拒绝。
     /// </para>
     /// <para>
-    /// 本布局还拒收带 BOM 前导字节的编码（含 <see cref="EncodingName"/> 的默认值 <c>"utf-8-bom"</c>）：那三个字节
-    /// 会挤在第一条记录之前，让外部按字节位置切列的读档方把每一栏都读偏，因此写出任何字节之前抛
-    /// <see cref="ArgumentException"/>（<see cref="ArgumentException.ParamName"/> 为 <c>EncodingName</c>）而不是
-    /// 静默剥掉前导字节——定宽的契约就是字节位置精确，改档头等于替调用方决定他没决定的事。写定宽档请明确指名
-    /// 不带 BOM 的编码（<c>"utf-8"</c>、<c>"big5"</c> 一类）。
+    /// 本布局拒收带 BOM 的编码（含 <see cref="EncodingName"/> 的默认值 <c>"utf-8-bom"</c>），在写出任何字节之前抛
+    /// <see cref="ArgumentException"/>（<see cref="ArgumentException.ParamName"/> 为 <c>EncodingName</c>），
+    /// 不剥掉前导字节。写定宽档请指名不带 BOM 的编码（<c>"utf-8"</c>、<c>"big5"</c> 一类）。
     /// </para>
     /// </remarks>
     public ExcelTextLayout Layout { get; init; } = ExcelTextLayout.Delimited;
@@ -68,16 +56,12 @@ public sealed record ExcelTextOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 分隔符布局下有三类取值无法成立，导出器在写出任何字节之前抛 <see cref="ArgumentException"/>
-    /// （<see cref="ArgumentException.ParamName"/> 为 <c>textOptions</c>），不代为改写也不静默降级：
-    /// <c>\r</c> 与 <c>\n</c> 本身就是行分隔符，两栏会被直接写成两行；引号字符 <c>"</c> 作分隔符时，
-    /// <see cref="ExcelTextQuote.Minimal"/>／<see cref="ExcelTextQuote.All"/> 用来包住字段的引号与分隔符成了同一个字符，
-    /// 取 <see cref="ExcelTextQuote.None"/> 时值内的引号又与分隔符不可区分；空格配 <see cref="ExcelTextQuote.None"/>
-    /// 时值内空格与分隔符不可区分。判据是「写出去就读不回来」，不是「不推荐」。
+    /// 分隔符布局下以下取值在写出任何字节之前抛 <see cref="ArgumentException"/>
+    /// （<see cref="ArgumentException.ParamName"/> 为 <c>textOptions</c>），不代为改写：<c>\r</c>、<c>\n</c>、
+    /// 引号字符 <c>"</c>，以及空格配 <see cref="ExcelTextQuote.None"/>。
     /// </para>
     /// <para>
-    /// <see cref="ExcelTextLayout.FixedWidth"/> 布局按字节位置切列、根本不读本设置，因此上述取值在该布局下既不报错
-    /// 也不生效；校验因此由导出器承担而不是本类型——判据要连着布局才知道。
+    /// <see cref="ExcelTextLayout.FixedWidth"/> 布局不读本设置，上述取值在该布局下既不报错也不生效。
     /// </para>
     /// </remarks>
     public char? Delimiter { get; init; }
@@ -88,18 +72,14 @@ public sealed record ExcelTextOptions
     /// <remarks>
     /// <para>
     /// 常用取值：<c>"utf-8-bom"</c> 写带 BOM 的 UTF-8；<c>"utf-8"</c> 写不带 BOM 的 UTF-8；<c>"big5"</c> 写大五码
-    /// （繁体中文往来档常用，无 BOM）。其余取值按 <see cref="System.Text.Encoding.GetEncoding(string)"/> 的名称或代码页解析，
-    /// 大小写不敏感。BOM 由解析出的编码自身写出，导出器不再手写，因此不会写两遍。
-    /// 本默认值只适用于分隔符布局：<see cref="Layout"/> 取 <see cref="ExcelTextLayout.FixedWidth"/> 时带 BOM 的编码
-    /// 会被拒——前导字节挤在第一条记录之前，外部按字节位置切列的读档方会把每一栏都读偏，所以定宽档必须指名
-    /// 不带 BOM 的编码（<c>"utf-8"</c>、<c>"big5"</c> 一类），沿用默认值在写出任何字节之前抛
+    /// （无 BOM）。其余取值按 <see cref="System.Text.Encoding.GetEncoding(string)"/> 的名称或代码页解析，
+    /// 大小写不敏感。BOM 由解析出的编码自身写出。
+    /// <see cref="Layout"/> 取 <see cref="ExcelTextLayout.FixedWidth"/> 时带 BOM 的编码在写出任何字节之前抛
     /// <see cref="ArgumentException"/>。
     /// </para>
     /// <para>
     /// 解析出的编码一律带严格回退：待写出的字符不在目标编码的字符集内时（例如简体字写进 <c>"big5"</c>）抛
-    /// <see cref="System.Text.EncoderFallbackException"/>，不会像 .NET 默认的替换回退那样静默产出 <c>?</c> 字节、
-    /// 再把坏档当成功结果交回调用方。要写出某份文件，字符集必须真收得下它的全部内容：Big5 收不下简体字，
-    /// 简体档请用 <c>"utf-8"</c>／<c>"utf-8-bom"</c>，或改用 <c>"gb18030"</c>。
+    /// <see cref="System.Text.EncoderFallbackException"/>。
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentException">编码名为 <c>null</c> 或仅含空白字符</exception>
@@ -148,9 +128,8 @@ public sealed record ExcelTextOptions
     /// 引号策略，默认 <see cref="ExcelTextQuote.Minimal"/>；<see cref="ExcelTextLayout.FixedWidth"/> 布局不解释本设置
     /// </summary>
     /// <remarks>
-    /// <see cref="ExcelTextQuote.None"/> 下字段值内的分隔符与换行无法原样写出，导出器把它们改写为空格并记
-    /// Warning 日志，不静默产出坏数据；该策略与空格分隔符是非法组合，导出器在写出任何字节之前抛
-    /// <see cref="ArgumentException"/>。固定宽度布局没有引号参与的解析位，本设置不参与写出。
+    /// <see cref="ExcelTextQuote.None"/> 下字段值内的分隔符与换行由导出器改写为空格并记 Warning 日志；
+    /// 该策略与空格分隔符是非法组合，导出器在写出任何字节之前抛 <see cref="ArgumentException"/>。
     /// </remarks>
     public ExcelTextQuote Quote { get; init; } = ExcelTextQuote.Minimal;
 
@@ -158,9 +137,8 @@ public sealed record ExcelTextOptions
     /// 固定宽度布局下内容超出列宽的处置，默认 <see cref="ExcelTextOverflow.Throw"/>；分隔符布局不解释本设置
     /// </summary>
     /// <remarks>
-    /// <see cref="ExcelTextOverflow.Truncate"/> 会丢弃超出部分，读回的档不能与原值逐字往返，因此导出器对整份文件
-    /// 记一条聚合 Warning（含被截断的字段数量与首个触发的行列）；列宽按 <see cref="EncodingName"/> 的字节数计，
-    /// 截断落在字素边界上，不会把一个多字节字符切成半个字节序列。
+    /// <see cref="ExcelTextOverflow.Truncate"/> 丢弃超出部分，导出器对整份文件记一条聚合 Warning
+    /// （含被截断的字段数量与首个触发的行列）；列宽按 <see cref="EncodingName"/> 的字节数计，截断落在字素边界上。
     /// </remarks>
     public ExcelTextOverflow Overflow { get; init; } = ExcelTextOverflow.Throw;
 
@@ -170,21 +148,11 @@ public sealed record ExcelTextOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 开启后表格软件读取该档时不会把文本当公式执行：凡以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、
-    /// 制表符（<c>\t</c>）或回车（<c>\r</c>）开头的值都加前缀，这一条判据全份档只有一份；
-    /// 交给机器逐字段解析的 <c>.txt</c> 应关掉，避免原始数据被改写。
-    /// 表头行与数据行同样受本设置约束：表头文案是调用方在运行时给出的 <c>required string</c>，框架无法证明它
-    /// 出自开发者而不是终端使用者，因此不按来源豁免。代价是以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、
-    /// 制表符或回车开头的标题会多出一个可见的 <c>'</c>；置为 <c>false</c> 时表头与数据一并保留原值。
+    /// 表头行与数据行同样受本设置约束；置为 <c>false</c> 时表头与数据一并保留原值。
     /// </para>
     /// <para>
-    /// 本设置同样改动数据，代价容易被忽略：负数经 <c>TextFormat</c> 得到 <c>-5.00</c> 后会被写成 <c>'-5.00</c>，
-    /// 表格软件读回来是文本而不是数字。导出器对全份文件的改写记一条聚合 Warning（含改写数量与首个触发的行列），
-    /// 不逐格刷日志；要逐字往返请置为 <c>false</c>。
-    /// </para>
-    /// <para>
-    /// 固定宽度布局下本设置不生效：前缀多出的一格字节会挤掉内容、破坏按字节切列的宽度契约，该布局本来也不是
-    /// 给表格软件重放的档。
+    /// 本设置会改动数据：负数经 <c>TextFormat</c> 得到 <c>-5.00</c> 后会写成 <c>'-5.00</c>。
+    /// 导出器对全份文件的改写记一条聚合 Warning（含改写数量与首个触发的行列）。
     /// </para>
     /// </remarks>
     public bool EscapeFormulaPrefix { get; init; } = true;

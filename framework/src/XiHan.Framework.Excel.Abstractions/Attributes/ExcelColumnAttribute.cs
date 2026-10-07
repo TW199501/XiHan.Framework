@@ -9,12 +9,9 @@ namespace XiHan.Framework.Excel.Abstractions.Attributes;
 /// 导出列特性，用于声明属性对应的表头与列呈现
 /// </summary>
 /// <remarks>
-/// 带本特性的属性参与列构建，不带特性的属性同样参与，只是取用默认呈现；要排除某个键请改用
-/// <see cref="ExcelIgnoreAttribute"/>：它只看代表这个键的那一个属性。标在 <c>new</c> 遮蔽出来的派生
-/// 属性上会使整个键不成列、被它盖住的基类属性不会顶上来，标在被盖住的那一个上不影响成列；遮蔽者没有
-/// 公共读取器或是索引器时不进候选，此时代表键的换成基类属性（它自身也得构成候选，两个都不构成候选
-/// 就没有这个键），忽略标在它上面同样使整个键不成列。
-/// 列的取值一律来自属性本身，特性只描述呈现，不描述取数逻辑。
+/// 带本特性与不带特性的属性都参与列构建，不带特性的取默认呈现；要排除某个键请改用
+/// <see cref="ExcelIgnoreAttribute"/>。
+/// 列的取值一律来自属性本身，特性只描述呈现。
 /// </remarks>
 [AttributeUsage(AttributeTargets.Property)]
 public sealed class ExcelColumnAttribute : Attribute
@@ -53,9 +50,7 @@ public sealed class ExcelColumnAttribute : Attribute
     /// 列宽（工作簿单位）；默认 <c>0</c> 表示「未指定 / 自动列宽」，由提供程序按采样行自适应
     /// </summary>
     /// <remarks>
-    /// 用特性设定列宽时，<c>0</c> 表示「未指定 / 自动列宽」：特性的命名参数不支持可空数值类型，
-    /// 因此这里用 <c>double</c> 并以 <c>0</c> 作缺省标记，由列构建器把它映射为列模型上的 <c>null</c>。
-    /// <c>0</c> 本身不是可用的列宽，所以这种表达不损失语义；要设非零列宽直接写 <c>Width = 20.5</c> 这样的字面量。
+    /// 列构建器把 <c>0</c> 映射为列模型上的 <c>null</c>。
     /// </remarks>
     public double Width { get; init; }
 

@@ -12,11 +12,11 @@ namespace XiHan.Framework.Excel.Tests.TestSupport;
 /// <remarks>
 /// <para>
 /// 与 <see cref="TemplateFactory" /> 的分工：那份只管模板渲染要的单值占位模板，本份管导入要读的容器形态
-/// （合并格、重名表头、多表、只有表头）。都用 ClosedXML 现造，理由一样——二进制档看不出格位，改动没有 diff。
+/// （合并格、重名表头、多表、只有表头）。都用 ClosedXML 现造。
 /// </para>
 /// <para>
 /// 每个方法交回新流，测试之间不共用流。文字档一律 <c>Position = 0</c>；Big5 一支用严格回退编码造字节，
-/// 收不下的字符在造夹具时就抛，不会先写成 <c>?</c> 再让断言看起来「读通了」。
+/// 收不下的字符在造夹具时就抛。
 /// </para>
 /// </remarks>
 internal static class ImportFixtures
@@ -30,9 +30,7 @@ internal static class ImportFixtures
     /// 严格回退的 Big5，造繁体文字档字节用
     /// </summary>
     /// <remarks>
-    /// 用严格回退而不是 <see cref="Encoding.GetEncoding(string)"/> 的默认宽松回退：宽松回退把 Big5 收不下的字符
-    /// 安静写成 <c>?</c> 字节，夹具产出坏档而断言照样通过。简体「单」(U+5355) 就不在 Big5 里，
-    /// 所以本系列的繁体档夹具用「提單號」而不是「提单号」。
+    /// 收不下的字符在编码时就抛。简体「单」(U+5355) 不在 Big5 里，繁体档夹具用「提單號」。
     /// </remarks>
     internal static readonly Encoding StrictBig5 =
         Encoding.GetEncoding("big5", new EncoderExceptionFallback(), new DecoderExceptionFallback());
@@ -40,9 +38,6 @@ internal static class ImportFixtures
     /// <summary>
     /// 单列单行的 xlsx：A1 表头「提单号」，A2 值「AWB1」
     /// </summary>
-    /// <remarks>
-    /// Task 9 的门面路由测试要的「一张单列单行的 xlsx」就是这份，复用它可以少造一个容器。
-    /// </remarks>
     /// <returns>位置在起点的 xlsx 流</returns>
     internal static MemoryStream OneRowXlsx()
         => Xlsx([["提单号"], ["AWB1"]]);
@@ -157,8 +152,7 @@ internal static class ImportFixtures
     /// <param name="cell">目标格</param>
     /// <param name="value">要落的值，数值一律按 double 落格（ClosedXML 的数值格就是这个形态）</param>
     /// <remarks>
-    /// <see cref="XLCellValue"/> 没有从 <see cref="object"/> 的隐式转换，夹具收的是 <c>object</c>，
-    /// 因此这里按型别分派；分不到已知型别时按字串落格，不猜型别。
+    /// 按 <c>object</c> 的实际型别分派成 <see cref="XLCellValue"/>；分不到已知型别时按字串落格。
     /// </remarks>
     private static void WriteCell(IXLCell cell, object value)
     {

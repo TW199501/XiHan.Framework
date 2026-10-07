@@ -8,19 +8,16 @@ namespace XiHan.Framework.Excel.Abstractions.Importing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 一列的宽度按<u>字节</u>而不是按字符计，与导出侧
-/// <see cref="Abstractions.Exporting.ExcelColumn.FixedWidth"/> 同一口径：一个汉字在 Big5 下占 2 字节、
-/// 在 UTF-8 下占 3 字节，按字符切列会让该列之后的每一列整体错位。因此这里的宽度必须与写这份档时用的编码一致，
-/// 而那份编码由 <see cref="ExcelImportOptions.TextEncodingName"/> 给出（不指名时由导入侧自动判别，见该设置）。
+/// 一列的宽度按<u>字节</u>计，与导出侧 <see cref="Abstractions.Exporting.ExcelColumn.FixedWidth"/> 同一口径
+/// （一个汉字在 Big5 下占 2 字节、在 UTF-8 下占 3 字节）。宽度必须与写这份档时用的编码一致，
+/// 编码由 <see cref="ExcelImportOptions.TextEncodingName"/> 给出（不指名时由导入侧自动判别，见该设置）。
 /// </para>
 /// <para>
-/// 本类型只是取值载体，不做校验：键是否为空、宽度是否为正整数、多列之间键有没有重复，都由导入侧在
-/// 首次取行时一次判完并抛出，理由见 <see cref="ExcelImportOptions.FixedColumns"/>。
-/// 列的顺序就是读回一行的取值顺序，导入侧不按键重新排序。
+/// 本类型不做校验：键是否为空、宽度是否为正整数、多列之间键有没有重复，都由导入侧在首次取行时一次判完并抛出，
+/// 见 <see cref="ExcelImportOptions.FixedColumns"/>。列的顺序就是读回一行的取值顺序。
 /// </para>
 /// <para>
-/// 与导出侧的对称限制：<c>[ExcelColumn]</c> 特性不带字节宽度，因此固定宽度的列在两侧都只能由代码给出，
-/// 不能靠标注属性得到。
+/// <c>[ExcelColumn]</c> 特性不带字节宽度，固定宽度的列在导入导出两侧都只能由代码给出。
 /// </para>
 /// </remarks>
 /// <param name="Key">

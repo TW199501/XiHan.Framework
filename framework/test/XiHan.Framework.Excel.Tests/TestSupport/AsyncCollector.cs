@@ -4,16 +4,10 @@
 namespace XiHan.Framework.Excel.Tests.TestSupport;
 
 /// <summary>
-/// 异步序列的测试收集助手：逐条取进 <see cref="List{T}"/>，不为测试引入 LINQ 异步扩展包
+/// 异步序列的测试收集助手：逐条取进 <see cref="List{T}"/>
 /// </summary>
 /// <remarks>
-/// <para>
-/// <c>System.Linq.Async</c> 不在本仓的依赖面里，<c>IAsyncEnumerable&lt;T&gt;.ToListAsync()</c> 也不在 BCL 里，
-/// 因此收集一律写成 <c>await foreach</c> 累加。多条用例共用这一份循环，避免每条用例各抄一遍。
-/// </para>
-/// <para>
 /// 只收集、不做断言：枚举过程中抛出的异常原样上抛，由调用方的 <c>Assert.ThrowsAsync</c> 接住。
-/// </para>
 /// </remarks>
 internal static class AsyncCollector
 {

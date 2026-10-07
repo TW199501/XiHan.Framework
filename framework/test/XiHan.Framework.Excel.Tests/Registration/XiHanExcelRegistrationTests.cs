@@ -19,12 +19,10 @@ namespace XiHan.Framework.Excel.Tests.Registration;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 注册一律用 <c>TryAddSingleton</c>，因此「应用层先注册自己的实现」必须赢过后调的 <c>AddXiHanExcel</c>——
-/// 换掉某一家 Excel 库正是应用层的正当选择，注册顺序不该把它覆盖掉。
+/// 注册一律用 <c>TryAddSingleton</c>，应用层先注册的实现不被后调的 <c>AddXiHanExcel</c> 覆盖。
 /// </para>
 /// <para>
-/// 解析契约时都要先 <c>AddLogging</c>：文字与定宽两个实现构造函数收 <see cref="Microsoft.Extensions.Logging.ILogger{T}" />，
-/// 本包不替宿主装日志器（装配日志由核心模块负责），这里按仓库既有惯例由用例显式补上。
+/// 解析契约前先 <c>AddLogging</c>：文字与定宽两个实现构造函数收 <see cref="Microsoft.Extensions.Logging.ILogger{T}" />，本包不注册日志器。
 /// </para>
 /// </remarks>
 public class XiHanExcelRegistrationTests
@@ -46,11 +44,6 @@ public class XiHanExcelRegistrationTests
     /// <summary>
     /// 裸选项与四个实现都单独可解析，分派器与导入门面拿得到它们
     /// </summary>
-    /// <remarks>
-    /// 裸 <see cref="XiHanExcelOptions"/> 这一条最容易漏：<c>AddOptions</c> 只交回 <c>IOptions&lt;T&gt;</c>，
-    /// 而本包的 Provider 收的是选项对象本身。漏了它，解析 <see cref="IExcelExporter"/> 时才报一句
-    /// 「无法解析 XiHanExcelOptions」，看不出错在注册表少一行。
-    /// </remarks>
     [Fact]
     public void 裸选项与各个实现都单独可解析()
     {
@@ -126,8 +119,7 @@ public class XiHanExcelRegistrationTests
     /// 配置的行数上限经注册接进两个读实现，导入真正按配置截断
     /// </summary>
     /// <remarks>
-    /// 上限判据共用一份不代表配置会自动生效：门面转给谁、谁拿到多少行，取决于注册时有没有把选项交给实现。
-    /// 这条走完整的注册路径，因此它同时验到「裸选项来自配置」与「两个读实现都收到同一份」。
+    /// 走完整的注册路径，同时验到「裸选项来自配置」与「两个读实现都收到同一份」。
     /// </remarks>
     /// <param name="fixedColumns">是否走固定宽度路径</param>
     [Theory]
@@ -197,10 +189,6 @@ public class XiHanExcelRegistrationTests
     /// <summary>
     /// 从注册路径拿到的导出器能真写出三种档，且分派按配置里的阈值走
     /// </summary>
-    /// <remarks>
-    /// 这一条把注册与分派连起来验：只断「解析出某个类型」会在实现里把 Provider 接错线时仍然全绿，
-    /// 而档能不能读回、超阈值时是不是真降级，才是使用者会碰到的结果。
-    /// </remarks>
     [Fact]
     public async Task 注册路径的导出器可写三种档()
     {
@@ -236,10 +224,6 @@ public class XiHanExcelRegistrationTests
     /// <summary>
     /// 本包不替宿主装日志器：没装时收日志器的实现解析不出，装了才可解析
     /// </summary>
-    /// <remarks>
-    /// 装配日志是核心模块与宿主的事，本包只声明依赖。这条把分工钉住，免得日后有人为了「单独调用也能跑」
-    /// 在 <c>AddXiHanExcel</c> 里偷偷补一份日志注册，把宿主装的日志器盖掉。
-    /// </remarks>
     [Fact]
     public void 未装日志器时收日志器的实现解析不出()
     {

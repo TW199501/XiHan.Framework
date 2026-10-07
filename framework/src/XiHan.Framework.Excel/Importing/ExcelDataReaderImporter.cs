@@ -19,92 +19,64 @@ namespace XiHan.Framework.Excel.Importing;
 /// <remarks>
 /// <para>
 /// 逐行交出 <see cref="ExcelImportRow"/>，不物化整档：行号、<see cref="ExcelImportOptions.MaxRowCount"/>
-/// 与取消都落在行与行之间，百万行档不会先在内存里排一遍。
+/// 与取消都落在行与行之间。
 /// </para>
 /// <para>
-/// 文字档在交出第一行<u>之前</u>还有一趟前置扫描：底层读取器要在建立时就定下解码编码（无 BOM 时它按整档
-/// 试解 UTF-8，试不通才用回退编码）与整档的最大列数，因此这一趟把整个档读过一遍，
-/// <see cref="ExcelImportOptions.MaxRowCount"/> 与取消令牌都拦不住它，两者只在交出行阶段生效。
+/// 文字档在交出第一行之前会把整档扫描一遍，以确定解码编码与整档的最大列数；
+/// <see cref="ExcelImportOptions.MaxRowCount"/> 与取消令牌只在交出行阶段生效。
 /// 这趟扫描只读不存，托管内存不随档的行数增长。
 /// </para>
 /// <para>
-/// <b>流所有权在调用方。</b>底层读取器默认会连传入的流一起关掉（<c>LeaveOpen</c> 为 <c>false</c> 时
-/// 读取器 <c>Dispose</c> 之后流不可再访问），本实现在所有路径上一律置 <c>LeaveOpen = true</c>，
-/// 枚举结束后调用方仍可复位重读同一条流。读取总是从流的<u>起点</u>开始：调用方预设的流位置不会被尊重，
-/// 本类在建立读取器之前先把它复位到 0，因此「从流中间续读」不是本类的能力。
+/// 流所有权在调用方：读取器一律以 <c>LeaveOpen = true</c> 建立，枚举结束后不关闭传入的流。
+/// 读取总是从流的起点开始，建立读取器之前先把位置复位到 0。
 /// </para>
 /// <para>
-/// 输入流必须可定位：签章嗅探要把位置复原，容器解析也要回到起点，不可定位的流做不到
-/// （底层读取器在这种情况下抛 <see cref="NotSupportedException"/>）。本类在建立读取器之前先拒绝，
-/// 不把库的失败面当契约。
+/// 输入流必须可定位，不可定位的流在建立读取器之前即被拒绝。
 /// </para>
 /// <para>
-/// <see cref="ExcelReaderConfiguration.TrimWhiteSpace"/> 显式置 <c>false</c>：该配置在 3.9.0 上<u>默认开启</u>，
-/// 会把 CSV 字段首尾空白静默去掉，而且只作用于文字档、不作用于工作簿——同一个值在两种来源上取回不同结果是更糟的事，
-/// 因此空白取舍统一由 <see cref="ExcelImportOptions.TrimHeaders"/> 与 <see cref="ExcelImportOptions.TrimValues"/>
-/// 在两条路径上一致处理。
+/// <see cref="ExcelReaderConfiguration.TrimWhiteSpace"/> 显式置 <c>false</c>，首尾空白统一由
+/// <see cref="ExcelImportOptions.TrimHeaders"/> 与 <see cref="ExcelImportOptions.TrimValues"/> 处理。
 /// </para>
 /// <para>
-/// 文字档的解码编码见 <see cref="TextEncodingResolver"/>。读到的字能不能信，取决于三处底层读取器的现实：
+/// 文字档的解码编码见 <see cref="TextEncodingResolver"/>：
 /// <list type="bullet">
-/// <item>读取器认前导字节（BOM），且它优先于回退编码，也优先于 <see cref="ExcelImportOptions.TextEncodingName"/>：
-/// 档带 BOM 时按 BOM 解，指名的编码让位。</item>
-/// <item>无 BOM 时读取器先把<u>整档</u>按 UTF-8 试解一遍，试得通就按 UTF-8 解，试不通才用回退编码。
-/// 本类因此把回退编码设为严格 Big5，自己不再按档头窗口试探：窗口只看得到前 <c>32KB</c>，
-/// 前段是纯 ASCII 的 Big5 档会被窗口判成 UTF-8，然后在中文出现的那一行抛 <see cref="DecoderFallbackException"/>。</item>
-/// <item>指名编码时不交给读取器解码：回退编码只在 UTF-8 试解失败时才用得上，档的字节只要构成合法 UTF-8，
-/// 指名的编码就被静默忽略而读档照样回报成功。本类改为按指名编码把整档转码成无 BOM UTF-8 再交给读取器，
-/// 读到的字由指名的编码唯一决定；代价是这一支的转码结果整份放在内存里，规模与档同量级
-/// （档大小的上限仍是 <see cref="XiHanExcelOptions.MaxImportBytes"/>）。</item>
+/// <item>档带 BOM 时按 BOM 解码，优先于回退编码与 <see cref="ExcelImportOptions.TextEncodingName"/>。</item>
+/// <item>无 BOM 且未指名编码时，读取器先按整档试解 UTF-8，失败才用严格 Big5 回退。</item>
+/// <item>指名编码时，按指名编码把整档转码成无 BOM UTF-8 再交给读取器；转码结果整份放在内存里
+/// （档大小上限为 <see cref="XiHanExcelOptions.MaxImportBytes"/>）。</item>
 /// </list>
 /// </para>
 /// <para>
-/// 回退 Big5 时有一处不收口：真正的非法 Big5 字节不会报错，<c>System.Text</c> 的 Big5 解码器把无法配对的字节
-/// 换成私有区字符 <c>U+F8F8</c>，两侧都换成异常回退也拦不住它。这属于代码页自身的口径，本类不额外判死，
-/// 但读到的字里出现 <c>U+F8F8</c> 就表示源档那一处字节已经损坏。
+/// 回退 Big5 时，无法配对的字节解成私有区字符 <c>U+F8F8</c> 而不抛出；读到的字里出现 <c>U+F8F8</c>
+/// 表示源档那一处字节已损坏。
 /// </para>
 /// <para>
-/// 来源不做补偿：合并单元格除左上角外的格位读回 <c>null</c>，空格子在文字档里是空字串、在工作簿里是 <c>null</c>，
-/// 公式只读回已缓存的值。样式、批注、图表与宏不解释。加密工作簿不支持（本类不传
-/// <see cref="ExcelReaderConfiguration.Password"/>）。
+/// 合并单元格除左上角外的格位读回 <c>null</c>，空格子在文字档里是空字串、在工作簿里是 <c>null</c>，
+/// 公式只读回已缓存的值。样式、批注、图表与宏不解释。不支持加密工作簿。
 /// </para>
 /// <para>
 /// 显式 <see cref="ExcelImportOptions.Format"/> 为 <see cref="ExcelImportFormat.Xls"/> 或
-/// <see cref="ExcelImportFormat.Xlsx"/> 时<u>不强判签章</u>：读取器按内容自行选容器解析器，因此档名与内容不符可以正常读。
-/// 容器读不通时（伪造的档头、截断的 zip、读到一半崩掉的工作簿），库的 <c>ExcelReaderException</c> 家族与
-/// <see cref="InvalidDataException"/> 由本类换成 <see cref="InvalidOperationException"/>，库原话留在内部异常里——
-/// 抽象契约在抽象包里、不引用任何第三方库，库的异常型别不能算对外承诺。「档头判不出格式」与「判得出但容器读不通」
-/// 因此落在同一个类型上。
+/// <see cref="ExcelImportFormat.Xlsx"/> 时不校验签章，读取器按内容自行选择容器解析器。
+/// 容器读不通时，库的 <c>ExcelReaderException</c> 家族与 <see cref="InvalidDataException"/> 换成
+/// <see cref="InvalidOperationException"/>，原异常留在内部异常里。
 /// </para>
 /// <para>
-/// 一处不收口的残留：对上 OLE 档头却短到读不出目录的伪装档，会由 BCL 交回 <see cref="ArgumentException"/>，
-/// 本类<u>不</u>把它一起收掉——<see cref="DecoderFallbackException"/> 同样是 <see cref="ArgumentException"/> 的后代，
-/// 按 <see cref="ArgumentException"/> 收口会把「编码指错」这条正当失败一并吞成容器异常。
-/// 调用方按型别分流时要认这条现实。
+/// 对上 OLE 档头却短到读不出目录的档，BCL 抛出的 <see cref="ArgumentException"/> 不做转换，原样上抛。
 /// </para>
 /// <para>
-/// 行数上限取构造时算好的那一份：无参构造用框架默认硬上限，收
-/// <see cref="XiHanExcelOptions"/> 的那个重载用 <see cref="XiHanExcelOptions.MaxImportRows"/> 收紧后的值，
-/// 两个构造的差别只在数字上，判定与报错文字同一份。配置值越出框架硬上限或不是正整数时在构造点抛出，
-/// 不等第一次取行，也不夹回上限。
+/// 行数上限在构造时确定：无参构造用框架默认硬上限，收 <see cref="XiHanExcelOptions"/> 的重载用
+/// <see cref="XiHanExcelOptions.MaxImportRows"/>。配置值越出框架硬上限或不是正整数时在构造点抛出。
 /// </para>
 /// <para>
-/// 档的规模有两道界，都判在建立读取器之前。<b>其一</b>是档大小：取构造时的
-/// <see cref="XiHanExcelOptions.MaxImportBytes"/>（无参构造用 <see cref="ExcelConstants.DefaultMaxImportBytes"/>），
-/// 超限拒收整份档，判据与固定宽度路径共用一份。<b>其二</b>只对 <c>xlsx</c> 生效，判的是解压后的规模：
-/// 按 zip 中央目录里的元数据扫一遍各部件的解压后长度、总长与解压比，任一道越界就拒收，
-/// 一个部件都不解压。第二道界是必需的，因为工作簿读取器开簿时就把 <c>xl/sharedStrings.xml</c>
-/// 整份载进内存，那笔开销发生在读出第一行<u>之前</u>，行数上限与取消令牌都拦不住它：
-/// 一份一百万字节的档可以把几百兆字节的共享字串塞进本进程。三道解压侧判据里，两道绝对上限
-/// （单部件解压后长度、解压后总长）不可配置，取值见 <see cref="ExcelConstants.MaxImportDecompressedBytes"/>
-/// 一族的说明；解压比那道是<u>启发式</u>，生效值取 <see cref="XiHanExcelOptions.MaxImportCompressionRatio"/>
-/// （无参构造用 <see cref="ExcelConstants.MaxImportCompressionRatio"/>），设成 <c>0</c> 或负数即不判比值，
-/// 而两道绝对上限照旧生效。
+/// 档的规模在建立读取器之前判两道界。其一是档大小：取 <see cref="XiHanExcelOptions.MaxImportBytes"/>
+/// （无参构造用 <see cref="ExcelConstants.DefaultMaxImportBytes"/>），超限拒收整份档。其二只对 <c>xlsx</c> 生效：
+/// 按 zip 中央目录的元数据判各部件解压后长度、解压后总长与解压比，任一越界即拒收，不解压任何部件。
+/// 两道解压后长度上限不可配置，取值见 <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 一族的说明；
+/// 解压比取 <see cref="XiHanExcelOptions.MaxImportCompressionRatio"/>
+/// （无参构造用 <see cref="ExcelConstants.MaxImportCompressionRatio"/>），设成 <c>0</c> 或负数即不判比值。
 /// </para>
 /// <para>
-/// 规模还有第三个维度是<u>宽度</u>：每一行的列数不得超过 <see cref="ExcelConstants.MaxImportColumns"/>，
-/// 逐行判在建键之前，超限整份档拒收。列数与行数一样决定单次导入的成本——每列都要一个键名与一个字典项——
-/// 而行数上限管不到它：一份两行的档也可以有十万列。
+/// 每一行的列数不得超过 <see cref="ExcelConstants.MaxImportColumns"/>，逐行判在建键之前，超限整份档拒收。
 /// </para>
 /// </remarks>
 public sealed class ExcelDataReaderImporter : IExcelImporter
@@ -117,11 +89,6 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// <summary>
     /// 解压比只对不小于这个解压后长度的部件判（1 MiB）
     /// </summary>
-    /// <remarks>
-    /// 更小的部件即使比值难看也占不了多少内存，而它们的总量另有
-    /// <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 兜住；对小部件判比值只会把
-    /// 「一小段重复度高的样式表」误判成炸弹。
-    /// </remarks>
     private const long CompressionRatioFloorBytes = 1_048_576;
 
     private readonly int _hardMaxRows;
@@ -213,7 +180,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// <remarks>
     /// <para>
     /// 方法体在<u>首次取行</u>时才运行（异步迭代器），上面这些检查因此都在第一次
-    /// <c>MoveNextAsync</c> 时才抛出；调用 <see cref="ReadAsync"/> 本身不会抛。门面要提前拒绝非法选项得自己先判。
+    /// <c>MoveNextAsync</c> 时才抛出；调用 <see cref="ReadAsync"/> 本身不会抛。
     /// </para>
     /// <para>
     /// <see cref="ExcelImportRow.RowNumber"/> 是本表内的 1 起始行号，含 <see cref="ExcelImportOptions.HeaderRowIndex"/>
@@ -243,46 +210,39 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
 
         var effective = options ?? new ExcelImportOptions();
 
-        // 顺序是刻意的：上限校验排在格式判别与建立读取器之前，非法的 MaxRowCount 在一条判别不出格式的垃圾档上
-        // 也要报「上限越界」而不是报「判不出格式」——调用方放大上限是请求本身的问题，与档的内容无关。
+        // 上限校验排在格式判别与建立读取器之前
         var maxRows = ImportSharedRules.ResolveMaxRowCount(effective.MaxRowCount, _hardMaxRows);
 
-        // 撞上限时抛还是截断，判据与固定宽度路径共用一份：指名过上限（调用端或配置端）就截断，
-        // 没指名而撞上框架硬上限就抛，不静默少交行。
+        // 指名过上限（调用端或配置端）就截断，没指名而撞上框架硬上限就抛
         var throwsOnLimit = ImportSharedRules.ThrowsWhenRowLimitHit(effective.MaxRowCount, maxRows);
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        // 档大小先判：超限的档连格式都不必判。判据与固定宽度路径共用一份，两个来源对「这份档太大」不能各说一套。
+        // 档大小判在格式判别之前
         ImportSharedRules.ValidateImportBytes(input.Length, _maxImportBytes);
 
-        // 读取一律从流起点开始：容器解析会复位到起点，嗅探也照同一个起点，
-        // 否则「调用方把位置留在中间」时嗅探判的是中间那段，而解析器读的是整档，两者会各说各话。
+        // 读取一律从流起点开始
         input.Position = 0;
 
-        // 档头取一次就留着：判不出格式与容器读不通两条失败都要把同一份可读档头写进消息，
-        // 不能在异常里再读一遍流（那时位置已被解析器动过）。
+        // 档头只取一次，判不出格式与容器读不通两条失败消息共用
         var header = ExcelFormatProbe.ReadHeader(input, ExcelFormatProbe.HeaderByteCount);
 
         var format = effective.Format ?? DetectFormatOrThrow(header);
         var isText = format is ExcelImportFormat.Csv or ExcelImportFormat.Txt;
 
-        // 解压规模判在建立读取器之前：工作簿读取器开簿时就把 sharedStrings 整份载进内存，
-        // 那笔开销发生在读出第一行之前，行数上限与取消令牌都拦不住它。
+        // 解压规模判在建立读取器之前
         GuardDecompressedSize(input, format, _maxImportCompressionRatio);
 
-        // 建立读取器：文字路径的分隔符与编码在这里钉死，二进制路径不读 TextEncodingName 与 Delimiter。
-        // AnalyzeInitialCsvRows 刻意不设（默认 0 = 建立时扫完整档）：那个窗口同时限住「整档最大列数」与
-        // 「UTF-8 试解范围」，设成有界值之后，窗口之外才变宽的行会被静默截掉多出来的列，窗口之后才出现的
-        // 非 UTF-8 字节会被按 UTF-8 解而在中途抛解码异常。前置扫描换来的是列数与编码两个判定都按整档成立。
+        // 建立读取器：文字路径的分隔符与编码在这里确定，二进制路径不读 TextEncodingName 与 Delimiter。
+        // AnalyzeInitialCsvRows 保持默认 0：建立时扫完整档，最大列数与 UTF-8 试解都按整档判定。
         var configuration = new ExcelReaderConfiguration
         {
             LeaveOpen = true,
             TrimWhiteSpace = false
         };
 
-        // 文字档交给读取器解码，编码怎么定、要不要先转码见 TextEncodingResolver.ResolveForReader；
-        // 转码那一支交出去的是新建的流，读完由本类释放，调用方那条流的所有权始终在调用方
+        // 文字档的编码与是否转码见 TextEncodingResolver.ResolveForReader；
+        // 转码那一支交出去的是新建的流，读完由本类释放
         var textSource = input;
         var ownsTextSource = false;
 
@@ -322,7 +282,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
                     cancellationToken.ThrowIfCancellationRequested();
                 }
 
-                // 列数上限判在建键之前：建键与每行取值都按列数放大，判晚了那笔成本已经付掉了
+                // 列数上限判在建键之前
                 GuardColumnCount(reader.FieldCount);
 
                 // 前导行按行号丢掉，不参与表头与取值
@@ -422,33 +382,21 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// </exception>
     /// <remarks>
     /// <para>
-    /// 只读 zip 的中央目录，<u>不解压任何部件</u>：<see cref="ZipArchiveEntry.Length"/> 与
-    /// <see cref="ZipArchiveEntry.CompressedLength"/> 都写在目录里，因此这道检查的成本与档的内容规模无关，
-    /// 一份 1 MiB 的炸弹和一份 1 MiB 的正常档扫起来一样快。
+    /// 只读 zip 的中央目录，不解压任何部件：<see cref="ZipArchiveEntry.Length"/> 与
+    /// <see cref="ZipArchiveEntry.CompressedLength"/> 都取自目录，检查成本与档的内容规模无关。
     /// </para>
     /// <para>
-    /// 本检查使用中央目录声明的长度，不验证实际解压内容。在 .NET 10 与 ExcelDataReader 3.9.0 的
-    /// 已测样本中，声明为 1024 字节的 8 MiB 部件最多交出 1024 字节；读取流本身不因截断抛出异常，
-    /// 被截断的共享字符串 XML 由读取器报错。该行为不代表所有损坏容器都会被拒收。
+    /// 本检查使用中央目录声明的长度，不验证实际解压内容。
     /// </para>
     /// <para>
-    /// 三条判据里只有解压比是<u>启发式</u>、也只有它可以由 <paramref name="maxCompressionRatio"/> 关掉：
-    /// 比值高低不只由内容决定，也由产出这份档的工具决定，高度重复而合法的档可能越过默认值。
-    /// 两道绝对上限（单部件解压后长度、解压后总长）不可配置，关掉解压比之后照常逐部件判——
-    /// 「不判比值」不等于「不判解压规模」，界定<u>解压后字节数</u>的一直是这两道。它们说的不是托管占用：
-    /// 解压后的内容进工作簿读取器还要按字符与解析结构再展开一遍，实测量级约 2 倍
-    /// （换算关系见 <see cref="ExcelConstants.MaxImportDecompressedBytes"/> 的说明）。
+    /// 只有解压比可以由 <paramref name="maxCompressionRatio"/> 关掉；两道绝对上限（单部件解压后长度、解压后总长）
+    /// 不可配置，关掉解压比之后照常逐部件判。
     /// </para>
     /// <para>
-    /// 以 <c>leaveOpen: true</c> 打开，流的所有权始终在调用方；<see cref="ZipArchive"/> 读完目录会把位置留在
-    /// 档尾附近，因此无论判过还是判不过，退出前一律把 <see cref="Stream.Position"/> 归零。这是本类自己
-    /// 对调用方的承诺——读取从流的起点开始、扫档不吃调用方的流——不建立在「底层读取器会不会自己回头定位」上；
-    /// 判不过的时候，调用方拿回的也是一条停在起点、可以就地检查或另作处置的流。
+    /// 以 <c>leaveOpen: true</c> 打开；无论判过与否，退出前一律把 <see cref="Stream.Position"/> 归零。
     /// </para>
     /// <para>
-    /// 档头是 zip 签名却打不开目录（截断的档、伪造的档头）时不在这里报错，交给
-    /// <see cref="CreateReader"/> 报那条已经声明过的「按 Xlsx 读不通」：容器失败的消息只有一份口径，
-    /// 这道检查不另立一套。
+    /// 档头是 zip 签名却打不开目录（截断的档、伪造的档头）时不在这里报错，交给 <see cref="CreateReader"/> 报错。
     /// </para>
     /// </remarks>
     private static void GuardDecompressedSize(Stream input, ExcelImportFormat format, int maxCompressionRatio)
@@ -466,7 +414,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
 
             foreach (var entry in zip.Entries)
             {
-                // 单部件先判：任何离谱的声明长度都在累加之前被挡掉，总和因此不会溢出
+                // 单部件先判：声明长度在累加之前被挡掉，总和不会溢出
                 if (entry.Length > ExcelConstants.MaxImportEntryDecompressedBytes)
                 {
                     throw new InvalidOperationException(
@@ -485,8 +433,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
                         "档的字节数说的是压缩后的大小，读它要付的内存与 I/O 由解压后的规模决定。");
                 }
 
-                // 解压比是三条判据里唯一的启发式，也是唯一可关掉的：maxCompressionRatio <= 0 表示不判比值。
-                // 关掉它只跳过这一段，上面两道绝对上限已经在这个循环里逐部件判过了。
+                // maxCompressionRatio <= 0 表示不判解压比
                 if (maxCompressionRatio > 0 &&
                     entry.Length >= CompressionRatioFloorBytes &&
                     entry.CompressedLength > 0 &&
@@ -506,7 +453,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
         }
         catch (InvalidDataException)
         {
-            // 档头是 zip 签名但目录读不出来：不在这里另立一套容器失败消息，交给 CreateReader 报「按 Xlsx 读不通」
+            // 档头是 zip 签名但目录读不出来：交给 CreateReader 报错
         }
         finally
         {
@@ -585,10 +532,8 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// </summary>
     /// <param name="ex">待判断的异常</param>
     /// <remarks>
-    /// 只认读取器自己的 <see cref="ExcelReaderException"/> 家族（伪造档头、坏目录、加密都从这三型里出来）与容器级的
-    /// <see cref="InvalidDataException"/>。<u>绝不按 <see cref="ArgumentException"/> 收口</u>：
-    /// <see cref="DecoderFallbackException"/> 是它的后代，那样收会把「编码指错」这条正当的解码失败
-    /// 一起吞成容器异常，调用方再也看不出档是没解开还是读不通。
+    /// 只认读取器的 <see cref="ExcelReaderException"/> 家族与容器级的 <see cref="InvalidDataException"/>；
+    /// 不认 <see cref="ArgumentException"/>，因此 <see cref="DecoderFallbackException"/> 原样上抛。
     /// </remarks>
     private static bool IsContainerFailure(Exception ex)
         => ex is ExcelReaderException or InvalidDataException;
@@ -642,9 +587,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// <param name="fieldCount">本行的列数</param>
     /// <exception cref="InvalidOperationException">列数超过 <see cref="ExcelConstants.MaxImportColumns"/></exception>
     /// <remarks>
-    /// 逐行判而不只在表头行判一次：分隔符档每行的列数可以不同，行变宽时补出 <c>Col{n}</c> 是既有语义，
-    /// 因此「表头只有两列、第 900 行忽然十万列」这种档也要在补键之前被挡下。
-    /// 超限时整份档拒收，不截断列清单、也不交出前若干列——半行数据交回的是看起来成功的错位结果。
+    /// 逐行判，行变宽补出 <c>Col{n}</c> 之前也判。超限时整份档拒收，不截断列清单，也不交出前若干列。
     /// </remarks>
     private static void GuardColumnCount(int fieldCount)
     {
@@ -665,15 +608,11 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 判重集合必须与清单同生同长，因此收在一个类型里，不拆成调用方自己维持的两个局部变量：
-    /// 只按清单线性扫（<c>List.Contains</c>）判重时，<c>n</c> 列的表头要扫 O(n²) 次，
-    /// 一份十万列的档光是建键就要十几秒，而这段时间里取消令牌一次也不会被检查。
-    /// 用 <see cref="HashSet{T}"/> 判重把它压回 O(n)。
+    /// 判重集合与键名清单同步维护，判重用 <see cref="HashSet{T}"/>。
     /// </para>
     /// <para>
-    /// 比较器钉 <see cref="StringComparer.Ordinal"/>：键名是调用方按字面取值的标识，
-    /// <c>"A"</c> 与 <c>"a"</c> 是两个键。换成大小写不敏感的比较器会把它们判成重名、给后一个加 <c>_2</c> 后缀，
-    /// 同一份档在不同来源上取到不同键名，而这与 <see cref="ReadValues"/> 里取值字典用的比较器也会不一致。
+    /// 比较器为 <see cref="StringComparer.Ordinal"/>，与 <see cref="ReadValues"/> 里的取值字典一致：
+    /// <c>"A"</c> 与 <c>"a"</c> 是两个键。
     /// </para>
     /// </remarks>
     private sealed class HeaderKeySet
@@ -711,7 +650,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
                     text = text.Trim();
                 }
 
-                // 空表头位用列序补名：表头缺字是常事，键名不能是空字串
+                // 空表头位用列序补名
                 if (text.Length == 0)
                 {
                     text = $"{PositionalKeyPrefix}{index + 1}";
@@ -756,8 +695,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
         /// </summary>
         /// <param name="baseKey">候选键名</param>
         /// <remarks>
-        /// 后缀从 <c>_2</c> 起，且要跳过「源档里本来就有 <c>重量_2</c>」这种撞名：撞了就继续加一号，
-        /// 否则两份数据会落进同一个键、后写的盖掉先写的。
+        /// 后缀从 <c>_2</c> 起，与已有键（含源档本来就有的 <c>重量_2</c> 这类）撞名时继续加一号。
         /// </remarks>
         private void Add(string baseKey)
         {
@@ -796,7 +734,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// <param name="keys">键清单</param>
     /// <param name="trimValues">是否去掉字串值的首尾空白</param>
     /// <remarks>
-    /// 行比键清单窄时缺的列取 <c>null</c>，与合并单元格非左上角、空格子的形态一致；不做「当成空字串」的改写。
+    /// 行比键清单窄时缺的列取 <c>null</c>。
     /// </remarks>
     private static Dictionary<string, object?> ReadValues(
         IExcelDataReader reader,
@@ -825,8 +763,7 @@ public sealed class ExcelDataReaderImporter : IExcelImporter
     /// </summary>
     /// <param name="value">表头格的值，允许为 <c>null</c></param>
     /// <remarks>
-    /// 数值表头（例如拿年份当列名）按不变文化转文本，不跟随当前区域设置改变小数点，
-    /// 否则同一份档在不同机器上会得到不同键名。
+    /// 数值表头（例如拿年份当列名）按不变文化转文本，不跟随当前区域设置。
     /// </remarks>
     private static string ValueToHeaderKey(object? value)
     {

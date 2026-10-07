@@ -30,7 +30,7 @@ public class ExcelTextOptionsTests
     }
 
     /// <summary>
-    /// 编码名与行尾为空时立即抛异常，不留到写出阶段才发现
+    /// 编码名与行尾为空时赋值即抛异常
     /// </summary>
     [Theory]
     [InlineData("")]
@@ -46,7 +46,7 @@ public class ExcelTextOptionsTests
         => Assert.Throws<ArgumentException>(() => new ExcelTextOptions { EncodingName = null! });
 
     /// <summary>
-    /// 行尾不能是空字符串，否则整份文件会挤成一行；换行符本身是空白字符，不受空白检查影响
+    /// 行尾为空字符串时抛异常，换行符本身不受空白检查影响
     /// </summary>
     [Fact]
     public void 行尾为空时抛异常()
@@ -60,9 +60,6 @@ public class ExcelTextOptionsTests
     /// <summary>
     /// 派生副本只改动指名的设置，其余设置原样带过去，原对象不被改动
     /// </summary>
-    /// <remarks>
-    /// 本类型取 <c>record</c> 的唯一理由就是这条能力：调用方在共享的选项对象上改一项设置时，不该把原对象改坏。
-    /// </remarks>
     [Fact]
     public void with派生副本不改动原对象()
     {
@@ -81,7 +78,7 @@ public class ExcelTextOptionsTests
     }
 
     /// <summary>
-    /// 派生副本同样走属性上的校验，非法值不因副本路径而绕过
+    /// 派生副本同样走属性上的校验
     /// </summary>
     [Theory]
     [InlineData("")]

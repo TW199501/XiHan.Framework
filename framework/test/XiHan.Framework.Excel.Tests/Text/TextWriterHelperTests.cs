@@ -59,7 +59,7 @@ public class TextWriterHelperTests
     [InlineData("a\rb", ',', true)]       // 含回车
     [InlineData("abc", ',', false)]       // 干净值
     [InlineData("a\"b", ',', false)]      // 值内引号与分隔符无关，免引号策略原样保留
-    [InlineData("a b", ' ', true)]        // 空格作分隔符时值内空格无法与分隔符区分，替换成空格是 no-op 但档仍坏
+    [InlineData("a b", ' ', true)]        // 空格作分隔符，值内含空格
     public void 判定值内是否含不可原样写出的字符(string raw, char delimiter, bool expected)
         => Assert.Equal(expected, TextWriterHelper.ContainsUnquotable(raw, delimiter));
 
@@ -71,16 +71,16 @@ public class TextWriterHelperTests
     [InlineData("-5", true)]
     [InlineData("+86123", true)]
     [InlineData("@a", true)]
-    [InlineData("\t=1+1", true)]   // 制表符起首：与四个运算子并列的注入载体
-    [InlineData("\r=1+1", true)]   // 回车起首：同上
+    [InlineData("\t=1+1", true)]   // 制表符起首
+    [InlineData("\r=1+1", true)]   // 回车起首
     [InlineData("正常", false)]
-    [InlineData("\u0000x", false)] // NUL 不在集合内：多拒一个字符就等于改写本来无害的数据
+    [InlineData("\u0000x", false)] // NUL 起首不在集合内
     [InlineData("", false)]
     public void 判定值是否会被公式防护改写(string raw, bool expected)
     {
         Assert.Equal(expected, TextWriterHelper.NeedsFormulaEscape(raw));
 
-        // 判定与变换不能各说各话：判定为真时变换必定改动该值，为假时必定原样返回
+        // 判定为真时变换必定改动该值，为假时必定原样返回
         Assert.Equal(expected, !string.Equals(TextWriterHelper.EscapeFormula(raw), raw, StringComparison.Ordinal));
     }
 
@@ -96,7 +96,7 @@ public class TextWriterHelperTests
     /// </summary>
     /// <remarks>
     /// 正例覆盖 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、制表符、回车六个起首字符；反例除「干净值」外，
-    /// 特意留一条「含运算子但不在开头」与一条「NUL 起首」，证明集合没有被扩大——多拒一个字符就多改一份原始数据。
+    /// 还有一条「含运算子但不在开头」与一条「NUL 起首」。
     /// </remarks>
     [Theory]
     [InlineData("=1+1", "'=1+1")]
@@ -150,8 +150,7 @@ public class TextWriterHelperTests
     /// 目标编码收不下的字符在编码阶段就抛，产不出问号字节的坏档
     /// </summary>
     /// <remarks>
-    /// .NET 默认的替换回退会把 Big5 收不下的简体字安静写成 <c>?</c>，档已损坏却仍返回成功结果；
-    /// 严格回退后换成 <see cref="EncoderFallbackException"/>。收得下的字符不受影响，逐字节与宽松编码一致。
+    /// 严格回退下抛 <see cref="EncoderFallbackException"/>；收得下的字符逐字节与宽松编码一致。
     /// </remarks>
     [Fact]
     public void 不可映射字符编码时抛异常()
@@ -169,7 +168,7 @@ public class TextWriterHelperTests
         => new(encoderShouldEmitBom, throwOnInvalidBytes: true);
 
     /// <summary>
-    /// BOM 预设名与解析出的 Encoding 前导字节一致，导出器据此不再手写 BOM
+    /// BOM 预设名与解析出的 Encoding 前导字节一致
     /// </summary>
     [Fact]
     public void BOM预设名由Encoding自己写前导字节()

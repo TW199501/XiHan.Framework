@@ -15,18 +15,11 @@ namespace XiHan.Framework.Excel.Tests.Exporting;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 断言一律走 <c>new XLWorkbook(stream)</c> 回读，与单表测试同一口径：多表路径的全部价值就在于每张表都真的落进档里，
-/// 这只有回读能证明。
+/// 断言一律走 <c>new XLWorkbook(stream)</c> 回读，每条测试各自新建 <see cref="MemoryStream" />。
 /// </para>
 /// <para>
-/// 表名守卫的判据不凭空加严，逐条对齐 ClosedXML 0.105.1 的现实（取证见
-/// <c>.superpowers/sdd/2026-10-04-excel/t7-probe-sheetname-charset.txt</c> 与
-/// <c>t7-probe-sheetname-parity.txt</c>）：非法字符集、31 的长度量纲（按 UTF-16 代码单元）、首尾撇号、
-/// 判重的大小写口径（<see cref="StringComparer.OrdinalIgnoreCase"/>）都与之同一套，
-/// 因此这里既断「库拒的我们拒」，也断「库肯收的我们不误杀」。
-/// </para>
-/// <para>
-/// 每条测试各自新建 <see cref="MemoryStream" />，不共用类字段：写出侧会把字节留在流里，共用会让前后用例互相污染。
+/// 表名判据与 ClosedXML 一致：非法字符集、31 的长度上限（按 UTF-16 代码单元）、首尾撇号、
+/// 判重不区分大小写（<see cref="StringComparer.OrdinalIgnoreCase"/>）；既断库拒的名字被拒，也断库肯收的名字能写出。
 /// </para>
 /// </remarks>
 public class ClosedXmlMultiSheetTests
@@ -59,7 +52,7 @@ public class ClosedXmlMultiSheetTests
     ];
 
     /// <summary>
-    /// 汇总表的两列：与运单表列数相同但键、表头、格式都不同，用来证明列清单按表各自生效
+    /// 汇总表的两列：与运单表列数相同但键、表头、格式都不同
     /// </summary>
     private static readonly ExcelColumn[] SummaryColumns =
     [
@@ -189,8 +182,7 @@ public class ClosedXmlMultiSheetTests
     /// 某一张表的行型不符时沿用单表的行型守卫抛出，消息点名行号与期望／实际两个类型
     /// </summary>
     /// <remarks>
-    /// 多表路径不另写一份行型守卫（消息因此只到「第几行」，不到「第几张表」），这里断言的是它没有被绕过：
-    /// 坏行在第二张表里，异常照旧来自同一份守卫，且整份档零字节。
+    /// 坏行在第二张表里，消息只点名表内行号，不点名第几张表；整份档零字节。
     /// </remarks>
     [Fact]
     public async Task 其中一张表的行型不符时抛出且不写出任何字节()
@@ -218,12 +210,11 @@ public class ClosedXmlMultiSheetTests
     }
 
     /// <summary>
-    /// 单表入口与多表入口对同一份规格交出完全一致的工作表，证明两条路径共用同一套写出实现
+    /// 单表入口与多表入口对同一份规格交出完全一致的工作表
     /// </summary>
     /// <remarks>
-    /// 这是「把单表并进多表同一 <c>WriteSheet</c> 循环」的差异探测：不是列一批两边同结论的样本，
-    /// 而是把同一条规格分别经两个入口写出，逐格、逐列宽、逐样式比对。规格挑边界形状：带标题、零行、
-    /// 固定列宽、条件样式、关掉边框/冻结/筛选。
+    /// 同一条规格分别经两个入口写出，逐格、逐列宽、逐样式比对。规格带标题、零行、
+    /// 固定列宽、条件样式，关掉冻结与筛选。
     /// </remarks>
     [Theory]
     [InlineData(0)]
@@ -283,11 +274,6 @@ public class ClosedXmlMultiSheetTests
     /// <summary>
     /// 空表清单抛出明确的 ArgumentException，不把库的 InvalidOperationException 交出去
     /// </summary>
-    /// <remarks>
-    /// 实测零工作表的工作簿存盘会得到 <c>InvalidOperationException("Workbooks need at least one worksheet.")</c>
-    /// （取证见 <c>t7-probe-zerosheet.txt</c>）。清单为空不是「写出一份空档」，也不该让库的英文异常成为契约，
-    /// 因此在预检层就抛。
-    /// </remarks>
     [Fact]
     public async Task 空表清单抛出明确异常而不是库的异常()
     {
@@ -303,10 +289,6 @@ public class ClosedXmlMultiSheetTests
     /// <summary>
     /// 清单本身为 null、清单里有 null 项、输出流为 null 都在入口抛 ArgumentNullException
     /// </summary>
-    /// <remarks>
-    /// null 项不会被当成「跳过这张表」：它既没有表名也没有列，写出侧给不出任何一档；
-    /// 没有这道判，取 null 项的表名就直接是 <c>NullReferenceException</c>，那种形态不能被当成契约。
-    /// </remarks>
     [Fact]
     public async Task 清单为null或含null项时抛ArgumentNullException()
     {
@@ -378,7 +360,7 @@ public class ClosedXmlMultiSheetTests
     }
 
     /// <summary>
-    /// 尾随空格算两个不同的名字，证明判重没有比库更严
+    /// 尾随空格算两个不同的名字
     /// </summary>
     [Fact]
     public async Task 与库口径一致_尾随空格不算重名()
@@ -465,7 +447,7 @@ public class ClosedXmlMultiSheetTests
     }
 
     /// <summary>
-    /// 空白表名由 <see cref="ExcelSheetSpec.SheetName"/> 的构造守卫兜住，多表入口不再立第二份守卫
+    /// 空白表名由 <see cref="ExcelSheetSpec.SheetName"/> 的构造守卫拒绝
     /// </summary>
     [Fact]
     public void 拒绝空白表名由规格构造承担()
@@ -498,7 +480,7 @@ public class ClosedXmlMultiSheetTests
     }
 
     /// <summary>
-    /// <c>RowType</c> 为 null 的判定上移到预检后，行集合一次都不被枚举
+    /// <c>RowType</c> 为 null 时在预检抛出，行集合一次都不被枚举
     /// </summary>
     [Fact]
     public async Task RowType为null时不枚举行集合()
@@ -591,7 +573,7 @@ public class ClosedXmlMultiSheetTests
                 Header = "提单号",
                 Value = row =>
                 {
-                    // 取消落在第一张表最后一笔的取值期间：该表已经没有下一行可查
+                    // 取消落在第一张表最后一笔的取值期间
                     if (row.AwbNo == "LAST")
                     {
                         source.Cancel();
@@ -626,7 +608,7 @@ public class ClosedXmlMultiSheetTests
         await Assert.ThrowsAsync<OperationCanceledException>(async () => await new ClosedXmlExporter(new XiHanExcelOptions())
             .ExportAllAsync(stream, specs, source.Token));
 
-        // 逐表检查排在下一张表开始之前，因此后面的表连行集合都不该被枚举
+        // 下一张表的行集合一次都不被枚举
         Assert.Equal(0, nextSheetRows.Count);
         Assert.Equal(0, stream.Length);
     }
@@ -646,7 +628,7 @@ public class ClosedXmlMultiSheetTests
     }
 
     /// <summary>
-    /// 表级列宽越界在多表路径同样抛，不复写第二份守卫
+    /// 表级列宽越界在多表路径同样由列守卫拦下
     /// </summary>
     [Fact]
     public async Task 多表路径的列宽越界仍由列守卫拦下()
@@ -671,7 +653,7 @@ public class ClosedXmlMultiSheetTests
     }
 
     /// <summary>
-    /// 表级底色非法在多表路径同样抛成 ArgumentException，颜色守卫只有 <c>WriteSheet</c> 里那一份
+    /// 表级底色非法在多表路径同样抛成 ArgumentException
     /// </summary>
     [Fact]
     public async Task 多表路径的非法底色仍由同一份颜色守卫拦下()
@@ -694,17 +676,10 @@ public class ClosedXmlMultiSheetTests
     }
 
     /// <summary>
-    /// 多表入口对越界数值同样拒写，位数的判尺只有共用守卫那一份
+    /// 多表入口对越界数值同样拒写
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 数值有效数字这一道挂在逐格取值上，多表路径复用同一张写格路径，因此这里断的是「没有第二份尺」，
-    /// 不是多表入口的新能力：第二张表刻意给出可正常写出的列，被拒的是第一张表里那一格。
-    /// </para>
-    /// <para>
-    /// 消息点名的行位置是表内的数据行位置（第 1 行），与前缀一起构成定位信息；抛出时整份档尚未存盘，
-    /// 输出流零字节。
-    /// </para>
+    /// 被拒的是第一张表里那一格，第二张表的列可正常写出；输出流零字节。
     /// </remarks>
     [Fact]
     public async Task 多表入口对越界数值同样拒写()
@@ -837,7 +812,7 @@ public class ClosedXmlMultiSheetTests
     }
 
     /// <summary>
-    /// 把 ClosedXML 的颜色按 RGB 分量写成 <c>#RRGGBB</c>，避免依赖 <see cref="XLColor"/> 的相等性
+    /// 把 ClosedXML 的颜色按 RGB 分量写成 <c>#RRGGBB</c>
     /// </summary>
     private static string HexOf(XLColor color)
         => $"#{color.Color.R:X2}{color.Color.G:X2}{color.Color.B:X2}";

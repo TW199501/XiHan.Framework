@@ -16,15 +16,8 @@ namespace XiHan.Framework.Excel.Tests.Importing;
 /// ExcelDataReader 导入测试：签章判别、表头处理、文字档编码回退与行数上限
 /// </summary>
 /// <remarks>
-/// <para>
 /// 断言只看对外可观察的东西：键名与键序、取值与型别、行号、抛出的异常类型与消息。夹具一律当场造
 /// （<see cref="ImportFixtures" />），仓库里不留二进制档。
-/// </para>
-/// <para>
-/// 编码相关的期望值来自实测而不是推测：无 BOM 的 Big5 档若不交回正确编码，读取器按 <c>windows-1252</c>
-/// 解出来的是「´£³æ¸¹」这种看着也像字的乱码（取证 <c>t8-probe-exceldreader-behavior.txt</c> 的 B2/B4），
-/// 因此下面既断「回退后读到正字」，也断「编码指错时报错而不是吐乱码」。
-/// </para>
 /// </remarks>
 public class ExcelDataReaderImporterTests
 {
@@ -175,8 +168,7 @@ public class ExcelDataReaderImporterTests
     /// 前段是纯 ASCII 的 Big5 档照旧读出正字：编码判定不按档头窗口做，整档试解 UTF-8 不成才落 Big5
     /// </summary>
     /// <remarks>
-    /// 形态取自实际往来档：前 <c>47KB</c> 全是 ASCII，中文在窗口之后才出现。按 <c>32KB</c> 窗口试探会把整档
-    /// 判成 UTF-8，然后在中文那一行抛解码异常、一列都交不出来。
+    /// 档的前 <c>47KB</c> 全是 ASCII，中文在其后才出现。
     /// </remarks>
     [Fact]
     public async Task ASCII前缀超过试探窗口的Big5档读出正字()
@@ -195,10 +187,6 @@ public class ExcelDataReaderImporterTests
     /// <summary>
     /// 指名编码时按指名的编码解码：UTF-8 合法字节指名 latin-1 就读回 latin-1 的字
     /// </summary>
-    /// <remarks>
-    /// 读取器只在整档试解 UTF-8 失败时才用回退编码，直接把它交给读取器的话这条档会按 UTF-8 读出 <c>é</c>，
-    /// 指名的 latin-1 被静默忽略而读档回报成功。
-    /// </remarks>
     [Fact]
     public async Task 指名latin1时UTF8合法字节按latin1读()
     {
@@ -252,11 +240,7 @@ public class ExcelDataReaderImporterTests
     /// 文字档在交出第一行之前已把整档读过一遍：解码编码与整档最大列数都在建立读取器时定下
     /// </summary>
     /// <remarks>
-    /// 这条钉住前置扫描这个事实本身，免得后来人以为「逐行交出」等于「建立读取器时一个字节都不读」，
-    /// 也免得有人拿 <see cref="ExcelImportOptions.MaxRowCount"/> 与取消令牌去指望它拦得住这一趟。
-    /// 断言的是<u>累计读走的字节数</u>而不是流位置：读取器扫完会把位置复位再按自己的缓冲重读，
-    /// 交出第一行时位置停在缓冲边界上，看不出前面已经扫过整档。档给到五千行，比任何「有界预扫窗口」
-    /// 的常见取值都大——把预扫范围限成开头一千行的话，交出第一行时读走的字节数远不到档长，这条断言就红。
+    /// 断言的是<u>累计读走的字节数</u>而不是流位置。档有五千行。
     /// </remarks>
     [Fact]
     public async Task 文字档交出第一行时整档已扫过一遍()
@@ -289,8 +273,7 @@ public class ExcelDataReaderImporterTests
     /// 靠后才变宽的行照旧补出 <c>Col{n}</c>：整档最大列数按整档算，不按开头若干行算
     /// </summary>
     /// <remarks>
-    /// 第 1200 个数据行才有四列。把建立读取器时的预扫范围限成开头一千行的话，读取器交回的列数会停在那个
-    /// 窗口的最大值，这一行多出来的两列会被静默丢掉——列数上限与补键都拦不住它，因为那两列根本没交出来。
+    /// 第 1200 个数据行才有四列。
     /// </remarks>
     [Fact]
     public async Task 靠后的宽行仍补出Col键而不丢列()
@@ -355,7 +338,7 @@ public class ExcelDataReaderImporterTests
     /// 分隔模式 <c>.txt</c> 里制表符起首的值被引号包住，读回还原成同一个值
     /// </summary>
     /// <remarks>
-    /// 导出侧对制表符起首的值走「值内含分隔符就整段裹引号」那一条，因此写出的档形如 <c>"\tABC"</c>。
+    /// 导出侧给制表符起首的值整段裹引号，写出的档形如 <c>"\tABC"</c>。
     /// 引号本身往返一致：值内的引号翻倍、值内的换行原样，都读得回来。
     /// </remarks>
     [Fact]
@@ -462,7 +445,7 @@ public class ExcelDataReaderImporterTests
         => Assert.Equal("x\"y", (await ReadCsv("a\r\n\"x\"\"y\"\r\n"u8.ToArray()))[0].Values["a"]);
 
     /// <summary>
-    /// 被引号包住换行的记录之后，行号按记录数递增而不是按物理行补号——这条把实测到的口径钉住
+    /// 被引号包住换行的记录之后，行号按记录数递增而不是按物理行补号
     /// </summary>
     [Fact]
     public async Task 值内换行之后的记录行号按记录数递增()
@@ -522,7 +505,7 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// TrimValues 默认不剥：值里的首尾空白是业务数据，剥了就不能逐字往返
+    /// TrimValues 默认不剥值里的首尾空白
     /// </summary>
     /// <param name="trimValues">是否剥取值空白</param>
     /// <param name="expected">期望取值</param>
@@ -617,7 +600,7 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// with 派生副本不改动原选项对象——取 record 而不是 class 的存在证明
+    /// with 派生副本不改动原选项对象
     /// </summary>
     [Fact]
     public void 派生副本不改动原选项对象()
@@ -633,7 +616,7 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// 枚举结束后调用方的流仍然可用：读取器不关流（库默认会把流一起关掉，实测得来）
+    /// 枚举结束后调用方的流仍然可用：读取器不关流
     /// </summary>
     [Fact]
     public async Task 枚举结束后输入流仍归调用方可用()
@@ -669,7 +652,7 @@ public class ExcelDataReaderImporterTests
         Assert.Equal(2, rows.Count);
         Assert.Equal("AWB1", rows[0].Values["提单号"]);
 
-        // xlsx 走同一条复位：容器解析器实测本来也会回到起点
+        // xlsx 走同一条复位
         using var xlsx = ImportFixtures.OneRowXlsx();
         xlsx.Position = 200;
 
@@ -678,7 +661,7 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// 不可定位的流在建立读取器之前就被拒，不把库的 NotSupportedException 当契约
+    /// 不可定位的流在建立读取器之前就被拒
     /// </summary>
     [Fact]
     public async Task 不可定位的流被拒并点名input()
@@ -923,10 +906,6 @@ public class ExcelDataReaderImporterTests
     /// <summary>
     /// 显式指名 xlsx 而内容不是该容器时，换成框架已声明的类型，库原话留在内部异常
     /// </summary>
-    /// <remarks>
-    /// 抽象契约在抽象包里，它不引用 ExcelDataReader，因此库自己的异常型别不能成为对外承诺（取证
-    /// <c>t8-probe-exception-types.txt</c> 列出的三个库异常型别全部只继承 <see cref="Exception"/>）。
-    /// </remarks>
     [Fact]
     public async Task 指名xlsx而内容是HTML表格时转译为框架异常()
     {
@@ -942,7 +921,7 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// 档头真是 zip 签名但容器截断时同样转译，不把库的容器异常当契约
+    /// 档头真是 zip 签名但容器截断时同样转译
     /// </summary>
     [Fact]
     public async Task 截断的xlsx容器转译为框架异常()
@@ -957,8 +936,7 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// 容器失败之外，编码解码失败不被转译：<c>DecoderFallbackException</c> 是 <see cref="ArgumentException"/>
-    /// 的后代，收口时绝不能连它一起吞进容器异常
+    /// 编码解码失败不被转译成容器异常，原样抛出 <c>DecoderFallbackException</c>
     /// </summary>
     [Fact]
     public async Task 解码失败不被转译成容器异常()
@@ -972,11 +950,6 @@ public class ExcelDataReaderImporterTests
     /// <summary>
     /// TrimValues 在文字档上逐项生效：默认不剥值里的首尾空白
     /// </summary>
-    /// <remarks>
-    /// 这一条守的是 <c>TrimWhiteSpace = false</c> 那行设置：库在 3.9.0 上默认开着它，删掉那行设置后
-    /// CSV 的 <c>TrimValues=false</c> 会当场变成谎话（xlsx 路径不受影响，所以只有文字档断言能抓它）。
-    /// 变异检查的输出见 <c>t8-fix-1-mutation-*.log</c>。
-    /// </remarks>
     /// <param name="trimValues">是否剥取值空白</param>
     /// <param name="expected">期望取值</param>
     [Theory]
@@ -1003,7 +976,7 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// 只有表头一行的文字档交出空序列（Review Focus 第 2 项的文字档半边）
+    /// 只有表头一行的文字档交出空序列
     /// </summary>
     [Fact]
     public async Task 只有表头一行的文字档交出空序列()
@@ -1026,18 +999,6 @@ public class ExcelDataReaderImporterTests
     /// <summary>
     /// 门控的 <c>.xls</c> 端到端读取：仓里不提交二进制档，没有 <c>XIHAN_TEST_XLS_FILE</c> 时明确跳过
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 本任务公开了 <see cref="ExcelImportFormat.Xls"/>，但夹具造不出旧版二进制工作簿——ClosedXML 只写 xlsx，
-    /// 拿 OLE 档头喂它只会撞到 <c>ArgumentException</c>（取证 <c>t8-probe-exceldreader-behavior.txt</c> 的 H7 与
-    /// <c>t8-probe2-rowcount-and-decode.txt</c> 的 O4）。于是「读 .xls」这条能力在 CI 上只有签章判别的证据、
-    /// 没有从容器里读出数据的证据。
-    /// </para>
-    /// <para>
-    /// <b>跳过不算通过。</b>这条要由持有真实 <c>.xls</c> 的人把 <c>XIHAN_TEST_XLS_FILE</c> 指过去才会执行；
-    /// 不设该变量时它是未验证项，不是绿灯。
-    /// </para>
-    /// </remarks>
     [Fact]
     public async Task 门控的真实xls档能读出数据行()
     {
@@ -1068,7 +1029,7 @@ public class ExcelDataReaderImporterTests
         Assert.Equal(auto[0].Values.Keys, declared[0].Values.Keys);
         Assert.Equal(auto[0].RowNumber, declared[0].RowNumber);
 
-        // 表头与至少一个非空取值：整份档读出一堆 null 也算「成功」的话，这条用例就没有意义
+        // 表头与至少一个非空取值
         Assert.NotEmpty(auto[0].Values);
         Assert.Contains(auto[0].Values.Values, value => value is not null and not "");
         Assert.True(auto[0].RowNumber >= 2, $"第一数据行的行号应当不小于 2，实际是 {auto[0].RowNumber}。");
@@ -1082,7 +1043,7 @@ public class ExcelDataReaderImporterTests
         => Assert.IsAssignableFrom<IExcelImporter>(new ExcelDataReaderImporter());
 
     /// <summary>
-    /// 行号不随跳过空行重排，这是错误报表能定位到源档那一行的前提
+    /// 行号不随跳过空行重排
     /// </summary>
     [Fact]
     public async Task 跳过空行的档行号仍指向源档位置()
@@ -1096,10 +1057,6 @@ public class ExcelDataReaderImporterTests
     /// <summary>
     /// 应用把 <see cref="XiHanExcelOptions.MaxImportRows" /> 配得更低时，读取器按配置值截断
     /// </summary>
-    /// <remarks>
-    /// 这条钉的是「配置不是装饰」：本读取器的默认构造只认框架默认硬上限，收进配置后上限必须真的生效，
-    /// 否则使用者收紧上限的意图会被静默忽略，读回比预期多的行。
-    /// </remarks>
     [Fact]
     public async Task 配置的行数上限低于默认时按配置截断()
     {
@@ -1134,10 +1091,6 @@ public class ExcelDataReaderImporterTests
     /// <summary>
     /// 配置的行数上限不是正整数，或高到框架硬上限之外时，构造当场就抛
     /// </summary>
-    /// <remarks>
-    /// 配置越界属于「这份读取器根本不可能按承诺工作」，在构造点抛比等到第一次取行才抛更早，也更接近
-    /// 选项绑定的失败时机；不做「夹到上限」的静默改写。
-    /// </remarks>
     /// <param name="maxImportRows">要配的进行数上限</param>
     [Theory]
     [InlineData(0)]
@@ -1152,7 +1105,7 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// 无参构造仍按框架默认硬上限工作，收配置是向后兼容的追加而不是替换
+    /// 无参构造按框架默认硬上限工作
     /// </summary>
     [Fact]
     public async Task 无参构造仍按框架默认硬上限工作()
@@ -1167,8 +1120,7 @@ public class ExcelDataReaderImporterTests
     /// 档大小超过本次生效的上限时整份档被拒，且判在格式判别之前
     /// </summary>
     /// <remarks>
-    /// 喂的是判别不出格式的二进制垃圾：若档大小判在格式判别之后，报出来的会是「无法从档头判定导入格式」。
-    /// 上限取自配置而不是档的内容，因此它比档侧判据更早成立。
+    /// 喂的是判别不出格式的二进制垃圾。
     /// </remarks>
     [Fact]
     public async Task 超过配置档大小上限的档在格式判别之前被拒()
@@ -1200,19 +1152,11 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// 解压比超标的 xlsx 在建立工作簿读取器之前被拒，行数上限拦不住的那种档由这道守卫拦下
+    /// 解压比超标的 xlsx 在建立工作簿读取器之前被拒
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 夹具是一份<u>结构完整、读得通</u>的 xlsx，只有共享字串部件里塞了一段高度重复的内容：
-    /// 工作簿读取器开簿时把共享字串整份载进内存，那笔开销发生在读出第一行之前，
-    /// 因此这里显式把 <see cref="ExcelImportOptions.MaxRowCount"/> 设成 1 —— 只要一行也照样会被炸开，
-    /// 拦下它的只能是建立读取器之前的这道解压规模守卫。
-    /// </para>
-    /// <para>
-    /// 断言消息点名部件、并且内部异常为 <c>null</c>：内部异常非空意味着走的是「容器读不通」那条转译路径，
-    /// 也就是守卫根本没判，档已经被交给读取器了。
-    /// </para>
+    /// 夹具是一份<u>结构完整、读得通</u>的 xlsx，只有共享字串部件里塞了一段高度重复的内容，
+    /// <see cref="ExcelImportOptions.MaxRowCount"/> 设成 1。断言消息点名部件，内部异常为 <c>null</c>。
     /// </remarks>
     [Fact]
     public async Task 解压比超标的xlsx在建立读取器之前被拒()
@@ -1231,10 +1175,6 @@ public class ExcelDataReaderImporterTests
     /// <summary>
     /// 解压规模扫档之后流位置归零：同一份 xlsx 连着读两次都读出同一行
     /// </summary>
-    /// <remarks>
-    /// 扫档要打开 zip 读中央目录，读完位置会落在档尾附近。不把位置归零，后面建立读取器拿到的
-    /// 是一条已经读到尾的流，报出来的会是「按 Xlsx 读不通」而不是真正的原因。
-    /// </remarks>
     [Fact]
     public async Task 解压规模扫档之后流位置归零仍能读出数据()
     {
@@ -1252,15 +1192,8 @@ public class ExcelDataReaderImporterTests
     /// 解压规模守卫排在建立工作簿读取器<u>之前</u>，不是之后
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 夹具刻意造成「zip 完好、共享字串解压比超标、但缺工作簿部件」：这样两种先后给出<u>不同</u>的异常面。
-    /// 守卫在前，报的是解压比超标、内部异常为 <c>null</c>；守卫在后，档已经被交给工作簿读取器，
-    /// 报的是「按 Xlsx 读不通」那条转译、内部异常非空。上一条用例的夹具是结构完整的炸弹簿，
-    /// 守卫挪到后面也照样报同一句话，因此钉不住先后，先后由这一条钉。
-    /// </para>
-    /// <para>
-    /// 先后不是洁癖：工作簿读取器开簿就把共享字串整份载进内存，守卫排在它后面等于先付完那笔内存再回头拒。
-    /// </para>
+    /// 夹具是「zip 完好、共享字串解压比超标、但缺工作簿部件」的档：断言报的是解压比超标、内部异常为 <c>null</c>，
+    /// 而不是「按 Xlsx 读不通」那条转译。
     /// </remarks>
     [Fact]
     public async Task 解压规模守卫排在建立读取器之前()
@@ -1278,11 +1211,6 @@ public class ExcelDataReaderImporterTests
     /// <summary>
     /// 解压规模守卫不吃调用方的流：扫过中央目录之后位置归零，流照旧可读
     /// </summary>
-    /// <remarks>
-    /// 扫档要打开 zip 读中央目录，读完位置会落在档尾附近。归零是本类对调用方的承诺——
-    /// 读取从流起点开始、判不过时交回的也是一条停在起点的流——不建立在「底层读取器会不会自己回头定位」上：
-    /// 库自己会不会定位是库这一版的取舍，本类不把自己的正确性挂在它上面。
-    /// </remarks>
     [Fact]
     public async Task 解压规模守卫不吃调用方的流()
     {
@@ -1299,14 +1227,7 @@ public class ExcelDataReaderImporterTests
     /// 列数超过上限的档整份被拒，点名实际列数与上限，且一行都不交出
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 16,385 是刚过界的那一档，100,001 是审查里量出「建键 17 秒」的那一档：两档都要在建键之前就被挡下。
-    /// 列数上限管的是宽度，行数上限管不到它——这份档只有两行。
-    /// </para>
-    /// <para>
-    /// 「一行都不交出」与「点名列数」一起钉住拒收的形态：截断列清单、只交前 16,384 列，
-    /// 交回的是一份看起来成功的错位结果，比抛出来更糟。
-    /// </para>
+    /// 列数取刚过界的 16,385 与 100,001 两档；档只有两行。
     /// </remarks>
     /// <param name="columns">档里每行的列数</param>
     [Theory]
@@ -1352,9 +1273,7 @@ public class ExcelDataReaderImporterTests
     /// 表头只有大小写不同时是两个键，不加重名后缀
     /// </summary>
     /// <remarks>
-    /// 钉判重用的比较器是 <c>Ordinal</c>：换成大小写不敏感，<c>"a"</c> 会被判成 <c>"A"</c> 的重名而变成
-    /// <c>a_2</c>，调用方按源档文案写的取值代码就取不到东西了。取值字典本来也按 <c>Ordinal</c> 比对，
-    /// 两边口径必须一致。
+    /// 判重用的比较器是 <c>Ordinal</c>。
     /// </remarks>
     [Fact]
     public async Task 表头只有大小写不同时不加重名后缀()
@@ -1370,8 +1289,7 @@ public class ExcelDataReaderImporterTests
     /// 没指名上限、撞上的是框架硬上限时要抛；指名过（调用端或配置端收紧过）就按截断处理
     /// </summary>
     /// <remarks>
-    /// 这条钉的是判据本身，端到端的用例在下面两条。判据收在 <c>ImportSharedRules</c> 一处，
-    /// 两条导入路径共用，因此这里直接按数字判，不必造百万行的档。
+    /// 直接按数字调用 <c>ImportSharedRules</c> 的判据，端到端的用例在下面两条。
     /// </remarks>
     [Fact]
     public void 撞上限时抛还是截断按有没有指名判()
@@ -1390,17 +1308,6 @@ public class ExcelDataReaderImporterTests
     /// <summary>
     /// 没指名上限而档的数据行超过框架硬上限时抛出，已经交出的行照旧交完
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 撞的是框架的保护性硬上限，不是任何人的请求：静默截断交回的是一份看起来完整、其实缺尾的导入结果，
-    /// 调用方无从得知少了多少行，因此抛出。抛之前该交的行一行不少——这条断言的正是「不是读到一半崩掉」。
-    /// </para>
-    /// <para>
-    /// 档要有 <see cref="ExcelConstants.DefaultMaxImportRows"/> + 1 行数据才走得到这条路径：上限不可配置，
-    /// 造不出更便宜的等价场景。百万行单列的档在本机读一遍约一秒，托管峰值在十兆字节量级（逐行交出、不物化），
-    /// 因此这条用例进 CI 是可负担的。
-    /// </para>
-    /// </remarks>
     [Fact]
     public async Task 未指名上限而数据行超过框架硬上限时抛出()
     {
@@ -1425,10 +1332,6 @@ public class ExcelDataReaderImporterTests
     /// <summary>
     /// 档的数据行恰好等于框架硬上限时不抛：抛的条件是「上限之后仍有数据行」，不是「撞到了上限」
     /// </summary>
-    /// <remarks>
-    /// 判「还有没有数据行」要往下多读一行，因此恰等上限的档必须走完整个循环、读到档尾才收手。
-    /// 少了那一次多读，这条用例会变成误抛。
-    /// </remarks>
     [Fact]
     public async Task 数据行恰等框架硬上限时不抛()
     {
@@ -1446,21 +1349,11 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// 实测量到的合法高重复工作簿（约 154:1）在默认解压比上限下照读，把上限收到实测合法簇之下才拒
+    /// 约 154:1 的合法高重复工作簿在默认解压比上限下照读，上限收到 100 时被拒
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 夹具是一份结构合法、ExcelDataReader 读得通的工作簿：四万行同值，工作表不写规格里可选的 <c>r</c> 属性，
-    /// 于是整段 <c>sheetData</c> 逐字节重复，实测解压比约 154 倍。这个比值落在默认上限
-    /// <see cref="ExcelConstants.MaxImportCompressionRatio"/> = 200 之下，因此默认就该放行——
-    /// 旧的 100 会把它误拒，那正是本次改判的起因。用例先量一遍夹具自己的比值并断言它落在
-    /// (100, 200) 这个「旧默认会误拒、新默认放行」的窗口里，夹具哪天漂了会先在这里红，
-    /// 而不是悄悄地变成一条验不到东西的用例。
-    /// </para>
-    /// <para>
-    /// 第二段钉「可配置」：同一份字节，把上限收到 100 就拒收。默认值改回 100 时第一段红，
-    /// 这条因此同时是「默认值不许退回误拒合法档那一侧」的守门。
-    /// </para>
+    /// 夹具是一份结构合法的工作簿：四万行同值，工作表不写规格里可选的 <c>r</c> 属性，解压比约 154 倍。
+    /// 用例先断言夹具比值落在 (100, 200) 之间，再断言默认上限下照读、上限设为 100 时拒收。
     /// </remarks>
     [Fact]
     public async Task 实测合法簇的高重复工作簿在默认解压比上限下照读()
@@ -1471,7 +1364,7 @@ public class ExcelDataReaderImporterTests
         var (declared, compressed) = PartLengths(bytes, "xl/worksheets/sheet1.xml");
         var ratio = declared / compressed;
 
-        // 夹具自己的比值要真的落在「旧默认误拒、新默认放行」的窗口里，否则这条用例验不到改判
+        // 夹具比值落在 (100, 200) 之间
         Assert.InRange(ratio, 101, 199);
 
         using (var accepted = new MemoryStream(bytes))
@@ -1495,22 +1388,11 @@ public class ExcelDataReaderImporterTests
     }
 
     /// <summary>
-    /// 实测量到的解压炸弹比值（368:1）在默认上限下仍被拒，一个部件都不解压
+    /// 解压比 368:1 的炸弹档在默认上限下被拒，一个部件都不解压
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 夹具按实测炸弹的比值造：真炸弹是一份 1.05 MiB 的档，<c>xl/sharedStrings.xml</c> 压缩后 1,102,748 字节、
-    /// 解压后 406,400,168 字节，比值 368.5，建立读取器之后托管占用 777.2 MiB。这里不必真造出 387 MiB 的部件——
-    /// 守卫读的只有 zip 中央目录里的声明值，因此把声明的解压后长度改写成「压缩后长度 × 368」就得到同一个比值，
-    /// 判据走的代码路径与真炸弹逐字相同。
-    /// </para>
-    /// <para>
-    /// 这条是本轮的核心守门：默认值若从 200 抬到 1000，368 倍就落在界内、这份档会被放行，用例立刻红。
-    /// 「夹具比值必须高过默认上限」那条前提断言刻意排在拒收断言<u>之后</u>：默认值被抬高时，
-    /// 先看到的应该是「档被放行了」这个行为事实，而不是「前提不成立」这句自我检查。
-    /// 断言里同时钉住「内部异常为 <c>null</c>」——非空意味着走的是「容器读不通」那条转译，
-    /// 也就是守卫没判、档已经被交给读取器了。
-    /// </para>
+    /// 夹具把 <c>xl/sharedStrings.xml</c> 在中央目录里声明的解压后长度改写成「压缩后长度 × 368」。
+    /// 断言内部异常为 <c>null</c>，并断言夹具比值高于默认上限。
     /// </remarks>
     [Fact]
     public async Task 实测炸弹量级的解压比在默认上限下仍被拒()
@@ -1535,8 +1417,7 @@ public class ExcelDataReaderImporterTests
     /// 解压比设成 <c>0</c> 时不判比值，高重复的合法档照读
     /// </summary>
     /// <remarks>
-    /// <c>0</c> 与负数是「关掉这条启发式」的明示写法，不是漏校验的非法取值：比值高低由产出这份档的工具决定，
-    /// 高度重复而完全合法的档确实可能越过任何固定阈值，得留一条明示的出路。
+    /// <c>0</c> 与负数表示关掉这条启发式。
     /// </remarks>
     [Fact]
     public async Task 解压比设成零时不判比值()
@@ -1554,16 +1435,8 @@ public class ExcelDataReaderImporterTests
     /// 关掉解压比<u>不等于</u>关掉解压侧防护：单部件解压后长度那道绝对上限照常生效
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 夹具是把 zip 中央目录里 <c>xl/worksheets/sheet1.xml</c> 声明的解压后长度改写成超过
-    /// <see cref="ExcelConstants.MaxImportEntryDecompressedBytes"/> 的值：守卫读的正是中央目录里这个声明值，
-    /// 因此不必真造出 GiB 级的部件就能验这道界。断言消息是「超过单个部件的上限」而不是「解压比过高」，
-    /// 钉住抛出的是绝对上限那一条。
-    /// </para>
-    /// <para>
-    /// 这条是本轮最要紧的一条：<c>MaxImportCompressionRatio &lt;= 0</c> 若被写成「整个解压规模检查都跳过」，
-    /// 关掉一条启发式就连带关掉界定内存占用的两道绝对上限，那比原来的缺陷更糟。
-    /// </para>
+    /// 夹具把 zip 中央目录里 <c>xl/worksheets/sheet1.xml</c> 声明的解压后长度改写成超过
+    /// <see cref="ExcelConstants.MaxImportEntryDecompressedBytes"/> 的值。断言消息是「超过单个部件的上限」而不是「解压比过高」。
     /// </remarks>
     [Fact]
     public async Task 关掉解压比之后单部件解压后长度上限仍然生效()
@@ -1615,8 +1488,7 @@ public class ExcelDataReaderImporterTests
     /// <param name="dataRows">数据行数</param>
     /// <returns>档字节（UTF-8 无 BOM）</returns>
     /// <remarks>
-    /// 每行都是同一个 <c>1\r\n</c>，因此按千行一块拼：百万行的档只有 3 MB，造它是线性的，
-    /// 不必为了行数上限的用例付一遍逐行格式化的成本。
+    /// 每行都是同一个 <c>1\r\n</c>，按千行一块拼。
     /// </remarks>
     private static byte[] SingleColumnCsv(int dataRows)
     {
@@ -1639,7 +1511,7 @@ public class ExcelDataReaderImporterTests
     /// <param name="columns">每行的列数</param>
     /// <returns>位置在起点的流</returns>
     /// <remarks>
-    /// 表头文案互不相同，因此建键时一个重名后缀都不会加：这条夹具量的是宽度本身，不是去重。
+    /// 表头文案互不相同，建键时不加重名后缀。
     /// </remarks>
     private static MemoryStream WideCsv(int columns)
     {
@@ -1679,16 +1551,8 @@ public class ExcelDataReaderImporterTests
     /// <param name="withWorkbookPart">是否写出工作簿部件；<c>false</c> 时这份 zip 建不起工作簿读取器</param>
     /// <returns>位置在起点的 xlsx 流</returns>
     /// <remarks>
-    /// <para>
-    /// 手工按 zip 部件写而不是用 ClosedXML：ClosedXML 写不出「压缩后几十 KB、解压后几 MB」这种形态，
-    /// 而这份夹具要的正是它。<paramref name="withWorkbookPart"/> 为 <c>true</c> 时工作表只引用共享字串的第 0 项，
-    /// 因此守卫若失效，这份档是<u>读得通</u>的——用例会在「本该抛却没抛」上失败，而不是在容器解析上失败。
-    /// </para>
-    /// <para>
-    /// 重复内容分块写，夹具自己不持有整段字串；压缩后只有几十 KB，因此这条用例的成本是线性的。
-    /// 共享字串用 <see cref="CompressionLevel.Optimal"/> 压：这段内容高度重复，最优压缩下解压比落在数百倍，
-    /// 与上限之间留出成倍余量，不依赖压缩器某一版的取舍。
-    /// </para>
+    /// 手工按 zip 部件写。<paramref name="withWorkbookPart"/> 为 <c>true</c> 时工作表只引用共享字串的第 0 项，档读得通。
+    /// 重复内容分块写，共享字串用 <see cref="CompressionLevel.Optimal"/> 压。
     /// </remarks>
     private static MemoryStream HighRatioXlsx(int payloadBytes, bool withWorkbookPart = true)
     {
@@ -1763,17 +1627,10 @@ public class ExcelDataReaderImporterTests
     /// <param name="rows">行数（含被当作表头的第一行）</param>
     /// <returns>档字节</returns>
     /// <remarks>
-    /// <para>
-    /// 与 <see cref="HighRatioXlsx"/> 的分工：那一份是炸弹形态（共享字串部件被塞满重复内容），
-    /// 这一份是<u>正常工作簿</u>——四万行、每行一列、值都是共享字串第 0 项，ExcelDataReader 读得通。
-    /// 它的高比值不来自恶意构造，而来自产出者的写法：<c>row</c> 与 <c>c</c> 的 <c>r</c> 属性在规格里是可选的，
-    /// 不写就整段 <c>sheetData</c> 逐字节重复，实测解压比约 154 倍；同一份数据写上 <c>r</c> 属性只有约 11 倍。
-    /// 因此「比值高」推不出「档有问题」，这正是解压比必须可配置的理由。
-    /// </para>
-    /// <para>
-    /// 工作表用 <see cref="CompressionLevel.Optimal"/> 压，与真实产出者的取舍一致；
-    /// 四万行时该部件解压后约 1.2 MiB，落在「比值只判不小于 1 MiB 的部件」那道门槛之上。
-    /// </para>
+    /// 与 <see cref="HighRatioXlsx"/> 不同，这一份是<u>正常工作簿</u>：每行一列、值都是共享字串第 0 项。
+    /// <c>row</c> 与 <c>c</c> 不写 <c>r</c> 属性，整段 <c>sheetData</c> 逐字节重复，四万行时解压比约 154 倍。
+    /// 工作表用 <see cref="CompressionLevel.Optimal"/> 压，四万行时该部件解压后约 1.2 MiB，
+    /// 超过「比值只判不小于 1 MiB 的部件」那道门槛。
     /// </remarks>
     private static byte[] RepeatedRowsXlsx(int rows)
     {
@@ -1834,9 +1691,8 @@ public class ExcelDataReaderImporterTests
     /// <returns>改写后的档流，位置在起点</returns>
     /// <remarks>
     /// 中央目录记录的固定部分长 46 字节：签名 <c>50 4B 01 02</c> 之后 <c>+20</c> 是压缩后长度、
-    /// <c>+24</c> 是解压后长度、<c>+28</c> 是档名长度，档名紧跟在 <c>+46</c>。守卫读的正是 <c>+24</c> 这个声明值，
-    /// 因此改写它就足以让绝对上限那条判据成立，不必真造出 GiB 级的部件。
-    /// 按档名比对而不是取第一条记录，避免把压缩数据里偶然出现的同一段字节当成签名。
+    /// <c>+24</c> 是解压后长度、<c>+28</c> 是档名长度，档名紧跟在 <c>+46</c>。改写的是 <c>+24</c> 这个声明值，
+    /// 记录按档名比对而不是取第一条。
     /// </remarks>
     private static MemoryStream WithDeclaredEntryLength(MemoryStream source, string entryName, long declaredLength)
     {
@@ -1877,10 +1733,6 @@ public class ExcelDataReaderImporterTests
     /// <param name="bytes">档字节</param>
     /// <param name="entryName">部件名</param>
     /// <returns>声明的解压后长度与压缩后长度</returns>
-    /// <remarks>
-    /// 用例自己量一遍夹具的比值，为的是让「夹具漂了」在断言比值那一步就红，而不是悄悄地退化成一条
-    /// 验不到东西的用例——解压比这条判据整个建立在夹具的真实比值上，比值一漂结论就不成立。
-    /// </remarks>
     private static (long Declared, long Compressed) PartLengths(byte[] bytes, string entryName)
     {
         using var stream = new MemoryStream(bytes);
@@ -1898,16 +1750,8 @@ public class ExcelDataReaderImporterTests
     /// <param name="ratio">要让守卫算出来的解压比（解压后长度 ÷ 压缩后长度）</param>
     /// <returns>位置在起点的 xlsx 流</returns>
     /// <remarks>
-    /// <para>
-    /// 守卫读的只有 zip 中央目录里的两个声明值，因此要得到某个确定的比值，不必真造出那么大的部件：
-    /// 先按 <see cref="HighRatioXlsx"/> 造一份共享字串被塞满重复内容的档，量出它压缩后的实际长度，
-    /// 再把声明的解压后长度改写成「压缩后长度 × 比值」。整数除法之后守卫算出来的正是 <paramref name="ratio"/>，
-    /// 走的代码路径与真炸弹逐字相同。
-    /// </para>
-    /// <para>
-    /// 只改中央目录不改本地档头就够了：实测 .NET 的 <see cref="ZipArchive"/> 一律以中央目录的声明值为准，
-    /// 本地档头写什么不参与判定。
-    /// </para>
+    /// 先按 <see cref="HighRatioXlsx"/> 造档，量出共享字串部件压缩后的实际长度，
+    /// 再把中央目录里声明的解压后长度改写成「压缩后长度 × 比值」，本地档头不改。
     /// </remarks>
     private static MemoryStream DeclaredRatioXlsx(int ratio)
     {

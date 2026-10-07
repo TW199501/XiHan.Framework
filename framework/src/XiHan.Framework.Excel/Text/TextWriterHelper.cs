@@ -12,8 +12,7 @@ namespace XiHan.Framework.Excel.Text;
 /// 文字导出共用的编码解析、引号处理与取值转换助手
 /// </summary>
 /// <remarks>
-/// 文字档要求字节输出逐字节可控，因此这些变换全部由框架自己实现，不借第三方 CSV 库；分隔符模式与固定宽度模式
-/// 共用同一套规则，避免同一个值在两种布局下走出两套语义。
+/// 这些变换全部由框架自己实现，不依赖第三方 CSV 库；分隔符模式与固定宽度模式共用同一套规则。
 /// </remarks>
 internal static class TextWriterHelper
 {
@@ -60,17 +59,14 @@ internal static class TextWriterHelper
     /// <para>
     /// BOM 一律由返回的编码自身写出（<see cref="StreamWriter"/> 在流起点写入前导字节），调用方不得再手写一遍。
     /// Big5 等代码页编码依赖 <c>CodePagesEncodingProvider</c>，由 <c>AddXiHanExcel</c> 注册；未注册时这里抛出的
-    /// 异常直接点名是哪个编码名解析不了，不做静默降级。
+    /// 异常点名是哪个编码名解析不了。
     /// </para>
     /// <para>
-    /// 两侧回退一律严格化，不用 .NET 默认的替换回退：<see cref="Encoding.GetEncoding(string)"/> 取到的 Big5 遇到
-    /// 该代码页收不下的字符（例如简体字）会安静写出 <c>?</c> 字节，档已损坏却仍向调用方返回成功结果，属于
-    /// 「把乱码当正常数据产出」。换成 <see cref="EncoderExceptionFallback"/> 后这类字符在编码器转换时就抛
-    /// <see cref="EncoderFallbackException"/>，坏档产不出来。
+    /// 编码侧取 <see cref="EncoderExceptionFallback"/>：目标编码收不下的字符（例如 Big5 下的简体字）在编码器转换时抛
+    /// <see cref="EncoderFallbackException"/>。
     /// </para>
     /// <para>
-    /// 解码侧同样取 <see cref="DecoderExceptionFallback"/>，是为了让「先按 UTF-8 严格试解、失败再按声明编码重解」
-    /// 这种回退结构可行：宽松解码永远不会失败，也就永远察觉不到编码判错了。
+    /// 解码侧取 <see cref="DecoderExceptionFallback"/>：非法字节在解码时抛 <see cref="DecoderFallbackException"/>。
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentException">编码名为空或无法解析</exception>
@@ -106,14 +102,11 @@ internal static class TextWriterHelper
     /// <param name="encoderShouldEmitBom">为 <c>true</c> 时前导字节写 BOM（<c>utf-8-bom</c> 预设）</param>
     /// <remarks>
     /// <para>
-    /// UTF8Encoding 的两侧严格回退只能由 <c>throwOnInvalidBytes</c> 这个构造入口取得：它为编码器配
-    /// <see cref="EncoderExceptionFallback"/>、为解码器配 <see cref="DecoderExceptionFallback"/>，与非 UTF-8 路径
-    /// 显式传入的两个回退一致。编码器与解码器都在构造时定死、实例上不可替换，因此两侧没法分开配置，
-    /// 只能一次取成两侧都严格。
+    /// <c>throwOnInvalidBytes: true</c> 为编码器配 <see cref="EncoderExceptionFallback"/>、为解码器配
+    /// <see cref="DecoderExceptionFallback"/>，与非 UTF-8 路径显式传入的两个回退一致。
     /// </para>
     /// <para>
-    /// 该参数只管回退，不动前导字节：BOM 语义仍由第一个参数决定，<c>utf-8-bom</c> 与 <c>utf-8</c> 的
-    /// <see cref="Encoding.GetPreamble"/> 结果与回退严格化之前完全相同。
+    /// 该参数只管回退，不动前导字节：BOM 语义由第一个参数决定。
     /// </para>
     /// </remarks>
     private static UTF8Encoding StrictUtf8(bool encoderShouldEmitBom)
@@ -142,14 +135,12 @@ internal static class TextWriterHelper
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <c>日本</c>／<c>中文</c>／<c>한글</c> 覆盖有状态编码家族实际要靠跳脱序列表示的文字面
-    /// （ISO-2022-JP／CN／KR、HZ、UTF-7 都落在其中一组里）；<c>éà</c> 服务表示不出 CJK 的单字节代码页
-    /// （windows-1252、iso-8859-1 一类）——那些编码在 CJK 探测上只会因严格回退而抛，那是「表示不出」而不是
-    /// 「有问题」，据此换下一组探测，绝不把「抛」当成拒收理由；<c>AB</c> 兜底给纯 ASCII 码页（us-ascii 一类），
-    /// 这类编码没有可以进入跳脱状态的非 ASCII 文字。
+    /// <c>日本</c>／<c>中文</c>／<c>한글</c> 覆盖 ISO-2022-JP／CN／KR、HZ、UTF-7 等有状态编码；
+    /// <c>éà</c> 用于表示不出 CJK 的单字节代码页（windows-1252、iso-8859-1 一类）；
+    /// <c>AB</c> 用于纯 ASCII 码页（us-ascii 一类）。某组表示不出时换下一组，不当成拒收理由。
     /// </para>
     /// <para>
-    /// 一组都取不到时按「无法证明无状态」拒收，不静默放行：定宽路径依赖这条性质，验不了就不能当它成立。
+    /// 一组都取不到时按「无法证明无状态」拒收。
     /// </para>
     /// </remarks>
     private static readonly string[] FixedWidthStateProbes = ["日本", "中文", "한글", "éà", "AB"];
@@ -160,28 +151,17 @@ internal static class TextWriterHelper
     /// <param name="encoding">定宽路径用来分行、切列与补位的编码，必须是带严格回退解析出来的那一份</param>
     /// <remarks>
     /// <para>
-    /// 定宽档的列边界是字节位置，「按字节切」要成立得有两条性质，本守卫逐条对编码自身当场探测：
-    /// <b>检查一·行尾字节唯一可寻址</b>——分行在字节层做，只认 <c>0x0D</c> 与 <c>0x0A</c>。UTF-16／UTF-32 把
-    /// <c>\n</c> 编成两个字节，而一个字符的另一个字节就可能落成 <c>0x0A</c>，按字节找行尾会把一档切成错位的许多行；
-    /// EBCDIC（如 IBM037）把 <c>\n</c> 编成 <c>0x25</c>，整档永远找不到行尾、只交出一行。两种都读得出内容却回报成功。
-    /// <b>检查二·分段编码等于整体编码</b>——每格单独按列宽补位、每列单独解码，等价于把一段文字拆开分别编码再串接。
-    /// 有状态编码（ISO-2022 家族、HZ、UTF-7 一类）会在段首补自己的跳脱序列：「日本」整体 12 字节，分两段却是
-    /// 10 + 10 字节，于是声明为 10 + 8 的两格实际只写出 12 字节，从这一栏起后面全部错位；导入侧把第二段单独解码
-    /// 也拿不回原字，还会交回一串 ASCII 乱码而不抛。
+    /// 对编码当场探测两条性质：
+    /// <b>检查一·行尾字节唯一可寻址</b>——<c>\r</c> 与 <c>\n</c> 必须各自编成单字节 <c>0x0D</c>、<c>0x0A</c>
+    /// （UTF-16／UTF-32、EBCDIC 不满足）。
+    /// <b>检查二·分段编码等于整体编码</b>——同一段文字拆开分别编码再串接，必须等于整体编码
+    /// （ISO-2022 家族、HZ、UTF-7 一类有状态编码不满足）。消息点名不过的是哪一条。
     /// </para>
     /// <para>
-    /// 两条都用当场探测而不是维护 codepage 黑名单：清单必然漏——ISO-2022 就有 JP／KR／CN／CN-GB 等变体，
-    /// 每个变体还对应多个代码页号（50220／50221／50222／50225／50227／50229 只是已知样本），而这两条检查对准的是
-    /// 定宽真正依赖的性质本身。消息点名不过的是哪一条。
+    /// 检查二要求传入的编码带严格回退，由 <see cref="ResolveEncoding"/> 与 <c>TextEncodingResolver</c> 保证。
     /// </para>
     /// <para>
-    /// 检查二依赖传入的编码带严格回退：宽松回退会把表示不出的探测文字换成替换字节，分段与整体就「看起来相等」。
-    /// 两条路径解析出的编码都带 <see cref="EncoderExceptionFallback"/>（见 <see cref="ResolveEncoding"/> 与
-    /// <c>TextEncodingResolver</c>），因此这个前提由解析侧负责，本守卫不另配一份编码。
-    /// </para>
-    /// <para>
-    /// 调用时机：导入侧在建立读取缓冲之前、解析出编码之后；导出侧在固定宽度布局写出任何字节之前。分隔符布局不调
-    /// 本守卫——那套布局不按字节位置切列，这两条判据与它无关，编码在该布局下的可行性另说。
+    /// 调用时机：导入侧在解析出编码之后、建立读取缓冲之前；导出侧在固定宽度布局写出任何字节之前。分隔符布局不调用本守卫。
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="encoding"/> 为 <c>null</c></exception>
@@ -198,8 +178,7 @@ internal static class TextWriterHelper
     /// 检查一：行尾必须各自编成单字节的 <c>0x0D</c> 与 <c>0x0A</c>
     /// </summary>
     /// <remarks>
-    /// 与 <c>FixedWidthTextImporter</c> 的字节层分行器同一口径：那边只在 <c>0x0D</c>／<c>0x0A</c> 两个字节上切行，
-    /// 所以这里问的不是「该编码认什么当行尾」，而是「这两个字节能不能被独占地址到」。
+    /// 与 <c>FixedWidthTextImporter</c> 的字节层分行器一致：只在 <c>0x0D</c>／<c>0x0A</c> 两个字节上切行。
     /// </remarks>
     /// <exception cref="InvalidOperationException">任一行尾编不成对应的那一个字节</exception>
     private static void RejectUnaddressableLineBreaks(Encoding encoding)
@@ -225,8 +204,7 @@ internal static class TextWriterHelper
     /// 检查二：同一段文字整体编码的结果，必须等于分段编码后串接的结果
     /// </summary>
     /// <remarks>
-    /// 定宽档的写出与读入都是分段进行（逐格补位、逐列解码），因此「分段等于整体」是列位能对上声明宽度的前提。
-    /// 探测取 <see cref="FixedWidthStateProbes"/> 里第一组该编码表示得出的文字；表示不出不等于编码有问题，换下一组。
+    /// 探测取 <see cref="FixedWidthStateProbes"/> 里第一组该编码表示得出的文字，表示不出时换下一组。
     /// </remarks>
     /// <exception cref="InvalidOperationException">分段编码与整体编码不等，或一组可用探测文字都取不到</exception>
     private static void RejectStatefulEncoding(Encoding encoding)
@@ -242,7 +220,6 @@ internal static class TextWriterHelper
                 continue;
             }
 
-            // 目标类型写明 byte[]：集合运算式没有自然型别，var 取不到
             byte[] splitBytes = [.. firstBytes, .. secondBytes];
 
             if (wholeBytes.SequenceEqual(splitBytes))
@@ -268,9 +245,7 @@ internal static class TextWriterHelper
     /// 用给定编码编出一段文字，编不出来时交回 <c>null</c> 而不是把探测本身变成失败
     /// </summary>
     /// <remarks>
-    /// 严格回退编码遇到字符集外的文字抛 <see cref="EncoderFallbackException"/>。对检查而言那只意味着「这组探测文字
-    /// 该编码用不上」，必须换下一组，不能当成编码不合格——单字节代码页（windows-1252 一类）正是这种情况，
-    /// 它们合法，只是不含 CJK。
+    /// 严格回退编码遇到字符集外的文字抛 <see cref="EncoderFallbackException"/>，本方法捕获后返回 <c>null</c>。
     /// </remarks>
     private static byte[]? TryEncode(Encoding encoding, string text)
     {
@@ -311,8 +286,8 @@ internal static class TextWriterHelper
     /// 换行被引号包住后原样写出，读档方可以原样往返。<see cref="ExcelTextQuote.All"/> 给每个值裹引号，转义规则相同。
     /// </para>
     /// <para>
-    /// <see cref="ExcelTextQuote.None"/> 不加引号，此时值内的分隔符与换行会破坏文件结构，无法原样写出，因此把
-    /// 它们替换为空格；值内的引号与分隔符无关，保持原样。改写会改动数据，调用方必须为此留下日志。
+    /// <see cref="ExcelTextQuote.None"/> 不加引号，值内的分隔符与换行替换为空格，值内的引号保持原样。
+    /// 改写会改动数据，调用方须为此记日志。
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="quote"/> 不是已定义的引号策略</exception>
@@ -345,13 +320,11 @@ internal static class TextWriterHelper
     /// <returns>值内含分隔符、<c>\r</c> 或 <c>\n</c> 时为 <c>true</c></returns>
     /// <remarks>
     /// <para>
-    /// 本判定是 <see cref="ExcelTextQuote.None"/> 是否会改写数据的唯一真源：那三种字符在免引号策略下必然被替换为
-    /// 空格，调用方据此记日志，不必用「改写前后的字符串是否相等」反推——改写可能恰好等长，反推会把日志漏掉。
-    /// 值内的引号不属于本判定：它与分隔符无关，免引号策略原样保留。
+    /// 本判定是 <see cref="ExcelTextQuote.None"/> 是否会改写数据的依据：那三种字符在免引号策略下替换为空格，
+    /// 调用方据此记日志。值内的引号不属于本判定。
     /// </para>
     /// <para>
-    /// 分隔符本身是空格时，<c>"a b"</c> 判为 <c>true</c>：此时替换成空格是 no-op，但值内空格与分隔符根本无法区分，
-    /// 写出的档列数照样错位。该组合由导出器在写出任何字节之前直接拒绝。
+    /// 分隔符本身是空格时，<c>"a b"</c> 判为 <c>true</c>；该组合由导出器在写出任何字节之前直接拒绝。
     /// </para>
     /// </remarks>
     internal static bool ContainsUnquotable(string value, char delimiter)
@@ -384,8 +357,7 @@ internal static class TextWriterHelper
     /// <param name="value">字段值文本</param>
     /// <returns>以 <c>=</c>、<c>+</c>、<c>-</c>、<c>@</c>、制表符（<c>\t</c>）或回车（<c>\r</c>）开头时为 <c>true</c></returns>
     /// <remarks>
-    /// 与 <see cref="EscapeFormula"/> 共用同一条前缀规则，调用方要统计「有多少字段被加了前缀」时用本判定，
-    /// 不要自己再抄一遍前缀字符表，也不要靠改写前后的字符串比较反推。
+    /// 与 <see cref="EscapeFormula"/> 共用同一条前缀规则，供调用方统计被加前缀的字段数。
     /// </remarks>
     internal static bool NeedsFormulaEscape(string value)
         => value.Length > 0 && value[0] is '=' or '+' or '-' or '@' or '\t' or '\r';
@@ -403,13 +375,10 @@ internal static class TextWriterHelper
     /// <remarks>
     /// <para>
     /// <paramref name="numberFormat"/> 是 Excel 的数字／日期格式串（形如 <c>#,##0.00</c>、<c>yyyy-mm-dd</c>），
-    /// 与 .NET 格式串不通用：同一段字符在两边含义不同（Excel 的 <c>mm</c> 是月份，.NET 的 <c>mm</c> 是分钟）。
-    /// 把它直接交给 <see cref="IFormattable.ToString(string?, IFormatProvider?)"/> 会产出错值，因此文字路径一律
-    /// 不套用 <paramref name="numberFormat"/>，只认 <paramref name="textFormat"/>。
+    /// 与 .NET 格式串不通用，文字路径一律不套用它，只认 <paramref name="textFormat"/>。
     /// </para>
     /// <para>
-    /// 结果是同一份数据在 <c>.xlsx</c> 与 <c>.csv</c>／<c>.txt</c> 上显示可以不同，这是刻意为之：文字档的取值格式由
-    /// <paramref name="textFormat"/> 显式声明，数字格式只在 <c>.xlsx</c> 路径生效。要两边一致，就给同一列同时写
+    /// 同一份数据在 <c>.xlsx</c> 与 <c>.csv</c>／<c>.txt</c> 上的显示可以不同；要两边一致，就给同一列同时写
     /// 语义对应的 <c>TextFormat</c> 与 <c>NumberFormat</c>。
     /// </para>
     /// <para>
@@ -427,7 +396,7 @@ internal static class TextWriterHelper
         {
             var format = string.IsNullOrWhiteSpace(textFormat) ? null : textFormat;
 
-            // numberFormat 有意不参与：Excel 格式串不能当 .NET 格式串用，见方法注释
+            // numberFormat 不参与，见方法注释
             return formattable.ToString(format, CultureInfo.InvariantCulture);
         }
 
@@ -446,17 +415,15 @@ internal static class TextWriterHelper
     /// <returns>在 <paramref name="encoding"/> 下恰好占 <paramref name="widthBytes"/> 字节的文本</returns>
     /// <remarks>
     /// <para>
-    /// 宽度的单位是字节而不是字符：固定宽度档由读档方按字节位置切列，而一个汉字在 Big5 下占 2 字节、在 UTF-8 下占
-    /// 3 字节。按字符补位会让每行字节数随内容变化，第二列之后的所有列位整体错位，因此差额一律取
-    /// <see cref="Encoding.GetByteCount(string)"/> 的结果，补位字符则必须是单字节，使「差额字节数」与「补位字符个数」相等。
+    /// 宽度的单位是字节而不是字符：差额取 <see cref="Encoding.GetByteCount(string)"/> 的结果，补位字符必须是单字节，
+    /// 使「差额字节数」与「补位字符个数」相等。
     /// </para>
     /// <para>
-    /// 截断按字素取舍：逐个字素累计字节数，遇到使累计超过列宽的字素即停，因此不会把一个多字节字符切成半个字节序列，
-    /// 也不会留下代理对的前半边。代价是截断结果可能比列宽少 1～3 字节，差额由补位字符填满，整格宽度不变。
+    /// 截断按字素取舍：逐个字素累计字节数，遇到使累计超过列宽的字素即停，不切开多字节字符或代理对。
+    /// 截断结果可能比列宽少 1～3 字节，差额由补位字符填满，整格宽度不变。
     /// </para>
     /// <para>
-    /// 内容在目标编码下收不下时抛 <see cref="EncoderFallbackException"/>，与分隔符路径同一标准：算字节数用的就是
-    /// 严格回退编码，不靠替换字符凑出「看起来对」的宽度——被替换成 <c>?</c> 的字符只占 1 字节，会让该格宽度与后续列位一起错掉。
+    /// 内容在目标编码下收不下时抛 <see cref="EncoderFallbackException"/>，与分隔符路径一致。
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="value"/> 或 <paramref name="encoding"/> 为 <c>null</c></exception>
@@ -528,7 +495,7 @@ internal static class TextWriterHelper
     /// <param name="location">用于定位该字符的说明（形如「（列 X，键 Y）」），由导出器传入；直接调用时可传 <c>null</c></param>
     /// <remarks>
     /// 导出器在写出任何字节之前按列调用本方法，<see cref="PadToWidth"/> 自己也在入口调用一次，两处共用同一条规则与
-    /// 同一个异常类型，不留下「预检放行、写出时才抛」的缺口。
+    /// 同一个异常类型。
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="encoding"/> 为 <c>null</c></exception>
     /// <exception cref="ArgumentException">补位字符是换行符，或在目标编码下不是单字节、根本无法表示</exception>
@@ -536,7 +503,7 @@ internal static class TextWriterHelper
     {
         ArgumentNullException.ThrowIfNull(encoding);
 
-        // 换行与编码无关，且在所有目标编码里都是单字节：只查字节数会一路放行，因此排在字节数判定之前
+        // 换行符排在字节数判定之前单独检查
         if (padChar is '\r' or '\n')
         {
             throw new ArgumentException(
@@ -551,7 +518,7 @@ internal static class TextWriterHelper
 
         try
         {
-            // 取实际字节数：不可映射的补位字符必须在这里就判死，不能等编码器在写档途中抛，留下半份档
+            // 取实际字节数，不可映射的补位字符在这里判出
             padBytes = encoding.GetBytes(text).Length;
         }
         catch (EncoderFallbackException)
@@ -576,8 +543,7 @@ internal static class TextWriterHelper
     /// <param name="value">字段值文本</param>
     /// <returns>含任一行分隔符时为 <c>true</c></returns>
     /// <remarks>
-    /// 与 <see cref="ContainsUnquotable"/> 的分工：那条问「分隔符布局里这个值能不能不加引号就写出去」，
-    /// 本条只问「有没有换行」——固定宽度布局没有可以包住换行的引号，取值侧不需要知道分隔符。
+    /// 与 <see cref="ContainsUnquotable"/> 不同，本条只判有没有换行，不涉及分隔符，供固定宽度布局使用。
     /// </remarks>
     internal static bool ContainsLineBreak(string value)
     {
@@ -645,9 +611,8 @@ internal static class TextWriterHelper
     /// 免引号策略下把破坏文件结构的字符替换为空格
     /// </summary>
     /// <remarks>
-    /// 分隔符本身是空格时替换是 no-op，跳过即可；该组合的结构性坏档由导出器直接拒绝，见
-    /// <c>DelimitedTextExporter</c>。是否发生了替换一律以 <see cref="ContainsUnquotable"/> 为准，不由本方法的
-    /// 返回串反推。
+    /// 分隔符本身是空格时跳过分隔符替换；该组合由 <c>DelimitedTextExporter</c> 直接拒绝。
+    /// 是否发生了替换以 <see cref="ContainsUnquotable"/> 为准。
     /// </remarks>
     private static string ReplaceUnquotableChars(string value, char delimiter)
     {

@@ -28,28 +28,23 @@ public static class XiHanExcelServiceCollectionExtensions
     /// <returns>服务集合</returns>
     /// <remarks>
     /// <para>
-    /// 注册一律走 <c>TryAddSingleton</c>：应用层先注册自己的实现，本方法就不覆盖它——换掉某一家写出或读取实现
-    /// 是应用层的正当选择，注册顺序不该把它盖回去；同一个方法被重复调用（模块装配与手工调用并存）也不会
-    /// 留下两份实现让解析结果看运气。
+    /// 注册一律走 <c>TryAddSingleton</c>：应用层先注册的实现不会被覆盖，重复调用也只留一份。
     /// </para>
     /// <para>
-    /// 三个契约各自只绑一个门面：<see cref="IExcelExporter"/> 绑分派器、<see cref="IExcelImporter"/> 绑导入门面。
-    /// 分派器与门面要的写出器、读实现另外各自注册一条，门面的构造函数收的是具体类型，两项都必需。
-    /// 实现收的是裸 <see cref="XiHanExcelOptions"/>，而选项绑定只交回 <c>IOptions&lt;T&gt;</c>，
-    /// 因此这里额外注册一条从 <c>IOptions&lt;T&gt;</c> 取 <c>Value</c> 的转接：漏掉它，报错只会出现在解析契约的那一刻，
-    /// 且信息里不说明缺的是哪一条注册。
+    /// <see cref="IExcelExporter"/> 绑分派器、<see cref="IExcelImporter"/> 绑导入门面、
+    /// <see cref="IExcelTemplateRenderer"/> 绑模板渲染器；分派器与门面依赖的写出器、读实现另外各自注册。
+    /// 另注册一条从 <c>IOptions&lt;T&gt;</c> 取 <c>Value</c> 的裸 <see cref="XiHanExcelOptions"/>。
     /// </para>
     /// <para>
     /// 配置里的 <see cref="XiHanExcelOptions.MaxImportRows"/> 经构造参数进两个读实现，越界的配置值在解析这些服务时
-    /// 抛出而不是被夹回上限——配置写错是装配期就该发现的问题，不等第一次导入。
+    /// 抛出，不夹回上限。
     /// </para>
     /// <para>
-    /// 编码提供程序注册（<c>Encoding.RegisterProvider</c>）是进程级且不可逆的副作用，可重复调用，
-    /// 这里不判断是否已注册。文字档与定宽档需要的 Big5 等代码页编码全靠它。
+    /// 注册 <c>CodePagesEncodingProvider</c>（<c>Encoding.RegisterProvider</c>，进程级，可重复调用），
+    /// 供文字档与定宽档使用 Big5 等代码页编码。
     /// </para>
     /// <para>
-    /// 本方法不注册日志提供器：文字导出与定宽读取两个实现收 <c>ILogger&lt;T&gt;</c>，宿主没装日志时解析它们会抛。
-    /// 装配日志是核心模块与宿主的事，本包不代劳。
+    /// 本方法不注册日志提供器：文字导出与定宽读取两个实现依赖 <c>ILogger&lt;T&gt;</c>，宿主没装日志时解析它们会抛。
     /// </para>
     /// </remarks>
     public static IServiceCollection AddXiHanExcel(this IServiceCollection services, IConfiguration? configuration = null)
@@ -63,7 +58,7 @@ public static class XiHanExcelServiceCollectionExtensions
             services.Configure<XiHanExcelOptions>(configuration.GetSection(XiHanExcelOptions.SectionName));
         }
 
-        // 选项绑定只交回 IOptions<T>，而下面的实现收裸选项对象；这一条转接缺了会在解析契约时报一句指向不明的错
+        // 把 IOptions<T> 转成裸选项对象，供下面的实现注入
         services.TryAddSingleton(static provider => provider.GetRequiredService<IOptions<XiHanExcelOptions>>().Value);
 
         services.TryAddSingleton<IExcelExporter, ExcelExporter>();

@@ -19,12 +19,6 @@ public class DelimitedTextExporterTests
     /// <summary>
     /// 导出 csv 用预设逗号分隔与表头，并按指名的 Big5 编码写出
     /// </summary>
-    /// <remarks>
-    /// 表头取繁体（提單號／預計到達）：Big5（代码页 950）不收只在简体里出现的字符，而解析出的编码带严格回退，
-    /// 遇到收不下的字符直接抛 <see cref="EncoderFallbackException"/>（见 <c>简体表头在大五码下抛且不写任何字节</c>），
-    /// 不会像 .NET 默认的替换回退那样把坏字符安静写成 <c>?</c> 再交回一个成功结果。
-    /// 要在 Big5 档里保留简体字，得改用 <c>gb18030</c> 或 UTF-8。
-    /// </remarks>
     [Fact]
     public async Task 导出csv_预设逗号表头与大五码()
     {
@@ -44,7 +38,7 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
-    /// 目标编码收不下的字符不留坏档：简体表头写 Big5 时抛出，且一个字节都没进流
+    /// 简体表头写 Big5 时抛出，且一个字节都没进流
     /// </summary>
     [Fact]
     public async Task 简体表头在大五码下抛且不写任何字节()
@@ -52,7 +46,7 @@ public class DelimitedTextExporterTests
         var stream = new MemoryStream();
         var exporter = new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance);
 
-        // 默认夹具的表头是简体「提单号／预计到达」，其中的简体字不在 Big5（代码页 950）的字符集里
+        // 默认夹具的表头是简体「提单号／预计到达」，不在 Big5 字符集内
         await Assert.ThrowsAsync<EncoderFallbackException>(async () => await exporter.ExportAsync(
             stream, BuildSpec(new SampleRow { AwbNo = "AWB1" }), ExcelFormat.Csv,
             new ExcelTextOptions { EncodingName = "big5" }, TestContext.Current.CancellationToken));
@@ -94,9 +88,6 @@ public class DelimitedTextExporterTests
     /// <summary>
     /// UTF8 预设写 BOM，指名 utf-8 时不写 BOM
     /// </summary>
-    /// <remarks>
-    /// 测试名里的 <c>utf-8</c> 写成 <c>utf8</c>：C# 标识符不能含连字符，计划原文的 <c>指名utf-8不写BOM</c> 无法编译。
-    /// </remarks>
     [Fact]
     public async Task UTF8预设写BOM_指名utf8不写BOM()
     {
@@ -152,12 +143,8 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
-    /// 空格分隔符与不加引号策略是结构性非法组合，写出任何字节之前就拒绝
+    /// 空格分隔符配不加引号策略时在写出任何字节之前就拒绝
     /// </summary>
-    /// <remarks>
-    /// 该组合下值内的空格与分隔符无法区分，替换成空格又是 no-op：既不报错也不留日志就产出一份列数错位的坏档，
-    /// 比抛异常伤人得多，因此按「无法确定的输入直接抛」处理，与其他非法输入同一标准。
-    /// </remarks>
     [Fact]
     public async Task 空格分隔符与不加引号策略抛异常()
     {
@@ -174,7 +161,7 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
-    /// 换行符作分隔符会破坏行结构：两栏被写成两行，写出任何字节之前就拒绝
+    /// 换行符作分隔符时在写出任何字节之前就拒绝
     /// </summary>
     [Theory]
     [InlineData('\r')]
@@ -194,13 +181,8 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
-    /// 引号字符本身作分隔符时三种引号策略都不成立：写出任何字节之前就拒绝
+    /// 引号字符作分隔符时三种引号策略都在写出任何字节之前就拒绝
     /// </summary>
-    /// <remarks>
-    /// 与「空格 + 不加引号」同一判据——不是替调用方兜住坏输入，而是这个组合在结构上无法成立：
-    /// Minimal／All 用来包住字段的引号与分隔符是同一个字符，None 下值内的引号又与分隔符不可区分，
-    /// 写出的档按同一策略读不回原列数。
-    /// </remarks>
     [Theory]
     [InlineData(ExcelTextQuote.Minimal)]
     [InlineData(ExcelTextQuote.All)]
@@ -261,10 +243,6 @@ public class DelimitedTextExporterTests
     /// <summary>
     /// 表头与数据格共用同一套公式注入防护，改写计入同一条聚合 Warning
     /// </summary>
-    /// <remarks>
-    /// 表头文案是调用方在运行时给出的 required string，框架无法证明它出自开发者而不是终端使用者，
-    /// 「表头由开发者提供」因此不能当豁免依据。首个触发的定位取表头行——它是先写出的那一行。
-    /// </remarks>
     [Fact]
     public async Task 表头一并套用公式注入防护()
     {
@@ -293,7 +271,7 @@ public class DelimitedTextExporterTests
 
         await exporter.ExportAsync(stream, spec, ExcelFormat.Csv, new ExcelTextOptions(), TestContext.Current.CancellationToken);
 
-        // 表头行与数据行同样多出可见前缀：这一条代价写在 EscapeFormulaPrefix 的文档里
+        // 表头行与数据行都加上前缀
         Assert.Equal("'=合计数" + "\r\n" + "'=1+1" + "\r\n", BodyOf(stream));
 
         var warnings = sink.Entries.Where(e => e.Level == LogLevel.Warning).ToList();
@@ -307,9 +285,7 @@ public class DelimitedTextExporterTests
     /// 制表符起首的值在 <c>.csv</c> 与分隔模式 <c>.txt</c> 两条路径都被加前缀，且计入同一条聚合 Warning
     /// </summary>
     /// <remarks>
-    /// 起首判据把制表符、回车与四个运算子并列，规格要求按「输出路径」逐条核验，不能由「两条路径共用同一条判定」代过。
-    /// 两边的字节表现本来不同，所以各钉一条期望串：<c>.csv</c> 默认逗号分隔，加前缀后的值不含逗号，最小策略下原样写出；
-    /// <c>.txt</c> 默认制表符分隔，加前缀后的值仍含分隔符，整格被引号包住。
+    /// <c>.csv</c> 默认逗号分隔，加前缀后的值原样写出；<c>.txt</c> 默认制表符分隔，加前缀后的值含分隔符，整格被引号包住。
     /// </remarks>
     [Theory]
     [InlineData(ExcelFormat.Csv, "提单号,重量,预计到达" + "\r\n" + "'\t=1+1,0.00,0001-01-01" + "\r\n")]
@@ -325,7 +301,7 @@ public class DelimitedTextExporterTests
 
         await exporter.ExportAsync(stream, spec, format, new ExcelTextOptions(), TestContext.Current.CancellationToken);
 
-        // 整份正文逐字比对：前缀「'」紧贴在制表符之前，就是这一格被防护改写的证据
+        // 前缀「'」紧贴在制表符之前
         Assert.Equal(expectedBody, BodyOf(stream));
 
         var warnings = sink.Entries.Where(e => e.Level == LogLevel.Warning).ToList();
@@ -363,12 +339,8 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
-    /// 关掉公式注入防护后原始值不被改写，制表符起首也在反例之内
+    /// 关掉公式注入防护后原始值不被改写，制表符起首的值同样如此
     /// </summary>
-    /// <remarks>
-    /// 起首集合从四个字符扩到六个的同时，「关掉开关」这一侧的处置必须仍是原样写出：多改一个字符就是改动调用方的原始数据。
-    /// 默认逗号分隔下这两个值都不含逗号，因此不加前缀也不加引号，正文里连一个 <c>'</c> 都不该出现。
-    /// </remarks>
     [Theory]
     [InlineData("=1+1")]
     [InlineData("\t=1+1")]
@@ -385,11 +357,6 @@ public class DelimitedTextExporterTests
     /// <summary>
     /// 负数经文本格式后仍触发公式前缀，改动以一条聚合 Warning 留痕
     /// </summary>
-    /// <remarks>
-    /// 默认开启的 <c>EscapeFormulaPrefix</c> 把 <c>-5.00</c> 写成 <c>'-5.00</c>，读回是文本而非数字，
-    /// 是防公式注入的既定代价。本条把该代价显性化：字节序列含前缀，且整份文件只记一条 Warning，内容含改写数量与首个触发的列键，
-    /// 不逐格刷日志。
-    /// </remarks>
     [Fact]
     public async Task 负数列的公式前缀记一条聚合Warning()
     {
@@ -420,11 +387,6 @@ public class DelimitedTextExporterTests
     /// <summary>
     /// 文字档与 xlsx 共用同一份行型守卫：首笔正确、次笔异型即抛，并点名行号与两个类型
     /// </summary>
-    /// <remarks>
-    /// 判据只有一份，措辞前缀按路径给出。断言落在异常类型、行号与两个类型名上，不断言流的字节数：
-    /// 文字档是 <c>StreamWriter</c> 边写边缓冲，第一行可能已经落盘，抛出时留下的半份档正是这条守卫要拦的结果，
-    /// 不是它要消除的现象。
-    /// </remarks>
     [Fact]
     public async Task 文字导出第二笔异型时抛出并点名行号()
     {
@@ -473,17 +435,6 @@ public class DelimitedTextExporterTests
     /// <summary>
     /// 文字导出同样先做列与声明行型别的比对：不符即在写出任何字节之前抛，行集合一次都不被枚举
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 判据与两条 xlsx 路径共用 <see cref="ExcelRowTypeGuard"/> 那一份，所以这里主要钉「本路径也走它、且排在预检」：
-    /// 零字节与 <c>rows.Count == 0</c> 两条一起才说明它没被挪到逐行循环里。分隔符布局按 <c>StreamWriter</c>
-    /// 边写边缓冲，逐行阶段的失败可能留下半份档；声明级预检不留，这正是它排在写出第一格之前的可观察差别。
-    /// </para>
-    /// <para>
-    /// 放行的坏声明交出的是「表头齐全、每格为空」的 csv：异型行经列的取值方法只回 <c>null</c>，
-    /// 而返回值仍写着 <c>StylingApplied=true</c>（文字档没有样式，该字段表示「没丢弃任何请求的样式」）。
-    /// </para>
-    /// </remarks>
     [Fact]
     public async Task 文字导出列行型别与声明不符时预检抛且零字节不枚举()
     {
@@ -627,11 +578,6 @@ public class DelimitedTextExporterTests
     /// <summary>
     /// 文字档最后一笔取值期间取消时抛出，不交出成功结果
     /// </summary>
-    /// <remarks>
-    /// 与 xlsx 路径不同：这里的 <c>StreamWriter</c> 边写边缓冲，抛出时已落进流的字节数不保证为零，
-    /// 所以本条只断「不回报成功」，不断零字节——两套现实不合并成一句承诺。取消的落点可能是写出侧的显式检查，
-    /// 也可能是带令牌的异步写作本身，契约只要求 <see cref="OperationCanceledException" /> 家族，故用 ThrowsAny。
-    /// </remarks>
     [Fact]
     public async Task 文字导出最后一笔取值期间取消时不回传成功结果()
     {
@@ -645,7 +591,7 @@ public class DelimitedTextExporterTests
                 Header = "提单号",
                 Value = row =>
                 {
-                    // 取消落在最后一笔的取值期间：该轮之后循环没有下一行可查
+                    // 在最后一笔取值期间取消
                     if (row.AwbNo == "LAST")
                     {
                         source.Cancel();
@@ -669,18 +615,11 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
-    /// 宿主禁同步 I/O 时成功导出照常写出：释放写出器不再为了排空缓冲做一次同步写
+    /// 宿主禁同步 I/O 时成功导出照常写出
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 夹具 <see cref="AsyncOnlyStream" /> 复刻 Kestrel 在 <c>AllowSynchronousIO=false</c> 下的响应流：
-    /// 同步写与同步 Flush 一律抛 <see cref="InvalidOperationException" />。骨架里的写出器若以同步
-    /// <c>Dispose</c> 结束，收尾必然撞进那条同步 Flush，一次本来完全成功的导出会整体失败。
-    /// </para>
-    /// <para>
-    /// 期望串按字面算清：单列、不写表头、<c>utf-8</c> 不写 BOM，正文就是 <c>"AWB1234"</c> 七个字节加
-    /// <c>"\r\n"</c> 两个字节，共 9 字节。
-    /// </para>
+    /// 夹具 <see cref="AsyncOnlyStream" /> 模拟 Kestrel 在 <c>AllowSynchronousIO=false</c> 下的响应流：
+    /// 同步写与同步 Flush 一律抛 <see cref="InvalidOperationException" />。
     /// </remarks>
     [Fact]
     public async Task 只允许异步IO的流上成功导出照常写出()
@@ -701,12 +640,6 @@ public class DelimitedTextExporterTests
     /// <summary>
     /// 宿主禁同步 I/O 时，取消交回的还是取消本身，不被释放写出器的同步异常顶掉
     /// </summary>
-    /// <remarks>
-    /// 取消落在最后一笔的取值期间：这一轮之后没有下一行可拦，抛出点是落盘之前的那次检查，随后栈展开释放写出器。
-    /// 同步 <c>Dispose</c> 排空缓冲走同步写，抛出的 <c>InvalidOperationException("Synchronous operations are disallowed.")</c>
-    /// 会把调用方 <c>catch (OperationCanceledException)</c> 的分支整个架空——型别都变了，重试与取消计数的逻辑收不到东西。
-    /// <c>ThrowsAnyAsync</c> 只认取消家族，被顶掉的形态在这里必然判红，正是这条用例要在变异下拉住的现实。
-    /// </remarks>
     [Fact]
     public async Task 只允许异步IO的流上取消时原异常不被掩盖()
     {
@@ -720,7 +653,7 @@ public class DelimitedTextExporterTests
                 Header = "提单号",
                 Value = row =>
                 {
-                    // 取消落在最后一笔的取值期间：该轮之后循环没有下一行可查
+                    // 在最后一笔取值期间取消
                     if (row.AwbNo == "LAST")
                     {
                         source.Cancel();
@@ -742,9 +675,6 @@ public class DelimitedTextExporterTests
         var failure = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await new DelimitedTextExporter(NullLogger<DelimitedTextExporter>.Instance)
             .ExportAsync(new AsyncOnlyStream(), spec, ExcelFormat.Txt, new ExcelTextOptions { EncodingName = "utf-8" }, source.Token));
 
-        // 交回的必须是取消家族本身；被同步 Dispose 顶掉时这里是 InvalidOperationException("Synchronous operations are disallowed.")，
-        // 上一行的 ThrowsAnyAsync 就已经判红。契约只要求 OperationCanceledException 家族，落点可能在骨架的显式检查，
-        // 也可能在带令牌的异步写作本身（后者交回派生类型 TaskCanceledException），所以不断具体型别、只断家族与来源。
         Assert.IsAssignableFrom<OperationCanceledException>(failure);
         Assert.DoesNotContain("Synchronous", failure.Message, StringComparison.Ordinal);
     }
@@ -752,11 +682,6 @@ public class DelimitedTextExporterTests
     /// <summary>
     /// 宿主禁同步 I/O 时，行型不符仍交出点名行号的那条异常
     /// </summary>
-    /// <remarks>
-    /// 这条比型别更要紧：两个异常都是 <see cref="InvalidOperationException" />，只断型别的话被顶掉也看不出来。
-    /// 被同步 <c>Dispose</c> 顶掉时消息只剩「Synchronous operations are disallowed.」，行号、期望类型与实际类型
-    /// 全部消失，调用方再也不知道是第几行装错了东西。
-    /// </remarks>
     [Fact]
     public async Task 只允许异步IO的流上行型错误仍点名行号()
     {
@@ -847,8 +772,7 @@ public class DelimitedTextExporterTests
     /// 提单号、重量、预计到达三列
     /// </summary>
     /// <remarks>
-    /// 重量与预计到达同时给出 <c>TextFormat</c> 与 Excel 的 <c>NumberFormat</c>：文字档只认前者，因此期望值是
-    /// <c>1.50</c>／<c>2026-01-02</c> 而不是 <c>#,##0.00</c> 与 <c>yyyy-mm-dd</c> 的结果。
+    /// 重量与预计到达同时给出 <c>TextFormat</c> 与 Excel 的 <c>NumberFormat</c>，文字档只取前者。
     /// </remarks>
     private static readonly ExcelColumn[] Columns =
     [
@@ -927,12 +851,8 @@ public class DelimitedTextExporterTests
     }
 
     /// <summary>
-    /// 单列一行的规格：正文只有一个取值，成功路径写出的字节数可以按字面算清
+    /// 单列一行的规格
     /// </summary>
-    /// <remarks>
-    /// 给「只允许异步 I/O 的流」那组用例用。它们要断的是写出器释放走哪条 I/O，流里的字节数必须一眼可核，
-    /// 三列夹具那种「表头 + 多个取值」的总长度会把结论埋在换算里。
-    /// </remarks>
     /// <param name="awbNo">唯一一列的取值</param>
     private static ExcelSheetSpec SingleColumnSpec(string awbNo)
     {

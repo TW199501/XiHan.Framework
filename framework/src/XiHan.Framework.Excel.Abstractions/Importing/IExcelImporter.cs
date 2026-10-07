@@ -8,26 +8,23 @@ namespace XiHan.Framework.Excel.Abstractions.Importing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 读是逐行的：<see cref="ReadAsync"/> 返回 <see cref="IAsyncEnumerable{T}"/>，不把整档的行物化在内存里，
-/// 每取一行才交出一行，因此 <see cref="ExcelImportOptions.MaxRowCount"/> 与取消都能在行与行之间生效。
-/// 本契约要求的是「不物化整档的行」，不是「交出第一行之前一个字节都不读」：实现可以在那之前先把整档扫一遍
-/// （文字档要在建立读取器时定下解码编码与整档的最大列数），这趟前置扫描不受
-/// <see cref="ExcelImportOptions.MaxRowCount"/> 与取消令牌约束。
+/// <see cref="ReadAsync"/> 返回 <see cref="IAsyncEnumerable{T}"/>，不把整档的行物化在内存里，
+/// <see cref="ExcelImportOptions.MaxRowCount"/> 与取消在行与行之间生效。
+/// 实现可以在交出第一行之前先把整档扫一遍（文字档要在建立读取器时定下解码编码与整档的最大列数），
+/// 这趟前置扫描不受 <see cref="ExcelImportOptions.MaxRowCount"/> 与取消令牌约束。
 /// 枚举器是一次性的，同一份读取不要重复枚举。
 /// </para>
 /// <para>
-/// 流所有权在调用方：实现<u>绝不关闭</u>传入的流，枚举结束后调用方仍可复位重读。
-/// 读取一律从流的<u>起点</u>开始，实现会在建立读取器之前把流位置复位到 0（容器解析本来也回到起点），
-/// 因此「从流中间接着读」不是本契约的能力。
+/// 流所有权在调用方：实现<u>不关闭</u>传入的流。读取一律从流的<u>起点</u>开始，
+/// 实现会在建立读取器之前把流位置复位到 0。
 /// </para>
 /// <para>
-/// 本契约只承诺读出源档里已有的东西：合并单元格除左上角外的其余格位读回 <c>null</c>（Excel 自身的存储形态），
+/// 本契约只读出源档里已有的东西：合并单元格除左上角外的其余格位读回 <c>null</c>，
 /// 公式只读回已缓存的值，样式、批注、图表与宏一律不解释。
 /// </para>
 /// <para>
-/// <see cref="ExcelImportRow.RowNumber"/> 的口径由本契约固定，实现不得各自解释：它是 1 起始的行序号，
-/// 二进制档等于物理行号，文字档在字段值含换行时是记录序号而非编辑器行数，两种情况下都不随跳行重排。
-/// 错误报表与本组件的文档都<u>不得</u>承诺「按编辑器行数找到那一行」，理由见该属性的说明。
+/// <see cref="ExcelImportRow.RowNumber"/> 是 1 起始的行序号，二进制档等于物理行号，
+/// 文字档在字段值含换行时是记录序号而非编辑器行数，两种情况下都不随跳行重排，见该属性的说明。
 /// </para>
 /// </remarks>
 public interface IExcelImporter
@@ -48,18 +45,15 @@ public interface IExcelImporter
     /// 配得更低时以配置值为准，两条读取路径同判</exception>
     /// <exception cref="InvalidOperationException">
     /// 档头判不出格式、格式给出或判出但容器读不通（伪造的档头、截断的档、损坏的簿），或
-    /// <see cref="ExcelImportOptions.SheetName"/> 在本工作簿里不存在。三类都落在本类型上：
-    /// 抽象契约不引用任何第三方库，实现不得把库自己的异常型别当对外承诺，库原话留在内部异常里</exception>
+    /// <see cref="ExcelImportOptions.SheetName"/> 在本工作簿里不存在；第三方库的原始异常放在内部异常里</exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> 已取消</exception>
     /// <remarks>
     /// <para>
-    /// 入参检查在<u>首次取行</u>时才执行，而不是在调用本方法时：异步迭代器的方法体要等
-    /// <c>MoveNextAsync</c> 才运行。门面若要在开始枚举之前就拒绝非法选项（例如按配置算出的上限），
-    /// 需要自己先判，不能指望这里抛。
+    /// 入参检查在<u>首次取行</u>时才执行，而不是在调用本方法时。
     /// </para>
     /// <para>
     /// 编码名无法解析（<see cref="ExcelImportOptions.TextEncodingName"/>）与文字档解码失败抛的异常由实现定义，
-    /// 见各实现的文档；本契约不把它翻译成新类型。
+    /// 见各实现的文档。
     /// </para>
     /// </remarks>
     IAsyncEnumerable<ExcelImportRow> ReadAsync(

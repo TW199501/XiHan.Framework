@@ -12,40 +12,28 @@ namespace XiHan.Framework.Excel.Exporting;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 本类只做三件事：判分派输入、选一条路径、把那条路径交回的结果原样带出。守卫一律不抄第二份——
-/// 行型一致性、列宽值域、颜色失败面、表名判据、取值可写性、文字档的分隔符禁令都长在各自的写出器里，
-/// 本类既不重判一遍，也不吞掉或改写它们交回的异常型别与消息。分派输入的检查（格式取值、列清单、
-/// 预期行数、流式表态、多表清单）是本类独有的、任何写出器都不判的东西，因此由本类在路由之前判完；
-/// 其中列清单与预期行数两条在<b>两个入口、所有目标格式</b>都判，不等选出路径——一句错的行数声明换哪个入口、
-/// 换什么格式都还是错的，只在用得上它的场合才判等于让调用方以为设了就有作用。
-/// 反过来，某一项只有部分路径承载（如列宽只有全量工作簿写）时，本类不替那条不承载的路径去判它。
+/// 本类判分派输入、选一条路径、把那条路径交回的结果原样带出。行型一致性、列宽值域、颜色、表名、取值可写性、
+/// 文字档的分隔符禁令由各写出器判，本类不重判，也不改写它们交回的异常型别与消息。
+/// 分派输入（格式取值、列清单、预期行数、流式表态、多表清单）由本类在路由之前判完；
+/// 其中列清单与预期行数在<b>两个入口、所有目标格式</b>都判。
 /// </para>
 /// <para>
-/// 分派规则。<see cref="ExcelFormat.Csv"/> 与 <see cref="ExcelFormat.Txt"/> 一律交文字档写出器，
+/// 分派规则：<see cref="ExcelFormat.Csv"/> 与 <see cref="ExcelFormat.Txt"/> 一律交文字档写出器，
 /// 它内部按布局分分隔符与固定宽度两条。<see cref="ExcelFormat.Xlsx"/> 按流式表态分流：
-/// <see cref="ExcelSheetSpec.ForceStreaming"/> 为 <c>true</c> 走流式，为 <c>false</c> 走全量——
-/// 显式表态优先于阈值，预期行数再大也不改判；两者都没给而 <see cref="ExcelSheetSpec.ExpectedRowCount"/>
-/// 也没给时抛出而不是猜一个，因为「达到阈值自动切流式」要求先知道行数，而行数不可预知时切过去连带静默丢样式，
-/// 正是本组件禁止的静默降级。只有 <see cref="ExcelSheetSpec.ForceStreaming"/> 为 <c>null</c> 且给了预期行数时，
-/// 才拿它与 <see cref="XiHanExcelOptions.StreamingThreshold"/> 比：<c>=</c> 即达阈值算流式（该阈值的语义是
-/// 「达到该规模改用流式」），小于阈值算全量。阈值为 0 或负数时任何非负行数都算达到，因此一律走流式——
-/// 这是「一行都不想全量」的合法表达，不当成非法取值拒掉。
+/// <see cref="ExcelSheetSpec.ForceStreaming"/> 为 <c>true</c> 走流式，为 <c>false</c> 走全量；
+/// 为 <c>null</c> 时，<see cref="ExcelSheetSpec.ExpectedRowCount"/> 也没给就抛出，给了就与
+/// <see cref="XiHanExcelOptions.StreamingThreshold"/> 比，大于或等于阈值走流式，小于阈值走全量。
+/// 阈值为 0 或负数时一律走流式。
 /// </para>
 /// <para>
-/// 多表入口 <see cref="ExportAllAsync"/> 恒走全量工作簿：多表要共用一个工作簿、共用表名判重与落位顺序，
-/// 流式模式承担不了，因此清单里任何一张表要求流式即整个请求被拒，不做「这张表改成全量」的改写。
+/// 多表入口 <see cref="ExportAllAsync"/> 恒走全量工作簿，清单里任何一张表要求流式即整个请求被拒。
 /// </para>
 /// <para>
-/// <see cref="ExcelSheetSpec.Columns"/> 一列都没有的表在路由之前被拒。三条路径对零列的现实各不相同
-/// （文字档写成每行一个空行、全量写一张只有空表格区域的表、流式连表头都不写），放行就是让同一份坏输入
-/// 交出三种半成品；本类是唯一能一次管住全部路径的位置，因此这道判定归本类，各写出器不重复判。
-/// 列清单为 <c>null</c> 同罪：那是 <c>required</c> 非空成员的非法声明，读它的数量只会撞出一个未声明的空引用异常。
+/// <see cref="ExcelSheetSpec.Columns"/> 为 <c>null</c> 或一列都没有的表在路由之前被拒。
 /// </para>
 /// <para>
-/// 目标格式是 <see cref="ExcelFormat.Xlsx"/> 时 <c>textOptions</c> 不生效，也不报错——沿用本组件对
-/// 「设置了但不生效的选项」的一贯口径。输出流的所有权在调用方：本类不关闭、不复位、不改动流位置，
-/// 写出从调用方留下的位置开始。取消的口径由 <see cref="IExcelExporter"/> 定死，四条路径共用：
-/// 取消被观察到时一律抛出、绝不交出结果，落盘时机决定流里剩下什么，调用方在抛出后必须丢弃该流的内容。
+/// 目标格式是 <see cref="ExcelFormat.Xlsx"/> 时 <c>textOptions</c> 不生效，也不报错。
+/// 本类不关闭、不复位、不改动输出流位置。取消口径见 <see cref="IExcelExporter"/>。
 /// </para>
 /// </remarks>
 /// <param name="closedXmlExporter">全量工作簿写出器</param>
@@ -74,8 +62,7 @@ public sealed class ExcelExporter(
 
     /// <inheritdoc />
     /// <remarks>
-    /// 分派与入参检查全部排在写出第一个字节之前，因此非法的分派输入不留半份文件；
-    /// 抛出的是被选中那条路径原本的异常，本类不改型别也不重写消息。
+    /// 分派与入参检查全部排在写出第一个字节之前；抛出的是被选中那条路径原本的异常，本类不改型别也不重写消息。
     /// </remarks>
     public async Task<ExcelExportResult> ExportAsync(
         Stream output,
@@ -130,7 +117,7 @@ public sealed class ExcelExporter(
             var position = index + 1;
             var sheet = sheets[index];
 
-            // 清单里的 null 项不在这里判：那是全量写出器已经点名第几项的既有守卫，本类不抄第二份
+            // 清单里的 null 项由全量写出器判并点名第几项
             if (sheet is null)
             {
                 continue;
@@ -159,8 +146,7 @@ public sealed class ExcelExporter(
     /// <param name="sheet">表规格</param>
     /// <returns><c>true</c> 走流式，<c>false</c> 走全量</returns>
     /// <exception cref="InvalidOperationException"><see cref="ExcelSheetSpec.ForceStreaming"/> 与
-    /// <see cref="ExcelSheetSpec.ExpectedRowCount"/> 都没给（<see cref="ExcelSheetSpec.ExpectedRowCount"/>
-    /// 为负数不在此判，由 <see cref="ValidateExpectedRowCount"/> 在所有格式的路由之前判掉）</exception>
+    /// <see cref="ExcelSheetSpec.ExpectedRowCount"/> 都没给（负数由 <see cref="ValidateExpectedRowCount"/> 判）</exception>
     private bool ResolveStreaming(ExcelSheetSpec sheet)
     {
         switch (sheet.ForceStreaming)
@@ -170,7 +156,7 @@ public sealed class ExcelExporter(
 
             case false:
 
-                // 显式要全量就不看阈值：调用方已经承担了整份档建在内存里的代价换排版，分派器不替他改判
+                // 显式要全量就不看阈值
                 return false;
 
             default:
@@ -195,10 +181,7 @@ public sealed class ExcelExporter(
     /// <param name="sheet">表规格</param>
     /// <param name="position">表在清单里的位置；单表路径固定为 1</param>
     /// <remarks>
-    /// 这一条排在格式分流之前、两个入口与所有目标格式都判：<see cref="ExcelSheetSpec.ExpectedRowCount"/> 是本类独有的
-    /// 分派输入，不是任何写出器自己的守卫，判它不算抄第二份。负数既不是「行数未知」也不是「行数为零」，
-    /// 放行等于让一个不成立的数字参与比阈值；而它即便在这张表走不到阈值判定的场合（文字档格式、多表入口恒全量），
-    /// 也是一句错的声明，没有理由因为该场合用不到它就放过——那样调用方会以为清单里设了行数就会被校验。
+    /// 排在格式分流之前，两个入口与所有目标格式都判。
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException"><see cref="ExcelSheetSpec.ExpectedRowCount"/> 为负数</exception>
     private static void ValidateExpectedRowCount(ExcelSheetSpec sheet, int position)
@@ -240,7 +223,7 @@ public sealed class ExcelExporter(
     }
 
     /// <summary>
-    /// 只在格式判定的两条 switch 已经穷尽时才可能到达，用来把「未知格式」留在抛出而不是落到某条路径
+    /// 格式判定的 switch 没有接住目标格式时抛出的异常
     /// </summary>
     /// <param name="format">没有被任何分支接住的格式取值</param>
     private sealed class UnreachableFormatException(ExcelFormat format) : Exception(

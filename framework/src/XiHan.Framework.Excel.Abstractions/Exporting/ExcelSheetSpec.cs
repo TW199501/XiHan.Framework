@@ -10,15 +10,12 @@ namespace XiHan.Framework.Excel.Abstractions.Exporting;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 行集合用非泛型 <see cref="IEnumerable"/>，让流式提供程序可以边生成边写出，不强制调用方先物化成列表。
+/// 行集合用非泛型 <see cref="IEnumerable"/>，允许流式提供程序边生成边写出。
 /// </para>
 /// <para>
-/// <see cref="RowType"/> 由调用方显式给出：从 <see cref="Columns"/> 的实际泛型参数反推不可行（基类擦除了行类型，
-/// 但每一列经 <see cref="ExcelColumn.RowType"/> 交出自己约定的类型，所以「列与声明是否同一行类型」这项比对做得出来）。
-/// 行集合元素与 <see cref="RowType"/> 的一致性不在这里检查，推迟到提供程序，避免为一次类型检查牺牲多态能力；
-/// 提供程序在写出任何内容之前先比 <see cref="Columns"/> 里每一列的 <see cref="ExcelColumn.RowType"/> 能否收下
-/// <see cref="RowType"/>（不一致即在开始写出前抛 <see cref="ArgumentException"/>，消息点名列键与两个型别全名），
-/// 再对枚举到的每一行比实际型别。列与声明不符等于「每一行都取不到值」，所以它归声明级预检，不等第一行。
+/// <see cref="RowType"/> 由调用方显式给出。提供程序在写出任何内容之前先比 <see cref="Columns"/> 里每一列的
+/// <see cref="ExcelColumn.RowType"/> 能否收下 <see cref="RowType"/>（不一致即抛 <see cref="ArgumentException"/>，
+/// 消息点名列键与两个型别全名），再对枚举到的每一行比实际型别；本类不检查行集合元素。
 /// </para>
 /// </remarks>
 public sealed class ExcelSheetSpec
@@ -104,8 +101,7 @@ public sealed class ExcelSheetSpec
     /// 是否强制流式写出的三态标记：<c>null</c> 未表态、<c>true</c> 强制流式、<c>false</c> 强制全量
     /// </summary>
     /// <remarks>
-    /// 与 <see cref="ExpectedRowCount"/> 一起构成导出分派器的分流输入。本规格对两者都不给默认值，
-    /// 未表态时由分派器决定是否放行，不在这里猜测行数。
+    /// 与 <see cref="ExpectedRowCount"/> 一起构成导出分派器的分流输入；未表态时由分派器决定。
     /// </remarks>
     public bool? ForceStreaming { get; init; }
 }

@@ -9,7 +9,7 @@ namespace XiHan.Framework.Excel.Abstractions.Enums;
 public enum ExcelTextOverflow
 {
     /// <summary>
-    /// 抛出异常：不静默丢弃数据，由调用方修正列宽
+    /// 抛出异常
     /// </summary>
     Throw,
 

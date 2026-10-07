@@ -12,17 +12,10 @@ using XiHan.Framework.Excel.Tests.TestSupport;
 namespace XiHan.Framework.Excel.Tests.Exporting;
 
 /// <summary>
-/// 分派器测试：按格式与流式表态路由、不猜的缺省、以及「门面不绕过也不重写任何一道既有守卫」
+/// 分派器测试：按格式与流式表态路由、未表态时抛出，以及各 Provider 守卫的异常原样上抛
 /// </summary>
 /// <remarks>
-/// <para>
-/// 三个 Provider 都用真身，不用替身：分派器唯一该被证明的是「把这份规格送到哪条路径」，而各条路径的守卫
-/// （行型、列宽、底色、表名、取值域、分隔符）都长在 Provider 里。用替身就只剩「调了哪个方法」，
-/// 门面偷偷吞掉或改写异常时测不出来。
-/// </para>
-/// <para>
-/// 抛出后一律只看异常型别与消息，不看流的内容是否为零——零字节只在入口之前的失败上成立。
-/// </para>
+/// 三个 Provider 都用真身。
 /// </remarks>
 public class ExcelExporterDispatchTests
 {
@@ -175,18 +168,13 @@ public class ExcelExporterDispatchTests
 
         using var workbook = Open(stream);
 
-        // 样式确实落地：表头底色是调用方给的那份，不是库的预设
+        // 表头底色已落地
         Assert.Equal(XLFillPatternValues.Solid, workbook.Worksheet(1).Cell(1, 2).Style.Fill.PatternType);
     }
 
     /// <summary>
     /// 流式阈值为 0 或负数时一律走流式，不当非法取值拒掉
     /// </summary>
-    /// <remarks>
-    /// 选项文档与分派器都承诺「0 或负数等于任何非负行数都达到阈值」，那是「一行都不想全量」的合法表达。
-    /// 这条把承诺钉住：行数很小（低于默认阈值的量级）也照样降级，走的仍是流式路径的显式降级出口。
-    /// 判据用返回值而不是内存：达到阈值与走的实现是同一件事的两端，样式没落地就是那条路径。
-    /// </remarks>
     /// <param name="threshold">要试的流式阈值</param>
     [Theory]
     [InlineData(0)]
@@ -258,7 +246,7 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// 负的预期行数被拒，且不因为没表态而先撞上「不猜」那道抛
+    /// 负的预期行数以 <see cref="ArgumentOutOfRangeException"/> 被拒
     /// </summary>
     [Fact]
     public async Task 负预期行数被拒()
@@ -274,12 +262,8 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// 多表清单里的负预期行数同样在路由之前被拒：多表恒走全量、不用它分流，但非法声明不静默通过
+    /// 多表清单里的负预期行数同样在路由之前被拒，并点名是第几张表
     /// </summary>
-    /// <remarks>
-    /// 单表入口对这项一律生效，多表入口若放过，调用方就会以为「清单里设了行数就会被校验」——
-    /// 一句错的行数声明换哪个入口都还是错的。判据与单表同一条，只按清单位置补上第几张表。
-    /// </remarks>
     [Fact]
     public async Task 多表里负预期行数也被拒并点名位置()
     {
@@ -296,13 +280,8 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// 负的预期行数在文字档路径同样被拒：它是分派输入，不因目标格式用不到阈值就放过
+    /// 负的预期行数在文字档路径同样被拒，且不写出任何字节
     /// </summary>
-    /// <remarks>
-    /// 与上一条同一条判据，只是换目标格式。分派器把这项检查排在路由之前，所以 <c>Csv</c>／<c>Txt</c>
-    /// 不会因为「这两档不看行数」而交回一份写好了的档——契约里 <c>ExpectedRowCount</c> 只有「未知」与
-    /// 非负两种取值，负数在哪一档都是错的声明。
-    /// </remarks>
     /// <param name="format">要试的文字格式</param>
     [Theory]
     [InlineData(ExcelFormat.Csv)]
@@ -323,7 +302,7 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// 多表恒走全量，遇到要求流式的那张表直接拒绝而不是偷偷改成全量
+    /// 多表遇到要求流式的那张表时抛出，并点名是第几张表
     /// </summary>
     [Fact]
     public async Task 多表遇到要求流式时拒绝()
@@ -362,13 +341,8 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// 一列都没有的规格在路由之前被拒，不交出一份每行空白或只有个空表的「成功档」
+    /// 一列都没有的规格在路由之前被拒，不写出字节也不枚举行
     /// </summary>
-    /// <remarks>
-    /// 三条路径对零列各自的现实都不一样（文字档写成每行一个空行、全量写一张空表、流式连表头都不写），
-    /// 放行就是让同一份坏输入交出三种不同的半成品。分派器是唯一能一次管住全部路径的位置，因此这道判定归它，
-    /// 各 Provider 不重复判。
-    /// </remarks>
     /// <param name="format">要试的目标格式</param>
     [Theory]
     [InlineData(ExcelFormat.Csv)]
@@ -407,7 +381,7 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// 列宽守卫长在 Provider 里，分派器不抄第二份、也不改写它交回的异常
+    /// 非法列宽由全量路径的守卫抛出，异常原样上抛
     /// </summary>
     [Fact]
     public async Task 非法列宽按全量路径的原样抛出()
@@ -451,7 +425,7 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// 两条 xlsx 路径对同一份坏表名交出同一条判据，分派器不会让走哪条变成「换一套规矩」
+    /// 两条 xlsx 路径对同一份坏表名抛出相同的参数异常
     /// </summary>
     /// <param name="forceStreaming">要试的路径：<c>true</c> 走流式，<c>false</c> 走全量</param>
     [Theory]
@@ -471,7 +445,7 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// 异型行在两条 xlsx 路径都由共用守卫拦下，分派器不吞也不改写
+    /// 异型行在两条 xlsx 路径都被拒，消息点名实际类型
     /// </summary>
     /// <param name="forceStreaming">要试的路径</param>
     [Theory]
@@ -495,7 +469,7 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// 文字导出器的分隔符禁令原样上抛，分派器不在自己这一层重判一遍
+    /// 文字导出器对非法分隔符的异常原样上抛
     /// </summary>
     [Fact]
     public async Task 坏分隔符按文字导出器的原样抛出()
@@ -511,12 +485,8 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// xlsx 不解释文字档选项：给了也不报错，但产出的仍是工作簿
+    /// xlsx 忽略文字档选项：不报错，扩展名与内容类型仍是工作簿
     /// </summary>
-    /// <remarks>
-    /// 沿用本组件既有口径（设置了但不生效的选项一律不抛，也不静默改道）。判据写在返回值上：
-    /// 扩展名与内容类型都还是工作簿那一份，选项没把格式拽成文字档。
-    /// </remarks>
     [Fact]
     public async Task xlsx不解释文字档选项()
     {
@@ -548,7 +518,7 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// 入参为 <c>null</c> 时在路由之前抛，不把工作簿那一句英文异常交出来
+    /// 入参为 <c>null</c> 时在路由之前抛 <see cref="ArgumentNullException"/>
     /// </summary>
     [Fact]
     public async Task 空入参被拒()
@@ -564,7 +534,7 @@ public class ExcelExporterDispatchTests
     }
 
     /// <summary>
-    /// 构造分派器时缺任一个 Provider 或选项即抛，不留下半套路由
+    /// 构造分派器时缺任一个 Provider 或选项即抛
     /// </summary>
     [Fact]
     public void 构造入参为null即抛()
@@ -602,7 +572,7 @@ public class ExcelExporterDispatchTests
     private static ExcelExporter NewExporter() => NewExporter(new XiHanExcelOptions { StreamingThreshold = Threshold });
 
     /// <summary>
-    /// 用真身 Provider 造分派器，避免用替身把「路径里的守卫」这条线测空
+    /// 用真身 Provider 造分派器
     /// </summary>
     private static ExcelExporter NewExporter(XiHanExcelOptions options) => new(
         new ClosedXmlExporter(options),
