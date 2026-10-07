@@ -15,6 +15,10 @@ XiHan.Framework.Script 提供脚本执行能力与脚本引擎的基础抽象，
 ## 配置与约定
 - 脚本执行相关配置通过 Options 类型承载
 - 建议在应用侧统一管理脚本来源与权限
+- Roslyn 脚本在宿主进程内执行；默认配置和 `Permissive` 只适用于受信任脚本，不能用来执行不可信用户输入。
+- `EnableSecurityChecks` 只检查部分程序集类型和成员，不限制方法体调用的操作；文件扩展名和大小检查也不限制脚本运行时权限。
+- `AllowFileSystemAccess`、`AllowNetworkAccess`、`AllowReflectionAccess`、`AllowProcessOperations`、`AllowRegistryAccess`、`AllowEnvironmentAccess` 是权限声明，当前进程内引擎无法据此隔离脚本访问。
+- `Strict` 或 `WithStrictSecurity()` 会使 `ExecuteAsync`、`ExecuteFileAsync`、`EvaluateAsync` 和 `CreateInstanceAsync` 返回 `StrictModeUnsupported` 安全错误。严格模式不会尝试运行脚本；需要执行不可信脚本时，应用必须提供真正的进程外隔离执行器。
 
 ## 使用方式
 ```csharp

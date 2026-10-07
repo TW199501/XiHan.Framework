@@ -15,6 +15,8 @@ XiHan.Framework.Templating 提供模板渲染相关的基础能力与扩展点�
 ## 配置与约定
 - 模板相关配置通过 Options 类型承载
 - 建议在启动模块统一配置模板来源与缓存策略
+- `DefaultTemplateEngine` 的模板缓存与校验缓存分别受 `TemplatingOptions.MaxCacheSize` 和 `CacheExpiration` 限制；达到容量时淘汰最久未使用项，`EnableCaching` 可关闭这两类缓存
+- `Simple.TemplateCache` 是独立的静态缓存，不受上述选项控制
 
 ## 使用方式
 ```csharp

@@ -16,7 +16,7 @@ public class DefaultTelegramUpdateDeduplicator : ITelegramUpdateDeduplicator
     private static readonly TimeSpan EntryTtl = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan SweepInterval = TimeSpan.FromMinutes(5);
 
-    private readonly ConcurrentDictionary<string, long> _entries = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, UpdateMarker> _entries = new(StringComparer.Ordinal);
     private long _lastSweepTicks;
 
     /// <summary>
@@ -40,8 +40,8 @@ public class DefaultTelegramUpdateDeduplicator : ITelegramUpdateDeduplicator
             }
         }
 
-        var expiresAtTicks = DateTimeOffset.UtcNow.Add(EntryTtl).UtcTicks;
-        return Task.FromResult(_entries.TryAdd(key, expiresAtTicks));
+        var marker = new UpdateMarker(DateTimeOffset.UtcNow.Add(EntryTtl).UtcTicks);
+        return Task.FromResult(_entries.TryAdd(key, marker));
     }
 
     /// <summary>
@@ -77,10 +77,22 @@ public class DefaultTelegramUpdateDeduplicator : ITelegramUpdateDeduplicator
     {
         foreach (var entry in _entries)
         {
-            if (entry.Value < nowTicks)
+            if (entry.Value.ExpiresAtTicks < nowTicks)
             {
-                _ = _entries.TryRemove(entry.Key, out _);
+                _ = TryRemoveObservedEntry(_entries, entry);
             }
         }
+    }
+
+    internal static bool TryRemoveObservedEntry(
+        ConcurrentDictionary<string, UpdateMarker> entries,
+        KeyValuePair<string, UpdateMarker> observedEntry)
+    {
+        return ((ICollection<KeyValuePair<string, UpdateMarker>>)entries).Remove(observedEntry);
+    }
+
+    internal sealed class UpdateMarker(long expiresAtTicks)
+    {
+        public long ExpiresAtTicks { get; } = expiresAtTicks;
     }
 }

@@ -317,6 +317,7 @@ public class ApprovalAppService(IWorkflowUserTaskService userTasks) : Applicatio
 - **引用不存在的变量会抛异常**，不是返回 `null`。条件表达式里用到的变量，要么在定义的 `Variables` 里声明默认值，要么保证前序节点一定写过。
 - **条件表达式必须求值为布尔**，返回别的类型直接抛 `WorkflowException`。
 - 数字统一以 `decimal` 求值；语法树按表达式文本缓存复用。
+- 内置解析器限制表达式长度为 4096 个字符、词法单元与语法树节点各 2048 个，语法嵌套和求值深度各 64 层；超限会抛出 `WorkflowException`。自定义 `IWorkflowExpressionEvaluator` 可定义自己的限制。
 - 没有赋值、没有循环、没有自定义方法调用。
 
 超出边界的逻辑有三条出路：用 `Script` 活动跑 C# 脚本、写一个自定义活动、或者整个 `Replace` 掉 `IWorkflowExpressionEvaluator`。

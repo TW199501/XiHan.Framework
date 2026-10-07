@@ -19,6 +19,25 @@ namespace XiHan.Framework.Bot.Telegram.Tests.Stores;
 public class DefaultTelegramUpdateDeduplicatorTests
 {
     /// <summary>
+    /// 清理旧快照时保留之后重新写入的同键标记
+    /// </summary>
+    [Fact]
+    public void SweepExpired_WhenEntryWasReplaced_PreservesNewMarker()
+    {
+        var entries = new ConcurrentDictionary<string, DefaultTelegramUpdateDeduplicator.UpdateMarker>(StringComparer.Ordinal);
+        var expiredMarker = new DefaultTelegramUpdateDeduplicator.UpdateMarker(100);
+        Assert.True(entries.TryAdd("main-bot:1", expiredMarker));
+        var observedEntry = Assert.Single(entries);
+
+        Assert.True(entries.TryRemove(observedEntry.Key, out _));
+        var newMarker = new DefaultTelegramUpdateDeduplicator.UpdateMarker(100);
+        Assert.True(entries.TryAdd(observedEntry.Key, newMarker));
+
+        Assert.False(DefaultTelegramUpdateDeduplicator.TryRemoveObservedEntry(entries, observedEntry));
+        Assert.Same(newMarker, entries[observedEntry.Key]);
+    }
+
+    /// <summary>
     /// 首次标记成功，重复标记失败
     /// </summary>
     [Fact]

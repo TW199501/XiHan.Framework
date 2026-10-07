@@ -2,6 +2,19 @@
 
 本文件记录 XiHan.Framework 各版本的变更。每条标注 **新增 / 修复 / 优化 / 调整 / 升级 / 移除** 类别。只收录使用者可感知的变更，仓库自身的配置、CI、测试工程与构建脚本不列入。框架以 NuGet 包形式发布，升级前请留意「调整」类中的破坏性变更。
 
+## 未发布
+
+::: warning 升级须知
+多实例启用 OpenAPI 防重放时，需注册具备跨实例原子认领语义的 `IOpenApiReplayNonceStore`；默认本地实现只覆盖单进程。
+自定义 `IRefreshTokenStore` 实现需新增 `TryConsume`，并保证跨并发调用原子校验与消费；分布式实现必须在共享存储层完成原子操作。
+:::
+
+- **新增** `SseClientOptions.MaxLineBytes` / `MaxEventBytes`：SSE 客户端默认限制单行 64 KiB、单事件 1 MiB；需要接收更大数据时可按服务端契约调高上限
+- **修复** OpenAPI 防重放改为验签成功后才认领 nonce，并为默认本地存储增加容量上限；多实例部署需注册具备跨实例原子认领语义的 `IOpenApiReplayNonceStore`，不能依赖普通 `IDistributedCache` 的 Get/Set 组合
+- **修复** JWT 刷新令牌在存储层原子校验并消费，同一刷新令牌并发请求最多签发一次后继令牌；自定义 `IRefreshTokenStore` 实现需补充原子 `TryConsume`
+- **修复** OIDC 自动创建签名密钥先完整写入临时文件再原子发布；共享密钥路径的并发实例读取同一把密钥
+- **修复** 默认进程内分布式锁的过期清扫按锁条目条件删除，避免误删已续期或被接管的锁；并发新增资源键时仍限制在 10,000 条以内
+
 ## v4.6.1 (2026-10-03)
 
 ::: warning 升级须知
