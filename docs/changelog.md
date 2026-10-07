@@ -2,6 +2,14 @@
 
 本文件记录 XiHan.Framework 各版本的变更。每条标注 **新增 / 修复 / 优化 / 调整 / 升级 / 移除** 类别。只收录使用者可感知的变更，仓库自身的配置、CI、测试工程与构建脚本不列入。框架以 NuGet 包形式发布，升级前请留意「调整」类中的破坏性变更。
 
+## 未发布
+
+::: warning 升级须知
+多实例启用 OpenAPI 防重放时，需注册具备跨实例原子认领语义的 `IOpenApiReplayNonceStore`；默认本地实现只覆盖单进程。
+:::
+
+- **修复** OpenAPI 防重放改为验签成功后才认领 nonce，并为默认本地存储增加容量上限；多实例部署需注册具备跨实例原子认领语义的 `IOpenApiReplayNonceStore`，不能依赖普通 `IDistributedCache` 的 Get/Set 组合
+
 ## v4.6.1 (2026-10-03)
 
 ::: warning 升级须知
