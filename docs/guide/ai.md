@@ -122,7 +122,7 @@ public sealed class ProviderAdmin(
 
 - 传 provider 名 → 移除该名下的客户端，**同时移除默认槽**（默认 provider 可能正指向它）；
 - 传 `null` 或空 → 清空全部；
-- 被移除的客户端会被 `Dispose`，下次 `Resolve` 用最新配置重建。
+- 会话客户端按原有缓存语义移除并释放；嵌入生成器会拒绝旧引用上的新请求，并等已开始的生成请求结束后再释放。下次 `Resolve` 用最新配置重建。
 
 ::: warning 两个解析器要分别失效
 会话客户端与嵌入生成器是两份独立缓存。只调会话侧的 `Invalidate`，RAG 仍会用旧密钥/旧端点。

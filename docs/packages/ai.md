@@ -49,7 +49,7 @@ MCP 工具桥接 `AddXiHanMcpServerTools()` 不在模块内自动调用，须配
 
 **解析与缓存**：`AiChatClientResolver` 用 `ConcurrentDictionary` 按 provider 名（缺省用内部默认槽键）缓存 `IChatClient`。首次解析时从 `IAiProviderConfigStore.GetAsync` 读配置（无匹配则抛 `InvalidOperationException`），交 `OpenAiCompatibleChatClientFactory` 构建。`OpenAiEmbeddingGeneratorFactory` / `AiEmbeddingGeneratorResolver` 与之同构（模型取 `EmbeddingModel`）。
 
-**热切换**：`Invalidate(providerName)` 从缓存移除并释放对应客户端——空则清全部，否则清指定 provider 及默认槽（默认可能指向它）；下次 `Resolve` 按最新配置重建。这是应用层改了 DB 里 provider 的 key/baseUrl/model 后无重启生效的关键。
+**热切换**：`Invalidate(providerName)` 使对应缓存失效——空则清全部，否则清指定 provider 及默认槽（默认可能指向它）；下次 `Resolve` 按最新配置重建。嵌入生成器会在已开始的请求结束后释放旧实例，失效后的旧引用不能启动新请求。这是应用层改了 DB 里 provider 的 key/baseUrl/model 后无重启生效的关键。
 
 **工厂细节**：`OpenAiCompatibleChatClientFactory.Create` 用 `OpenAI.Chat.ChatClient`（`BaseUrl` 空则用官方端点，否则指向兼容端点），套 `.AsIChatClient().AsBuilder()` 按 `XiHan:AI:Pipeline` 开关逐项叠加中间件后 `.Build()`。`ApiKey` 为空时用占位符 `"no-key"`（本地/兼容端点常不校验 key）。
 
