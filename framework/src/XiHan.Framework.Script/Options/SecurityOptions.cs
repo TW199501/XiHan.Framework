@@ -4,47 +4,47 @@
 namespace XiHan.Framework.Script.Options;
 
 /// <summary>
-/// 脚本安全选项配置
+/// 脚本安全检查配置；这些检查不构成脚本沙箱
 /// </summary>
 public class SecurityOptions
 {
     /// <summary>
-    /// 是否启用安全检查
+    /// 是否启用危险类型和不安全成员检查；该检查不限制脚本的运行时权限
     /// </summary>
     public bool EnableSecurityChecks { get; set; } = true;
 
     /// <summary>
-    /// 是否启用严格模式
+    /// 是否拒绝当前进程内脚本引擎执行脚本
     /// </summary>
     public bool EnableStrictMode { get; set; }
 
     /// <summary>
-    /// 是否允许文件系统访问
+    /// 文件系统权限声明；当前进程内引擎不会据此限制脚本访问
     /// </summary>
     public bool AllowFileSystemAccess { get; set; } = true;
 
     /// <summary>
-    /// 是否允许网络访问
+    /// 网络权限声明；当前进程内引擎不会据此限制脚本访问
     /// </summary>
     public bool AllowNetworkAccess { get; set; } = true;
 
     /// <summary>
-    /// 是否允许反射访问
+    /// 反射权限声明；当前进程内引擎不会据此限制脚本访问
     /// </summary>
     public bool AllowReflectionAccess { get; set; } = true;
 
     /// <summary>
-    /// 是否允许进程操作
+    /// 进程操作权限声明；当前进程内引擎不会据此限制脚本访问
     /// </summary>
     public bool AllowProcessOperations { get; set; }
 
     /// <summary>
-    /// 是否允许注册表访问
+    /// 注册表权限声明；当前进程内引擎不会据此限制脚本访问
     /// </summary>
     public bool AllowRegistryAccess { get; set; }
 
     /// <summary>
-    /// 是否允许环境变量访问
+    /// 环境变量权限声明；当前进程内引擎不会据此限制脚本访问
     /// </summary>
     public bool AllowEnvironmentAccess { get; set; } = true;
 
@@ -88,7 +88,7 @@ public class SecurityOptions
     ];
 
     /// <summary>
-    /// 创建严格安全配置
+    /// 创建拒绝进程内执行的严格配置
     /// </summary>
     /// <returns>严格安全配置实例</returns>
     public static SecurityOptions Strict()
@@ -109,7 +109,7 @@ public class SecurityOptions
     }
 
     /// <summary>
-    /// 创建宽松安全配置
+    /// 创建供受信任脚本使用的宽松检查配置；不提供运行时隔离
     /// </summary>
     /// <returns>宽松安全配置实例</returns>
     public static SecurityOptions Permissive()
