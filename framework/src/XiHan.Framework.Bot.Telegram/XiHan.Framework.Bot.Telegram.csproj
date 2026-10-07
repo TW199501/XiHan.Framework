@@ -18,6 +18,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="XiHan.Framework.Bot.Telegram.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
     </ItemGroup>
 
