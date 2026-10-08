@@ -1,0 +1,24 @@
+framework/src/XiHan.Framework.Workflow/README.md
+  s_d91e80be1b5795::t_5bf1c757c43818 16,50,99
+framework/test/XiHan.Framework.Workflow.Tests/BuiltInActivityRegistrationTests.cs
+  s_d91e80be1b5795::t_3808e1dc44231d 1-8,10-43
+  s_d91e80be1b5795::t_a1eae96586eeca 9
+framework/test/XiHan.Framework.Workflow.Tests/ReviewHardeningTests.cs
+  s_d91e80be1b5795::t_ce7e0e529d3cf8 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0597c7d66c7e9e3555f346882f897310052bb662",
+  "prompts": {},
+  "sessions": {
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
