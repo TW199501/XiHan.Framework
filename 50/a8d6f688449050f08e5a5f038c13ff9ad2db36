@@ -1,0 +1,37 @@
+framework/src/XiHan.Framework.AI/Rag/DefaultKnowledgeIngestor.cs
+  s_d91e80be1b5795::t_9c3a135838c4e5 136
+  s_d91e80be1b5795::t_0c49bd6cda8400 51,78,94,100-111,114,128-135,137-148
+  s_d91e80be1b5795::t_398f597c6b4d5c 149-150
+framework/src/XiHan.Framework.AI/Rag/VectorStoreKnowledgeRecord.cs
+  s_d91e80be1b5795::t_9c3a135838c4e5 150
+  s_d91e80be1b5795::t_8c7f8d18ca7185 5,21,106,108-144,146-149
+docs/packages/ai.md
+  s_d91e80be1b5795::t_7f13e830b73d71 100,120,122,296
+framework/test/XiHan.Framework.AI.Abstractions.Tests/Rag/IKnowledgeIngestorTests.cs
+  s_d91e80be1b5795::t_e352ace9beac60 107-108,127-139,142
+  s_d91e80be1b5795::t_0e64a7c68ca619 56,67,71,74,109,115,119-120,122-126,140,143-151,201-205,225,229,234-252,254
+  s_d91e80be1b5795::t_9c201f9a51bd10 141
+  s_d91e80be1b5795::t_a53e96a7d8cb05 253
+framework/test/XiHan.Framework.AI.Tests/VectorStoreKnowledgeRecordTests.cs
+  s_d91e80be1b5795::t_88963f3f5a7251 5-6,101-102
+  s_d91e80be1b5795::t_c2ead084e8080c 84-100,103-104
+  s_d91e80be1b5795::t_cdc8606c022790 83
+framework/src/XiHan.Framework.AI.Abstractions/Rag/IKnowledgeIngestor.cs
+  s_d91e80be1b5795::t_39f1c60c67afaf 17,19-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "50a8d6f688449050f08e5a5f038c13ff9ad2db36",
+  "prompts": {},
+  "sessions": {
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
