@@ -1,0 +1,33 @@
+framework/test/XiHan.Framework.Utils.Tests/Net/SseClientTests.cs
+  s_d91e80be1b5795::t_14eeadb80db17d 1-15,17,23-26,28-48,78-80,84,86-100,110,152-153
+  s_d91e80be1b5795::t_6b8aa6d12e22cf 85,104
+  s_d91e80be1b5795::t_0d9adfbc870f0a 16,18-22,27,49-77,81-83,101-103,105-109,111-151
+docs/packages/utils.md
+  s_d91e80be1b5795::t_d6ad07fcaff5bc 389
+docs/changelog.md
+  s_d91e80be1b5795::t_d6ad07fcaff5bc 5-8
+framework/src/XiHan.Framework.Utils/Net/Sse/SseClientOptions.cs
+  s_d91e80be1b5795::t_14eeadb80db17d 21-30
+framework/src/XiHan.Framework.Utils/Net/Sse/SseLineReader.cs
+  s_d91e80be1b5795::t_3e1511de850c7b 1-67,73-81
+  s_d91e80be1b5795::t_685b8c9684abd6 68-72
+framework/src/XiHan.Framework.Utils/Net/Sse/SseClient.cs
+  s_d91e80be1b5795::t_0d9adfbc870f0a 142
+  s_d91e80be1b5795::t_3e1511de850c7b 130-139,147-148,151,159,163-168,170,172,174,176,178,180,182,184,190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5c7d411a543f324575fc98fa20223a6b1c0c1e82",
+  "prompts": {},
+  "sessions": {
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
