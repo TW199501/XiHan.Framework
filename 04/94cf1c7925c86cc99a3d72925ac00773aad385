@@ -1,0 +1,27 @@
+framework/src/XiHan.Framework.ObjectStorage/Providers/LocalFileStorageProvider.cs
+  s_d91e80be1b5795::t_24b6fe8bf0f600 592
+  s_d91e80be1b5795::t_d034d8d3cc65e3 95,98-111,149-155,172-173,176-188,197-198,220,225-228,248-266,272,274-290,594-599,603,605-606,627-640,642,654
+  s_d91e80be1b5795::t_de471665a5d44a 591
+  s_d91e80be1b5795::t_744b804467d17a 593
+framework/test/XiHan.Framework.ObjectStorage.Tests/Providers/LocalFileStorageProviderChunkConcurrencyTests.cs
+  s_d91e80be1b5795::t_ea4c40e884c20c 77-78,82-127
+  s_d91e80be1b5795::t_24e437476d2e61 1-76,79-81,128-140
+framework/src/XiHan.Framework.ObjectStorage/README.md
+  s_d91e80be1b5795::t_e6c1f4cc6f29e9 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0494cf1c7925c86cc99a3d72925ac00773aad385",
+  "prompts": {},
+  "sessions": {
+    "s_d91e80be1b5795": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1173c-845e-7cf0-89c8-697cc198956f",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
