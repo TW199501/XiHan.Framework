@@ -1,0 +1,21 @@
+docs/packages/index.md
+  s_0ca76198232bec::t_9ff4e55cf27e17 115
+docs/packages/workflow.md
+  s_0ca76198232bec::t_f0f0e73c1be667 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ac089a168e9dbb51b26283b221ab36a280f36b41",
+  "prompts": {},
+  "sessions": {
+    "s_0ca76198232bec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "74ccb6f6-484c-476a-a848-22ac2dd47537",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
