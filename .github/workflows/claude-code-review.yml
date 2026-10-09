@@ -65,4 +65,7 @@ jobs:
             - 代码规范：所有 C# 文件须有标准两行文件头，XML 文档与注释使用简体中文。
 
             不要评论纯格式、命名偏好或已存在且本 PR 未触及的问题。最后使用 gh pr comment 留一则简短总评。
-          claude_args: "--max-turns 5 --model claude-sonnet-4-6"
+          claude_args: >-
+            --max-turns 20
+            --model claude-sonnet-4-6
+            --allowedTools "Read,Grep,Glob,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*)"
