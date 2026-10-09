@@ -1,0 +1,26 @@
+docs/guide/workflow.md
+  s_e231a672f207b9::t_caff03219a973a 30
+  s_e231a672f207b9::t_c043c99140efe4 229-238
+  s_e231a672f207b9::t_1e4d35b4a4309b 206
+framework/src/XiHan.Framework.Workflow/Activities/BuiltIn/ScriptActivity.cs
+  s_e231a672f207b9::t_5cb937473a8192 20-24
+docs/packages/workflow.md
+  s_e231a672f207b9::t_752433983010de 114
+  s_e231a672f207b9::t_0528d219bf7ea3 52-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ee90502c60d7a492b3efe494ed68b03b62b2808",
+  "prompts": {},
+  "sessions": {
+    "s_e231a672f207b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "45b7dd45-7567-4e70-a3e9-9ae4623b7fc5",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
