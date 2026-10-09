@@ -1,6 +1,6 @@
 # XiHan.Framework.Workflow
 
-> 工作流引擎：图执行引擎 + 17 个内置活动 + 人工任务（审批）+ 表达式求值 + 定时器调度 + 内存存储默认实现。
+> 工作流引擎：图执行引擎 + 16 个内置活动（Script 须显式注册） + 人工任务（审批）+ 表达式求值 + 定时器调度 + 内存存储默认实现。
 
 - **NuGet**：`XiHan.Framework.Workflow`
 - **模块类**：`XiHanWorkflowModule`
