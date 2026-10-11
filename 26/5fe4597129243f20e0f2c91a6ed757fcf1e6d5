@@ -1,0 +1,23 @@
+docs/packages/caching.md
+  s_a0e9edd27fa81e::t_52b6cb43377a9e 132-133
+framework/src/XiHan.Framework.Caching/Distributed/RedisDelayQueueExtensions.cs
+  s_a0e9edd27fa81e::t_0e8265350c2122 36-38,58,60,66-71,79-84,92,133-146
+framework/test/XiHan.Framework.Caching.Tests/Distributed/RedisDelayQueueExtensionsTests.cs
+  s_a0e9edd27fa81e::t_6d0c62b3e74228 139-228,323-352
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "265fe4597129243f20e0f2c91a6ed757fcf1e6d5",
+  "prompts": {},
+  "sessions": {
+    "s_a0e9edd27fa81e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4e655458-bf94-4218-a6de-f0132525b7ab",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
