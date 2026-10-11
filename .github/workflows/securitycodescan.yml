@@ -42,7 +42,7 @@ jobs:
           cat > Directory.Build.props <<'EOF'
           <Project>
             <PropertyGroup>
-              <ErrorLog>analysis.sarif</ErrorLog>
+              <ErrorLog>analysis.sarif,version=2.1</ErrorLog>
               <AdditionalFileItemNames>$(AdditionalFileItemNames);Content</AdditionalFileItemNames>
             </PropertyGroup>
             <ItemGroup>
@@ -57,11 +57,27 @@ jobs:
       - name: Build
         run: dotnet build framework/XiHan.Framework.slnx -c Release --no-restore -p:GeneratePackageOnBuild=false
 
-      # Sarif.Multitool 2.3.10 以 .NET Core 3.1 为目标，允许其前滚到 runner 上的新版运行时
-      - name: Convert sarif for uploading to GitHub
-        uses: security-code-scan/security-code-scan-results-action@cdb3d5e639054395e45bf401cba8688fcaf7a687
-        env:
-          DOTNET_ROLL_FORWARD: Major
+      # 合并各项目的 SARIF，只保留 SCS 规则与结果，输出为单个 run
+      - name: Merge sarif
+        shell: bash
+        run: |
+          mkdir -p scs-results
+          find framework -name analysis.sarif -print0 | xargs -0 jq -s '{
+            "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+            version: "2.1.0",
+            runs: [{
+              tool: { driver: {
+                name: "SecurityCodeScan",
+                informationUri: "https://security-code-scan.github.io",
+                rules: ([.[].runs[].tool.driver.rules // [] | .[] | select(.id | startswith("SCS"))] | unique_by(.id))
+              } },
+              results: [.[].runs[].results // [] | .[] | select(.ruleId | startswith("SCS")) | del(.ruleIndex)]
+            }]
+          }' > scs-results/scs.sarif
+          jq '.runs[0].results | length' scs-results/scs.sarif
 
       - name: Upload sarif
         uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: scs-results/scs.sarif
+          category: securitycodescan
