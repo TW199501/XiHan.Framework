@@ -1,0 +1,25 @@
+docs/guide/workflow.md
+  s_4b765e3a880b50::t_c18f9cfddee467 30,206,229-238
+docs/packages/index.md
+  s_4b765e3a880b50::t_2c93020639355e 115
+docs/packages/workflow.md
+  s_4b765e3a880b50::t_e9f797e1c2af99 3,52-56,114
+framework/src/XiHan.Framework.Workflow/Activities/BuiltIn/ScriptActivity.cs
+  s_4b765e3a880b50::t_0583b7060e3719 20-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8a85e8f39bd8e143ba6f589a466356af25f434ea",
+  "prompts": {},
+  "sessions": {
+    "s_4b765e3a880b50": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd0d9eb2-e8ec-4db4-8a66-dbd537311233",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
