@@ -1,0 +1,32 @@
+framework/src/XiHan.Framework.Utils/CommandLine/ScriptExecutor.cs
+  s_4b765e3a880b50::t_e3d728e363b6d9 18
+  s_4b765e3a880b50::t_faae8000e03621 101-140
+  s_4b765e3a880b50::t_92e6d24c2cd940 48
+  s_5e0c72d696464a::t_353c1259482473 100
+framework/test/XiHan.Framework.Utils.Tests/CommandLine/ScriptExecutorTests.cs
+  s_4b765e3a880b50::t_1515eb1cd43dac 1-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cc9fb70148154b5dfc0c1ba1727e023c3aeb9490",
+  "prompts": {},
+  "sessions": {
+    "s_4b765e3a880b50": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd0d9eb2-e8ec-4db4-8a66-dbd537311233",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    },
+    "s_5e0c72d696464a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb50a7ad-34ff-4ddc-84b9-bc515c92f51b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
