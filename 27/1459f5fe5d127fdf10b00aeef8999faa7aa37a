@@ -1,0 +1,20 @@
+.github/workflows/securitycodescan.yml
+  s_4b765e3a880b50::t_508e8769edb862 45
+  s_4b765e3a880b50::t_20df359f8e9258 60-77,81-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "271459f5fe5d127fdf10b00aeef8999faa7aa37a",
+  "prompts": {},
+  "sessions": {
+    "s_4b765e3a880b50": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd0d9eb2-e8ec-4db4-8a66-dbd537311233",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
