@@ -1,0 +1,19 @@
+framework/test/XiHan.Framework.AI.Tests/KnowledgeTenantIsolationTests.cs
+  s_4b765e3a880b50::t_bafe010282931b 1-320
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "921596b00a8026c2c9b79f33ec04361bc12e2a78",
+  "prompts": {},
+  "sessions": {
+    "s_4b765e3a880b50": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd0d9eb2-e8ec-4db4-8a66-dbd537311233",
+        "model": "unknown"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
