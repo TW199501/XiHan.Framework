@@ -57,8 +57,11 @@ jobs:
       - name: Build
         run: dotnet build framework/XiHan.Framework.slnx -c Release --no-restore -p:GeneratePackageOnBuild=false
 
+      # Sarif.Multitool 2.3.10 以 .NET Core 3.1 为目标，允许其前滚到 runner 上的新版运行时
       - name: Convert sarif for uploading to GitHub
         uses: security-code-scan/security-code-scan-results-action@cdb3d5e639054395e45bf401cba8688fcaf7a687
+        env:
+          DOTNET_ROLL_FORWARD: Major
 
       - name: Upload sarif
         uses: github/codeql-action/upload-sarif@v3
