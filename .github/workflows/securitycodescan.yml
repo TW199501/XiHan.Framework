@@ -17,22 +17,45 @@ on:
   schedule:
     - cron: '22 14 * * 0'
 
+permissions:
+  contents: read
+
 jobs:
   SCS:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: nuget/setup-nuget@04b0c2b8d1b97922f67eca497d7cf0bf17b8ffe1
-      - uses: microsoft/setup-msbuild@v1.0.2
+      - uses: actions/checkout@v7
 
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # 生成仓库根的 Directory.Build.props，为所有项目接入 SecurityCodeScan 分析器并输出 SARIF
       - name: Set up projects for analysis
-        uses: security-code-scan/security-code-scan-add-action@f8ff4f2763ed6f229eded80b1f9af82ae7f32a0d
+        shell: bash
+        run: |
+          cat > Directory.Build.props <<'EOF'
+          <Project>
+            <PropertyGroup>
+              <ErrorLog>analysis.sarif</ErrorLog>
+              <AdditionalFileItemNames>$(AdditionalFileItemNames);Content</AdditionalFileItemNames>
+            </PropertyGroup>
+            <ItemGroup>
+              <PackageReference Include="SecurityCodeScan.VS2019" Version="5.6.7" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+            </ItemGroup>
+          </Project>
+          EOF
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore framework/XiHan.Framework.slnx
 
       - name: Build
-        run: dotnet build --no-restore
+        run: dotnet build framework/XiHan.Framework.slnx -c Release --no-restore -p:GeneratePackageOnBuild=false
 
       - name: Convert sarif for uploading to GitHub
         uses: security-code-scan/security-code-scan-results-action@cdb3d5e639054395e45bf401cba8688fcaf7a687
