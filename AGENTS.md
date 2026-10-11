@@ -151,6 +151,7 @@ XiHan.Framework 是面向 .NET 10 的模块化应用框架。仓库以分层模�
 - 除以下 fork 专属文件与等待上游处理的框架修复外，`dev` 合入上游后与 `upstream/main` 一致；同步上游与清理时保留这些文件，不送上游：
     - `.coderabbit.yaml`：CodeRabbit 也审查以 `dev` 为目标的 PR。
     - `.github/workflows/claude-code-review.yml`、`.github/workflows/claude.yml`：PR 自动审查与 `@claude` 响应，未配置 `CLAUDE_CODE_OAUTH_TOKEN` 时跳过。
+    - `.github/workflows/codeql.yml`、`.github/workflows/securitycodescan.yml`：CodeQL 与 SecurityCodeScan 安全扫描，结果上传到 fork 的 Code Scanning。
     - `AGENTS.md` 的本节。
     - `CLAUDE.md`：只有一行 `@AGENTS.md`。
 - 把上游合进 `dev` 遇到冲突时：`AGENTS.md` 采用上游版本，再把本节原样放回「禁止事项」之前；其余 fork 专属文件保留 fork 版本；清单以外的文件采用上游版本。
