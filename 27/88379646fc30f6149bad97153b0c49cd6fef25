@@ -1,0 +1,19 @@
+AGENTS.md
+  s_4b765e3a880b50::t_eeb907c41c2809 154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2788379646fc30f6149bad97153b0c49cd6fef25",
+  "prompts": {},
+  "sessions": {
+    "s_4b765e3a880b50": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd0d9eb2-e8ec-4db4-8a66-dbd537311233",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
