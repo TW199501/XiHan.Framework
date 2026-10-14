@@ -19,6 +19,7 @@
 		     高危漏洞 CVE-2025-6965（GHSA-2m69-gcr7-jv3q，2.1.12 起修复）。
 		     最近获胜原则把整条链抬到 2.1.13，上游升级后可移除本行。 -->
 		<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
 	</ItemGroup>
 
 	<ItemGroup>
