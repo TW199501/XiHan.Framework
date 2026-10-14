@@ -142,9 +142,10 @@ XiHan.Framework 是面向 .NET 10 的模块化应用框架。仓库以分层模�
 
 本节只适用于 fork `TW199501/XiHan.Framework`（上游为 `XiHanFun/XiHan.Framework`），不提交给上游。完整规范见 Linear 团队文档「XiHan.Framework 分支與 PR 協作規範」：https://linear.app/elf-express/document/xihanframework-分支與-pr-協作規範-781798889edc
 
-- 远程：`origin` 是 fork，`upstream` 是上游作者的仓库。`main` 只镜像 `upstream/main`，绝不在上面提交；`dev` 是团队整合线，也是开分支的起点。
+- 本 fork 属团队分支规范的「第 1 种：贡献型 fork」，动手前先读根目录 `BRANCHING.md`，依 elf-team-rule 规范操作分支。
+- 远程：`origin` 是 fork，`upstream` 是上游作者的仓库。`main` 只镜像 `upstream/main`，绝不在上面提交；`dev` 是团队整合线，也是开分支的起点；`release` 是唯一稳定版，只从测过的 `origin/dev` 快转，不提交、不 force push，对下游发布一律以它为来源。
 - 每日开工先同步：`git fetch upstream`，`main` 以 `git merge --ff-only upstream/main` 前进并推到 `origin`；上游有新提交时把 `main` 合进 `dev`，验证通过后推送。
-- 工作分支从 `dev` 开，命名为 `<前缀>/[e-<Linear编号>-]<英文短名>`，前缀用 `feat/`、`bug/`、`docs/`、`chore/`、`test/`；不用中文，不用个人前缀。worktree 放在仓库同层 `../XiHan.Framework-<短名>`，不要开在仓库目录里面。
+- 工作分支从 `dev` 开，命名为 `<前缀>/[e-<Linear编号>-]<英文短名>`，前缀用 `feat/`、`fix/`、`docs/`、`chore/`、`test/`；不用中文，不用个人前缀。worktree 放在仓库同层 `../XiHan.Framework-<短名>`，不要开在仓库目录里面。
 - 进 `dev` 一律经 fork PR：`gh pr create --repo TW199501/XiHan.Framework --base dev`，fork CI 通过并经维护者审查核准后以 merge commit 合并。**代理不得自行合并或推送 `dev`**，例外只有上述每日同步与上游合并后的同步。
 - 送上游：只送维护者在 fork PR 标注「送上游」的项目。从 `upstream/main` 开 `pr/<短名>`，并立刻执行 `git config branch.pr/<短名>.pushRemote origin`，否则 `git push` 会推到作者的仓库；只 cherry-pick 该主题的提交，不改模块总数等全局计数，一个 PR 只做一件事。不要把整个 `dev` 开 PR 给上游。
 - 上游审查意见在 `pr/` 分支修改，同一修正另开分支经 fork PR 带回 `dev`；上游合并后同步 `main` 并合进 `dev`，删除 `pr/` 分支与 worktree。
@@ -152,9 +153,10 @@ XiHan.Framework 是面向 .NET 10 的模块化应用框架。仓库以分层模�
     - `.coderabbit.yaml`：CodeRabbit 也审查以 `dev` 为目标的 PR。
     - `.github/workflows/claude-code-review.yml`、`.github/workflows/claude.yml`：PR 自动审查与 `@claude` 响应，未配置 `CLAUDE_CODE_OAUTH_TOKEN` 时跳过。
     - `.github/workflows/codeql.yml`、`.github/workflows/securitycodescan.yml`：CodeQL 与 SecurityCodeScan 安全扫描，结果上传到 fork 的 Code Scanning。
+    - `BRANCHING.md`：本 fork 的分支规范（第 1 种：贡献型 fork）。
     - `AGENTS.md` 的本节。
     - `CLAUDE.md`：只有一行 `@AGENTS.md`。
-- 把上游合进 `dev` 遇到冲突时：`AGENTS.md` 采用上游版本，再把本节原样放回「禁止事项」之前；其余 fork 专属文件保留 fork 版本；清单以外的文件采用上游版本。
+- 把上游合进 `dev` 遇到冲突时，先回报维护者，同意后在 `merge/conflict-<YYYYMMDD>` 分支解决并经 PR 合回 `dev`；解决原则：`AGENTS.md` 采用上游版本，再把本节原样放回「禁止事项」之前；其余 fork 专属文件保留 fork 版本；清单以外的文件采用上游版本。
 - `main` 始终只镜像 `upstream/main`；`dev` 是团队开发线。框架缺陷修复经 fork PR 合进 `dev`，再按上面「送上游」流程交作者决定是否采纳。应用层实现写在 XiHan.BasicApp。出现上述清单与待上游修复以外的差异时，先确认归属再决定移除或补进清单。
 - 本地工具产物（`.superpowers/`、`.codegraph/`、`.claude/`、`.qwen/`、`.orca*/`）放在 `.git/info/exclude`，不要提交。
 - 维护者的本机私人规则在仓库外的 `../Linear.rule.md`（相对仓库根目录；主仓库与同层 worktree 都适用）。该文件存在时，开始工作前先读并遵守；与本文件冲突时以本文件为准。
