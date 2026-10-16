@@ -1,0 +1,173 @@
+.github/workflows/release.yml
+  s_4b765e3a880b50::t_d3b87a69e27ca5 4,90
+docs/.vitepress/config.ts
+  s_4b765e3a880b50::t_f9540273e43e86 1,3,10-14,87-96,251,258,272-279,321,329-334
+docs/ai/agents.md
+  s_4b765e3a880b50::t_de4bb19e67391e 1-87
+docs/ai/cli.md
+  s_4b765e3a880b50::t_76417c9c9d470c 1-90
+docs/ai/llms.md
+  s_4b765e3a880b50::t_4403838a87105b 1-39
+docs/ai/mcp.md
+  s_4b765e3a880b50::t_be2ea243c62184 1-155
+docs/changelog.md
+  s_4b765e3a880b50::t_5006edc096d631 18-32
+docs/guide/workflow.md
+  s_4b765e3a880b50::t_021a57ce346b57 142,210-211,255-259,263,274-318,363-405
+docs/package.json
+  s_4b765e3a880b50::t_6c871df44fa0b4 3
+docs/quickstart.md
+  s_4b765e3a880b50::t_19b92fa4aac334 10
+framework/XiHan.Framework.slnx
+  s_4b765e3a880b50::t_b216fc32681240 9,103
+framework/props/nuget.props
+  s_4b765e3a880b50::t_1ec03517397d6b 40
+framework/props/test.props
+  s_4b765e3a880b50::t_8e42f5f2453819 17
+framework/props/version.props
+  s_4b765e3a880b50::t_0ed36fa8caadac 5-7
+framework/src/XiHan.Framework.AI.Abstractions/XiHan.Framework.AI.Abstractions.csproj
+  s_4b765e3a880b50::t_d40069c7c23531 17-18
+framework/src/XiHan.Framework.AI/XiHan.Framework.AI.csproj
+  s_4b765e3a880b50::t_86d221df7a7b2d 18-21
+framework/src/XiHan.Framework.Analyzers/XiHan.Framework.Analyzers.csproj
+  s_4b765e3a880b50::t_2360ae9882b4b8 24
+framework/src/XiHan.Framework.Authentication/XiHan.Framework.Authentication.csproj
+  s_4b765e3a880b50::t_5f91bd89663cad 19
+framework/src/XiHan.Framework.Bot.Email/XiHan.Framework.Bot.Email.csproj
+  s_4b765e3a880b50::t_091efeecf5f35c 18-20
+framework/src/XiHan.Framework.Caching/XiHan.Framework.Caching.csproj
+  s_4b765e3a880b50::t_d612fc3832d119 21-22
+framework/src/XiHan.Framework.Core/XiHan.Framework.Core.csproj
+  s_4b765e3a880b50::t_a997e5697dc094 17-18
+framework/src/XiHan.Framework.Data/XiHan.Framework.Data.csproj
+  s_4b765e3a880b50::t_6ad80711818284 25-28
+framework/src/XiHan.Framework.Http/XiHan.Framework.Http.csproj
+  s_4b765e3a880b50::t_a650a66027b203 17
+framework/src/XiHan.Framework.Localization.Abstractions/XiHan.Framework.Localization.Abstractions.csproj
+  s_4b765e3a880b50::t_4031ce76b5c075 17
+framework/src/XiHan.Framework.Observability/XiHan.Framework.Observability.csproj
+  s_4b765e3a880b50::t_baf032c0d75e71 17-18
+framework/src/XiHan.Framework.VirtualFileSystem/XiHan.Framework.VirtualFileSystem.csproj
+  s_4b765e3a880b50::t_635038d18a8f58 17-19
+framework/src/XiHan.Framework.Web.Api/XiHan.Framework.Web.Api.csproj
+  s_4b765e3a880b50::t_256ed7c2e90569 21
+framework/src/XiHan.Framework.Workflow.Abstractions/Activities/ActivityExecutionResult.cs
+  s_4b765e3a880b50::t_9f4453d24b5d67 47-51,68-84
+framework/src/XiHan.Framework.Workflow.Abstractions/Assignees/IWorkflowAssigneeProvider.cs
+  s_4b765e3a880b50::t_a8c1d55ed94bc7 1-34
+framework/src/XiHan.Framework.Workflow.Abstractions/Assignees/IWorkflowAssigneeResolver.cs
+  s_4b765e3a880b50::t_1d1619ad7ec2ca 1-51
+framework/src/XiHan.Framework.Workflow.Abstractions/Assignees/WorkflowAssigneeResolveContext.cs
+  s_4b765e3a880b50::t_f8d538da9a1ab4 1-43
+framework/src/XiHan.Framework.Workflow.Abstractions/Assignees/WorkflowAssigneeRule.cs
+  s_4b765e3a880b50::t_c753686c1de231 1-25
+framework/src/XiHan.Framework.Workflow.Abstractions/Assignees/WorkflowAssigneeRuleTypes.cs
+  s_4b765e3a880b50::t_1fab48cc99c0ca 1-28
+framework/src/XiHan.Framework.Workflow.Abstractions/Engine/IWorkflowEngine.cs
+  s_4b765e3a880b50::t_80956bc53e0cba 82,91
+framework/src/XiHan.Framework.Workflow.Abstractions/Outcomes/IWorkflowOutcomeHandler.cs
+  s_4b765e3a880b50::t_d1a9d281baadcb 1-23
+framework/src/XiHan.Framework.Workflow.Abstractions/Outcomes/WorkflowOutcomeContext.cs
+  s_4b765e3a880b50::t_3a6939c4b73c0f 1-48
+framework/src/XiHan.Framework.Workflow.Abstractions/README.md
+  s_4b765e3a880b50::t_df067a00208592 12-14,22,26-28,64-66,76-78
+framework/src/XiHan.Framework.Workflow.Abstractions/Runtime/WorkflowInstance.cs
+  s_4b765e3a880b50::t_c1b0eb070c5f95 116-120
+framework/src/XiHan.Framework.Workflow.Abstractions/UserTasks/UserTaskEmptyAssigneeStrategy.cs
+  s_4b765e3a880b50::t_336c7e99313969 1-34
+framework/src/XiHan.Framework.Workflow/Activities/BuiltIn/EndActivity.cs
+  s_4b765e3a880b50::t_2e6d507b501e94 4,7,12,14-19,25,29,31-55
+framework/src/XiHan.Framework.Workflow/Activities/BuiltIn/UserTaskActivity.cs
+  s_4b765e3a880b50::t_274c9a5a315003 8,19-24,26-27,49,60-83,88,239-241,244-249,251-279,282-296,299-300,304-328,340-350
+framework/src/XiHan.Framework.Workflow/Assignees/BuiltIn/ExpressionAssigneeProvider.cs
+  s_4b765e3a880b50::t_fc8463956064a7 1-75
+framework/src/XiHan.Framework.Workflow/Assignees/BuiltIn/StarterAssigneeProvider.cs
+  s_4b765e3a880b50::t_a5b8808dd68299 1-42
+framework/src/XiHan.Framework.Workflow/Assignees/BuiltIn/UserAssigneeProvider.cs
+  s_4b765e3a880b50::t_76274b11bd5a87 1-40
+framework/src/XiHan.Framework.Workflow/Assignees/WorkflowAssigneeResolver.cs
+  s_4b765e3a880b50::t_f34e285fd4bdf6 1-149
+framework/src/XiHan.Framework.Workflow/Builders/WorkflowDefinitionBuilder.cs
+  s_4b765e3a880b50::t_d2c51571235043 157-169
+framework/src/XiHan.Framework.Workflow/Builders/WorkflowNodeBuilder.cs
+  s_4b765e3a880b50::t_d2c5203bcd9c75 4,63-83
+framework/src/XiHan.Framework.Workflow/Definitions/WorkflowDefinitionValidator.cs
+  s_4b765e3a880b50::t_2db70e75894bc9 4,7,23,29-30,33,178-185,216-299
+framework/src/XiHan.Framework.Workflow/Engine/WorkflowEngine.cs
+  s_4b765e3a880b50::t_06f116ca445378 721-728,1035-1048,1181-1183,1234-1239,1477-1481
+framework/src/XiHan.Framework.Workflow/Extensions/DependencyInjection/XiHanWorkflowServiceCollectionExtensions.cs
+  s_4b765e3a880b50::t_6436be1fea958e 9,17-18,61,72,74,93-116
+framework/src/XiHan.Framework.Workflow/README.md
+  s_4b765e3a880b50::t_b2b43cc13d85c1 17-18,99-100,116
+framework/src/XiHan.Framework.Workflow/XiHan.Framework.Workflow.csproj
+  s_4b765e3a880b50::t_acb35ec9966813 17
+framework/test/XiHan.Framework.Analyzers.Tests/XiHan.Framework.Analyzers.Tests.csproj
+  s_4b765e3a880b50::t_9c27875b5f6f72 13
+framework/test/XiHan.Framework.Authentication.Tests/XiHan.Framework.Authentication.Tests.csproj
+  s_4b765e3a880b50::t_c633720bef001f 8
+framework/test/XiHan.Framework.Cli.Tests/IntegrationTests.cs
+  s_4b765e3a880b50::t_227b0086882d67 1-194
+framework/test/XiHan.Framework.Cli.Tests/KnowledgeTests.cs
+  s_4b765e3a880b50::t_6d68ef6f2e1b9f 1-96
+framework/test/XiHan.Framework.Cli.Tests/QueriesTests.cs
+  s_4b765e3a880b50::t_e189a5db8a0c24 1-118
+framework/test/XiHan.Framework.Cli.Tests/SourceParserTests.cs
+  s_4b765e3a880b50::t_dfb6a4d6d146e6 1-158
+framework/test/XiHan.Framework.Cli.Tests/XiHan.Framework.Cli.Tests.csproj
+  s_4b765e3a880b50::t_d118429ef4ec2a 1-11
+framework/test/XiHan.Framework.Workflow.Abstractions.Tests/Activities/ActivityExecutionResultTests.cs
+  s_4b765e3a880b50::t_3da90ed4d2d864 32,138-154
+framework/test/XiHan.Framework.Workflow.Abstractions.Tests/Assignees/WorkflowAssigneeRuleTests.cs
+  s_4b765e3a880b50::t_f092295d8bc74c 1-59
+framework/test/XiHan.Framework.Workflow.Abstractions.Tests/Runtime/WorkflowInstanceTests.cs
+  s_4b765e3a880b50::t_47d8b56a5c9824 47
+framework/test/XiHan.Framework.Workflow.Abstractions.Tests/UserTasks/UserTaskEmptyAssigneeStrategyTests.cs
+  s_4b765e3a880b50::t_7bb4330879173a 1-53
+framework/test/XiHan.Framework.Workflow.Tests/AssigneeRuleTests.cs
+  s_4b765e3a880b50::t_f84993a7053815 1-407
+framework/test/XiHan.Framework.Workflow.Tests/LifecycleTests.cs
+  s_4b765e3a880b50::t_128cce6965da68 91-125
+framework/test/XiHan.Framework.Workflow.Tests/OutcomeEndTests.cs
+  s_4b765e3a880b50::t_32cd6e190cc556 1-233
+framework/tool/XiHan.Framework.Cli/CliApp.cs
+  s_4b765e3a880b50::t_8fe8c6628fa0f3 1-293
+framework/tool/XiHan.Framework.Cli/Integration/ProjectDetector.cs
+  s_4b765e3a880b50::t_8c08975c943d5b 1-142
+framework/tool/XiHan.Framework.Cli/Integration/SetupPlanner.cs
+  s_4b765e3a880b50::t_628dd08027eabc 1-194
+framework/tool/XiHan.Framework.Cli/Knowledge/FrameworkKnowledge.cs
+  s_4b765e3a880b50::t_81f8925fdd7bb6 1-220
+framework/tool/XiHan.Framework.Cli/Knowledge/Models.cs
+  s_4b765e3a880b50::t_07ccf2dc610c08 1-124
+framework/tool/XiHan.Framework.Cli/Knowledge/Queries.cs
+  s_4b765e3a880b50::t_e3d5c0babc7b7d 1-353
+framework/tool/XiHan.Framework.Cli/Knowledge/Rendering.cs
+  s_4b765e3a880b50::t_4720728a2a5ac6 1-284
+framework/tool/XiHan.Framework.Cli/Knowledge/SourceParser.cs
+  s_4b765e3a880b50::t_c3a96eef16902f 1-341
+framework/tool/XiHan.Framework.Cli/Mcp/McpHost.cs
+  s_4b765e3a880b50::t_2e09e46adf6a44 1-154
+framework/tool/XiHan.Framework.Cli/Program.cs
+  s_4b765e3a880b50::t_9ae278bfb8f2fb 1-15
+framework/tool/XiHan.Framework.Cli/XiHan.Framework.Cli.csproj
+  s_4b765e3a880b50::t_db6d6cd4e702b3 1-52
+framework/tool/XiHan.Framework.Cli/skills/xihan-framework/SKILL.md
+  s_4b765e3a880b50::t_dbe4bb284fac5a 1-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "307ef2de0269c4b103bb1233c1740a937b4e1371",
+  "prompts": {},
+  "sessions": {
+    "s_4b765e3a880b50": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cd0d9eb2-e8ec-4db4-8a66-dbd537311233",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "楊清雲 <41539966+TW199501@users.noreply.github.com>"
+    }
+  }
+}
