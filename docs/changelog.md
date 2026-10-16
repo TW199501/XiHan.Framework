@@ -2,18 +2,20 @@
 
 本文件记录 XiHan.Framework 各版本的变更。每条标注 **新增 / 修复 / 优化 / 调整 / 升级 / 移除** 类别。只收录使用者可感知的变更，仓库自身的配置、CI、测试工程与构建脚本不列入。框架以 NuGet 包形式发布，升级前请留意「调整」类中的破坏性变更。
 
-## 未发布
+## v4.7.0 (2026-10-15)
 
 ::: warning 升级须知
-多实例启用 OpenAPI 防重放时，需注册具备跨实例原子认领语义的 `IOpenApiReplayNonceStore`；默认本地实现只覆盖单进程。
-自定义 `IRefreshTokenStore` 实现需新增 `TryConsume`，并保证跨并发调用原子校验与消费；分布式实现必须在共享存储层完成原子操作。
+- 人工任务同时配置 `Assignees` 与 `AssigneesExpression` 时改为合并去重，此前只取 `Assignees`
+- `WorkflowInstance` 新增 `Outcome`，自行持久化工作流实例的存储需一并保存该字段
 :::
 
-- **新增** `SseClientOptions.MaxLineBytes` / `MaxEventBytes`：SSE 客户端默认限制单行 64 KiB、单事件 1 MiB；需要接收更大数据时可按服务端契约调高上限
-- **修复** OpenAPI 防重放改为验签成功后才认领 nonce，并为默认本地存储增加容量上限；多实例部署需注册具备跨实例原子认领语义的 `IOpenApiReplayNonceStore`，不能依赖普通 `IDistributedCache` 的 Get/Set 组合
-- **修复** JWT 刷新令牌在存储层原子校验并消费，同一刷新令牌并发请求最多签发一次后继令牌；自定义 `IRefreshTokenStore` 实现需补充原子 `TryConsume`
-- **修复** OIDC 自动创建签名密钥先完整写入临时文件再原子发布；共享密钥路径的并发实例读取同一把密钥
-- **修复** 默认进程内分布式锁的过期清扫按锁条目条件删除，避免误删已续期或被接管的锁；并发新增资源键时仍限制在 10,000 条以内
+- **新增** 工作流人工任务受理人规则 `AssigneeRules`（`{ type, values }`）与 `IWorkflowAssigneeProvider` 注册表：内置 `User` / `Starter` / `Expression`，角色、部门、上级主管等由应用注册解析器；新增 `ExcludeStarter`（跳过发起人）、`EmptyAssigneeStrategy`（找不到受理人时报错 / 自动通过 / 自动驳回 / 转交兜底受理人）、`FallbackAssigneeRules` 与 `CcRules`
+- **新增** 结束节点可声明 `Outcome`：执行时同步调用 `IWorkflowOutcomeHandler` 回写业务并立即结束整个实例，结果写入 `WorkflowInstance.Outcome`；回调失败时实例进入故障态，重试时再次回调。构建器新增 `WithAssigneeRule`、`AddOutcomeEnd`
+- **新增** 故障实例可直接取消或终止，不必先重试成功
+- **新增** `XiHan.Framework.Cli`（.NET 工具，命令 `xihan-framework`）：包、模块、配置节与文档的离线知识库，提供 `list` / `info` / `doc` / `config` / `search` / `changelog` 命令与 stdio MCP 服务端；`setup` 为 Claude Code、Cursor、VS Code 写入钉住版本的 MCP 配置与使用技能
+- **新增** 文档站新增「AI 辅助开发」一册：For Agents、MCP Server、CLI、LLMs.txt
+- **修复** 传递依赖 `System.Security.Cryptography.Pkcs` 的高危漏洞 CVE-2026-84008 与中危漏洞 CVE-2026-70162：`XiHan.Framework.Data`（经 SqlSugarCore → Oracle.ManagedDataAccess.Core）与 `XiHan.Framework.Bot.Email`（经 MailKit → MimeKit）钉到 10.0.13
+- **升级** .NET 运行库随 10.0.13 补丁更新，Microsoft.Extensions.AI 升至 10.11.0、Microsoft Agent Framework 升至 1.25.0，发布 v4.7.0
 
 ## v4.6.2 (2026-10-13)
 
